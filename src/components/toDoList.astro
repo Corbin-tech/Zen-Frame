@@ -1,0 +1,116 @@
+---
+---
+
+<script is:inline>
+    function todoList() {
+        return {
+            newTask: '',
+            
+            init() {
+                this.$watch('$store.todos.items', (value) => {
+                    this.$nextTick(() => {
+                        // Any additional initialization if needed
+                    });
+                });
+            },
+            
+            addTask() {
+                if (this.newTask.trim()) {
+                    this.$store.todos.addTodo(this.newTask.trim());
+                    this.newTask = '';
+                }
+            },
+            
+            toggleTask(id) {
+                this.$store.todos.toggleTodo(id);
+            },
+            
+            deleteTask(id) {
+                this.$store.todos.deleteTodo(id);
+            },
+            
+            deleteCompleted() {
+                this.$store.todos.deleteCompleted();
+            }
+        }
+    }
+</script>
+
+<div
+    x-data="todoList()"
+    x-init="init()"
+    x-cloak
+    class="max-w-2xl mx-auto p-6 bg-white dark:bg-slate-800 rounded-lg shadow-lg"
+>
+    <div class="mb-8">
+        <h1 class="text-4xl font-bold text-center mb-8 text-gray-800 dark:text-white">To Do List</h1>
+        
+        <form 
+            @submit.prevent="addTask"
+            class="flex gap-2 mb-4"
+        >
+            <div class="flex-1">
+                <label for="newTaskInput" class="sr-only">New Task</label>
+                <input
+                    id="newTaskInput"
+                    name="newTask"
+                    type="text"
+                    x-model="newTask"
+                    placeholder="Add a new task..."
+                    class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:border-slate-600 dark:text-white"
+                >
+            </div>
+            <button
+                type="submit"
+                class="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-slate-800"
+            >
+                Add
+            </button>
+        </form>
+
+        <div class="flex justify-end mb-4">
+            <button
+                @click="deleteCompleted"
+                x-show="$store.todos.items.some(t => t.completed)"
+                class="px-4 py-2 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-slate-800 transition-all"
+            >
+                Delete Completed
+            </button>
+        </div>
+
+        <template x-if="$store.todos.items.length === 0">
+            <p class="text-center text-gray-500 dark:text-gray-400">No tasks yet. Add one above!</p>
+        </template>
+
+        <ul class="space-y-2" role="list">
+            <template x-for="todo in $store.todos.items" :key="todo.id">
+                <li class="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-700 rounded-lg group">
+                    <div class="flex items-center gap-3 flex-1">
+                        <input
+                            type="checkbox"
+                            :id="'todo-' + todo.id"
+                            :checked="todo.completed"
+                            @change="toggleTask(todo.id)"
+                            class="w-5 h-5 text-blue-600 rounded focus:ring-blue-500 dark:bg-slate-600 dark:border-slate-500"
+                        >
+                        <label
+                            :for="'todo-' + todo.id"
+                            x-text="todo.todo"
+                            :class="{ 'line-through text-gray-400 dark:text-gray-500': todo.completed }"
+                            class="text-gray-800 dark:text-white cursor-pointer"
+                        ></label>
+                    </div>
+                    <button
+                        @click="deleteTask(todo.id)"
+                        :aria-label="'Delete task: ' + todo.todo"
+                        class="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 focus:outline-none transition-opacity"
+                    >
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </li>
+            </template>
+        </ul>
+    </div>
+</div>

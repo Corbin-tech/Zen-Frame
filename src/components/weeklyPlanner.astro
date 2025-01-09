@@ -1,0 +1,244 @@
+---
+---
+
+<script is:inline>
+    function weeklyPlanner() {
+        return {
+            weekDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+            currentWeek: new Date(),
+            selectedTasks: [],
+            activeDropdown: null,
+            
+            init() {
+                this.$watch('$store.todos.items', (value) => {
+                    this.getDayTasks();
+                });
+                
+                this.$watch('$store.weeklyTasks.tasks', (value) => {
+                    this.getDayTasks();
+                });
+            },
+
+            get availableTodos() {
+                return this.$store.todos.items.filter(todo => !this.isTaskAssignedToAnyDay(todo.id));
+            },
+
+            isTaskAssignedToAnyDay(taskId) {
+                return Object.values(this.$store.weeklyTasks.tasks).some(dayTasks => 
+                    dayTasks.includes(String(taskId))
+                );
+            },
+
+            addTasksToDay(day) {
+                if (this.selectedTasks.length === 0) return;
+                
+                this.selectedTasks.forEach(taskId => {
+                    this.$store.weeklyTasks.addTaskToDay(day, String(taskId));
+                });
+                
+                this.selectedTasks = [];
+                this.activeDropdown = null;
+            },
+
+            removeTaskFromDay(day, taskId) {
+                this.$store.weeklyTasks.removeTaskFromDay(day, String(taskId));
+            },
+
+            getDayTasks(day) {
+                const dayTaskIds = this.$store.weeklyTasks.tasks[day] || [];
+                return dayTaskIds
+                    .map(taskId => this.$store.todos.items.find(t => String(t.id) === taskId))
+                    .filter(task => task);
+            },
+
+            previousWeek() {
+                this.currentWeek = new Date(this.currentWeek.getTime() - 7 * 24 * 60 * 60 * 1000);
+            },
+
+            nextWeek() {
+                this.currentWeek = new Date(this.currentWeek.getTime() + 7 * 24 * 60 * 60 * 1000);
+            },
+
+            getDayDate(index) {
+                const date = new Date(this.currentWeek);
+                date.setDate(date.getDate() - date.getDay() + index + 1);
+                return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            }
+        }
+    }
+</script>
+
+<style>
+    [x-cloak] { 
+        display: none !important; 
+    }
+    
+    .dropdown-enter {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    
+    .dropdown-enter-active {
+        opacity: 1;
+        transform: scale(1);
+        transition: opacity 150ms ease-out, transform 150ms ease-out;
+    }
+    
+    .dropdown-leave {
+        opacity: 1;
+        transform: scale(1);
+    }
+    
+    .dropdown-leave-active {
+        opacity: 0;
+        transform: scale(0.95);
+        transition: opacity 150ms ease-in, transform 150ms ease-in;
+    }
+</style>
+
+<div
+    id="weekly-planner"
+    role="region"
+    aria-label="Weekly Task Planner"
+    x-data="weeklyPlanner()"
+    x-init="init()"
+    @click.away="activeDropdown = null"
+    @keydown.escape.window="activeDropdown = null"
+    x-cloak
+    class="max-w-7xl mx-auto p-6 bg-white dark:bg-slate-800 rounded-lg shadow-lg"
+>
+    <!-- Week Navigation and Header -->
+    <div class="flex justify-between items-center mb-6">
+        <!-- Previous Week Button -->
+        <button 
+            @click="previousWeek"
+            class="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 focus:outline-none"
+        >
+            <span class="sr-only">Previous week</span>
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+            </svg>
+        </button>
+
+        <!-- Week Display -->
+        <h2 class="text-4xl font-bold text-center text-gray-800 dark:text-white">Weekly Planner</h2>
+
+        <!-- Next Week Button -->
+        <button 
+            @click="nextWeek"
+            class="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 focus:outline-none"
+        >
+            <span class="sr-only">Next week</span>
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+        </button>
+    </div>
+
+    <!-- Weekly Grid -->
+    <div class="grid grid-cols-7 gap-4">
+        <template x-for="(day, index) in weekDays" :key="day">
+            <!-- Daily Column -->
+            <div class="flex flex-col">
+                <!-- Day Header -->
+                <div class="text-center mb-2">
+                    <h3 x-text="day" class="font-medium text-gray-800 dark:text-white"></h3>
+                    <p x-text="getDayDate(index)" class="text-sm text-gray-600 dark:text-gray-400"></p>
+                </div>
+
+                <!-- Tasks Container -->
+                <div class="flex flex-col h-full bg-gray-50 dark:bg-slate-700 rounded p-3">
+                    <!-- Task Addition Controls -->
+                    <div class="relative mb-3">
+                        <!-- Add Task Button -->
+                        <button 
+                            @click="activeDropdown = activeDropdown === day ? null : day"
+                            @mousedown.prevent
+                            class="w-full px-3 py-1.5 text-sm bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors focus:ring-2 focus:ring-blue-300 dark:focus:ring-blue-700 flex items-center justify-center space-x-1"
+                        >
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                            </svg>
+                            <span>Add Tasks</span>
+                        </button>
+
+                        <!-- Dropdown Menu -->
+                        <div
+                            x-show="activeDropdown === day"
+                            @click.outside="if (!$event.target.closest('button')) activeDropdown = null"
+                            x-transition:enter="dropdown-enter"
+                            x-transition:enter-start="dropdown-enter"
+                            x-transition:enter-end="dropdown-enter-active"
+                            x-transition:leave="dropdown-leave"
+                            x-transition:leave-start="dropdown-leave"
+                            x-transition:leave-end="dropdown-leave-active"
+                            class="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-slate-800 rounded-lg shadow-lg z-10 border border-gray-200 dark:border-gray-600"
+                        >
+                            <div class="p-3">
+                                <!-- Dropdown Header -->
+                                <h6 class="mb-3 text-sm font-medium text-gray-900 dark:text-white flex items-center justify-between">
+                                    <span>Add Tasks to <span x-text="day"></span></span>
+                                    <button 
+                                        @click="addTasksToDay(day)"
+                                        class="px-2 py-1 text-xs bg-green-500 hover:bg-green-600 text-white rounded transition-colors"
+                                        x-show="selectedTasks.length > 0"
+                                    >
+                                        Add Selected
+                                    </button>
+                                </h6>
+
+                                <!-- Available Tasks -->
+                                <div class="space-y-2 max-h-48 overflow-y-auto">
+                                    <template x-for="todo in availableTodos" :key="todo.id">
+                                        <label class="flex items-center space-x-2 p-1 hover:bg-gray-50 dark:hover:bg-slate-700 rounded cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                :id="day + '-task-' + todo.id"
+                                                :name="day + '-task-' + todo.id"
+                                                :value="todo.id"
+                                                x-model="selectedTasks"
+                                                class="rounded text-blue-600 focus:ring-blue-500 dark:bg-slate-600 dark:border-slate-500"
+                                            >
+                                            <span 
+                                                x-text="todo.todo"
+                                                class="text-sm text-gray-700 dark:text-gray-300"
+                                            ></span>
+                                        </label>
+                                    </template>
+
+                                    <!-- No Tasks Message -->
+                                    <template x-if="availableTodos.length === 0">
+                                        <p class="text-sm text-gray-500 dark:text-gray-400 text-center py-2">
+                                            No available tasks
+                                        </p>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Task List -->
+                    <div class="flex-grow">
+                        <template x-for="task in getDayTasks(day)" :key="task.id">
+                            <div class="flex items-center justify-between p-2 bg-white dark:bg-slate-600 rounded mb-2 group">
+                                <span
+                                    x-text="task.todo"
+                                    class="text-sm text-gray-800 dark:text-gray-200"
+                                ></span>
+                                <button
+                                    @click="removeTaskFromDay(day, task.id)"
+                                    class="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 transition-opacity"
+                                >
+                                    <span class="sr-only">Remove task</span>
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+        </template>
+    </div>
+</div>

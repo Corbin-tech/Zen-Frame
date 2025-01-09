@@ -1,0 +1,14 @@
+---
+import Layout from '../layouts/Layout.astro';
+import ZenToDoList from '../components/zenToDoList.astro';
+import ZenQuote from '../components/zenQuote.astro';
+---
+
+<Layout title="Zen Mode">
+    <main class="container mx-auto px-4 py-8">
+        <div class="max-w-4xl mx-auto space-y-12">
+            <ZenQuote />
+            <ZenToDoList />
+        </div>
+    </main>
+</Layout>
