@@ -1,20 +1,23 @@
 ---
 import ToDoList from './toDoList.astro';
-import WeeklyPlanner from './weeklyPlanner.astro';
 import PomoTimer from './pomoTimer.astro';
 import ZenToDoList from './zenToDoList.astro';
+import TaskPlanner from './taskPlanner.astro';
 ---
 
 <div 
     x-data="{ 
-        activeTab: localStorage.getItem('activeTab') || 'todo',
+        activeTab: 'todo',
         init() {
-            this.$nextTick(() => {
-                this.$el.removeAttribute('x-cloak');
-            });
-            this.$watch('activeTab', (value) => {
-                localStorage.setItem('activeTab', value);
-            });
+            if (typeof window !== 'undefined') {
+                this.activeTab = localStorage.getItem('activeTab') || 'todo';
+                this.$nextTick(() => {
+                    this.$el.removeAttribute('x-cloak');
+                });
+                this.$watch('activeTab', (value) => {
+                    localStorage.setItem('activeTab', value);
+                });
+            }
         },
         handleTabChange(e) {
             this.activeTab = e.detail.tab;
@@ -29,7 +32,7 @@ import ZenToDoList from './zenToDoList.astro';
         <ul class="flex flex-wrap -mb-px text-sm font-medium text-center text-gray-500 dark:text-gray-400">
             <li class="mr-2">
                 <button 
-                    @click="activeTab = 'todo'; localStorage.setItem('activeTab', 'todo')"
+                    @click="activeTab = 'todo'; if (typeof window !== 'undefined') localStorage.setItem('activeTab', 'todo')"
                     :class="activeTab === 'todo' ? 'border-blue-600 text-blue-600 dark:text-blue-500 dark:border-blue-500' : 'border-transparent hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300'"
                     class="inline-flex items-center justify-center p-4 border-b-2 rounded-t-lg group"
                 >
@@ -41,7 +44,7 @@ import ZenToDoList from './zenToDoList.astro';
             </li>
             <li class="mr-2">
                 <button 
-                    @click="activeTab = 'planner'; localStorage.setItem('activeTab', 'planner')"
+                    @click="activeTab = 'planner'; if (typeof window !== 'undefined') localStorage.setItem('activeTab', 'planner')"
                     :class="activeTab === 'planner' ? 'border-blue-600 text-blue-600 dark:text-blue-500 dark:border-blue-500' : 'border-transparent hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300'"
                     class="inline-flex items-center justify-center p-4 border-b-2 rounded-t-lg group"
                 >
@@ -53,7 +56,7 @@ import ZenToDoList from './zenToDoList.astro';
             </li>
             <li class="mr-2">
                 <button 
-                    @click="activeTab = 'pomodoro'; localStorage.setItem('activeTab', 'pomodoro')"
+                    @click="activeTab = 'pomodoro'; if (typeof window !== 'undefined') localStorage.setItem('activeTab', 'pomodoro')"
                     :class="activeTab === 'pomodoro' ? 'border-blue-600 text-blue-600 dark:text-blue-500 dark:border-blue-500' : 'border-transparent hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300'"
                     class="inline-flex items-center justify-center p-4 border-b-2 rounded-t-lg group"
                 >
@@ -65,7 +68,7 @@ import ZenToDoList from './zenToDoList.astro';
             </li>
             <li class="mr-2">
                 <button 
-                    @click="activeTab = 'zenmode'; localStorage.setItem('activeTab', 'zenmode')"
+                    @click="activeTab = 'zenmode'; if (typeof window !== 'undefined') localStorage.setItem('activeTab', 'zenmode')"
                     :class="activeTab === 'zenmode' ? 'border-blue-600 text-blue-600 dark:text-blue-500 dark:border-blue-500' : 'border-transparent hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300'"
                     class="inline-flex items-center justify-center p-4 border-b-2 rounded-t-lg group"
                 >
@@ -84,7 +87,7 @@ import ZenToDoList from './zenToDoList.astro';
             <ToDoList />
         </div>
         <div x-show="activeTab === 'planner'" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100">
-            <WeeklyPlanner />
+            <TaskPlanner />
         </div>
         <div x-show="activeTab === 'pomodoro'" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100">
             <PomoTimer />

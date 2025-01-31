@@ -1,13 +1,12 @@
 {
   "extends": "astro/tsconfigs/strict",
-  "include": [".astro/types.d.ts", "**/*"],
-  "exclude": ["dist"],
+  "include": [".astro/types.d.ts", "src/**/*", "components/**/*"],
+  "exclude": ["dist", "node_modules"],
   "compilerOptions": {
     "noImplicitAny": false,
-    "jsx": "preserve",
-    "jsxImportSource": "alpinejs",
-    "module": "node16",
-    "moduleResolution": "node16",
+    "strictNullChecks": false,
+    "module": "ESNext",
+    "moduleResolution": "node",
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true
   }

@@ -1,6 +1,8 @@
 ---
 import Nav from '../components/nav.astro';
 import Footer from '../components/footer.astro';
+import DarkModeToggle from '../components/darkModeToggle.astro';
+import '../styles/global.css';
 
 interface Props {
 	title: string;
@@ -9,234 +11,65 @@ interface Props {
 const { title } = Astro.props;
 ---
 
-<!DOCTYPE html>
-<html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width" />
-        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-        <meta name="generator" content={Astro.generator} />
-        <title>{title}</title>
-        
-        <style>
-            [x-cloak] { 
-                display: none !important; 
-            }
-        </style>
-        
-        <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
-        <script is:inline>
-            document.addEventListener('alpine:init', () => {
-                // Todos Store
-                Alpine.store('todos', {
-                    _items: [],
-                    _listeners: [],
+<!doctype html>
+<html lang="en" class="h-full">
+	<head>
+		<script is:inline>
+			(function() {
+				const savedTheme = localStorage.getItem('theme') || 'light';
+				const htmlEl = document.documentElement;
+				htmlEl.classList.toggle('dark', savedTheme === 'dark');
+				htmlEl.setAttribute('data-theme-loaded', '');
+			})();
+		</script>
+		
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width" />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<meta name="generator" content={Astro.generator} />
+		<title>{title}</title>
+		
+		<!-- Initialize theme -->
+		<script>
+			import { initTheme } from '../scripts/initTheme';
+			initTheme();
+		</script>
+		
+		<!-- Initialize stores -->
+		<script>
+			import { initThemeStore } from '../stores/themeStore';
+			import { initStores } from '../stores/todoStore';
 
-                    get items() {
-                        return this._items;
-                    },
-
-                    onChange(callback) {
-                        this._listeners.push(callback);
-                        return () => {
-                            this._listeners = this._listeners.filter(cb => cb !== callback);
-                        };
-                    },
-
-                    _notifyListeners() {
-                        this._listeners.forEach(listener => listener(this._items));
-                    },
-
-                    init() {
-                        const savedTodos = localStorage.getItem('todos');
-                        if (savedTodos) {
-                            try {
-                                this._items = JSON.parse(savedTodos);
-                                this._notifyListeners();
-                            } catch (e) {
-                                console.error('Error loading todos:', e);
-                                this._items = [];
-                            }
-                        }
-                    },
-
-                    saveTodos() {
-                        localStorage.setItem('todos', JSON.stringify(this._items));
-                        this._notifyListeners();
-                    },
-
-                    addTodo(todoText) {
-                        const newTodo = {
-                            id: Date.now().toString(),
-                            todo: todoText,
-                            completed: false
-                        };
-                        this._items = [...this._items, newTodo];
-                        this.saveTodos();
-                    },
-
-                    toggleTodo(id) {
-                        this._items = this._items.map(todo => 
-                            todo.id === id ? { ...todo, completed: !todo.completed } : todo
-                        );
-                        this.saveTodos();
-                    },
-
-                    deleteTodo(id) {
-                        this._items = this._items.filter(t => t.id !== id);
-                        this.saveTodos();
-                    },
-
-                    deleteCompleted() {
-                        this._items = this._items.filter(t => !t.completed);
-                        this.saveTodos();
-                    }
-                });
-
-                // Weekly Tasks Store
-                Alpine.store('weeklyTasks', {
-                    _tasks: {},
-                    _listeners: [],
-
-                    get tasks() {
-                        return this._tasks;
-                    },
-
-                    onChange(callback) {
-                        this._listeners.push(callback);
-                        return () => {
-                            this._listeners = this._listeners.filter(cb => cb !== callback);
-                        };
-                    },
-
-                    _notifyListeners() {
-                        this._listeners.forEach(listener => listener(this._tasks));
-                    },
-
-                    init() {
-                        const savedTasks = localStorage.getItem('weeklyTasks');
-                        if (savedTasks) {
-                            try {
-                                this._tasks = JSON.parse(savedTasks);
-                                this._notifyListeners();
-                            } catch (e) {
-                                console.error('Error loading weekly tasks:', e);
-                                this._tasks = {};
-                            }
-                        }
-                    },
-
-                    saveTasks() {
-                        localStorage.setItem('weeklyTasks', JSON.stringify(this._tasks));
-                        this._notifyListeners();
-                    },
-
-                    addTaskToDay(day, taskId) {
-                        if (!this._tasks[day]) {
-                            this._tasks[day] = [];
-                        }
-                        if (!this._tasks[day].includes(taskId)) {
-                            this._tasks[day] = [...this._tasks[day], taskId];
-                            this.saveTasks();
-                        }
-                    },
-
-                    removeTaskFromDay(day, taskId) {
-                        if (this._tasks[day]) {
-                            this._tasks[day] = this._tasks[day].filter(id => id !== taskId);
-                            this.saveTasks();
-                        }
-                    }
-                });
-
-                // Pomodoro Store
-                Alpine.store('pomodoro', {
-                    _state: {
-                        timeLeft: 25 * 60,
-                        isRunning: false,
-                        mode: 'pomodoro',
-                        lastUpdate: null
-                    },
-
-                    get state() {
-                        return this._state;
-                    },
-
-                    init() {
-                        const savedState = localStorage.getItem('pomoState');
-                        if (savedState) {
-                            try {
-                                const parsed = JSON.parse(savedState);
-                                this._state = { ...this._state, ...parsed };
-                                
-                                if (this._state.isRunning) {
-                                    const now = Date.now();
-                                    const elapsed = Math.floor((now - this._state.lastUpdate) / 1000);
-                                    this._state.timeLeft = Math.max(0, this._state.timeLeft - elapsed);
-                                }
-                            } catch (e) {
-                                console.error('Error loading pomodoro state:', e);
-                            }
-                        }
-                    },
-
-                    saveState() {
-                        this._state.lastUpdate = Date.now();
-                        localStorage.setItem('pomoState', JSON.stringify(this._state));
-                    },
-
-                    setTimeLeft(time) {
-                        this._state.timeLeft = time;
-                        this.saveState();
-                    },
-
-                    setIsRunning(isRunning) {
-                        this._state.isRunning = isRunning;
-                        this.saveState();
-                    },
-
-                    setMode(mode) {
-                        this._state.mode = mode;
-                        this.saveState();
-                    },
-
-                    getInitialTime(mode) {
-                        const times = {
-                            pomodoro: 25 * 60,
-                            shortBreak: 5 * 60,
-                            longBreak: 15 * 60,
-                            meditation: 10 * 60
-                        };
-                        return times[mode] || times.pomodoro;
-                    }
-                });
-
-                // Initialize stores
-                Alpine.store('todos').init();
-                Alpine.store('weeklyTasks').init();
-                Alpine.store('pomodoro').init();
-            });
-        </script>
-        <script is:inline src="https://cdn.jsdelivr.net/npm/js-confetti@0.12.0/dist/js-confetti.browser.min.js"></script>
-        <script is:inline src="https://cdn.jsdelivr.net/npm/d3@7.8.5/dist/d3.min.js"></script>
-        <script is:inline src="https://cdnjs.cloudflare.com/ajax/libs/flowbite/2.2.1/flowbite.min.js"></script>
-
-        <!-- Theme Management -->
-        <script is:inline>
-            if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-                document.documentElement.classList.add('dark');
-            } else {
-                document.documentElement.classList.remove('dark');
-            }
-        </script>
-    </head>
-    <body class="min-h-screen flex flex-col bg-white dark:bg-slate-900">
-        <Nav />
-        <main class="flex-grow">
-            <slot />
-        </main>
-        <Footer />
-    </body>
+			document.addEventListener('alpine:init', () => {
+				initThemeStore();
+				initStores();
+			});
+		</script>
+		
+		<!-- Additional dependencies -->
+		<script defer src="https://cdn.jsdelivr.net/npm/js-confetti@0.12.0/dist/js-confetti.browser.min.js"></script>
+        <script defer src="https://cdnjs.cloudflare.com/ajax/libs/flowbite/2.2.1/flowbite.min.js"></script>
+		
+		<style is:global>
+			/* Prevent transition flash */
+			html:not([data-theme-loaded]) {
+				transition: none !important;
+				animation: none !important;
+			}
+		</style>
+	</head>
+	<body class="min-h-screen bg-stone-100 dark:bg-slate-900 transition-theme">
+		<div class="flex flex-col min-h-screen">
+			<!-- Main Content -->
+			<main class="flex-1 p-4">
+				<div class="flex justify-end mb-4">
+					<DarkModeToggle />
+				</div>
+				<slot />
+			</main>
+			<Footer />
+		</div>
+	</body>
 </html>
 
 <style is:global>

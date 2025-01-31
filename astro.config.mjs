@@ -7,10 +7,15 @@ import alpinejs from '@astrojs/alpinejs';
 export default defineConfig({
   integrations: [
     tailwind(), 
-    alpinejs()
+    alpinejs(),
   ],
   output: 'static',
   build: {
     format: 'file'
+  },
+  vite: {
+    ssr: {
+      noExternal: ['@astrojs/alpinejs']
+    }
   }
 });

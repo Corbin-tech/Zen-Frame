@@ -6,7 +6,11 @@ export default {
 	],
 	darkMode: 'class',
 	theme: {
-		extend: {},
+		extend: {
+			transitionProperty: {
+				none: 'none',
+			},
+		},
 	},
 	plugins: [require('flowbite/plugin')],
 }

@@ -1,5 +1,6 @@
 ---
 /*
+ * Currently not in use
  * Zen Quote Component
  * Displays inspirational quotes to users:
  * - Shows a random quote on load
@@ -11,7 +12,7 @@
  */
 
 import quotes from '../data/quotes.json';
-const zenQuotes = quotes.zenQuotes;
+const ZenQuotes = quotes.zenQuotes;
 ---
 
 <style>
@@ -51,22 +52,22 @@ const zenQuotes = quotes.zenQuotes;
 <!-- Main Container -->
 <div 
     x-data={`{
-        quotes: ${JSON.stringify(zenQuotes)},
-        currentQuote: null,
+        Quotes: ${JSON.stringify(ZenQuotes)},
+        CurrentQuote: null,
         
         init() {
-            this.currentQuote = this.quotes[Math.floor(Math.random() * this.quotes.length)];
+            this.CurrentQuote = this.Quotes[Math.floor(Math.random() * this.Quotes.length)];
         },
         
         nextQuote() {
-            const oldQuote = this.currentQuote;
+            const oldQuote = this.CurrentQuote;
             let newQuote;
             
             do {
-                newQuote = this.quotes[Math.floor(Math.random() * this.quotes.length)];
-            } while (newQuote === oldQuote && this.quotes.length > 1);
+                newQuote = this.Quotes[Math.floor(Math.random() * this.Quotes.length)];
+            } while (newQuote === oldQuote && this.Quotes.length > 1);
             
-            this.currentQuote = newQuote;
+            this.CurrentQuote = newQuote;
         }
     }`}
     x-init="init()"
@@ -74,7 +75,7 @@ const zenQuotes = quotes.zenQuotes;
 >
     <div class="flex flex-col items-center space-y-4">
         <div 
-            x-show="currentQuote"
+            x-show="CurrentQuote"
             x-transition:enter="quote-enter"
             x-transition:enter-start="quote-enter"
             x-transition:enter-end="quote-enter-active"
@@ -83,13 +84,13 @@ const zenQuotes = quotes.zenQuotes;
             x-transition:leave-end="quote-leave-active"
             class="text-center"
         >
-            <p class="text-xl italic text-gray-800 dark:text-gray-200 mb-3" x-text="currentQuote?.text"></p>
-            <p class="text-sm text-gray-600 dark:text-gray-400" x-text="'- ' + currentQuote?.author"></p>
+            <p class="text-xl italic text-gray-800 dark:text-gray-200 mb-3" x-text="CurrentQuote?.text"></p>
+            <p class="text-sm text-gray-600 dark:text-gray-400" x-text="'- ' + CurrentQuote?.author"></p>
         </div>
         
         <button 
             @click="nextQuote"
-            class="px-4 py-2 text-sm bg-stone-200 dark:bg-slate-700 text-gray-800 dark:text-white rounded-lg hover:bg-stone-300 dark:hover:bg-slate-600 transition-colors"
+            class="px-4 py-2 text-sm bg-stone-200 dark:bg-slate-700 text-gray-800 dark:text-white rounded-lg hover:bg-stone-300 dark:hover:bg-slate-600"
         >
             New Quote
         </button>

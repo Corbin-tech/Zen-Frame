@@ -1,127 +1,218 @@
 ---
-import ZenQuote from './zenQuote.astro';
+import zenQuote from './zenQuote.astro';
 ---
-<script>
-    import JSConfetti from 'js-confetti';
 
-    declare global {
-        interface Window {
-            Alpine: any;
-            jsConfetti: JSConfetti;
-            zenTodoList(): any;
-        }
-    }
-
-    interface Todo {
-        id: string;
-        todo: string;
-        completed: boolean;
-        completedAt?: string;
-    }
-
-    // Initialize JSConfetti instance
+<script is:inline>
+    // Wait for JSConfetti to be available
+    let jsConfetti;
     document.addEventListener('DOMContentLoaded', () => {
-        window.jsConfetti = new JSConfetti();
+        jsConfetti = new JSConfetti();
+    });
+    
+    // Register the Alpine component
+    document.addEventListener('alpine:init', () => {
+        if (!window.Alpine) {
+            console.warn('Alpine.js not initialized yet');
+            return;
+        }
+        
+        Alpine.data('zenTodoList', () => ({
+            init() {
+                this.currentTodoCache = null;
+                this.statsCache = null;
+                
+                this.$watch('$store.todos.items', () => {
+                    this.currentTodoCache = null;
+                    this.statsCache = null;
+                });
+            },
+
+            currentTodoCache: null,
+            statsCache: null,
+
+            get currentTodo() {
+                if (this.currentTodoCache !== null) return this.currentTodoCache;
+                
+                const todos = this.$store.todos.items;
+                if (!todos || !todos.length) return null;
+                
+                const priorityOrder = {
+                    'high': 3,
+                    'medium': 2,
+                    'low': 1,
+                    'none': 0
+                };
+                
+                this.currentTodoCache = todos.reduce((highest, task) => {
+                    if (task.completed) return highest;
+                    if (!highest) return task;
+                    
+                    const taskPriority = priorityOrder[task.priority || 'none'];
+                    const highestPriority = priorityOrder[highest.priority || 'none'];
+                    
+                    return taskPriority > highestPriority ? task : highest;
+                }, null);
+                
+                return this.currentTodoCache;
+            },
+
+            get hasCurrentTodo() {
+                return Boolean(this.currentTodo);
+            },
+
+            get hasTasks() {
+                const todos = this.$store.todos.items;
+                return Boolean(todos && todos.length);
+            },
+
+            get isAllTasksComplete() {
+                return this.hasTasks && !this.currentTodo;
+            },
+
+            getCompletionStats() {
+                if (this.statsCache) return this.statsCache;
+                
+                const todos = this.$store.todos.items;
+                if (!todos || !todos.length) {
+                    this.statsCache = { completed: 0, total: 0, percentage: 0 };
+                } else {
+                    const total = todos.length;
+                    const completed = todos.reduce((count, todo) => 
+                        todo.completed ? count + 1 : count, 0);
+                    this.statsCache = {
+                        completed,
+                        total,
+                        percentage: Math.round((completed / total) * 100)
+                    };
+                }
+                
+                return this.statsCache;
+            },
+
+            get taskCompletionLabel() {
+                const stats = this.getCompletionStats();
+                return `Completed: ${stats.completed}/${stats.total}`;
+            },
+
+            get completionPercentage() {
+                return this.getCompletionStats().percentage;
+            },
+
+            completeCurrentTodo() {
+                if (!this.currentTodo) return;
+                
+                const todos = this.$store.todos.items;
+                const isLastTask = !todos.some(todo => 
+                    !todo.completed && todo.id !== this.currentTodo.id);
+                
+                this.$store.todos.toggleTodo(this.currentTodo.id);
+                this.currentTodoCache = null;
+                this.statsCache = null;
+
+                if (isLastTask) {
+                    const isDarkMode = document.documentElement.classList.contains('dark');
+                    jsConfetti.addConfetti({
+                        confettiColors: isDarkMode 
+                            ? ['#60A5FA', '#93C5FD', '#3B82F6', '#2563EB', '#FFFFFF']
+                            : ['#3B82F6', '#60A5FA', '#93C5FD', '#FFFFFF', '#F3F4F6'],
+                        confettiNumber: 150,
+                        initialVelocityX: 4,
+                        initialVelocityY: 10
+                    });
+                }
+            }
+        }));
     });
 </script>
 
+<script>
+    import JSConfetti from 'js-confetti';
+</script>
+
 <style>
-    [x-cloak] { 
-        display: none !important; 
-    }
+    [x-cloak] { display: none !important; }
     
-    .task-enter {
-        opacity: 0;
-        transform: scale(0.95);
-    }
-    
-    .task-enter-active {
-        opacity: 1;
-        transform: scale(1);
+    .task-transition {
         transition: opacity 300ms ease-out, transform 300ms ease-out;
     }
     
-    .task-leave {
-        opacity: 1;
-        transform: scale(1);
+    .task-enter { 
+        opacity: 0; 
+        transform: scale(0.95); 
     }
     
-    .task-leave-active {
-        opacity: 0;
-        transform: scale(0.95);
-        transition: opacity 300ms ease-in, transform 300ms ease-in;
-    }
-    
-    .progress-enter {
-        width: 0;
-    }
-    
-    .progress-enter-active {
-        transition: width 500ms ease-out;
+    .task-enter-active { 
+        opacity: 1; 
+        transform: scale(1); 
     }
 </style>
 
 <div class="space-y-6">
-    <ZenQuote />
+    <zenQuote />
 
-    <!-- Todo List Container -->
     <div 
-        x-data="zenTodoList()" 
+        x-data="zenTodoList" 
         x-init="init()" 
         x-cloak
         class="max-w-2xl mx-auto p-6 bg-white dark:bg-slate-800 rounded-lg shadow-lg"
     >
         <div class="flex flex-col items-center justify-center space-y-8">
-            <h1 class="text-4xl font-bold text-center mb-8 text-gray-800 dark:text-white">Zen To Do</h1>
+            <h1 class="text-4xl font-bold text-center mb-8 text-gray-800 dark:text-white">
+                Zen Mode
+            </h1>
 
             <!-- Current Todo Display -->
-            <div x-show="currentTodo" 
-                x-transition:enter="transition ease-out duration-200"
-                x-transition:enter-start="opacity-0 transform translate-y-2"
-                x-transition:enter-end="opacity-100 transform translate-y-0"
-                x-transition:leave="transition ease-in duration-150"
-                x-transition:leave-start="opacity-100 transform translate-y-0"
-                x-transition:leave-end="opacity-0 transform translate-y-2"
+            <div 
+                x-show="!isAllTasksComplete" 
+                x-transition 
                 class="w-full"
             >
                 <div class="flex flex-col items-center space-y-6 p-8 bg-gray-50 dark:bg-slate-700 rounded-lg shadow-inner">
-                    <p class="text-2xl text-center text-gray-800 dark:text-gray-200" x-text="currentTodo?.todo"></p>
-                    <button 
-                        @click="completeTodo()"
-                        class="px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors focus:ring-4 focus:ring-green-200 dark:focus:ring-green-900"
-                    >
-                        Complete
-                    </button>
+                    <template x-if="hasCurrentTodo && hasTasks">
+                        <div class="flex flex-col items-center space-y-6">
+                            <p 
+                                class="text-2xl text-center text-gray-800 dark:text-gray-200" 
+                                x-text="currentTodo?.todo"
+                            ></p>
+                            <button 
+                                @click="completeCurrentTodo"
+                                class="px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors focus:ring-4 focus:ring-green-200 dark:focus:ring-green-900"
+                            >
+                                Complete
+                            </button>
+                        </div>
+                    </template>
+
+                    <template x-if="!hasTasks">
+                        <div class="text-center">
+                            <p class="text-lg text-green-600 dark:text-green-400">
+                                No tasks available! 🌱
+                            </p>
+                            <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                                Add tasks from the To Do List
+                            </p>
+                        </div>
+                    </template>
                 </div>
             </div>
 
-            <!-- All Tasks Complete Message -->
-            <div x-show="$store.todos.items.length > 0 && completionPercentage === 100"
-                x-transition:enter="transition ease-out duration-200"
-                x-transition:enter-start="opacity-0 transform translate-y-2"
-                x-transition:enter-end="opacity-100 transform translate-y-0"
-                x-transition:leave="transition ease-in duration-150"
-                x-transition:leave-start="opacity-100 transform translate-y-0"
-                x-transition:leave-end="opacity-0 transform translate-y-2"
+            <!-- Task Status Messages -->
+            <div x-show="isAllTasksComplete"
+                x-transition
                 class="text-center"
             >
-                <p class="text-lg text-green-600 dark:text-green-400">All tasks complete!</p>
+                <p class="text-lg text-green-600 dark:text-green-400">
+                    All tasks complete! 🎉
+                </p>
                 <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">
-                    Add more tasks from the <a href="#todo" class="text-blue-500 hover:text-blue-600">To Do List</a> to continue your journey.
+                    Add more tasks from the To Do List
                 </p>
             </div>
 
-            <!-- No Tasks Message -->
-            <template x-if="$store.todos.items.length === 0">
-                <p class="text-sm text-gray-500 dark:text-gray-400">
-                    No tasks yet. Add tasks from the <a href="#todo" class="text-blue-500 hover:text-blue-600">To Do List</a> to get started.
-                </p>
-            </template>
-
-            <!-- Progress Bar -->
-            <div x-show="$store.todos.items.length > 0" class="w-full max-w-md">
+            <!-- Progress Tracking -->
+            <div x-show="hasTasks" class="w-full max-w-md">
                 <div class="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-2">
-                    <span x-text="'Completed: ' + $store.todos.items.filter(todo => todo.completed).length + '/' + $store.todos.items.length"></span>
+                    <span x-text="taskCompletionLabel"></span>
                     <span x-text="completionPercentage + '%'"></span>
                 </div>
                 <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
@@ -134,51 +225,3 @@ import ZenQuote from './zenQuote.astro';
         </div>
     </div>
 </div>
-
-<script is:inline>
-    function zenTodoList() {
-        return {
-            init() {
-                this.$watch('$store.todos.items', (value) => {
-                    this.$nextTick(() => {
-                        // Any additional initialization if needed
-                    });
-                });
-            },
-            
-            get currentTodo() {
-                const incompleteTodos = this.$store.todos.items.filter(todo => !todo.completed);
-                return incompleteTodos.length > 0 ? incompleteTodos[0] : null;
-            },
-            
-            completeTodo() {
-                if (!this.currentTodo) return;
-                
-                // Use $store syntax
-                this.$store.todos.toggleTodo(this.currentTodo.id);
-
-                // Check if this was the last task
-                const incompleteTasks = this.$store.todos.items.filter(todo => !todo.completed);
-                if (incompleteTasks.length === 0 && window.jsConfetti) {
-                    // Check dark mode in real-time
-                    const isDarkMode = document.documentElement.classList.contains('dark');
-                    
-                    // Trigger confetti with appropriate colors
-                    window.jsConfetti.addConfetti({
-                        confettiColors: isDarkMode 
-                            ? ['#60A5FA', '#93C5FD', '#3B82F6', '#2563EB', '#FFFFFF']  // Blue shades for dark mode
-                            : ['#3B82F6', '#60A5FA', '#93C5FD', '#FFFFFF', '#F3F4F6'], // Blue shades for light mode
-                    });
-                }
-            },
-            
-            get completionPercentage() {
-                const total = this.$store.todos.items.length;
-                if (total === 0) return 0;
-                
-                const completed = this.$store.todos.items.filter(todo => todo.completed).length;
-                return Math.round((completed / total) * 100);
-            }
-        }
-    }
-</script>

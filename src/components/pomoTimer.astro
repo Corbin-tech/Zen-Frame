@@ -1,178 +1,52 @@
 ---
-/*
- * Pomodoro Timer Component
- * A focus timer that helps users:
- * - Set work and break durations
- * - Track time with visual countdown
- * - Get notifications when timer ends
- * 
- * Timer settings are stored in localStorage
- * 
- * Uses Alpine.js
- */
 ---
 
-<style>
-    /* Hide elements during Alpine.js initialization */
-    [x-cloak] { 
-        display: none !important; 
+<script>
+    declare global {
+        interface Window {
+            Alpine: any;
+            pomoTimer(): any;
+        }
     }
-    
-    /* Timer display transitions */
-    .timer-enter {
-        opacity: 0;
-        transform: scale(0.95);
-    }
-    
-    .timer-enter-active {
-        opacity: 1;
-        transform: scale(1);
-        transition: opacity 300ms ease-out, transform 300ms ease-out;
-    }
-    
-    .timer-leave {
-        opacity: 1;
-        transform: scale(1);
-    }
-    
-    .timer-leave-active {
-        opacity: 0;
-        transform: scale(0.95);
-        transition: opacity 300ms ease-in, transform 300ms ease-in;
-    }
+</script>
 
-    /* Modal transitions */
-    .modal-enter {
-        opacity: 0;
-        transform: scale(0.95);
-    }
-    
-    .modal-enter-active {
-        opacity: 1;
-        transform: scale(1);
-        transition: opacity 300ms ease-out, transform 300ms ease-out;
-    }
-    
-    .modal-leave {
-        opacity: 1;
-        transform: scale(1);
-    }
-    
-    .modal-leave-active {
-        opacity: 0;
-        transform: scale(0.95);
-        transition: opacity 300ms ease-in, transform 300ms ease-in;
-    }
-</style>
-
-<!-- Main Container -->
-<div x-data="pomoTimer()" 
+<div 
+    x-data="pomoTimer()" 
     x-init="init()"
-    x-cloak
-    class="max-w-md mx-auto p-6 bg-white dark:bg-slate-800 rounded-lg shadow-lg">
-    
-    <!-- Timer Complete Modal -->
-    <div
-        x-show="showModal"
-        x-transition:enter="modal-enter"
-        x-transition:enter-start="modal-enter"
-        x-transition:enter-end="modal-enter-active"
-        x-transition:leave="modal-leave"
-        x-transition:leave-start="modal-leave"
-        x-transition:leave-end="modal-leave-active"
-        class="fixed inset-0 z-50 overflow-y-auto"
-        aria-labelledby="modal-title"
-        role="dialog"
-        aria-modal="true"
-    >
-        <!-- Background overlay -->
-        <div class="fixed inset-0 bg-gray-500 dark:bg-gray-900 bg-opacity-75 dark:bg-opacity-75 transition-opacity"></div>
-
-        <!-- Modal panel -->
-        <div class="flex min-h-screen items-center justify-center p-4">
-            <div
-                @click.away="showModal = false"
-                class="relative transform overflow-hidden rounded-lg bg-white dark:bg-slate-800 px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-sm sm:p-6"
-            >
-                <div>
-                    <!-- Success icon -->
-                    <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100 dark:bg-green-900">
-                        <svg class="h-6 w-6 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                    </div>
-                    
-                    <!-- Message -->
-                    <div class="mt-3 text-center sm:mt-5">
-                        <h3 class="text-lg font-semibold leading-6 text-gray-900 dark:text-white" id="modal-title" x-text="modalTitle"></h3>
-                        <div class="mt-2">
-                            <p class="text-sm text-gray-500 dark:text-gray-400" x-text="modalMessage"></p>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Action buttons -->
-                <div class="mt-5 sm:mt-6">
-                    <button
-                        type="button"
-                        @click="showModal = false"
-                        class="inline-flex w-full justify-center rounded-md bg-blue-500 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:bg-blue-600 dark:hover:bg-blue-700"
-                    >
-                        Got it!
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Header and Timer Display -->
+    class="max-w-md mx-auto p-6 bg-white dark:bg-slate-800 rounded-lg shadow-lg"
+>
+    <!-- Timer Display -->
     <div class="flex flex-col items-center justify-center">
         <h2 class="text-4xl font-bold text-center mb-8 text-gray-800 dark:text-white">Pomodoro Timer</h2>
-        <div 
-            x-transition:enter="timer-enter"
-            x-transition:enter-start="timer-enter"
-            x-transition:enter-end="timer-enter-active"
-            x-transition:leave="timer-leave"
-            x-transition:leave-start="timer-leave"
-            x-transition:leave-end="timer-leave-active"
-            class="text-6xl font-mono font-bold text-gray-700 dark:text-gray-200 mb-4" 
-            x-text="formattedTime">
-            25:00
+        
+        <!-- Timer -->
+        <div class="text-6xl font-mono font-bold text-gray-700 dark:text-gray-200 mb-4">
+            <span x-text="Math.floor(timeLeft / 60).toString().padStart(2, '0')"></span>:<span x-text="(timeLeft % 60).toString().padStart(2, '0')"></span>
         </div>
         
         <!-- Timer Controls -->
         <div class="flex justify-center space-x-4 mb-6">
-            <div class="relative w-24">
+            <template x-if="!isRunning">
                 <button 
                     @click="startTimer" 
-                    x-show="!isRunning"
-                    x-transition:enter="transition-opacity duration-200"
-                    x-transition:enter-start="opacity-0"
-                    x-transition:enter-end="opacity-100"
-                    x-transition:leave="transition-opacity duration-200"
-                    x-transition:leave-start="opacity-100"
-                    x-transition:leave-end="opacity-0"
-                    class="absolute inset-0 px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 dark:bg-green-600 dark:hover:bg-green-700"
+                    class="px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 dark:bg-green-600 dark:hover:bg-green-700"
                 >
                     Start
                 </button>
+            </template>
+            
+            <template x-if="isRunning">
                 <button 
                     @click="pauseTimer" 
-                    x-show="isRunning"
-                    x-transition:enter="transition-opacity duration-200"
-                    x-transition:enter-start="opacity-0"
-                    x-transition:enter-end="opacity-100"
-                    x-transition:leave="transition-opacity duration-200"
-                    x-transition:leave-start="opacity-100"
-                    x-transition:leave-end="opacity-0"
-                    class="absolute inset-0 px-6 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-opacity-50 dark:bg-yellow-600 dark:hover:bg-yellow-700"
+                    class="px-6 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-opacity-50 dark:bg-yellow-600 dark:hover:bg-yellow-700"
                 >
                     Pause
                 </button>
-            </div>
+            </template>
+            
             <button 
                 @click="resetTimer" 
-                class="w-24 px-6 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 dark:bg-red-600 dark:hover:bg-red-700"
+                class="px-6 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 dark:bg-red-600 dark:hover:bg-red-700"
             >
                 Reset
             </button>
@@ -181,21 +55,21 @@
         <!-- Mode Selection -->
         <div class="flex justify-center space-x-4">
             <button 
-                @click="setMode('focus', 25)"
+                @click="setMode('focus')"
                 :class="mode === 'focus' ? 'bg-indigo-600' : 'bg-indigo-400'"
                 class="px-6 py-2 text-white rounded-lg hover:bg-indigo-500 transition-colors"
             >
                 Focus
             </button>
             <button 
-                @click="setMode('break', 5)"
+                @click="setMode('break')"
                 :class="mode === 'break' ? 'bg-emerald-600' : 'bg-emerald-400'"
                 class="px-6 py-2 text-white rounded-lg hover:bg-emerald-500 transition-colors"
             >
                 Break
             </button>
             <button 
-                @click="setMode('meditation', 15)"
+                @click="setMode('meditation')"
                 :class="mode === 'meditation' ? 'bg-amber-600' : 'bg-amber-400'"
                 class="px-6 py-2 text-white rounded-lg hover:bg-amber-500 transition-colors"
             >
@@ -203,150 +77,83 @@
             </button>
         </div>
     </div>
-    
-    <script is:inline>
-        window.pomoTimer = function() {
-            return {
-                timer: null,
-                showModal: false,
-                modalTitle: '',
-                modalMessage: '',
-                lastTick: null,
-                pausedAt: null,
-                
-                init() {
-                    this.$watch('$store.pomodoro.state.timeLeft', () => {
-                        if (this.$store.pomodoro.state.timeLeft > 0 && this.$store.pomodoro.state.isRunning) {
-                            this.startTimer();
-                        }
-                    });
+</div>
 
-                    // Request notification permission
-                    if (Notification.permission === "default") {
-                        Notification.requestPermission();
-                    }
+<script is:inline>
+    function pomoTimer() {
+        return {
+            timeLeft: 25 * 60,  // 25 minutes in seconds
+            isRunning: false,
+            mode: 'focus',
+            timer: null,
 
-                    // Resume timer if it was running
-                    if (this.$store.pomodoro.state.isRunning) {
-                        this.startTimer();
-                    }
+            init() {
+                this.setMode('focus');
+            },
 
-                    // Handle visibility change
-                    document.addEventListener('visibilitychange', () => {
-                        if (document.hidden) {
-                            this.pausedAt = Date.now();
-                            if (this.timer) {
-                                clearInterval(this.timer);
-                                this.timer = null;
-                            }
-                        } else if (this.$store.pomodoro.state.isRunning && this.pausedAt) {
-                            const pauseDuration = Math.floor((Date.now() - this.pausedAt) / 1000);
-                            if (pauseDuration < 2) {  // Only resume if pause was brief
-                                this.lastTick = Date.now();
-                                this.startTimer();
-                            } else {
-                                // Auto-pause if away for too long
-                                this.pauseTimer();
-                            }
-                            this.pausedAt = null;
-                        }
-                    });
-                },
+            startTimer() {
+                if (this.isRunning) return;
                 
-                startTimer() {
-                    if (!this.$store.pomodoro.state.isRunning) {
-                        this.$store.pomodoro.setIsRunning(true);
-                        this.lastTick = Date.now();
-                    }
-                    
-                    if (this.timer) {
-                        clearInterval(this.timer);
-                    }
-                    
-                    this.timer = setInterval(() => {
-                        const now = Date.now();
-                        const elapsed = Math.floor((now - this.lastTick) / 1000);
-                        
-                        if (elapsed > 0 && this.$store.pomodoro.state.timeLeft > 0) {
-                            // Only subtract 1 second at a time
-                            this.$store.pomodoro.setTimeLeft(this.$store.pomodoro.state.timeLeft - 1);
-                            this.lastTick = now;
-                            
-                            if (this.$store.pomodoro.state.timeLeft === 0) {
-                                this.playAlarm();
-                                this.resetTimer();
-                            }
-                        }
-                    }, 1000);
-                },
-                
-                pauseTimer() {
-                    this.$store.pomodoro.setIsRunning(false);
-                    if (this.timer) {
-                        clearInterval(this.timer);
-                        this.timer = null;
-                    }
-                    this.pausedAt = null;
-                },
-                
-                resetTimer() {
-                    this.$store.pomodoro.setIsRunning(false);
-                    if (this.timer) {
-                        clearInterval(this.timer);
-                        this.timer = null;
-                    }
-                    this.pausedAt = null;
-                    const initialTime = this.$store.pomodoro.getInitialTime(this.$store.pomodoro.state.mode);
-                    this.$store.pomodoro.setTimeLeft(initialTime);
-                },
-                
-                setMode(newMode, minutes) {
-                    this.$store.pomodoro.setMode(newMode);
-                    this.$store.pomodoro.setTimeLeft(minutes * 60);
-                    this.$store.pomodoro.setIsRunning(false);
-                    clearInterval(this.timer);
-                },
-                
-                get formattedTime() {
-                    const timeLeft = this.$store.pomodoro.state.timeLeft;
-                    const minutes = Math.floor(timeLeft / 60);
-                    const seconds = timeLeft % 60;
-                    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-                },
-
-                get isRunning() {
-                    return this.$store.pomodoro.state.isRunning;
-                },
-
-                get mode() {
-                    return this.$store.pomodoro.state.mode;
-                },
-                
-                playAlarm() {
-                    const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
-                    audio.play().catch(e => console.log('Audio play failed:', e));
-                    
-                    // Set modal content based on current mode
-                    if (this.$store.pomodoro.state.mode === 'pomodoro') {
-                        this.modalTitle = "Time for a break!";
-                        this.modalMessage = "Great work! Take some time to relax and recharge.";
+                this.isRunning = true;
+                this.timer = setInterval(() => {
+                    if (this.timeLeft > 0) {
+                        this.timeLeft--;
                     } else {
-                        this.modalTitle = "Time to focus!";
-                        this.modalMessage = "Break's over. Let's get back to being productive!";
+                        this.playAlarm();
+                        this.resetTimer();
                     }
-                    
-                    // Show the modal
-                    this.showModal = true;
-                    
-                    // Show notification if permitted
-                    if (Notification.permission === "granted") {
-                        new Notification(this.modalTitle, {
-                            body: this.modalMessage,
-                            icon: "/favicon.ico"
-                        });
-                    }
+                }, 1000);
+            },
+
+            pauseTimer() {
+                this.isRunning = false;
+                if (this.timer) {
+                    clearInterval(this.timer);
+                    this.timer = null;
+                }
+            },
+
+            resetTimer() {
+                this.isRunning = false;
+                if (this.timer) {
+                    clearInterval(this.timer);
+                    this.timer = null;
+                }
+                this.setMode(this.mode);
+            },
+
+            setMode(newMode) {
+                this.mode = newMode;
+                this.isRunning = false;
+                if (this.timer) {
+                    clearInterval(this.timer);
+                    this.timer = null;
+                }
+
+                switch (newMode) {
+                    case 'focus':
+                        this.timeLeft = 25 * 60; // 25 minutes
+                        break;
+                    case 'break':
+                        this.timeLeft = 5 * 60;  // 5 minutes
+                        break;
+                    case 'meditation':
+                        this.timeLeft = 15 * 60; // 15 minutes
+                        break;
+                }
+            },
+
+            playAlarm() {
+                const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+                audio.play().catch(e => console.log('Audio play failed:', e));
+                
+                if (Notification.permission === "granted") {
+                    new Notification("Timer Complete!", {
+                        body: `Your ${this.mode} session is complete!`,
+                        icon: "/favicon.ico"
+                    });
                 }
             }
-        }
-    </script>
-</div>
+        };
+    }
+</script>

@@ -10,13 +10,3 @@ import Tabs from '../components/tabs.astro';
     </div>
   </main>
 </Layout>
-
-<script>
-  // Initialize Alpine.js if it hasn't been initialized
-  if (typeof window.Alpine === 'undefined') {
-    import('alpinejs').then((module) => {
-      window.Alpine = module.default;
-      window.Alpine.start();
-    });
-  }
-</script>
