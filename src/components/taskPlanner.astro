@@ -21,14 +21,18 @@ declare global {
 
     // Cleanup function
     window.destroyDragAndDrop = function destroyDragAndDrop() {
-        cleanupHandlers.forEach(handler => {
-            if (typeof handler.destroy === 'function') {
-                handler.destroy();
+        cleanupHandlers.forEach(cleanup => {
+            try {
+                cleanup.drag?.();
+                cleanup.drop?.();
+            } catch (error) {
+                console.error('Error during cleanup:', error);
             }
         });
         cleanupHandlers.clear();
         initializedElements = new WeakSet();
         isInitialized = false;
+        console.log('Cleaned up all drag and drop handlers');
     };
 
     // Export to window for Alpine access
@@ -103,7 +107,26 @@ declare global {
                     },
                 });
 
-                cleanupHandlers.set(taskId, dragHandler);
+                const dropHandler = dropTargetForElements({
+                    element: item,
+                    onDragEnter: () => {
+                        console.log('Drag enter:', taskId);
+                        item.classList.add('border-2', 'border-blue-500', 'border-dashed');
+                    },
+                    onDragLeave: () => {
+                        console.log('Drag leave:', taskId);
+                        item.classList.remove('border-2', 'border-blue-500', 'border-dashed');
+                    },
+                    onDrop: () => {
+                        console.log('Drop on item:', taskId);
+                        item.classList.remove('border-2', 'border-blue-500', 'border-dashed');
+                    }
+                });
+
+                cleanupHandlers.set(taskId, {
+                    drag: dragHandler,
+                    drop: dropHandler
+                });
                 initializedElements.add(item);
             });
 
@@ -138,7 +161,9 @@ declare global {
                     }
                 });
 
-                cleanupHandlers.set(sectionId, dropHandler);
+                cleanupHandlers.set(sectionId, {
+                    drop: dropHandler
+                });
                 initializedElements.add(section);
             });
 
@@ -159,29 +184,37 @@ declare global {
                 selectedTask: null,
                 
                 async init() {
-                    try {
-                        await this.$nextTick();
-                        console.log('Initializing taskPlanner...');
-                        
-                        // Initialize stores first
-                        window.Alpine.store('todos').init();
-                        console.log('Store initialized with items:', window.Alpine.store('todos').items);
-                        
-                        // Initialize drag and drop after tasks are loaded
-                        await window.initDragAndDrop();
-                        console.log('Drag and drop initialized');
+                    const maxRetries = 5;
+                    const baseDelay = 300;
+                    
+                    const initDragAndDropWithRetry = async (attempt = 1) => {
+                        try {
+                            await this.$nextTick();
+                            console.log(`Initializing taskPlanner (attempt ${attempt})...`);
 
-                        // Watch for changes to the store array
-                        this.$watch('$store.todos.items', (newVal, oldVal) => {
-                            console.log('Store items changed, reinitializing drag and drop');
-                            // Wait for DOM to reflect changes
-                            this.$nextTick(() => {
-                                window.initDragAndDrop();
+                            if (typeof window.initDragAndDrop !== 'function') {
+                                throw new Error('initDragAndDrop not available');
+                            }
+
+                            window.Alpine.store('todos').init();
+                            await window.initDragAndDrop();
+                            
+                            this.$watch('$store.todos.items', () => {
+                                this.$nextTick(() => window.initDragAndDrop());
                             });
-                        });
-                    } catch (error) {
-                        console.error('Error in taskPlanner init:', error);
-                    }
+
+                        } catch (error) {
+                            if (attempt <= maxRetries) {
+                                const delay = baseDelay * Math.pow(2, attempt);
+                                console.log(`Retrying in ${delay}ms...`);
+                                await new Promise(resolve => setTimeout(resolve, delay));
+                                return initDragAndDropWithRetry(attempt + 1);
+                            }
+                            console.error('Failed after max retries:', error);
+                        }
+                    };
+
+                    await initDragAndDropWithRetry();
                 },
 
                 updateTaskPriority(taskId, priority) {
@@ -221,11 +254,11 @@ declare global {
     }
 </script>
 
-<div 
+  <div 
     x-data="taskPlanner"
     x-init="init"
     class="relative"
->
+  >
     <!-- Unassigned Tasks Container -->
     <div 
         class="task-section bg-white dark:bg-slate-800 rounded-lg shadow-md p-4 mb-6 transition-none"
@@ -237,7 +270,7 @@ declare global {
         x-transition:leave-start="container-leave"
         x-transition:leave-end="container-leave-active"
     >
-        <h2 class="text-lg font-semibold text-gray-800 dark:text-white mb-4">Drag tasks from here</h2>
+        <h2 class="text-lg font-semibold text-gray-800 dark:text-white mb-4">Task Planner</h2>
         
         <div class="space-y-2">
             <template x-for="task in $store.todos.items.filter(t => t.section === 'drag task from here')" :key="task.id">
@@ -278,7 +311,7 @@ declare global {
                     x-transition:leave-end="theme-leave-active"
                     class="text-gray-600 dark:text-gray-400 text-sm"
                 >
-                    No tasks to drag from here
+                    Plan your tasks effectively.
                 </p>
             </template>
         </div>
@@ -463,6 +496,17 @@ declare global {
                         </div>
                     </div>
                 </template>
+                <template x-if="$store.todos.items.filter(t => t.completed).length === 0">
+                    <p 
+                        x-show="$store.todos.items.filter(t => t.completed).length === 0"
+                        x-cloak
+                        x-transition:enter="theme-enter"
+                        x-transition:leave="theme-leave"
+                        class="text-gray-600 dark:text-gray-400 text-sm"
+                    >
+                        Completed tasks go here.
+                    </p>
+                </template>
             </div>
         </div>
     </div>
@@ -509,7 +553,7 @@ declare global {
             </div>
         </div>
     </div>
-</div>
+  </div>
 
 <style>
     [x-cloak] { 

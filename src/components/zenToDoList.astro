@@ -154,10 +154,11 @@ import zenQuote from './zenQuote.astro';
         x-data="zenTodoList" 
         x-init="init()" 
         x-cloak
+        aria-labelledby="zenToDoHeading"
         class="max-w-2xl mx-auto p-6 bg-white dark:bg-slate-800 rounded-lg shadow-lg"
     >
         <div class="flex flex-col items-center justify-center space-y-8">
-            <h1 class="text-4xl font-bold text-center mb-8 text-gray-800 dark:text-white">
+            <h1 id="zenToDoHeading" class="text-4xl font-bold text-center mb-8 text-gray-800 dark:text-white">
                 Zen Mode
             </h1>
 
@@ -176,6 +177,7 @@ import zenQuote from './zenQuote.astro';
                             ></p>
                             <button 
                                 @click="completeCurrentTodo"
+                                aria-label="Mark current task as complete"
                                 class="px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors focus:ring-4 focus:ring-green-200 dark:focus:ring-green-900"
                             >
                                 Complete
@@ -219,6 +221,10 @@ import zenQuote from './zenQuote.astro';
                     <div 
                         class="bg-blue-600 h-2.5 rounded-full transition-all duration-500 ease-out" 
                         :style="`width: ${completionPercentage}%`"
+                        role="progressbar" 
+                        :aria-valuenow="completionPercentage" 
+                        aria-valuemin="0" 
+                        aria-valuemax="100"
                     ></div>
                 </div>
             </div>
