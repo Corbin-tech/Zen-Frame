@@ -1,9 +1,14 @@
 ---
-import { TaskSchema } from '../schemas/taskSchema';
 import QuickTaskInput from './QuickTaskInput.astro';
 ---
 
-<script is:inline type="module" src="/src/components/taskManager.js"></script>
+<script>
+import Alpine from 'alpinejs';
+</script>
+
+<script type="module">
+import '/src/components/taskManager.js';
+</script>
 
 <div x-data="taskManager" class="w-full max-w-3xl mx-auto bg-white dark:bg-slate-800 rounded-xl shadow-sm p-6">
     <h1 class="text-4xl font-bold text-center mb-8 text-gray-800 dark:text-white">Task Manager</h1>
