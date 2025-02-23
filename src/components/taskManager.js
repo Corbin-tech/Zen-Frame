@@ -133,5 +133,4 @@ document.addEventListener('alpine:init', () => {
 // Initialize Alpine once
 if (!window.Alpine) {
     window.Alpine = Alpine;
-    Alpine.start();
 }
