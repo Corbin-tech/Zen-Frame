@@ -10,19 +10,16 @@
 import data from "../data/site.json";
 ---
 
-<footer class="w-full bg-stone-100 dark:bg-slate-900 mt-auto transition-theme">
+<footer class="w-full bg-white dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700 mt-auto transition-colors">
   <div 
     x-data 
-    class="mx-auto w-full max-w-screen-xl p-4 md:flex md:items-center md:justify-between transition-theme"
+    class="w-full p-4 md:flex md:items-center md:justify-between mx-auto max-w-7xl px-4 sm:px-6 lg:px-8"
   >
-    <span class="text-sm text-gray-700 sm:text-center dark:text-gray-300 flex items-center justify-center gap-4 transition-theme">
+    <span class="text-sm text-gray-700 dark:text-gray-300 flex items-center justify-center gap-4 transition-colors">
       <span>&copy; {new Date().getFullYear()}</span>
-      <button 
-        @click="$dispatch('change-tab', { tab: 'todo' })" 
-        class="hover:underline hover:text-gray-900 dark:hover:text-gray-100"
-      >
+      <span class="hover:text-primary dark:hover:text-primary-300">
         {data.siteName}
-      </button>
+      </span>
       <span>&mdash;{data.owner}</span>
       <a href="https://github.com/Corbin-tech/Zen-Frame" target="_blank" rel="noopener noreferrer" class="hover:underline flex items-center gap-1 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300">
         Support the project!

@@ -2,7 +2,7 @@
 import ToDoList from './toDoList.astro';
 import PomoTimer from './pomoTimer.astro';
 import ZenToDoList from './zenToDoList.astro';
-import TaskPlanner from './taskPlanner.astro';
+import TaskManager from './taskManager.astro';
 ---
 
 <div 
@@ -24,34 +24,22 @@ import TaskPlanner from './taskPlanner.astro';
         }
     }" 
     x-cloak
-    @change-tab.window="handleTabChange"
+    @change-tab.window="activeTab = $event.detail.tab"
     class="w-full"
 >
     <!-- Tab Navigation -->
-    <div class="border-b border-gray-200 dark:border-gray-700">
+    <div class="border-b transition-colors duration-300 ease-in-out border-gray-200 dark:border-gray-700">
         <ul class="flex flex-wrap -mb-px text-sm font-medium text-center text-gray-500 dark:text-gray-400">
             <li class="mr-2">
                 <button 
-                    @click="activeTab = 'todo'; if (typeof window !== 'undefined') localStorage.setItem('activeTab', 'todo')"
-                    :class="activeTab === 'todo' ? 'border-blue-600 text-blue-600 dark:text-blue-500 dark:border-blue-500' : 'border-transparent hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300'"
-                    class="inline-flex items-center justify-center p-4 border-b-2 rounded-t-lg group"
-                >
-                    <svg class="w-4 h-4 mr-2" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 18 20">
-                        <path d="M16 1h-3.278A1.992 1.992 0 0 0 11 0H7a1.993 1.993 0 0 0-1.722 1H2a2 2 0 0 0-2 2v15a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2Zm-3 14H5a1 1 0 0 1 0-2h8a1 1 0 0 1 0 2Zm0-4H5a1 1 0 0 1 0-2h8a1 1 0 1 1 0 2Zm0-4H5a1 1 0 0 1 0-2h8a1 1 0 1 1 0 2Z"/>
-                    </svg>
-                    To Do List
-                </button>
-            </li>
-            <li class="mr-2">
-                <button 
-                    @click="activeTab = 'planner'; if (typeof window !== 'undefined') localStorage.setItem('activeTab', 'planner')"
-                    :class="activeTab === 'planner' ? 'border-blue-600 text-blue-600 dark:text-blue-500 dark:border-blue-500' : 'border-transparent hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300'"
+                    @click="activeTab = 'taskmanager'; if (typeof window !== 'undefined') localStorage.setItem('activeTab', 'taskmanager')"
+                    :class="activeTab === 'taskmanager' ? 'border-blue-600 text-blue-600 dark:text-blue-500 dark:border-blue-500' : 'border-transparent hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300'"
                     class="inline-flex items-center justify-center p-4 border-b-2 rounded-t-lg group"
                 >
                     <svg class="w-4 h-4 mr-2" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
                         <path d="M0 18a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2a2 2 0 0 0-2 2v16Zm4-4h12v2H4v-2Zm0-3h12v2H4v-2Zm0-3h12v2H4V8Zm0-3h12v2H4V5Z"/>
                     </svg>
-                    Planner
+                    Task Manager
                 </button>
             </li>
             <li class="mr-2">
@@ -86,8 +74,8 @@ import TaskPlanner from './taskPlanner.astro';
         <div x-show="activeTab === 'todo'" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100">
             <ToDoList />
         </div>
-        <div x-show="activeTab === 'planner'" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100">
-            <TaskPlanner />
+        <div x-show="activeTab === 'taskmanager'" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100">
+            <TaskManager />
         </div>
         <div x-show="activeTab === 'pomodoro'" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100">
             <PomoTimer />

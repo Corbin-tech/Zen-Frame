@@ -10,14 +10,16 @@
     }
 </script>
 
-<div 
-    x-data="pomoTimer()" 
+<div
+    x-data="pomoTimer()"
     x-init="init()"
-    class="max-w-md mx-auto p-6 bg-white dark:bg-slate-800 rounded-lg shadow-lg"
+    x-cloak
+    class="w-full max-w-3xl mx-auto bg-white dark:bg-slate-800 rounded-xl shadow-sm p-6"
 >
+    <h1 class="text-4xl font-bold text-center mb-8 text-gray-800 dark:text-white">Pomodoro Timer</h1>
+
     <!-- Timer Display -->
     <div class="flex flex-col items-center justify-center">
-        <h2 class="text-4xl font-bold text-center mb-8 text-gray-800 dark:text-white">Pomodoro Timer</h2>
         
         <!-- Timer -->
         <div class="text-6xl font-mono font-bold text-gray-700 dark:text-gray-200 mb-4">

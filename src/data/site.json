@@ -1,15 +1,11 @@
 {
     "owner": "Corbin Johnson",
     "siteName": "Zen Frame",
-    "siteDescription": "A simple to do list and time blocking application with a pomodoro timer",
+    "siteDescription": "A simple to do list application with a Zen Mode and pomodoro timer.",
     "pages": [
       {
-        "title": "To Do List",
-        "href": "#todo"
-      },
-      {
-        "title": "Planner",
-        "href": "#planner"
+        "title": "Task Manager",
+        "href": "#taskmanager"
       },
       {
         "title": "Pomodoro",

@@ -58,16 +58,19 @@ const { title } = Astro.props;
 			}
 		</style>
 	</head>
-	<body class="min-h-screen bg-stone-100 dark:bg-slate-900 transition-theme">
+	<body class="min-h-screen bg-stone-100 dark:bg-slate-900 transition-theme overflow-hidden">
 		<div class="flex flex-col min-h-screen">
-			<!-- Main Content -->
-			<main class="flex-1 p-4">
-				<div class="flex justify-end mb-4">
-					<DarkModeToggle />
-				</div>
-				<slot />
-			</main>
-			<Footer />
+			
+			<!-- Content Wrapper -->
+			<div class="flex-1 flex flex-col pl-4 pr-8 py-6">
+				<main class="p-6 flex-1">
+					<div class="flex justify-end mb-4">
+						<DarkModeToggle />
+					</div>
+					<slot />
+				</main>
+			</div>
+			<Footer class="border-t p-4" />
 		</div>
 	</body>
 </html>
