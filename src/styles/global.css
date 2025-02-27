@@ -43,3 +43,67 @@ code {
         Courier New,
         monospace;
 }
+
+/* Drag and Drop styles */
+.dragging {
+    opacity: 0.5;
+    transform: scale(1.02);
+    z-index: 100;
+}
+
+.drop-target {
+    border: 2px dashed #6366f1 !important;
+    background-color: rgba(99, 102, 241, 0.1) !important;
+}
+
+.drop-target-cluster {
+    border: 2px dashed #8b5cf6 !important;
+    background-color: rgba(139, 92, 246, 0.1) !important;
+}
+
+.drop-target-container {
+    border: 2px dashed #a855f7 !important;
+    background-color: rgba(168, 85, 247, 0.1) !important;
+}
+
+/* Above/Below drop indicators */
+.drop-target-above {
+    position: relative;
+}
+
+.drop-target-above::before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background-color: #6366f1;
+    border-radius: 2px;
+    z-index: 20;
+}
+
+.drop-target-below {
+    position: relative;
+}
+
+.drop-target-below::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background-color: #6366f1;
+    border-radius: 2px;
+    z-index: 20;
+}
+
+/* Drag handle styles */
+[data-drag-handle] {
+    cursor: grab;
+}
+
+[data-drag-handle]:active {
+    cursor: grabbing;
+}

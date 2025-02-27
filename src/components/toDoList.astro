@@ -87,9 +87,9 @@ import type { Todo } from '../stores/todoStore';
         </template>
 
         <ul class="space-y-2" role="list">
-            <template x-for="todo in $store.todos.items.filter(t => t.completed || t.section === 'planner' || t.section === 'drag task from here')" :key="todo.id">
-                <li class="task-item relative flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-700 rounded-lg group" :data-task-id="todo.id">
-                    <div class="drag-handle cursor-move mr-2">
+            <template x-for="todo in $store.todos.items" :key="todo.id">
+                <li class="task-item relative flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-700 rounded-lg group" :data-task-id="todo.id" :id="'task-' + todo.id" :data-droppable="true" :data-task-item="true">
+                    <div class="drag-handle cursor-move mr-2" data-drag-handle>
                         <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16"></path>
                         </svg>

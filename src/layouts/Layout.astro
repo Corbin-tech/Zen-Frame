@@ -12,14 +12,13 @@ const { title } = Astro.props;
 ---
 
 <!doctype html>
-<html lang="en" class="h-full">
+<html lang="en">
 	<head>
 		<script is:inline>
 			(function() {
 				const savedTheme = localStorage.getItem('theme') || 'light';
 				const htmlEl = document.documentElement;
 				htmlEl.classList.toggle('dark', savedTheme === 'dark');
-				htmlEl.setAttribute('data-theme-loaded', '');
 			})();
 		</script>
 		
@@ -39,6 +38,7 @@ const { title } = Astro.props;
 		<script>
 			import { initThemeStore } from '../stores/themeStore';
 			import { initStores } from '../stores/todoStore';
+			import '../scripts/dragDropInit.js';
 
 			document.addEventListener('alpine:init', () => {
 				initThemeStore();
@@ -62,19 +62,18 @@ const { title } = Astro.props;
 		type="module" src="/src/components/taskManager.js">
 	</script>
 	</head>
-	<body class="min-h-screen bg-stone-100 dark:bg-slate-900 transition-theme overflow-hidden">
-		<div class="flex flex-col min-h-screen">
-			
+	<body>
+		<div class="min-h-screen flex flex-col">
 			<!-- Content Wrapper -->
-			<div class="flex-1 flex flex-col pl-4 pr-8 py-6">
-				<main class="p-6 flex-1">
+			<div class="flex-1">
+				<main class="p-6">
 					<div class="flex justify-end mb-4">
 						<DarkModeToggle />
 					</div>
 					<slot />
 				</main>
 			</div>
-			<Footer class="border-t p-4" />
+			<Footer />
 		</div>
 	</body>
 </html>
@@ -90,11 +89,22 @@ const { title } = Astro.props;
             rgb(var(--accent-light)) 30%,
             white 60%
         );
+        --bg-color: rgb(245 245 244);
     }
+    
+    :root.dark {
+        --bg-color: rgb(15 23 42);
+    }
+
+    html, body {
+        min-height: 100vh;
+        margin: 0;
+        padding: 0;
+        background-color: var(--bg-color);
+    }
+    
     html {
         font-family: system-ui, sans-serif;
-        background: #13151a;
-        background-size: 224px;
     }
     code {
         font-family:

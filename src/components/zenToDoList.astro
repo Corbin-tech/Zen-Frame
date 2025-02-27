@@ -1,11 +1,20 @@
 ---
 ---
 
+<script>
+    import JSConfetti from 'js-confetti';
+</script>
+
 <script is:inline>
-    // Wait for JSConfetti to be available
+    // Initialize JSConfetti when the DOM is ready
     let jsConfetti;
     document.addEventListener('DOMContentLoaded', () => {
-        jsConfetti = new JSConfetti();
+        try {
+            jsConfetti = new JSConfetti();
+            console.log('JSConfetti initialized successfully');
+        } catch (error) {
+            console.error('Error initializing JSConfetti:', error);
+        }
     });
     
     // Register the Alpine component
@@ -42,7 +51,10 @@
                     'none': 0
                 };
                 
-                this.currentTodoCache = todos.reduce((highest, task) => {
+                // Filter out clusters and only consider actual tasks
+                const tasks = todos.filter(task => !task.isCluster);
+                
+                this.currentTodoCache = tasks.reduce((highest, task) => {
                     if (task.completed) return highest;
                     if (!highest) return task;
                     
@@ -61,7 +73,17 @@
 
             get hasTasks() {
                 const todos = this.$store.todos.items;
-                return Boolean(todos && todos.length);
+                // Only count non-cluster items as tasks
+                return Boolean(todos && todos.filter(task => !task.isCluster).length > 0);
+            },
+            
+            // Get the name of the cluster a task belongs to
+            getClusterName(taskId) {
+                const task = this.$store.todos.items.find(t => t.id === taskId);
+                if (!task || !task.parentId) return null;
+                
+                const cluster = this.$store.todos.items.find(t => t.id === task.parentId);
+                return cluster ? cluster.todo : null;
             },
 
             get isAllTasksComplete() {
@@ -75,13 +97,15 @@
                 if (!todos || !todos.length) {
                     this.statsCache = { completed: 0, total: 0, percentage: 0 };
                 } else {
-                    const total = todos.length;
-                    const completed = todos.reduce((count, todo) => 
+                    // Only consider non-cluster items for stats
+                    const tasks = todos.filter(task => !task.isCluster);
+                    const total = tasks.length;
+                    const completed = tasks.reduce((count, todo) => 
                         todo.completed ? count + 1 : count, 0);
                     this.statsCache = {
                         completed,
                         total,
-                        percentage: Math.round((completed / total) * 100)
+                        percentage: total > 0 ? Math.round((completed / total) * 100) : 0
                     };
                 }
                 
@@ -101,7 +125,9 @@
                 if (!this.currentTodo) return;
                 
                 const todos = this.$store.todos.items;
-                const isLastTask = !todos.some(todo => 
+                // Only consider non-cluster items when checking if this is the last task
+                const nonClusterTodos = todos.filter(todo => !todo.isCluster);
+                const isLastTask = !nonClusterTodos.some(todo => 
                     !todo.completed && todo.id !== this.currentTodo.id);
                 
                 this.$store.todos.toggleTodo(this.currentTodo.id);
@@ -110,13 +136,15 @@
 
                 if (isLastTask) {
                     const isDarkMode = document.documentElement.classList.contains('dark');
+                    
+                    // First confetti burst
                     jsConfetti.addConfetti({
                         confettiColors: isDarkMode 
                             ? ['#60A5FA', '#93C5FD', '#3B82F6', '#2563EB', '#FFFFFF']
                             : ['#3B82F6', '#60A5FA', '#93C5FD', '#FFFFFF', '#F3F4F6'],
-                        confettiNumber: 150,
-                        initialVelocityX: 4,
-                        initialVelocityY: 10
+                        confettiNumber: 200,
+                        initialVelocityX: 5,
+                        initialVelocityY: 12
                     });
                 }
             }
@@ -124,20 +152,14 @@
     });
 </script>
 
-<script>
-    import JSConfetti from 'js-confetti';
-</script>
-
 <style>
-    [x-cloak] { display: none !important; }
-    
-    .task-transition {
-        transition: opacity 300ms ease-out, transform 300ms ease-out;
+    .progress-bar {
+        transition: width 0.5s ease-in-out;
     }
     
-    .task-enter { 
-        opacity: 0; 
-        transform: scale(0.95); 
+    .task-enter {
+        opacity: 0;
+        transform: scale(0.95);
     }
     
     .task-enter-active { 
@@ -174,6 +196,14 @@
                         x-transition:enter-start="opacity-0 translate-y-4"
                         x-transition:enter-end="opacity-100 translate-y-0"
                     >
+                        <!-- Show cluster if the task belongs to one -->
+                        <div 
+                            x-show="getClusterName(currentTodo?.id)" 
+                            class="text-sm px-3 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300 rounded-full"
+                        >
+                            <span x-text="getClusterName(currentTodo?.id)"></span>
+                        </div>
+                        
                         <p 
                             class="text-2xl text-center text-gray-800 dark:text-gray-200" 
                             x-text="currentTodo?.todo"
@@ -189,56 +219,36 @@
                 </template>
 
                 <template x-if="!hasTasks">
-                    <div 
-                        class="text-center"
-                        x-transition:enter="transition ease-out duration-200 delay-150"
-                        x-transition:enter-start="opacity-0 translate-y-4"
-                        x-transition:enter-end="opacity-100 translate-y-0"
-                    >
-                        <p class="text-lg text-green-600 dark:text-green-400">
-                            No tasks available! 🌱
-                        </p>
-                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">
-                            Add tasks from the To Do List
-                        </p>
+                    <div class="text-center py-8">
+                        <p class="text-xl text-gray-500 dark:text-gray-400">No tasks to display</p>
+                        <p class="text-gray-400 dark:text-gray-500 mt-2">Add some tasks to get started</p>
                     </div>
                 </template>
             </div>
         </div>
 
-        <!-- Task Status Messages -->
+        <!-- All Tasks Complete Message -->
         <div 
-            x-show="isAllTasksComplete"
-            x-transition:enter="transition ease-out duration-300 delay-200"
+            x-show="isAllTasksComplete" 
+            x-transition:enter="transition ease-out duration-300"
             x-transition:enter-start="opacity-0 scale-95"
             x-transition:enter-end="opacity-100 scale-100"
-            x-transition:leave="transition ease-in duration-200"
-            x-transition:leave-start="opacity-100 scale-100"
-            x-transition:leave-end="opacity-0 scale-95"
-            class="text-center"
+            class="text-center py-8"
         >
-            <p class="text-lg text-green-600 dark:text-green-400">
-                All tasks complete! 🎉
-            </p>
-            <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">
-                Add more tasks from the To Do List
-            </p>
+            <p class="text-2xl text-green-600 dark:text-green-400 font-medium">All tasks complete!</p>
+            <p class="text-gray-500 dark:text-gray-400 mt-2">Great job! Add more tasks or take a break.</p>
         </div>
 
-        <!-- Progress Tracking -->
-        <div x-show="hasTasks" class="w-full max-w-md mt-8">
-            <div class="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-3">
+        <!-- Progress Bar -->
+        <div class="w-full mt-8">
+            <div class="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-2">
                 <span x-text="taskCompletionLabel"></span>
                 <span x-text="completionPercentage + '%'"></span>
             </div>
             <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
                 <div 
-                    class="bg-blue-600 h-2.5 rounded-full transition-all duration-500 ease-out" 
+                    class="bg-blue-500 h-2.5 rounded-full progress-bar" 
                     :style="`width: ${completionPercentage}%`"
-                    role="progressbar" 
-                    :aria-valuenow="completionPercentage" 
-                    aria-valuemin="0" 
-                    aria-valuemax="100"
                 ></div>
             </div>
         </div>

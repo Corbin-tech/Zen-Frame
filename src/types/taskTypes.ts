@@ -6,6 +6,17 @@ export interface Group {
 }
 
 export interface Task extends Todo {
+  id: string
+  text: string
+  completed: boolean
+  createdAt?: string
+  isCluster?: boolean
+  parentId?: string
+  position: {
+    x: number
+    y: number
+    clusterId?: string
+  }
   isEditing?: boolean;
 }
 

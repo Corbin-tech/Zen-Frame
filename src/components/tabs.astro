@@ -1,5 +1,4 @@
 ---
-import ToDoList from './toDoList.astro';
 import PomoTimer from './pomoTimer.astro';
 import ZenToDoList from './zenToDoList.astro';
 import TaskManager from './taskManager.astro';
@@ -7,10 +6,10 @@ import TaskManager from './taskManager.astro';
 
 <div 
     x-data="{ 
-        activeTab: 'todo',
+        activeTab: 'taskmanager',
         init() {
             if (typeof window !== 'undefined') {
-                this.activeTab = localStorage.getItem('activeTab') || 'todo';
+                this.activeTab = localStorage.getItem('activeTab') || 'taskmanager';
                 this.$nextTick(() => {
                     this.$el.removeAttribute('x-cloak');
                 });
@@ -71,9 +70,6 @@ import TaskManager from './taskManager.astro';
 
     <!-- Tab Content -->
     <div class="mt-4">
-        <div x-show="activeTab === 'todo'" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100">
-            <ToDoList />
-        </div>
         <div x-show="activeTab === 'taskmanager'" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100">
             <TaskManager />
         </div>
