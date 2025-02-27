@@ -184,27 +184,27 @@ import QuickTaskInput from './QuickTaskInput.astro';
         position: relative;
     }
     
-    /* Drop targets */
-    .drop-target {
+    /* Drop targets - with increased specificity */
+    [data-drag-drop-container] .drop-target {
         border: 2px dashed #4f46e5 !important;
         background-color: rgba(79, 70, 229, 0.05) !important;
         transition: all 0.2s ease;
     }
     
-    .drop-target-cluster {
+    [data-drag-drop-container] .drop-target-cluster {
         border: 2px dashed #10b981 !important;
         background-color: rgba(16, 185, 129, 0.05) !important;
         transition: all 0.2s ease;
     }
     
-    /* Above drop target */
-    .drop-target-above {
+    /* Above drop target - with increased specificity */
+    [data-drag-drop-container] .drop-target-above {
         box-shadow: 0 -4px 0 0 #4f46e5 !important;
         transform: translateY(4px);
         z-index: 10;
     }
     
-    .drop-target-above::before {
+    [data-drag-drop-container] .drop-target-above::before {
         content: '';
         position: absolute;
         left: 0;
@@ -215,14 +215,14 @@ import QuickTaskInput from './QuickTaskInput.astro';
         border-radius: 2px;
     }
     
-    /* Below drop target */
-    .drop-target-below {
+    /* Below drop target - with increased specificity */
+    [data-drag-drop-container] .drop-target-below {
         box-shadow: 0 4px 0 0 #4f46e5 !important;
         transform: translateY(-4px);
         z-index: 10;
     }
     
-    .drop-target-below::after {
+    [data-drag-drop-container] .drop-target-below::after {
         content: '';
         position: absolute;
         left: 0;
@@ -233,8 +233,8 @@ import QuickTaskInput from './QuickTaskInput.astro';
         border-radius: 2px;
     }
     
-    /* When dragging, show feedback */
-    [data-drag-active="true"] {
+    /* When dragging, show feedback - with increased specificity */
+    [data-drag-drop-container] [data-drag-active="true"] {
         opacity: 0.9 !important;
         transform: scale(1.02) !important;
         box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1) !important;

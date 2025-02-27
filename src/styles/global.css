@@ -107,3 +107,22 @@ code {
 [data-drag-handle]:active {
     cursor: grabbing;
 }
+
+/* Global drag state */
+body.is-dragging {
+    cursor: grabbing !important;
+}
+
+body.is-dragging * {
+    cursor: grabbing !important;
+}
+
+/* Active element while dragging */
+[data-drag-active="true"] {
+    opacity: 0.8 !important;
+    transform: scale(1.03) !important;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15) !important;
+    z-index: 100 !important;
+    position: relative !important;
+    pointer-events: none !important;
+}

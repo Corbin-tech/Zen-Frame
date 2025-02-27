@@ -272,7 +272,10 @@ export function initStores(): void {
       console.log(`Reordering task ${taskId} ${position} ${targetId}`);
       
       // First check if the task is already in the right position
-      if (taskId === targetId) return;
+      if (taskId === targetId) {
+        console.log('Task is being dropped onto itself - ignoring');
+        return;
+      }
       
       // Find the tasks
       const sourceTask = this.items.find(t => t.id === taskId);
@@ -283,12 +286,35 @@ export function initStores(): void {
         return;
       }
       
-      // Make sure the parent IDs match (or both are null) to keep tasks in the same container
-      sourceTask.parentId = targetTask.parentId;
+      // Debug the task states before changing anything
+      console.log('Source task before:', {
+        id: sourceTask.id,
+        todo: sourceTask.todo,
+        isCluster: sourceTask.isCluster,
+        parentId: sourceTask.parentId
+      });
+      console.log('Target task before:', {
+        id: targetTask.id,
+        todo: targetTask.todo,
+        isCluster: targetTask.isCluster,
+        parentId: targetTask.parentId
+      });
+      
+      // Only update parentId if the tasks should be in the same container
+      // Don't forcibly set parentId if moving between different contexts
+      const oldParentId = sourceTask.parentId;
+      if (sourceTask.isCluster === targetTask.isCluster) {
+        sourceTask.parentId = targetTask.parentId;
+        console.log(`Updated parentId from ${oldParentId} to ${sourceTask.parentId}`);
+      } else {
+        console.log(`Keeping parentId as ${sourceTask.parentId} since task types differ`);
+      }
       
       // Find indices
       const sourceIndex = this.items.findIndex(t => t.id === taskId);
       const targetIndex = this.items.findIndex(t => t.id === targetId);
+      
+      console.log(`Source index: ${sourceIndex}, target index: ${targetIndex}`);
       
       // Create a new array without the source task
       const newItems = [...this.items];
@@ -299,6 +325,8 @@ export function initStores(): void {
       
       // Calculate insert position
       const insertIndex = position === 'above' ? newTargetIndex : newTargetIndex + 1;
+      
+      console.log(`Inserting at index: ${insertIndex} (${position} ${targetId})`);
       
       // Insert the task at the new position
       newItems.splice(insertIndex, 0, removedTask);
