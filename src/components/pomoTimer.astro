@@ -31,7 +31,7 @@
             <template x-if="!isRunning">
                 <button 
                     @click="startTimer" 
-                    class="px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 dark:bg-green-600 dark:hover:bg-green-700"
+                    class="px-6 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-opacity-50 dark:bg-teal-600 dark:hover:bg-teal-700"
                 >
                     Start
                 </button>
@@ -65,8 +65,8 @@
             </button>
             <button 
                 @click="setMode('break')"
-                :class="mode === 'break' ? 'bg-emerald-600' : 'bg-emerald-400'"
-                class="px-6 py-2 text-white rounded-lg hover:bg-emerald-500 transition-colors"
+                :class="mode === 'break' ? 'bg-teal-600' : 'bg-teal-400'"
+                class="px-6 py-2 text-white rounded-lg hover:bg-teal-500 transition-colors"
             >
                 Break
             </button>

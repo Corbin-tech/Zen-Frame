@@ -199,7 +199,7 @@
                         <!-- Show cluster if the task belongs to one -->
                         <div 
                             x-show="getClusterName(currentTodo?.id)" 
-                            class="text-sm px-3 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300 rounded-full"
+                            class="text-sm px-3 py-1 bg-teal-100 dark:bg-teal-900/30 text-teal-800 dark:text-teal-300 rounded-full"
                         >
                             <span x-text="getClusterName(currentTodo?.id)"></span>
                         </div>
@@ -211,7 +211,7 @@
                         <button 
                             @click="completeCurrentTodo"
                             aria-label="Mark current task as complete"
-                            class="px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors focus:ring-4 focus:ring-green-200 dark:focus:ring-green-900"
+                            class="px-6 py-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors focus:ring-4 focus:ring-teal-200 dark:focus:ring-teal-900"
                         >
                             Complete
                         </button>
@@ -235,7 +235,7 @@
             x-transition:enter-end="opacity-100 scale-100"
             class="text-center py-8"
         >
-            <p class="text-2xl text-green-600 dark:text-green-400 font-medium">All tasks complete!</p>
+            <p class="text-2xl text-teal-600 dark:text-teal-400 font-medium">All tasks complete!</p>
             <p class="text-gray-500 dark:text-gray-400 mt-2">Great job! Add more tasks or take a break.</p>
         </div>
 
