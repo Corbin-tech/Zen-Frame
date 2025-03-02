@@ -45,6 +45,13 @@ interface TodoStore {
   reorderTask(taskId: string, targetId: string, position: "above" | "below"): void;
   createCluster(name?: string): string;
   migrateTasksToMainContainer(): void;
+  moveTaskUp(taskId: string): void;
+  moveTaskDown(taskId: string): void;
+  isFirstTask(taskId: string): boolean;
+  isLastTask(taskId: string): boolean;
+  getTaskPosition(taskId: string): number;
+  isCluster(id: string): boolean;
+  setParentId(taskId: string, parentId: string): void;
 }
 
 interface WeeklyTask {
@@ -388,7 +395,123 @@ export function initStores(): void {
         this.saveTodos();
         console.log('Migrated existing tasks to mainContainer section');
       }
-    }
+    },
+
+    moveTaskUp(taskId: string): void {
+      const task = this.items.find(t => t.id === taskId);
+      if (!task) return;
+
+      // Get the container where this task belongs
+      let containerTasks: Todo[];
+      
+      if (task.parentId) {
+        // Task is in a cluster
+        containerTasks = this.items.filter(t => t.parentId === task.parentId);
+      } else {
+        // Task is at the root level
+        containerTasks = this.items.filter(t => !t.isCluster && !t.parentId);
+      }
+
+      // Find the task's position in its container
+      const taskIndex = containerTasks.findIndex(t => t.id === taskId);
+      if (taskIndex <= 0) return; // Already at the top
+
+      // Find the task that comes before this one
+      const previousTask = containerTasks[taskIndex - 1];
+      
+      // Reorder using the existing method
+      this.reorderTask(taskId, previousTask.id, "above");
+    },
+
+    moveTaskDown(taskId: string): void {
+      const task = this.items.find(t => t.id === taskId);
+      if (!task) return;
+
+      // Get the container where this task belongs
+      let containerTasks: Todo[];
+      
+      if (task.parentId) {
+        // Task is in a cluster
+        containerTasks = this.items.filter(t => t.parentId === task.parentId);
+      } else {
+        // Task is at the root level
+        containerTasks = this.items.filter(t => !t.isCluster && !t.parentId);
+      }
+
+      // Find the task's position in its container
+      const taskIndex = containerTasks.findIndex(t => t.id === taskId);
+      if (taskIndex === -1 || taskIndex >= containerTasks.length - 1) return; // Already at the bottom
+
+      // Find the task that comes after this one
+      const nextTask = containerTasks[taskIndex + 1];
+      
+      // Reorder using the existing method
+      this.reorderTask(taskId, nextTask.id, "below");
+    },
+
+    isFirstTask(taskId: string): boolean {
+      const task = this.items.find(t => t.id === taskId);
+      if (!task) return false;
+
+      // Get the container where this task belongs
+      let containerTasks: Todo[];
+      
+      if (task.parentId) {
+        // Task is in a cluster
+        containerTasks = this.items.filter(t => t.parentId === task.parentId);
+      } else {
+        // Task is at the root level
+        containerTasks = this.items.filter(t => !t.isCluster && !t.parentId);
+      }
+
+      // Check if this task is the first one in its container
+      return containerTasks.length > 0 && containerTasks[0].id === taskId;
+    },
+
+    isLastTask(taskId: string): boolean {
+      const task = this.items.find(t => t.id === taskId);
+      if (!task) return false;
+
+      // Get the container where this task belongs
+      let containerTasks: Todo[];
+      
+      if (task.parentId) {
+        // Task is in a cluster
+        containerTasks = this.items.filter(t => t.parentId === task.parentId);
+      } else {
+        // Task is at the root level
+        containerTasks = this.items.filter(t => !t.isCluster && !t.parentId);
+      }
+
+      // Check if this task is the last one in its container
+      return containerTasks.length > 0 && containerTasks[containerTasks.length - 1].id === taskId;
+    },
+
+    getTaskPosition(taskId: string): number {
+      const task = this.items.find(t => t.id === taskId);
+      if (!task) return -1;
+      
+      // Get all tasks in the same container
+      const tasksInContainer = task.parentId
+        ? this.items.filter(t => t.parentId === task.parentId)
+        : this.items.filter(t => !t.parentId && !this.isCluster(t.id));
+      
+      // Find the position (1-based)
+      return tasksInContainer.findIndex(t => t.id === taskId) + 1;
+    },
+    
+    isCluster(id: string): boolean {
+      const item = this.items.find(t => t.id === id);
+      return !!item && item.isCluster === true;
+    },
+    
+    setParentId(taskId: string, parentId: string): void {
+      const task = this.items.find(t => t.id === taskId);
+      if (!task) return;
+      
+      task.parentId = parentId;
+      this.saveTodos();
+    },
   };
 
   window.Alpine.store("todos", todosStore);

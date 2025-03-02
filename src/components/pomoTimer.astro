@@ -16,81 +16,162 @@
     x-cloak
     class="w-full max-w-3xl mx-auto bg-white dark:bg-slate-800 rounded-xl shadow-sm p-6"
 >
-    <h1 class="text-4xl font-bold text-center mb-8 text-gray-800 dark:text-white">Pomodoro Timer</h1>
+    <h1 class="text-4xl font-bold text-center mb-6 text-gray-800 dark:text-white">Pomodoro Timer</h1>
 
     <!-- Timer Display -->
     <div class="flex flex-col items-center justify-center">
         
-        <!-- Timer -->
-        <div class="text-6xl font-mono font-bold text-gray-700 dark:text-gray-200 mb-4">
-            <span x-text="Math.floor(timeLeft / 60).toString().padStart(2, '0')"></span>:<span x-text="(timeLeft % 60).toString().padStart(2, '0')"></span>
+        <!-- Timer Circle -->
+        <div class="relative w-72 h-72 mb-8">
+            <!-- Background Circle -->
+            <svg class="w-full h-full rotate-90 -scale-y-100" viewBox="0 0 100 100">
+                <circle
+                    cx="50" cy="50" r="45"
+                    fill="transparent"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    class="text-gray-200 dark:text-gray-700"
+                />
+                
+                <!-- Progress Circle -->
+                <circle
+                    cx="50" cy="50" r="45"
+                    fill="transparent"
+                    stroke="currentColor"
+                    stroke-width="8"
+                    stroke-linecap="round"
+                    :stroke-dasharray="283"
+                    :stroke-dashoffset="283 - (283 * $store.pomoState.percentComplete) / 100"
+                    class="text-blue-500 dark:text-blue-400 transition-all duration-1000 ease-in-out"
+                />
+            </svg>
+            
+            <!-- Timer Text -->
+            <div class="absolute top-0 left-0 w-full h-full flex flex-col items-center justify-center">
+                <div class="text-6xl font-mono font-bold text-gray-800 dark:text-gray-100">
+                    <span x-text="Math.floor($store.pomoState.timeLeft / 60).toString().padStart(2, '0')"></span>:<span x-text="($store.pomoState.timeLeft % 60).toString().padStart(2, '0')"></span>
+                </div>
+                <div class="mt-1 text-md font-medium text-gray-600 dark:text-gray-300" x-text="$store.pomoState.currentPresetName"></div>
+            </div>
         </div>
         
         <!-- Timer Controls -->
-        <div class="flex justify-center space-x-4 mb-6">
-            <template x-if="!isRunning">
+        <div class="flex justify-center space-x-4 mb-8">
+            <template x-if="!$store.pomoState.isRunning">
                 <button 
-                    @click="startTimer" 
-                    class="px-6 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-opacity-50 dark:bg-teal-600 dark:hover:bg-teal-700"
+                    @click="$store.pomoState.startTimer()" 
+                    class="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 dark:bg-blue-600 dark:hover:bg-blue-700 transition-colors shadow-sm"
                 >
-                    Start
+                    <div class="flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Start
+                    </div>
                 </button>
             </template>
             
-            <template x-if="isRunning">
+            <template x-if="$store.pomoState.isRunning">
                 <button 
-                    @click="pauseTimer" 
-                    class="px-6 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-opacity-50 dark:bg-yellow-600 dark:hover:bg-yellow-700"
+                    @click="$store.pomoState.pauseTimer()" 
+                    class="px-6 py-2.5 bg-teal-500 text-white rounded-lg hover:bg-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-opacity-50 dark:bg-teal-600 dark:hover:bg-teal-700 transition-colors shadow-sm"
                 >
-                    Pause
+                    <div class="flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Pause
+                    </div>
                 </button>
             </template>
             
             <button 
-                @click="resetTimer" 
-                class="px-6 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 dark:bg-red-600 dark:hover:bg-red-700"
-            >
-                Reset
+                @click="$store.pomoState.resetTimer()" 
+                class="flex items-center gap-2 px-4 py-2 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 rounded-lg transition-colors duration-200"
+        >
+                <div class="flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Reset
+                </div>
             </button>
         </div>
 
-        <!-- Mode Selection -->
-        <div class="flex justify-center space-x-4">
+        <!-- Timer Presets -->
+        <div class="flex flex-wrap justify-center gap-3 mb-6">
             <button 
-                @click="setMode('focus')"
-                :class="mode === 'focus' ? 'bg-indigo-600' : 'bg-indigo-400'"
-                class="px-6 py-2 text-white rounded-lg hover:bg-indigo-500 transition-colors"
+                @click="$store.pomoState.setPreset('pomodoro')"
+                :class="$store.pomoState.preset === 'pomodoro' ? 'bg-blue-600 ring-2 ring-blue-200 dark:ring-blue-900' : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300'"
+                class="px-6 py-2.5 rounded-lg transition-all shadow-sm flex items-center gap-2"
             >
-                Focus
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                25 / 5
             </button>
             <button 
-                @click="setMode('break')"
-                :class="mode === 'break' ? 'bg-teal-600' : 'bg-teal-400'"
-                class="px-6 py-2 text-white rounded-lg hover:bg-teal-500 transition-colors"
+                @click="$store.pomoState.setPreset('long')"
+                :class="$store.pomoState.preset === 'long' ? 'bg-blue-600 ring-2 ring-blue-200 dark:ring-blue-900' : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300'"
+                class="px-6 py-2.5 rounded-lg transition-all shadow-sm flex items-center gap-2"
             >
-                Break
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                50 / 10
             </button>
             <button 
-                @click="setMode('meditation')"
-                :class="mode === 'meditation' ? 'bg-amber-600' : 'bg-amber-400'"
-                class="px-6 py-2 text-white rounded-lg hover:bg-amber-500 transition-colors"
+                @click="$store.pomoState.toggleBreak()"
+                :class="$store.pomoState.isBreak ? 'bg-teal-600 ring-2 ring-teal-200 dark:ring-teal-900 text-white' : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300'"
+                class="px-6 py-2.5 rounded-lg transition-all shadow-sm flex items-center gap-2"
             >
-                Meditation
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span x-text="$store.pomoState.isBreak ? 'Work' : 'Break'"></span>
             </button>
         </div>
-    </div>
-</div>
-
 <script is:inline>
-    function pomoTimer() {
-        return {
-            timeLeft: 25 * 60,  // 25 minutes in seconds
+    document.addEventListener('alpine:init', () => {
+        window.Alpine.store('pomoState', {
+            totalTime: 25 * 60,  // Total time for the current mode in seconds
+            timeLeft: 25 * 60,   // Remaining time in seconds
             isRunning: false,
-            mode: 'focus',
+            preset: 'pomodoro',  // pomodoro, long, or custom
+            isBreak: false,
             timer: null,
+            customMinutes: 5,
 
             init() {
-                this.setMode('focus');
+                // Request notification permission
+                if (Notification.permission !== "granted" && Notification.permission !== "denied") {
+                    Notification.requestPermission();
+                }
+                
+                // Initialize from localStorage if available
+                this.loadState();
+                this.setPreset('pomodoro');
+            },
+            
+            get percentComplete() {
+                return 100 - (this.timeLeft / this.totalTime * 100);
+            },
+            
+            get currentPresetName() {
+                if (this.preset === 'custom') {
+                    return `Custom ${this.customMinutes} min`;
+                }
+                
+                if (this.preset === 'pomodoro') {
+                    return this.isBreak ? 'Recharge' : 'Burst Focus';
+                }
+                
+                if (this.preset === 'long') {
+                    return this.isBreak ? 'Recharge' : 'Extended Focus';
+                }
+                
+                return 'Timer';
             },
 
             startTimer() {
@@ -100,9 +181,9 @@
                 this.timer = setInterval(() => {
                     if (this.timeLeft > 0) {
                         this.timeLeft--;
+                        this.saveState();
                     } else {
-                        this.playAlarm();
-                        this.resetTimer();
+                        this.completeTimer();
                     }
                 }, 1000);
             },
@@ -113,6 +194,7 @@
                     clearInterval(this.timer);
                     this.timer = null;
                 }
+                this.saveState();
             },
 
             resetTimer() {
@@ -121,28 +203,66 @@
                     clearInterval(this.timer);
                     this.timer = null;
                 }
-                this.setMode(this.mode);
+                this.updateTimerDuration();
+            },
+            
+            completeTimer() {
+                this.playAlarm();
+                this.isRunning = false;
+                
+                if (this.timer) {
+                    clearInterval(this.timer);
+                    this.timer = null;
+                }
+                
+                // Auto toggle between work and break
+                this.isBreak = !this.isBreak;
+                this.updateTimerDuration();
+            },
+            
+            toggleBreak() {
+                this.isBreak = !this.isBreak;
+                this.updateTimerDuration();
             },
 
-            setMode(newMode) {
-                this.mode = newMode;
+            setPreset(newPreset) {
+                this.preset = newPreset;
+                this.updateTimerDuration();
+            },
+            
+            updateTimerDuration() {
                 this.isRunning = false;
                 if (this.timer) {
                     clearInterval(this.timer);
                     this.timer = null;
                 }
-
-                switch (newMode) {
-                    case 'focus':
-                        this.timeLeft = 25 * 60; // 25 minutes
-                        break;
-                    case 'break':
-                        this.timeLeft = 5 * 60;  // 5 minutes
-                        break;
-                    case 'meditation':
-                        this.timeLeft = 15 * 60; // 15 minutes
-                        break;
+                
+                // Set duration based on preset and break status
+                if (this.preset === 'pomodoro') {
+                    this.totalTime = this.isBreak ? 5 * 60 : 25 * 60;
+                } else if (this.preset === 'long') {
+                    this.totalTime = this.isBreak ? 10 * 60 : 50 * 60;
                 }
+                
+                this.timeLeft = this.totalTime;
+                this.saveState();
+            },
+            
+            setCustomTime() {
+                if (this.customMinutes < 1) this.customMinutes = 1;
+                if (this.customMinutes > 120) this.customMinutes = 120;
+                
+                this.preset = 'custom';
+                this.totalTime = this.customMinutes * 60;
+                this.timeLeft = this.totalTime;
+                this.isRunning = false;
+                
+                if (this.timer) {
+                    clearInterval(this.timer);
+                    this.timer = null;
+                }
+                
+                this.saveState();
             },
 
             playAlarm() {
@@ -151,11 +271,58 @@
                 
                 if (Notification.permission === "granted") {
                     new Notification("Timer Complete!", {
-                        body: `Your ${this.mode} session is complete!`,
+                        body: `Your ${this.isBreak ? 'break' : 'focus'} session is complete!`,
                         icon: "/favicon.ico"
                     });
                 }
+            },
+            
+            saveState() {
+                try {
+                    const state = {
+                        preset: this.preset,
+                        isBreak: this.isBreak,
+                        customMinutes: this.customMinutes
+                    };
+                    localStorage.setItem('pomoState', JSON.stringify(state));
+                } catch (e) {
+                    console.error('Error saving state:', e);
+                }
+            },
+            
+            loadState() {
+                try {
+                    const savedState = localStorage.getItem('pomoState');
+                    if (savedState) {
+                        const state = JSON.parse(savedState);
+                        this.preset = state.preset || 'pomodoro';
+                        this.isBreak = state.isBreak || false;
+                        this.customMinutes = state.customMinutes || 5;
+                    }
+                } catch (e) {
+                    console.error('Error loading state:', e);
+                }
+            }
+        });
+    });
+
+    function pomoTimer() {
+        return {
+            init() {
+                window.Alpine.store('pomoState').init();
             }
         };
     }
 </script>
+
+<style>
+    /* Disable spinner arrows on number input */
+    input[type=number]::-webkit-inner-spin-button, 
+    input[type=number]::-webkit-outer-spin-button { 
+        -webkit-appearance: none; 
+        margin: 0; 
+    }
+    input[type=number] {
+        -moz-appearance: textfield;
+    }
+</style>
