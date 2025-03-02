@@ -263,10 +263,9 @@ Alpine.data('taskManager', () => ({
       this.setupMonitoring();
       
       // Set up drop zones and draggables using unified methods
-      this.setupDropZones('task', '[data-task]', this.handleTaskDrop.bind(this));
+      // We're only keeping drag functionality for clusters, not for reordering
       this.setupDropZones('cluster', '[data-cluster]', this.handleClusterDrop.bind(this));
       this.setupDraggables('task', '[data-task]');
-      this.setupDraggables('cluster', '[data-cluster]');
       
       // Set up containers as drop targets
       this.setupContainerDropZones();
@@ -339,9 +338,6 @@ Alpine.data('taskManager', () => ({
           onDragStart: () => this.isDragging = true,
           onDrop: () => this.isDragging = false
         });
-        this.createDropTarget(taskEl, 'task', {
-          onDrop: this.handleTaskDrop.bind(this)
-        });
         initialized = true;
       }
       
@@ -405,39 +401,107 @@ Alpine.data('taskManager', () => ({
   },
   
   // Unified method to set up drop zones
-  setupDropZones(type, selector, onDrop) {
+  setupDropZones(type, selector, dropHandler) {
     const elements = document.querySelectorAll(selector);
-    console.log(`Found ${elements.length} ${type} elements to make drop targets`);
+    console.log(`Setting up ${elements.length} ${type} drop zones`);
+    
     elements.forEach(element => {
-      if (!initializedElements.has(`${element.id}-drop`)) {
-        try {
-          this.createDropTarget(element, type, { onDrop });
-          initializedElements.add(`${element.id}-drop`);
-          console.log(`Successfully made ${type} drop target: ${element.id}`);
-        } catch (e) {
-          console.error(`Error creating ${type} drop target: ${element.id}`, e);
-        }
+      // Skip if already initialized
+      if (initializedElements.has(`${element.id}-drop`)) {
+        return;
       }
+      
+      // Ensure the element has a unique identifier
+      const elementId = element.id || 
+        (element.dataset.clusterId ? `cluster-${element.dataset.clusterId}` : 
+        (element.dataset.taskId ? `task-${element.dataset.taskId}` : 
+        `drop-zone-${Math.random().toString(36).substr(2, 9)}`));
+      
+      // Create drop target with enhanced handling
+      this.createDropTarget(element, type, {
+        onDragEnter: (args) => {
+          // Add visual feedback for drop target
+          element.classList.add('drop-target');
+          
+          // If it's a cluster, add specific cluster drop target class
+          if (element.hasAttribute('data-cluster')) {
+            element.classList.add('drop-target-cluster');
+          }
+        },
+        onDragLeave: (args) => {
+          // Remove drop target classes
+          element.classList.remove('drop-target', 'drop-target-cluster');
+        },
+        onDrop: (args) => {
+          // Remove drop target classes
+          element.classList.remove('drop-target', 'drop-target-cluster');
+          
+          // Call the provided drop handler if exists
+          if (dropHandler) {
+            dropHandler({
+              ...args,
+              element: element,  // Pass the actual drop target element
+              location: {
+                type: element.hasAttribute('data-cluster') ? 'cluster' : 'task',
+                id: elementId
+              }
+            });
+          }
+        }
+      });
+      
+      // Mark as initialized
+      initializedElements.add(`${elementId}-drop`);
     });
   },
   
   // Unified method to set up draggables
   setupDraggables(type, selector) {
-    const elements = document.querySelectorAll(selector);
-    console.log(`Found ${elements.length} ${type} elements to make draggable`);
-    elements.forEach(element => {
-      if (!initializedElements.has(`${element.id}-drag`)) {
-        try {
-          this.createDraggable(element, type, {
-            onDragStart: () => this.isDragging = true,
-            onDrop: () => this.isDragging = false
-          });
-          initializedElements.add(`${element.id}-drag`);
-          console.log(`Successfully made ${type} draggable: ${element.id}`);
-        } catch (e) {
-          console.error(`Error making ${type} draggable: ${element.id}`, e);
-        }
+    const items = document.querySelectorAll(selector);
+    console.log(`Setting up ${items.length} ${type} draggables`);
+    
+    items.forEach(item => {
+      // Check if already initialized to avoid duplicates
+      if (initializedElements.has(item.id)) {
+        return;
       }
+      
+      // Get the task ID from data attribute
+      const taskId = item.dataset.taskId;
+      const clusterId = item.dataset.clusterId;
+      
+      // Set up drag source
+      const dragHandles = item.querySelectorAll('[data-drag-handle]');
+      if (dragHandles.length > 0) {
+        dragHandles.forEach(handle => {
+          // Create draggable with handle
+          const draggable = this.createDraggable({
+            element: item,
+            dragHandle: handle,
+            data: { type, taskId: taskId || item.id.replace('task-', ''), clusterId },
+            onDragStart: () => {
+              console.log(`Started dragging ${type} ${taskId || item.id}`);
+              document.body.classList.add('dragging-active');
+              this.isDragging = true;
+            },
+            onDragEnd: () => {
+              console.log(`Ended dragging ${type} ${taskId || item.id}`);
+              document.body.classList.remove('dragging-active');
+              this.isDragging = false;
+              
+              // Force refresh after drag to ensure all handlers are up-to-date
+              setTimeout(() => this.setupDragAndDrop(), 50);
+            }
+          });
+          
+          console.log(`Set up draggable for ${type} ${taskId || item.id}`);
+        });
+      } else {
+        console.warn(`No drag handles found for ${type} ${item.id}`);
+      }
+      
+      // Mark as initialized
+      initializedElements.add(item.id);
     });
   },
   
@@ -459,56 +523,111 @@ Alpine.data('taskManager', () => ({
         const cleanup = dropTargetForElements({
           element: container,
           getData: () => ({ id: containerId, type: 'container' }),
-          onDragEnter: () => {
-            // Only add the drop target class to the container itself
-            // when dragging over empty space or between tasks
+          onDragEnter: (params) => {
+            // Add the drop target class to the container
             container.classList.add('drop-target');
+            
+            // Check if this is the main container and we're at the top
+            if (containerId === 'mainContainer') {
+              const rect = container.getBoundingClientRect();
+              const relativeY = params.location.clientY - rect.top;
+              
+              // If we're in the top area, show the top drop indicator
+              if (relativeY < 30) {
+                container.classList.add('drop-target-top');
+                
+                // Clear all other indicators
+                document.querySelectorAll('.drop-target-above, .drop-target-below')
+                  .forEach(el => {
+                    el.classList.remove('drop-target-above', 'drop-target-below');
+                  });
+              }
+            }
           },
           onDragLeave: () => {
-            container.classList.remove('drop-target');
+            container.classList.remove('drop-target', 'drop-target-top');
           },
-          onDrop: ({ source }) => {
+          onDragMove: (params) => {
+            // Update indicators based on position
+            this.updateDropZone(container, params.location);
+          },
+          onDrop: (params) => {
             // Remove all drop target classes
-            container.classList.remove('drop-target');
+            container.classList.remove('drop-target', 'drop-target-top');
+            document.querySelectorAll('.drop-target-above, .drop-target-below, .drop-target-cluster, .drop-target-top')
+              .forEach(el => {
+                el.classList.remove('drop-target-above', 'drop-target-below', 'drop-target-cluster', 'drop-target-top');
+              });
+            document.body.classList.remove('dragging-active');
             
-            if (source.data.type === 'task') {
-              const sourceId = source.data.id;
-              console.log(`Drop task directly into container: ${sourceId} -> ${containerId}`);
-              
-              // Remove task from any clusters
-              this.removeTaskFromCluster(sourceId);
+            // Get source info
+            const sourceId = params.source?.data?.id;
+            const sourceType = params.source?.data?.type;
+            
+            // Skip if not a valid task
+            if (!sourceId || sourceType !== 'task') {
+              return;
             }
+            
+            // Check if this is a drop at the top of mainContainer
+            if (containerId === 'mainContainer') {
+              const rect = container.getBoundingClientRect();
+              const relativeY = params.location.clientY - rect.top;
+              
+              // If we're dropping at the very top (increased to 30px for better usability)
+              if (relativeY < 30) {
+                // Find the first task in the container
+                const firstTask = container.querySelector('[data-task]');
+                
+                if (firstTask) {
+                  const firstTaskId = firstTask.id.replace('task-', '');
+                  
+                  // Don't try to drop onto self
+                  if (sourceId === firstTaskId) {
+                    console.log('Dropping onto self, ignoring');
+                    return;
+                  }
+                  
+                  console.log(`Dropping task at the top: ${sourceId} -> above ${firstTaskId}`);
+                  
+                  // Move the task above the first task
+                  this.moveTaskRelativeTo(sourceId, firstTaskId, 'above');
+                  
+                  // Force refresh
+                  setTimeout(() => {
+                    this.setupDragAndDrop();
+                  }, 100);
+                  
+                  return;
+                } else {
+                  // If there are no tasks, just add to container
+                  console.log(`Drop task into empty container: ${sourceId}`);
+                  this.removeTaskFromCluster(sourceId);
+                  return;
+                }
+              }
+            }
+            
+            // Standard container drop handling
+            console.log(`Drop task into container: ${sourceId}`);
+            this.removeTaskFromCluster(sourceId);
+            
+            // Force refresh
+            setTimeout(() => {
+              this.setupDragAndDrop();
+            }, 100);
           }
         });
         
         this._cleanupFunctions.push(cleanup);
         initializedElements.add(containerId + '-drop');
-        initializedElements.add(containerId); // Add tracking for initialized container elements
+        initializedElements.add(containerId);
       } catch (e) {
         console.error('Error setting up container drop target:', e);
       }
     });
   },
   
-  // Handle a task being dropped on a container
-  handleTaskDroppedOnContainer(taskId, containerId) {
-    // Find parent cluster if any
-    const containerEl = document.getElementById(containerId);
-    if (!containerEl) return;
-    
-    const clusterEl = containerEl.closest('[data-cluster]');
-    if (clusterEl) {
-      const clusterId = clusterEl.id.replace('cluster-', '');
-      console.log(`Container is in cluster ${clusterId}`);
-      this.moveTaskToCluster(taskId, clusterId);
-    } else {
-      console.log(`Container is in main container`);
-      // Dropped in main container - remove from any cluster
-      this.removeTaskFromCluster(taskId);
-    }
-  },
-  
-  // Move a task relative to another task (above or below)
   moveTaskRelativeTo(sourceId, targetId, position) {
     console.log(`Moving task ${sourceId} ${position} task ${targetId}`);
     
@@ -563,33 +682,26 @@ Alpine.data('taskManager', () => ({
   moveTaskToCluster(taskId, clusterId) {
     console.log(`Moving task ${taskId} to cluster ${clusterId}`);
     
-    // Get the store
-    const store = Alpine.store('todos');
-    
-    // Find task
-    const task = store.items.find(t => t.id === taskId);
-    
-    if (!task) {
-      console.error('Task not found', taskId);
-      return;
+    try {
+      // Access the Alpine.js store
+      const store = window.Alpine.store('todos');
+      
+      // Update the parentId of the task to point to the cluster
+      store.setParentId(taskId, clusterId);
+      
+      // Notify that the task has been moved
+      document.dispatchEvent(new CustomEvent('task-moved', { 
+        detail: { taskId, targetId: clusterId, position: 'into' } 
+      }));
+      
+      // Force refresh drag and drop bindings after a short delay
+      setTimeout(() => {
+        this.setupDragAndDrop();
+      }, 100);
+      
+    } catch (error) {
+      console.error('Error moving task to cluster:', error);
     }
-    
-    // Check if task is already in this cluster
-    if (task.parentId === clusterId) {
-      console.log('Task already in this cluster');
-      return;
-    }
-    
-    // Update task's parent and section
-    store.updateTask(taskId, { 
-      parentId: clusterId,
-      section: 'cluster'
-    });
-    
-    // Dispatch event to refresh drag and drop
-    document.dispatchEvent(new CustomEvent('task-moved', { 
-      detail: { taskId, clusterId } 
-    }));
   },
   
   removeTaskFromCluster(taskId) {
@@ -761,238 +873,298 @@ Alpine.data('taskManager', () => ({
     }
     
     try {
+      // Clear any previous top container indicator
+      const mainContainer = document.getElementById('mainContainer');
+      if (mainContainer) {
+        mainContainer.classList.remove('drop-target-top');
+      }
+      
+      // Special check for the top of the container - this needs to happen first
+      if (mainContainer) {
+        const containerRect = mainContainer.getBoundingClientRect();
+        const relativeY = location.clientY - containerRect.top;
+        
+        // If we're near the top of the container (expanded to 30px)
+        if (relativeY < 30) {
+          // Find the first task
+          const firstTask = mainContainer.querySelector('[data-task]');
+          
+          // Only show the indicator if there's a task and we're not dragging the first task
+          if (firstTask) {
+            const draggedElement = document.querySelector('[data-drag-active="true"]');
+            if (draggedElement && draggedElement.id !== firstTask.id) {
+              mainContainer.classList.add('drop-target-top');
+              
+              // Clear all other indicators
+              document.querySelectorAll('.drop-target-above, .drop-target-below')
+                .forEach(el => {
+                  el.classList.remove('drop-target-above', 'drop-target-below');
+                });
+              
+              return; // Exit early since we're showing the top indicator
+            }
+          }
+        }
+      }
+      
+      // Get the current dragged element
+      const draggedElement = document.querySelector('[data-drag-active="true"]');
+      
+      // Check if we're dragging to the same position
+      if (draggedElement && element.hasAttribute('data-task')) {
+        const draggedId = draggedElement.id;
+        const targetId = element.id;
+        
+        // Get dimensions to calculate drop position
+        const rect = element.getBoundingClientRect();
+        const relativeY = location.clientY - rect.top;
+        const percentage = relativeY / rect.height * 100;
+        
+        // Determine which indicator would be shown
+        let wouldShowAbove = percentage <= 30;
+        let wouldShowBelow = percentage > 30;
+        
+        // For special cases like the first task, expand the "above" zone
+        const isFirstTask = !element.previousElementSibling || 
+          (element.previousElementSibling && !element.previousElementSibling.hasAttribute('data-task'));
+          
+        if (isFirstTask && percentage <= 40) {
+          wouldShowAbove = true;
+          wouldShowBelow = false;
+        }
+        
+        // Check all cases where we should NOT show an indicator:
+        
+        // Case 1: Dragging task 3 to position above task 3 itself
+        const isAboveSelf = 
+          wouldShowAbove && 
+          draggedId === targetId;
+        
+        // Case 2: Dragging task 2 to position below task 2 itself
+        const isBelowSelf = 
+          wouldShowBelow && 
+          draggedId === targetId;
+        
+        // Case 3: Dragging task 2 to position above task 3, when task 2 is already above task 3
+        const isAlreadyAboveTarget = 
+          wouldShowAbove && 
+          element.previousElementSibling && 
+          element.previousElementSibling.id === draggedId;
+        
+        // Case 4: Dragging task 3 to position below task 2, when task 3 is already below task 2
+        const isAlreadyBelowTarget = 
+          wouldShowBelow && 
+          element.nextElementSibling && 
+          element.nextElementSibling.id === draggedId;
+        
+        // If any of these cases are true, we're trying to drag to the current position
+        if (isAboveSelf || isBelowSelf || isAlreadyAboveTarget || isAlreadyBelowTarget) {
+          element.classList.remove('drop-target-above', 'drop-target-below', 'drop-target-cluster');
+          return;
+        }
+      }
+      
+      // Get dimensions to calculate drop position
       const rect = element.getBoundingClientRect();
       const relativeY = location.clientY - rect.top;
       const percentage = relativeY / rect.height * 100;
       
       console.log(`Drop zone: ${percentage.toFixed(1)}% of height ${rect.height}px for ${element.id}`);
       
+      // Mark the entire document as dragging for animation effects
+      document.body.classList.add('dragging-active');
+      
+      // Remove existing drop target indicators
       element.classList.remove('drop-target-above', 'drop-target-below', 'drop-target-cluster');
       
+      // Special handling for clusters
       if (element.hasAttribute('data-cluster')) {
         // For clusters, use three zones: above, into, below
-        if (percentage <= 15) {
+        if (percentage <= 25) {
           element.classList.add('drop-target-above');
-        } else if (percentage >= 85) {
+        } else if (percentage >= 75) {
           element.classList.add('drop-target-below');
         } else {
           element.classList.add('drop-target-cluster');
         }
       } else {
         // For tasks, just use above or below
-        if (percentage <= 30) {
+        // Special handling for first task in container
+        const isFirstTask = !element.previousElementSibling || 
+          (element.previousElementSibling && !element.previousElementSibling.hasAttribute('data-task'));
+          
+        // Expanded the "above" zone for the first task to make it easier to hit
+        if ((isFirstTask && percentage <= 40) || percentage <= 30) {
           element.classList.add('drop-target-above');
-        } else if (percentage >= 70) {
+        } else {
+          // Handle both middle and bottom as "below"
           element.classList.add('drop-target-below');
         }
       }
     } catch (e) {
       console.error('Error updating drop zone:', e);
-      // Clean up all drop zone classes
-      element.classList.remove('drop-target-above', 'drop-target-below', 'drop-target-cluster');
     }
   },
   
-  // Default handler for drops when no specific handler is provided
-  handleDefaultDrop(element, source, location) {
-    // Add null checking
-    if (!source || !source.data || !element) {
-      console.warn('Drop received with invalid data');
-      return;
-    }
-
-    const targetId = element.id.replace(/(task|cluster)-/, '');
-    const targetType = element.hasAttribute('data-task') ? 'task' : 'cluster';
-    const sourceId = source.data.id;
-    const sourceType = source.data.type;
-    
-    // Skip if dropping onto self
-    if (sourceId === targetId && sourceType === targetType) {
-      console.log('Dropping onto self, ignoring');
-      return;
-    }
-    
-    const rect = element.getBoundingClientRect();
-    const relativeY = location.clientY - rect.top;
-    const percentage = relativeY / rect.height * 100;
-    
-    if (targetType === 'task') {
-      // Task drop targets
-      if (percentage <= 30) {
-        // Above
-        console.log(`Drop above task: ${sourceType} ${sourceId} -> above ${targetId}`);
-        this.moveTaskRelativeTo(sourceId, targetId, 'above');
-      } else if (percentage >= 70) {
-        // Below
-        console.log(`Drop below task: ${sourceType} ${sourceId} -> below ${targetId}`);
-        this.moveTaskRelativeTo(sourceId, targetId, 'below');
-      }
-    } else if (targetType === 'cluster') {
-      // Cluster drop targets
-      if (percentage <= 15) {
-        // Above
-        console.log(`Drop above cluster: ${sourceType} ${sourceId} -> above ${targetId}`);
-        if (sourceType === 'task') {
-          this.moveTaskRelativeToCluster(sourceId, targetId, 'above');
-        } else if (sourceType === 'cluster') {
-          this.moveClusterRelativeTo(sourceId, targetId, 'above');
-        }
-      } else if (percentage >= 85) {
-        // Below
-        console.log(`Drop below cluster: ${sourceType} ${sourceId} -> below ${targetId}`);
-        if (sourceType === 'task') {
-          this.moveTaskRelativeToCluster(sourceId, targetId, 'below');
-        } else if (sourceType === 'cluster') {
-          this.moveClusterRelativeTo(sourceId, targetId, 'below');
-        }
-      } else {
-        // Into
-        console.log(`Drop into cluster: ${sourceType} ${sourceId} -> into ${targetId}`);
-        if (sourceType === 'task') {
-          this.moveTaskToCluster(sourceId, targetId);
-        }
-      }
-    }
-  },
-  
-  // Handler for task drops
+  // Modified to only handle dropping tasks into clusters
   handleTaskDrop({ source, location, element }) {
-    // Add null checking to prevent errors
-    if (!source || !source.data) {
-      console.warn('Task drop received with no source data');
+    // Remove all temporary classes first
+    this.removeAllDropTargetClasses();
+    
+    // If there's no source information or no element, ignore
+    if (!source || !source.data || !element) {
+      console.log('Missing source or element data');
       return;
     }
-
-    const targetId = element.id.replace('task-', '');
-    const sourceId = source.data.id;
-    const sourceType = source.data.type;
     
-    if (sourceType !== 'task') return;
-    if (sourceId === targetId) return;
-    
-    const rect = element.getBoundingClientRect();
-    const relativeY = location.clientY - rect.top;
-    const percentage = relativeY / rect.height * 100;
-    
-    if (percentage <= 30) {
-      console.log(`Task drop above: ${sourceId} -> above ${targetId}`);
-      this.moveTaskRelativeTo(sourceId, targetId, 'above');
-    } else if (percentage >= 70) {
-      console.log(`Task drop below: ${sourceId} -> below ${targetId}`);
-      this.moveTaskRelativeTo(sourceId, targetId, 'below');
+    try {
+      // Get the IDs from the data attributes
+      const sourceId = source.data.taskId;
+      const targetId = element.dataset.taskId || element.dataset.clusterId;
+      
+      if (!sourceId || !targetId) {
+        console.log('Missing source or target IDs');
+        return;
+      }
+      
+      // Determine drop location type
+      const isTargetCluster = element.hasAttribute('data-cluster') || 
+                              location.type === 'cluster' || 
+                              element.closest('[data-cluster]') !== null;
+      
+      if (isTargetCluster) {
+        // Ensure we get the correct cluster ID
+        const actualClusterId = element.dataset.clusterId || 
+                                (element.closest('[data-cluster]')?.dataset.clusterId);
+        
+        if (actualClusterId) {
+          // Move task into cluster
+          console.log(`Moving task ${sourceId} into cluster ${actualClusterId}`);
+          this.moveTaskToCluster(sourceId, actualClusterId);
+          return;
+        }
+      }
+      
+      // If not a cluster drop, fallback to default task movement
+      console.log(`Dropping task ${sourceId} near task ${targetId}`);
+      this.moveTaskRelativeTo(sourceId, targetId, 'after');
+      
+    } catch (e) {
+      console.error('Error in handleTaskDrop:', e);
     }
   },
   
   // Handler for cluster drops
   handleClusterDrop({ source, location, element }) {
-    // Add null checking to prevent errors
-    if (!source || !source.data) {
-      console.warn('Cluster drop received with no source data');
+    // Remove temporary classes
+    this.removeAllDropTargetClasses();
+    
+    if (!source || !source.data || !element) {
+      console.log('Missing source or element data');
       return;
     }
-
-    const targetId = element.id.replace('cluster-', '');
-    const sourceId = source.data.id;
-    const sourceType = source.data.type;
     
-    if (sourceId === targetId && sourceType === 'cluster') return;
-    
-    const rect = element.getBoundingClientRect();
-    const relativeY = location.clientY - rect.top;
-    const percentage = relativeY / rect.height * 100;
-    
-    if (percentage <= 15) {
-      // Above cluster
-      if (sourceType === 'task') {
-        this.moveTaskRelativeToCluster(sourceId, targetId, 'above');
-      } else if (sourceType === 'cluster') {
-        this.moveClusterRelativeTo(sourceId, targetId, 'above');
+    try {
+      // Get task and cluster IDs
+      const sourceTaskId = source.data.taskId;
+      const targetClusterId = element.dataset.clusterId;
+      
+      if (!sourceTaskId || !targetClusterId) {
+        console.log('Missing task or cluster IDs');
+        return;
       }
-    } else if (percentage >= 85) {
-      // Below cluster
-      if (sourceType === 'task') {
-        this.moveTaskRelativeToCluster(sourceId, targetId, 'below');
-      } else if (sourceType === 'cluster') {
-        this.moveClusterRelativeTo(sourceId, targetId, 'below');
-      }
-    } else {
-      // Into cluster (middle)
-      if (sourceType === 'task') {
-        this.moveTaskToCluster(sourceId, targetId);
-      }
+      
+      // Move the task to the cluster
+      console.log(`Moving task ${sourceTaskId} into cluster ${targetClusterId}`);
+      this.moveTaskToCluster(sourceTaskId, targetClusterId);
+      
+    } catch (e) {
+      console.error('Error handling cluster drop:', e);
     }
   },
   
-  // Helper function for draggable initialization
-  createDraggable(element, type, config) {
-    try {
-      const id = element.id.replace(`${type}-`, '');
-      
-      // Use different handle selectors for tasks vs clusters
-      let dragHandle;
-      
-      if (type === 'task') {
-        // First try to find a specific drag handle
-        dragHandle = element.querySelector('[data-task-drag-handle]');
-        
-        // Fall back to the element itself if needed
-        if (!dragHandle) {
-          dragHandle = element;
-          console.log(`Using task element as its own drag handle: ${id}`);
-        }
-      } else if (type === 'cluster') {
-        // Try specific cluster drag handle
-        dragHandle = element.querySelector('[data-cluster-drag-handle]');
-        
-        // Fall back to general drag handle
-        if (!dragHandle) {
-          dragHandle = element.querySelector('[data-drag-handle]');
-        }
-        
-        // Last resort, use the element itself
-        if (!dragHandle) {
-          // Find cluster header as a better drag handle
-          dragHandle = element.querySelector('.cluster-header') || element;
-          console.log(`Using cluster header as drag handle for: ${id}`);
-        }
-      }
-      
-      if (!dragHandle) {
-        console.warn(`Could not find drag handle for ${type}: ${id}`);
-        return;
-      }
-      
-      // Verify element is in DOM before proceeding
-      if (!document.body.contains(element)) {
-        console.warn(`Element ${element.id} is not in the DOM, skipping draggable setup`);
-        return;
-      }
-      
-      console.log(`Setting up draggable for ${type}: ${id} with drag handle:`, dragHandle);
-      
-      const cleanup = draggable({
-        element,
-        dragHandle,
-        getInitialData: () => ({ id, type }),
-        onDragStart: () => {
-          console.log(`Started dragging ${type}: ${id}`);
-          element.setAttribute('data-drag-active', 'true');
-          document.body.classList.add('is-dragging');
-          config.onDragStart?.();
-        },
-        onDrop: () => {
-          console.log(`Dropped ${type}: ${id}`);
-          element.removeAttribute('data-drag-active');
-          document.body.classList.remove('is-dragging');
-          config.onDrop?.();
-        }
-      });
-      
-      this._cleanupFunctions.push(cleanup);
-      initializedElements.add(`${element.id}-drag`);
-    } catch (e) {
-      console.error(`Error making ${type} draggable:`, e);
+  // Helper function for drag source initialization
+  createDraggable(options) {
+    const id = options.element.id.replace(`${options.type}-`, '');
+    const dragHandle = options.element.querySelector('[data-drag-handle]');
+    
+    if (!dragHandle) {
+      console.warn(`No drag handle found for ${options.type} ${id}`);
+      return;
     }
+    
+    // Use a drag handle to initialize the drag
+    const cleanup = draggable({
+      element: options.element,
+      dragHandle,
+      getInitialData: () => ({ 
+        id, 
+        type: options.type,
+        element: options.element
+      }),
+      onDragStart: () => {
+        // Add drag active state to the element
+        options.element.setAttribute('data-drag-active', 'true');
+        
+        // Add a class to the body for global styling during drag
+        document.body.classList.add('dragging-active');
+        
+        // Set global flag
+        this.isDragging = true;
+        
+        // Clear any existing drop targets
+        document.querySelectorAll('.drop-target-above, .drop-target-below, .drop-target-cluster, .drop-target-top')
+          .forEach(el => {
+            el.classList.remove('drop-target-above', 'drop-target-below', 'drop-target-cluster', 'drop-target-top');
+          });
+        
+        console.log(`Started dragging ${options.type}: ${options.element.id}`);
+        
+        if (options.onDragStart) {
+          options.onDragStart();
+        }
+      },
+      onDrop: () => {
+        // Remove drag active state from the element
+        options.element.removeAttribute('data-drag-active');
+        
+        // Remove global dragging class
+        document.body.classList.remove('dragging-active');
+        
+        // Clear global flag
+        this.isDragging = false;
+        
+        console.log(`Dropped ${options.type}: ${options.element.id}`);
+        
+        // Clean up any lingering drop target indicators
+        document.querySelectorAll(
+          '.drop-target-above, .drop-target-below, .drop-target-cluster, ' + 
+          '.drop-target, .drop-target-top, .drag-over-top, .drag-over-bottom'
+        ).forEach(el => {
+          el.classList.remove(
+            'drop-target-above', 
+            'drop-target-below', 
+            'drop-target-cluster', 
+            'drop-target',
+            'drop-target-top',
+            'drag-over-top',
+            'drag-over-bottom'
+          );
+        });
+        
+        if (options.onDrop) {
+          options.onDrop();
+        }
+        
+        // Force reinitialization of draggables and drop targets
+        setTimeout(() => {
+          this.setupDragAndDrop();
+        }, 50);
+      }
+    });
+    
+    this._cleanupFunctions.push(cleanup);
+    initializedElements.add(`${options.element.id}-drag`);
   },
   
   // Helper function for drop target initialization
@@ -1055,5 +1227,12 @@ Alpine.data('taskManager', () => ({
     } catch (e) {
       console.error(`Error creating ${type} drop target:`, e);
     }
+  },
+  
+  removeAllDropTargetClasses() {
+    document.querySelectorAll('.drop-target-above, .drop-target-below, .drop-target-cluster, .drop-target-top')
+      .forEach(el => {
+        el.classList.remove('drop-target-above', 'drop-target-below', 'drop-target-cluster', 'drop-target-top');
+      });
   },
 }));

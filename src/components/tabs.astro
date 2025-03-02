@@ -65,6 +65,38 @@ import TaskManager from './taskManager.astro';
                     Zen Mode
                 </button>
             </li>
+            
+            <!-- Timer Status (shows only when timer is running) -->
+            <li class="ml-auto flex items-center" x-show="$store && $store.pomoState && $store.pomoState.isRunning" x-cloak>
+                <div class="inline-flex items-center space-x-2 p-2 bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
+                    <div class="text-sm font-medium text-gray-700 dark:text-gray-200">
+                        <span x-text="Math.floor($store.pomoState.timeLeft / 60).toString().padStart(2, '0')"></span>:<span x-text="($store.pomoState.timeLeft % 60).toString().padStart(2, '0')"></span>
+                    </div>
+                    
+                    <!-- Mini Progress Circle -->
+                    <div class="relative w-5 h-5">
+                        <svg class="w-full h-full rotate-90 -scale-y-100" viewBox="0 0 100 100">
+                            <circle
+                                cx="50" cy="50" r="45"
+                                fill="transparent"
+                                stroke="currentColor"
+                                stroke-width="10"
+                                class="text-gray-200 dark:text-gray-700"
+                            />
+                            <circle
+                                cx="50" cy="50" r="45"
+                                fill="transparent"
+                                stroke="currentColor"
+                                stroke-width="10"
+                                stroke-linecap="round"
+                                :stroke-dasharray="283"
+                                :stroke-dashoffset="283 - (283 * $store.pomoState.percentComplete) / 100"
+                                class="text-blue-500 dark:text-blue-400 transition-all duration-1000 ease-in-out"
+                            />
+                        </svg>
+                    </div>
+                </div>
+            </li>
         </ul>
     </div>
 
