@@ -9,6 +9,7 @@ const TodoSchema = z.object({
   priority: z.enum(['none', 'low', 'medium', 'high']).default('none'),
   isEditing: z.boolean().optional().default(false),
   isCluster: z.boolean().optional().default(false),
+  isPinned: z.boolean().optional().default(false),
   parentId: z.string().nullable().optional(),
   subtasks: z.array(z.object({
     id: z.string(),
@@ -45,6 +46,7 @@ interface TodoStore {
   reorderTask(taskId: string, targetId: string, position: "above" | "below"): void;
   createCluster(name?: string): string;
   migrateTasksToMainContainer(): void;
+  shiftTask(taskId: string, direction: -1 | 1): void;
   moveTaskUp(taskId: string): void;
   moveTaskDown(taskId: string): void;
   isFirstTask(taskId: string): boolean;
@@ -52,6 +54,13 @@ interface TodoStore {
   getTaskPosition(taskId: string): number;
   isCluster(id: string): boolean;
   setParentId(taskId: string, parentId: string): void;
+  performTaskDeletion(id: string): void;
+  togglePinCluster(clusterId: string): void;
+  moveClusterUp(clusterId: string): void;
+  moveClusterDown(clusterId: string): void;
+  isFirstCluster(clusterId: string): boolean;
+  isLastCluster(clusterId: string): boolean;
+  getClusterPosition(clusterId: string): number;
 }
 
 interface WeeklyTask {
@@ -126,6 +135,7 @@ export function initStores(): void {
         priority: "none",
         isEditing: false,
         isCluster,
+        isPinned: false,
         parentId: null,
         subtasks: [],
         createdAt: new Date().toISOString(),
@@ -156,26 +166,23 @@ export function initStores(): void {
     },
 
     deleteTodo(id: string): void {
-      // Find the task
-      const task = this.items.find(t => t.id === id);
+      const todo = this.items.find(item => item.id === id);
+      if (!todo) return;
       
-      if (!task) return;
-      
-      if (task.isCluster) {
-        // If it's a cluster, remove the cluster and all its children
-        this.items = this.items.filter(item => item.id !== id && item.parentId !== id);
-      } else {
-        // Just remove the single task
-        this.items = this.items.filter(item => item.id !== id);
+      // If this is a pinned cluster, show a confirmation dialog
+      if (todo.isCluster && todo.isPinned) {
+        // Create and dispatch a custom event for the UI to handle
+        const event = new CustomEvent('confirm-delete-pinned-cluster', {
+          detail: { clusterId: id, clusterName: todo.todo }
+        });
+        document.dispatchEvent(event);
+        return; // Exit early - the actual deletion will happen if user confirms
       }
       
-      const incompleteTasks = this.items.filter(item => !item.completed && !item.isCluster);
-      if (this.currentIndex >= incompleteTasks.length) {
-        this.currentIndex = Math.max(0, incompleteTasks.length - 1);
-      }
-      this.saveTodos();
+      // If we reach here, either it's not a cluster or not pinned
+      this.performTaskDeletion(id);
     },
-
+    
     toggleTodo(id: string): void {
       const todo = this.items.find(t => t.id === id);
       if (todo) {
@@ -203,6 +210,9 @@ export function initStores(): void {
       const clustersToDelete: string[] = [];
       
       clusters.forEach(cluster => {
+        // Skip pinned clusters
+        if (cluster.isPinned) return;
+        
         const clusterTasks = this.items.filter(item => item.parentId === cluster.id);
         // If all tasks in the cluster are complete or there are no tasks, mark the cluster for deletion
         if (clusterTasks.length > 0 && clusterTasks.every(task => task.completed)) {
@@ -224,9 +234,28 @@ export function initStores(): void {
     updateTask(id: string, updates: Partial<Todo>): void {
       console.log(`Updating task ${id} with:`, updates);
       
-      // Ensure the content is not empty for cluster names
+      // Find the task to check if it's a cluster
+      const taskToUpdate = this.items.find(todo => todo.id === id);
+      
+      // Handle task name updates
       if (updates.todo !== undefined) {
-        updates.todo = updates.todo.trim() || "New Cluster";
+        const trimmedInput = updates.todo.trim();
+        
+        // Only for clusters, and only when creating new ones (not editing)
+        if (taskToUpdate?.isCluster) {
+          // If the input is completely empty and we're not creating a new cluster,
+          // preserve the existing name instead of using the default
+          if (trimmedInput === '') {
+            // Keep the existing name if this is an edit (not a new cluster)
+            updates.todo = taskToUpdate.todo;
+          } else {
+            // Otherwise use the trimmed input
+            updates.todo = trimmedInput;
+          }
+        } else {
+          // For regular tasks, just trim the input
+          updates.todo = trimmedInput;
+        }
       }
       
       this.items = this.items.map(todo => {
@@ -346,7 +375,7 @@ export function initStores(): void {
     },
 
     createCluster(name: string = "New Cluster"): string {
-      // Make sure name is not empty
+      // Make sure name is not empty only when creating a new cluster
       const clusterName = name.trim() || "New Cluster";
       
       const newCluster: Todo = {
@@ -357,6 +386,7 @@ export function initStores(): void {
         priority: "none",
         isEditing: false,
         isCluster: true,
+        isPinned: false,
         parentId: null,
         subtasks: [],
         createdAt: new Date().toISOString(),
@@ -397,7 +427,7 @@ export function initStores(): void {
       }
     },
 
-    moveTaskUp(taskId: string): void {
+    shiftTask(taskId: string, direction: -1 | 1): void {
       const task = this.items.find(t => t.id === taskId);
       if (!task) return;
 
@@ -409,44 +439,32 @@ export function initStores(): void {
         containerTasks = this.items.filter(t => t.parentId === task.parentId);
       } else {
         // Task is at the root level
-        containerTasks = this.items.filter(t => !t.isCluster && !t.parentId);
+        containerTasks = this.items.filter(t => !t.parentId && !this.isCluster(t.id));
       }
 
       // Find the task's position in its container
       const taskIndex = containerTasks.findIndex(t => t.id === taskId);
-      if (taskIndex <= 0) return; // Already at the top
+      
+      // Check if we can move in the requested direction
+      if (direction < 0 && taskIndex <= 0) return; // Already at the top
+      if (direction > 0 && (taskIndex === -1 || taskIndex >= containerTasks.length - 1)) return; // Already at the bottom
 
-      // Find the task that comes before this one
-      const previousTask = containerTasks[taskIndex - 1];
+      // Find the adjacent task
+      const adjacentTask = containerTasks[taskIndex + direction];
+      
+      // Determine position based on direction
+      const position = direction < 0 ? "above" : "below";
       
       // Reorder using the existing method
-      this.reorderTask(taskId, previousTask.id, "above");
+      this.reorderTask(taskId, adjacentTask.id, position);
+    },
+
+    moveTaskUp(taskId: string): void {
+      this.shiftTask(taskId, -1);
     },
 
     moveTaskDown(taskId: string): void {
-      const task = this.items.find(t => t.id === taskId);
-      if (!task) return;
-
-      // Get the container where this task belongs
-      let containerTasks: Todo[];
-      
-      if (task.parentId) {
-        // Task is in a cluster
-        containerTasks = this.items.filter(t => t.parentId === task.parentId);
-      } else {
-        // Task is at the root level
-        containerTasks = this.items.filter(t => !t.isCluster && !t.parentId);
-      }
-
-      // Find the task's position in its container
-      const taskIndex = containerTasks.findIndex(t => t.id === taskId);
-      if (taskIndex === -1 || taskIndex >= containerTasks.length - 1) return; // Already at the bottom
-
-      // Find the task that comes after this one
-      const nextTask = containerTasks[taskIndex + 1];
-      
-      // Reorder using the existing method
-      this.reorderTask(taskId, nextTask.id, "below");
+      this.shiftTask(taskId, 1);
     },
 
     isFirstTask(taskId: string): boolean {
@@ -469,22 +487,15 @@ export function initStores(): void {
     },
 
     isLastTask(taskId: string): boolean {
-      const task = this.items.find(t => t.id === taskId);
+      const task = this.items.find(item => item.id === taskId);
       if (!task) return false;
-
-      // Get the container where this task belongs
-      let containerTasks: Todo[];
       
-      if (task.parentId) {
-        // Task is in a cluster
-        containerTasks = this.items.filter(t => t.parentId === task.parentId);
-      } else {
-        // Task is at the root level
-        containerTasks = this.items.filter(t => !t.isCluster && !t.parentId);
-      }
-
-      // Check if this task is the last one in its container
-      return containerTasks.length > 0 && containerTasks[containerTasks.length - 1].id === taskId;
+      // Get the relevant container
+      const container = task.parentId 
+        ? this.items.filter(t => t.parentId === task.parentId)
+        : this.items.filter(t => !t.parentId && !t.isCluster);
+        
+      return container.indexOf(task) === container.length - 1;
     },
 
     getTaskPosition(taskId: string): number {
@@ -501,19 +512,117 @@ export function initStores(): void {
     },
     
     isCluster(id: string): boolean {
-      const item = this.items.find(t => t.id === id);
-      return !!item && item.isCluster === true;
+      const task = this.items.find(item => item.id === id);
+      return Boolean(task && task.isCluster);
     },
-    
+
     setParentId(taskId: string, parentId: string): void {
-      const task = this.items.find(t => t.id === taskId);
-      if (!task) return;
-      
-      task.parentId = parentId;
+      this.updateTask(taskId, { parentId });
+    },
+
+    performTaskDeletion(id: string): void {
+      // Find the item index
+      const taskIndex = this.items.findIndex(item => item.id === id);
+      if (taskIndex === -1) return;
+
+      // Get the item
+      const taskToDelete = this.items[taskIndex];
+
+      // If it's a cluster, delete all its tasks first
+      if (this.isCluster(id)) {
+        const tasksInCluster = this.items.filter(task => task.parentId === id);
+        tasksInCluster.forEach(task => {
+          this.performTaskDeletion(task.id);
+        });
+      }
+
+      // Now delete the item itself
+      this.items.splice(taskIndex, 1);
       this.saveTodos();
     },
-  };
 
+    togglePinCluster(clusterId: string): void {
+      const cluster = this.items.find(item => item.id === clusterId);
+      if (!cluster || !cluster.isCluster) return;
+
+      const newPinnedState = !cluster.isPinned;
+      this.updateTask(clusterId, { isPinned: newPinnedState });
+
+      // Dispatch an event for the UI to show a notification
+      const eventName = newPinnedState ? 'cluster-pinned' : 'cluster-unpinned';
+      const event = new CustomEvent(eventName, {
+        detail: { clusterId, clusterName: cluster.todo }
+      });
+      document.dispatchEvent(event);
+    },
+
+    moveClusterUp(clusterId: string): void {
+      const cluster = this.items.find(item => item.id === clusterId);
+      if (!cluster || !cluster.isCluster) return;
+
+      // Get all clusters
+      const clusters = this.items.filter(item => item.isCluster);
+      
+      // Find the index of the current cluster
+      const currentIndex = clusters.findIndex(c => c.id === clusterId);
+      if (currentIndex <= 0) return; // Already at the top
+      
+      // Get the previous cluster
+      const prevCluster = clusters[currentIndex - 1];
+      
+      // Swap the positions in the items array
+      const currentIndexInItems = this.items.findIndex(item => item.id === clusterId);
+      const prevIndexInItems = this.items.findIndex(item => item.id === prevCluster.id);
+      
+      // Swap in place
+      [this.items[currentIndexInItems], this.items[prevIndexInItems]] = 
+        [this.items[prevIndexInItems], this.items[currentIndexInItems]];
+      
+      this.saveTodos();
+    },
+    
+    moveClusterDown(clusterId: string): void {
+      const cluster = this.items.find(item => item.id === clusterId);
+      if (!cluster || !cluster.isCluster) return;
+
+      // Get all clusters
+      const clusters = this.items.filter(item => item.isCluster);
+      
+      // Find the index of the current cluster
+      const currentIndex = clusters.findIndex(c => c.id === clusterId);
+      if (currentIndex === -1 || currentIndex >= clusters.length - 1) return; // Already at the bottom
+      
+      // Get the next cluster
+      const nextCluster = clusters[currentIndex + 1];
+      
+      // Swap the positions in the items array
+      const currentIndexInItems = this.items.findIndex(item => item.id === clusterId);
+      const nextIndexInItems = this.items.findIndex(item => item.id === nextCluster.id);
+      
+      // Swap in place
+      [this.items[currentIndexInItems], this.items[nextIndexInItems]] = 
+        [this.items[nextIndexInItems], this.items[currentIndexInItems]];
+      
+      this.saveTodos();
+    },
+    
+    isFirstCluster(clusterId: string): boolean {
+      const clusters = this.items.filter(item => item.isCluster);
+      return clusters.length > 0 && clusters[0].id === clusterId;
+    },
+    
+    isLastCluster(clusterId: string): boolean {
+      const clusters = this.items.filter(item => item.isCluster);
+      return clusters.length > 0 && clusters[clusters.length - 1].id === clusterId;
+    },
+    
+    getClusterPosition(clusterId: string): number {
+      const clusters = this.items.filter(item => item.isCluster);
+      const index = clusters.findIndex(c => c.id === clusterId);
+      return index !== -1 ? index + 1 : 0;
+    }
+  };
+  
   window.Alpine.store("todos", todosStore);
 
   window.Alpine.store("quickTask", {

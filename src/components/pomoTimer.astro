@@ -24,7 +24,10 @@
         <!-- Timer Circle -->
         <div class="relative w-72 h-72 mb-8">
             <!-- Background Circle -->
-            <svg class="w-full h-full rotate-90 -scale-y-100" viewBox="0 0 100 100">
+            <svg class="w-full h-full rotate-90 -scale-y-100"
+                viewBox="0 0 100 100"
+                role="progressbar"
+                aria-label="Pomodoro progress circle">
                 <circle
                     cx="50" cy="50" r="45"
                     fill="transparent"
@@ -38,11 +41,11 @@
                     cx="50" cy="50" r="45"
                     fill="transparent"
                     stroke="currentColor"
-                    stroke-width="8"
+                    stroke-width="10"
                     stroke-linecap="round"
                     :stroke-dasharray="283"
                     :stroke-dashoffset="283 - (283 * $store.pomoState.percentComplete) / 100"
-                    class="text-blue-500 dark:text-blue-400 transition-all duration-1000 ease-in-out"
+                    :class="$store.pomoState.isRunning ? 'text-teal-500 dark:text-teal-400 transition-all duration-1000 ease-in-out' : 'text-gray-400 dark:text-gray-500'"
                 />
             </svg>
             
@@ -57,37 +60,16 @@
         
         <!-- Timer Controls -->
         <div class="flex justify-center space-x-4 mb-8">
-            <template x-if="!$store.pomoState.isRunning">
-                <button 
-                    @click="$store.pomoState.startTimer()" 
-                    class="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 dark:bg-blue-600 dark:hover:bg-blue-700 transition-colors shadow-sm"
-                >
-                    <div class="flex items-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        Start
-                    </div>
-                </button>
-            </template>
-            
-            <template x-if="$store.pomoState.isRunning">
-                <button 
-                    @click="$store.pomoState.pauseTimer()" 
-                    class="px-6 py-2.5 bg-teal-500 text-white rounded-lg hover:bg-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-opacity-50 dark:bg-teal-600 dark:hover:bg-teal-700 transition-colors shadow-sm"
-                >
-                    <div class="flex items-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        Pause
-                    </div>
-                </button>
-            </template>
+            <button
+              @click="$store.pomoState.isRunning ? $store.pomoState.pauseTimer() : $store.pomoState.startTimer()"
+              class="px-6 py-3 text-lg font-medium text-white bg-teal-600 hover:bg-teal-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 transition-colors duration-200"
+              aria-label="Start or pause Pomodoro timer"
+            >
+              <span x-text="$store.pomoState.isRunning ? 'Pause' : 'Start'"></span>
+            </button>
             
             <button 
-                @click="$store.pomoState.resetTimer()" 
+                @click="if (confirm('Are you sure you want to reset the current timer?')) { $store.pomoState.resetTimer() }"
                 class="flex items-center gap-2 px-4 py-2 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 rounded-lg transition-colors duration-200"
         >
                 <div class="flex items-center">
@@ -103,7 +85,7 @@
         <div class="flex flex-wrap justify-center gap-3 mb-6">
             <button 
                 @click="$store.pomoState.setPreset('pomodoro')"
-                :class="$store.pomoState.preset === 'pomodoro' ? 'bg-blue-600 ring-2 ring-blue-200 dark:ring-blue-900' : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300'"
+                :class="$store.pomoState.preset === 'pomodoro' ? 'bg-teal-600 ring-2 ring-teal-200 dark:ring-teal-900' : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300'"
                 class="px-6 py-2.5 rounded-lg transition-all shadow-sm flex items-center gap-2"
             >
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -113,7 +95,7 @@
             </button>
             <button 
                 @click="$store.pomoState.setPreset('long')"
-                :class="$store.pomoState.preset === 'long' ? 'bg-blue-600 ring-2 ring-blue-200 dark:ring-blue-900' : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300'"
+                :class="$store.pomoState.preset === 'long' ? 'bg-teal-600 ring-2 ring-teal-200 dark:ring-teal-900' : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300'"
                 class="px-6 py-2.5 rounded-lg transition-all shadow-sm flex items-center gap-2"
             >
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

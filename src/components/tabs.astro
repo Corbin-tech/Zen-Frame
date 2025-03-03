@@ -29,47 +29,60 @@ import TaskManager from './taskManager.astro';
     <!-- Tab Navigation -->
     <div class="border-b transition-colors duration-300 ease-in-out border-gray-200 dark:border-gray-700">
         <ul class="flex flex-wrap -mb-px text-sm font-medium text-center text-gray-500 dark:text-gray-400">
-            <li class="mr-2">
+            <li class="mr-2 min-w-[120px]">
                 <button 
                     @click="activeTab = 'taskmanager'; if (typeof window !== 'undefined') localStorage.setItem('activeTab', 'taskmanager')"
-                    :class="activeTab === 'taskmanager' ? 'border-blue-600 text-blue-600 dark:text-blue-500 dark:border-blue-500' : 'border-transparent hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300'"
-                    class="inline-flex items-center justify-center p-4 border-b-2 rounded-t-lg group"
+                    :class="activeTab === 'taskmanager' ? 'border-teal-600 text-teal-600 dark:text-teal-500 dark:border-teal-500' : 'border-transparent hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300'"
+                    class="w-full pb-4 px-2 text-sm font-medium border-b-2 focus:outline-none transition-colors duration-200 select-none"
                 >
-                    <svg class="w-4 h-4 mr-2" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M0 18a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2a2 2 0 0 0-2 2v16Zm4-4h12v2H4v-2Zm0-3h12v2H4v-2Zm0-3h12v2H4V8Zm0-3h12v2H4V5Z"/>
-                    </svg>
-                    Task Manager
+                    <div class="flex items-center justify-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                        </svg>
+                        <span>Task Manager</span>
+                    </div>
                 </button>
             </li>
-            <li class="mr-2">
+            <li class="mr-2 min-w-[120px]">
                 <button 
                     @click="activeTab = 'pomodoro'; if (typeof window !== 'undefined') localStorage.setItem('activeTab', 'pomodoro')"
-                    :class="activeTab === 'pomodoro' ? 'border-blue-600 text-blue-600 dark:text-blue-500 dark:border-blue-500' : 'border-transparent hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300'"
-                    class="inline-flex items-center justify-center p-4 border-b-2 rounded-t-lg group"
+                    :class="activeTab === 'pomodoro' ? 'border-teal-600 text-teal-600 dark:text-teal-500 dark:border-teal-500' : 'border-transparent hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300'"
+                    class="w-full pb-4 px-2 text-sm font-medium border-b-2 focus:outline-none transition-colors duration-200 select-none"
                 >
-                    <svg class="w-4 h-4 mr-2" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M10 0a10 10 0 1 0 10 10A10.011 10.011 0 0 0 10 0Zm3.982 13.982a1 1 0 0 1-1.414 0l-3.274-3.274A1.012 1.012 0 0 1 9 10V6a1 1 0 0 1 2 0v3.586l2.982 2.982a1 1 0 0 1 0 1.414Z"/>
-                    </svg>
-                    Pomodoro
+                    <div class="flex items-center justify-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span>Pomodoro</span>
+                    </div>
                 </button>
             </li>
-            <li class="mr-2">
+            <li class="mr-2 min-w-[120px]">
                 <button 
                     @click="activeTab = 'zenmode'; if (typeof window !== 'undefined') localStorage.setItem('activeTab', 'zenmode')"
-                    :class="activeTab === 'zenmode' ? 'border-blue-600 text-blue-600 dark:text-blue-500 dark:border-blue-500' : 'border-transparent hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300'"
-                    class="inline-flex items-center justify-center p-4 border-b-2 rounded-t-lg group"
+                    :class="activeTab === 'zenmode' ? 'border-teal-600 text-teal-600 dark:text-teal-500 dark:border-teal-500' : 'border-transparent hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300'"
+                    class="w-full pb-4 px-2 text-sm font-medium border-b-2 focus:outline-none transition-colors duration-200 select-none"
                 >
-                    <svg class="w-4 h-4 mr-2" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M12 2C6.49 2 2 6.49 2 12s4.49 10 10 10 10-4.49 10-10S17.51 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm3-8c0 1.66-1.34 3-3 3s-3-1.34-3-3 1.34-3 3-3 3 1.34 3 3z"/>
-                    </svg>
-                    Zen Mode
+                    <div class="flex items-center justify-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                        </svg>
+                        <span>Zen Mode</span>
+                    </div>
                 </button>
             </li>
             
             <!-- Timer Status (shows only when timer is running) -->
-            <li class="ml-auto flex items-center" x-show="$store && $store.pomoState && $store.pomoState.isRunning" x-cloak>
-                <div class="inline-flex items-center space-x-2 p-2 bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
-                    <div class="text-sm font-medium text-gray-700 dark:text-gray-200">
+            <li class="ml-auto flex items-center" 
+                x-show="$store && $store.pomoState && ($store.pomoState.isRunning || $store.pomoState.timeLeft < $store.pomoState.totalTime)"
+                x-cloak role="timer" aria-live="polite"
+                :aria-label="$store.pomoState.isRunning ? 'A running Pomodoro timer displaying minutes and seconds remaining' : 'A paused Pomodoro timer displaying minutes and seconds remaining'">
+                <div class="inline-flex items-center space-x-2 p-2 bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm transform -translate-y-3 hover:shadow transition-all animate-in fade-in-50 duration-300"
+                     :class="$store.pomoState.isRunning ? '' : 'opacity-85'">
+                    <div class="text-sm font-medium flex items-center" 
+                         :class="$store.pomoState.isRunning ? 'text-gray-700 dark:text-gray-200' : 'text-gray-500 dark:text-gray-400'">
+                        <!-- Pause indicator when timer is paused -->
+                        <span x-show="!$store.pomoState.isRunning" class="mr-1">⏸️</span>
                         <span x-text="Math.floor($store.pomoState.timeLeft / 60).toString().padStart(2, '0')"></span>:<span x-text="($store.pomoState.timeLeft % 60).toString().padStart(2, '0')"></span>
                     </div>
                     
@@ -91,7 +104,8 @@ import TaskManager from './taskManager.astro';
                                 stroke-linecap="round"
                                 :stroke-dasharray="283"
                                 :stroke-dashoffset="283 - (283 * $store.pomoState.percentComplete) / 100"
-                                class="text-blue-500 dark:text-blue-400 transition-all duration-1000 ease-in-out"
+                                :class="$store.pomoState.isRunning ? 'text-teal-500 dark:text-teal-400' : 'text-gray-400 dark:text-gray-500'"
+                                class="transition-all duration-1000 ease-in-out"
                             />
                         </svg>
                     </div>
