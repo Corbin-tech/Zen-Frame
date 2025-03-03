@@ -85,6 +85,27 @@
                 const cluster = this.$store.todos.items.find(t => t.id === task.parentId);
                 return cluster ? cluster.todo : null;
             },
+            
+            // Calculate completion statistics for a specific cluster
+            getClusterStats(clusterId, currentTaskId) {
+                const todos = this.$store.todos.items;
+                if (!todos || !todos.length) return { position: 1, total: 0 };
+                
+                // Get all tasks in the cluster
+                const tasksInCluster = todos.filter(task => task.parentId === clusterId && !task.isCluster);
+                const total = tasksInCluster.length;
+                
+                // Find the position of the current task
+                if (currentTaskId) {
+                    // Sort tasks naturally as they would appear in the UI
+                    // This assumes tasks have some natural ordering in the store
+                    const taskIds = tasksInCluster.map(t => t.id);
+                    const position = taskIds.indexOf(currentTaskId) + 1; // Add 1 for 1-based indexing
+                    return { position: position > 0 ? position : 1, total };
+                }
+                
+                return { position: 1, total };
+            },
 
             get isAllTasksComplete() {
                 return this.hasTasks && !this.currentTodo;
@@ -140,8 +161,8 @@
                     // First confetti burst
                     jsConfetti.addConfetti({
                         confettiColors: isDarkMode 
-                            ? ['#60A5FA', '#93C5FD', '#3B82F6', '#2563EB', '#FFFFFF']
-                            : ['#3B82F6', '#60A5FA', '#93C5FD', '#FFFFFF', '#F3F4F6'],
+                            ? ['#0d9488', '#14b8a6', '#2dd4bf', '#99f6e4', '#FFFFFF']
+                            : ['#0d9488', '#14b8a6', '#2dd4bf', '#FFFFFF', '#F3F4F6'],
                         confettiNumber: 200,
                         initialVelocityX: 5,
                         initialVelocityY: 12
@@ -199,9 +220,19 @@
                         <!-- Show cluster if the task belongs to one -->
                         <div 
                             x-show="getClusterName(currentTodo?.id)" 
-                            class="text-sm px-3 py-1 bg-teal-100 dark:bg-teal-900/30 text-teal-800 dark:text-teal-300 rounded-full"
+                            class="text-sm px-3 py-1 bg-teal-100 dark:bg-teal-900/30 text-teal-800 dark:text-teal-300 rounded-full flex items-center gap-2"
                         >
                             <span x-text="getClusterName(currentTodo?.id)"></span>
+                            <!-- Display task completion stats for this cluster -->
+                            <template x-if="currentTodo && currentTodo.parentId">
+                                <span 
+                                    class="text-xs px-1.5 py-0.5 bg-white dark:bg-slate-800 text-teal-700 dark:text-teal-400 rounded-full whitespace-nowrap"
+                                    x-text="(() => {
+                                        const stats = getClusterStats(currentTodo.parentId, currentTodo.id);
+                                        return `${stats.position}/${stats.total}`;
+                                    })()"
+                                ></span>
+                            </template>
                         </div>
                         
                         <p 
@@ -247,7 +278,7 @@
             </div>
             <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
                 <div 
-                    class="bg-blue-500 h-2.5 rounded-full progress-bar" 
+                    class="bg-teal-500 h-2.5 rounded-full progress-bar" 
                     :style="`width: ${completionPercentage}%`"
                 ></div>
             </div>
