@@ -2,66 +2,78 @@
 
 // Function to initialize components
 function setupDragAndDrop() {
-  console.log('setupDragAndDrop called');
-  
   // First try the global initialization function if available
   if (window.initTaskManagerDragDrop) {
-    console.log('Using global initTaskManagerDragDrop function');
-    if (window.initTaskManagerDragDrop()) {
-      console.log('Successfully initialized via global function');
-      return;
+    try {
+      if (window.initTaskManagerDragDrop()) {
+        return true; // Successfully initialized
+      }
+    } catch (error) {
+      console.error('Error using global init function:', error);
     }
   }
   
   // Fallback to direct component access
   if (!window.Alpine) {
-    console.log('Alpine not available yet');
-    return;
+    return false; // Alpine not available yet
   }
   
   const taskComponents = document.querySelectorAll('[x-data="taskManager()"]');
-  console.log(`Found ${taskComponents.length} task manager components`);
+  let initialized = false;
   
   taskComponents.forEach(el => {
     try {
       const component = window.Alpine.$data(el);
       if (component && typeof component.setupDragAndDrop === 'function') {
-        console.log('Initializing drag and drop from global script');
         component.setupDragAndDrop();
         component.setupComplete = true;
+        initialized = true;
       }
     } catch (e) {
       console.error('Error setting up drag and drop:', e);
     }
   });
+  
+  return initialized;
+}
+
+// Wait for Alpine to be ready with exponential backoff
+function initWithRetry(maxRetries = 3, delay = 100) {
+  let retries = 0;
+  
+  function attempt() {
+    if (setupDragAndDrop()) {
+      return; // Successfully initialized
+    }
+    
+    retries++;
+    if (retries < maxRetries) {
+      // Exponential backoff
+      setTimeout(attempt, delay * Math.pow(2, retries - 1));
+    }
+  }
+  
+  attempt();
 }
 
 // Initialize on DOMContentLoaded
 document.addEventListener('DOMContentLoaded', function() {
-  console.log('DragDropInit: DOM Content Loaded');
-  
-  // Try multiple times
-  setTimeout(setupDragAndDrop, 100);
-  setTimeout(setupDragAndDrop, 300);
-  setTimeout(setupDragAndDrop, 600);
+  initWithRetry(3, 100);
   
   // Also listen for Alpine initialization
   document.addEventListener('alpine:initialized', function() {
-    console.log('Alpine initialized, setting up drag and drop');
-    setTimeout(setupDragAndDrop, 100);
+    initWithRetry(1); // Just try once after Alpine is explicitly initialized
   });
   
-  // Listen for tab changes
-  window.addEventListener('change-tab', function(event) {
-    console.log('Tab changed, reinitializing drag and drop');
-    setTimeout(setupDragAndDrop, 100);
-  });
+  // Listen for tab changes and task additions - use a debounced handler
+  let debounceTimer;
+  function debouncedInit() {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => setupDragAndDrop(), 100);
+  }
   
-  // Listen for task-added events
-  document.addEventListener('task-added', function(event) {
-    console.log('Task added event detected in global handler');
-    setTimeout(setupDragAndDrop, 100);
-  });
+  window.addEventListener('change-tab', debouncedInit);
+  document.addEventListener('task-added', debouncedInit);
 });
 
 // Export the function to make it available

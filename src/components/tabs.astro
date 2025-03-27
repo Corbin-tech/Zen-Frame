@@ -27,7 +27,7 @@ import TaskManager from './taskManager.astro';
     class="w-full"
 >
     <!-- Tab Navigation -->
-    <div class="border-b transition-colors duration-300 ease-in-out border-gray-200 dark:border-gray-700">
+    <div class="border-b transition-colors duration-300 ease-in-out" style="border-color: var(--border-color);">
         <ul class="flex flex-wrap -mb-px text-sm font-medium text-center text-gray-500 dark:text-gray-400">
             <li class="mr-2 min-w-[120px]">
                 <button 
@@ -127,9 +127,3 @@ import TaskManager from './taskManager.astro';
         </div>
     </div>
 </div>
-
-<style>
-    [x-cloak] {
-        display: none !important;
-    }
-</style>

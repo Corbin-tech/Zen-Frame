@@ -33,6 +33,15 @@
                     this.currentTodoCache = null;
                     this.statsCache = null;
                 });
+                
+                // Listen for zen mode task/cluster skip events
+                document.addEventListener('zen-task-skipped', () => {
+                    this.currentTodoCache = null;
+                });
+                
+                document.addEventListener('zen-cluster-skipped', () => {
+                    this.currentTodoCache = null;
+                });
             },
 
             currentTodoCache: null,
@@ -44,25 +53,32 @@
                 const todos = this.$store.todos.items;
                 if (!todos || !todos.length) return null;
                 
-                const priorityOrder = {
-                    'high': 3,
-                    'medium': 2,
-                    'low': 1,
-                    'none': 0
-                };
-                
                 // Filter out clusters and only consider actual tasks
                 const tasks = todos.filter(task => !task.isCluster);
                 
-                this.currentTodoCache = tasks.reduce((highest, task) => {
-                    if (task.completed) return highest;
-                    if (!highest) return task;
+                // Get all incomplete tasks and filter out tasks from skipped clusters
+                const skippedClusters = this.$store.todos.skippedClusters || [];
+                const incompleteTasks = tasks.filter(task => {
+                    // Skip tasks from clusters that have been explicitly skipped
+                    const isInSkippedCluster = task.parentId && skippedClusters.includes(task.parentId);
                     
-                    const taskPriority = priorityOrder[task.priority || 'none'];
-                    const highestPriority = priorityOrder[highest.priority || 'none'];
-                    
-                    return taskPriority > highestPriority ? task : highest;
-                }, null);
+                    return !task.completed && !isInSkippedCluster;
+                });
+                
+                if (incompleteTasks.length === 0) {
+                    // If there are no more tasks outside skipped clusters,
+                    // reset the skipped clusters and retry
+                    if (skippedClusters.length > 0) {
+                        this.$store.todos.skippedClusters = [];
+                        // Clear the cache to force recalculation on next access
+                        return null;
+                    }
+                    return null; // No tasks at all
+                }
+                
+                // Simply use the first incomplete task that's not in a skipped cluster
+                // This respects the visual ordering of tasks in the task list
+                this.currentTodoCache = incompleteTasks[0];
                 
                 return this.currentTodoCache;
             },
@@ -82,7 +98,8 @@
                 const task = this.$store.todos.items.find(t => t.id === taskId);
                 if (!task || !task.parentId) return null;
                 
-                const cluster = this.$store.todos.items.find(t => t.id === task.parentId);
+                const clusterIndex = this.$store.todos.items.findIndex(t => t.id === task.parentId);
+                const cluster = this.$store.todos.items[clusterIndex];
                 return cluster ? cluster.todo : null;
             },
             
@@ -168,6 +185,18 @@
                         initialVelocityY: 12
                     });
                 }
+            },
+            
+            skipTask() {
+                if (!this.currentTodo || !this.currentTodo.parentId) return;
+                this.$store.todos.skipTaskToEndOfCluster(this.currentTodo.id);
+                this.currentTodoCache = null;
+            },
+            
+            skipCluster() {
+                if (!this.currentTodo || !this.currentTodo.parentId) return;
+                this.$store.todos.skipCurrentCluster();
+                this.currentTodoCache = null;
             }
         }));
     });
@@ -256,6 +285,39 @@
                     </div>
                 </template>
             </div>
+        </div>
+
+        <!-- Task Management Buttons -->
+        <div 
+            x-show="hasCurrentTodo && hasTasks" 
+            x-transition:enter="transition ease-out duration-300 delay-100"
+            x-transition:enter-start="opacity-0 scale-95"
+            x-transition:enter-end="opacity-100 scale-100"
+            class="flex justify-center gap-3 mt-4"
+        >
+            <button 
+                @click="skipTask"
+                x-show="currentTodo && currentTodo.parentId"
+                aria-label="Skip this task for now"
+                class="px-4 py-2 bg-white dark:bg-slate-700 text-teal-600 dark:text-teal-400 border border-teal-300 dark:border-teal-800 rounded-lg hover:bg-teal-50 dark:hover:bg-teal-900/30 transition-colors focus:ring-2 focus:ring-teal-200 dark:focus:ring-teal-900 flex items-center gap-2 text-sm"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 8.689c0-.864.933-1.406 1.683-.977l7.108 4.061a1.125 1.125 0 0 1 0 1.954l-7.108 4.061A1.125 1.125 0 0 1 3 16.811V8.69ZM12.75 8.689c0-.864.933-1.406 1.683-.977l7.108 4.061a1.125 1.125 0 0 1 0 1.954l-7.108 4.061a1.125 1.125 0 0 1-1.683-.977V8.69Z" />
+                </svg>
+                Skip Task
+            </button>
+            
+            <button 
+                @click="skipCluster"
+                x-show="currentTodo && currentTodo.parentId"
+                aria-label="Skip entire cluster"
+                class="px-4 py-2 bg-white dark:bg-slate-700 text-teal-600 dark:text-teal-400 border border-teal-300 dark:border-teal-800 rounded-lg hover:bg-teal-50 dark:hover:bg-teal-900/30 transition-colors focus:ring-2 focus:ring-teal-200 dark:focus:ring-teal-900 flex items-center gap-2 text-sm"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 8.689c0-.864.933-1.406 1.683-.977l7.108 4.061a1.125 1.125 0 0 1 0 1.954l-7.108 4.061A1.125 1.125 0 0 1 3 16.811V8.69ZM12.75 8.689c0-.864.933-1.406 1.683-.977l7.108 4.061a1.125 1.125 0 0 1 0 1.954l-7.108 4.061a1.125 1.125 0 0 1-1.683-.977V8.69Z" />
+                </svg>
+                Skip Cluster
+            </button>
         </div>
 
         <!-- All Tasks Complete Message -->

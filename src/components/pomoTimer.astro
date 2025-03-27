@@ -16,7 +16,7 @@
     x-cloak
     class="w-full max-w-3xl mx-auto bg-white dark:bg-slate-800 rounded-xl shadow-sm p-6"
 >
-    <h1 class="text-4xl font-bold text-center mb-6 text-gray-800 dark:text-white">Pomodoro Timer</h1>
+    <h1 class="text-4xl font-bold text-center mb-6 text-gray-800 dark:text-white transition-[color] duration-300 ease-in-out">Pomodoro Timer</h1>
 
     <!-- Timer Display -->
     <div class="flex flex-col items-center justify-center">
@@ -45,16 +45,16 @@
                     stroke-linecap="round"
                     :stroke-dasharray="283"
                     :stroke-dashoffset="283 - (283 * $store.pomoState.percentComplete) / 100"
-                    :class="$store.pomoState.isRunning ? 'text-teal-500 dark:text-teal-400 transition-all duration-1000 ease-in-out' : 'text-gray-400 dark:text-gray-500'"
+                    :class="$store.pomoState.isRunning ? 'text-teal-500 dark:text-teal-400' : 'text-gray-400 dark:text-gray-500'"
                 />
             </svg>
             
             <!-- Timer Text -->
             <div class="absolute top-0 left-0 w-full h-full flex flex-col items-center justify-center">
-                <div class="text-6xl font-mono font-bold text-gray-800 dark:text-gray-100">
-                    <span x-text="Math.floor($store.pomoState.timeLeft / 60).toString().padStart(2, '0')"></span>:<span x-text="($store.pomoState.timeLeft % 60).toString().padStart(2, '0')"></span>
+                <div class="text-6xl font-mono font-bold text-gray-800 dark:text-white">
+                    <span class="transition-[color] duration-300 ease-in-out" x-text="Math.floor($store.pomoState.timeLeft / 60).toString().padStart(2, '0')"></span><span class="transition-[color] duration-300 ease-in-out">:</span><span class="transition-[color] duration-300 ease-in-out" x-text="($store.pomoState.timeLeft % 60).toString().padStart(2, '0')"></span>
                 </div>
-                <div class="mt-1 text-md font-medium text-gray-600 dark:text-gray-300" x-text="$store.pomoState.currentPresetName"></div>
+                <div class="mt-1 text-md font-medium text-gray-600 dark:text-gray-300 transition-[color] duration-300 ease-in-out" x-text="$store.pomoState.currentPresetName"></div>
             </div>
         </div>
         
@@ -62,7 +62,7 @@
         <div class="flex justify-center space-x-4 mb-8">
             <button
               @click="$store.pomoState.isRunning ? $store.pomoState.pauseTimer() : $store.pomoState.startTimer()"
-              class="px-6 py-3 text-lg font-medium text-white bg-teal-600 hover:bg-teal-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 transition-colors duration-200"
+              class="px-6 py-3 text-lg font-medium text-white bg-teal-600 hover:bg-teal-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 transition-colors duration-300 ease-in-out"
               aria-label="Start or pause Pomodoro timer"
             >
               <span x-text="$store.pomoState.isRunning ? 'Pause' : 'Start'"></span>
@@ -70,7 +70,7 @@
             
             <button 
                 @click="if (confirm('Are you sure you want to reset the current timer?')) { $store.pomoState.resetTimer() }"
-                class="flex items-center gap-2 px-4 py-2 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 rounded-lg transition-colors duration-200"
+                class="flex items-center gap-2 px-4 py-2 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 rounded-lg transition-colors duration-300 ease-in-out"
         >
                 <div class="flex items-center">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -85,8 +85,8 @@
         <div class="flex flex-wrap justify-center gap-3 mb-6">
             <button 
                 @click="$store.pomoState.setPreset('pomodoro')"
-                :class="$store.pomoState.preset === 'pomodoro' ? 'bg-teal-600 ring-2 ring-teal-200 dark:ring-teal-900' : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300'"
-                class="px-6 py-2.5 rounded-lg transition-all shadow-sm flex items-center gap-2"
+                :class="$store.pomoState.preset === 'pomodoro' ? 'bg-teal-600 text-white ring-2 ring-teal-200 dark:ring-teal-900 shadow-sm' : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 shadow-sm'"
+                class="px-6 py-2.5 rounded-lg transition-colors duration-150 flex items-center gap-2 font-medium"
             >
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -95,8 +95,8 @@
             </button>
             <button 
                 @click="$store.pomoState.setPreset('long')"
-                :class="$store.pomoState.preset === 'long' ? 'bg-teal-600 ring-2 ring-teal-200 dark:ring-teal-900' : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300'"
-                class="px-6 py-2.5 rounded-lg transition-all shadow-sm flex items-center gap-2"
+                :class="$store.pomoState.preset === 'long' ? 'bg-teal-600 text-white ring-2 ring-teal-200 dark:ring-teal-900 shadow-sm' : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 shadow-sm'"
+                class="px-6 py-2.5 rounded-lg transition-colors duration-150 flex items-center gap-2 font-medium"
             >
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -105,8 +105,8 @@
             </button>
             <button 
                 @click="$store.pomoState.toggleBreak()"
-                :class="$store.pomoState.isBreak ? 'bg-teal-600 ring-2 ring-teal-200 dark:ring-teal-900 text-white' : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300'"
-                class="px-6 py-2.5 rounded-lg transition-all shadow-sm flex items-center gap-2"
+                :class="$store.pomoState.isBreak ? 'bg-teal-600 text-white ring-2 ring-teal-200 dark:ring-teal-900 shadow-sm' : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 shadow-sm'"
+                class="px-6 py-2.5 rounded-lg transition-colors duration-150 flex items-center gap-2 font-medium"
             >
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -114,6 +114,7 @@
                 <span x-text="$store.pomoState.isBreak ? 'Work' : 'Break'"></span>
             </button>
         </div>
+
 <script is:inline>
     document.addEventListener('alpine:init', () => {
         window.Alpine.store('pomoState', {
@@ -292,19 +293,35 @@
         return {
             init() {
                 window.Alpine.store('pomoState').init();
+                this.setupEventListeners();
+            },
+            
+            setupEventListeners() {
+                // Setup custom input for user-defined timer length
+                const customLengthInput = document.getElementById('customLength');
+                if (customLengthInput) {
+                    customLengthInput.addEventListener('input', (e) => {
+                        if (e.target && e.target instanceof HTMLInputElement) {
+                            const value = parseInt(e.target.value);
+                            if (value > 0) {
+                                window.Alpine.store('pomoState').setCustomMinutes(value);
+                            }
+                        }
+                    });
+                }
+                
+                // Add event listener for keyboard shortcuts
+                document.addEventListener('keydown', (e) => {
+                    // Only process if not in an input field
+                    if (document.activeElement?.tagName !== 'INPUT') {
+                        if (e.code === 'Space') {
+                            e.preventDefault();
+                            const store = window.Alpine.store('pomoState');
+                            store.isRunning ? store.pauseTimer() : store.startTimer();
+                        }
+                    }
+                });
             }
         };
     }
 </script>
-
-<style>
-    /* Disable spinner arrows on number input */
-    input[type=number]::-webkit-inner-spin-button, 
-    input[type=number]::-webkit-outer-spin-button { 
-        -webkit-appearance: none; 
-        margin: 0; 
-    }
-    input[type=number] {
-        -moz-appearance: textfield;
-    }
-</style>
