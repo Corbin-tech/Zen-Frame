@@ -1,7 +1,6 @@
 ---
 import Footer from '../components/footer.astro';
 import DarkModeToggle from '../components/darkModeToggle.astro';
-import '../styles/global.css';
 
 interface Props {
 	title: string;
@@ -15,9 +14,14 @@ const { title } = Astro.props;
 	<head>
 		<script is:inline>
 			(function() {
-				const savedTheme = localStorage.getItem('theme') || 'light';
-				const htmlEl = document.documentElement;
-				htmlEl.classList.toggle('dark', savedTheme === 'dark');
+				const savedTheme = localStorage.getItem('theme');
+				const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+				const initialTheme = savedTheme || (prefersDark ? 'dark' : 'light');
+				
+				document.documentElement.classList.toggle('dark', initialTheme === 'dark');
+				document.documentElement.setAttribute('data-theme', initialTheme);
+				
+				window.initialTheme = initialTheme;
 			})();
 		</script>
 		
@@ -26,12 +30,6 @@ const { title } = Astro.props;
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 		<meta name="generator" content={Astro.generator} />
 		<title>{title}</title>
-		
-		<!-- Initialize theme -->
-		<script>
-			import { initTheme } from '../scripts/initTheme';
-			initTheme();
-		</script>
 		
 		<!-- Initialize stores -->
 		<script>
@@ -50,13 +48,104 @@ const { title } = Astro.props;
         <script defer src="https://cdnjs.cloudflare.com/ajax/libs/flowbite/2.2.1/flowbite.min.js"></script>
 		
 		<style is:global>
-			/* Prevent transition flash */
-			html:not([data-theme-loaded]) {
+			/* Base state: no transitions */
+			* {
 				transition: none !important;
-				animation: none !important;
+			}
+			
+			/* Theme loaded class to enable transitions after initial load */
+			.theme-loaded * {
+				transition: color 150ms ease-out !important;
+			}
+			
+			/* Active transition state */
+			.theme-transition,
+			.theme-transition * {
+				transition: background-color 150ms ease-out, 
+							color 150ms ease-out, 
+							border-color 150ms ease-out,
+							stroke 150ms ease-out !important;
+			}
+			
+			/* SVG consistent styling */
+			svg {
+				stroke: currentColor;
+				fill: none;
+			}
+			
+			/* Special handling for timer digits */
+			.transition-[color] {
+				transition-property: color !important;
+				transition-duration: 150ms !important;
+			}
+		</style>
+		
+		<style is:global>
+			:root {
+				--accent: 136, 58, 234;
+				--accent-light: 224, 204, 250;
+				--accent-dark: 49, 10, 101;
+				--accent-gradient: linear-gradient(
+					45deg,
+					rgb(var(--accent)),
+					rgb(var(--accent-light)) 30%,
+					white 60%
+				);
+				--bg-color: rgb(245 245 244);
+				--card-bg: rgb(255, 255, 255);
+				--cluster-bg: rgb(255, 255, 255);
+				--task-bg: rgb(255, 255, 255);
+				--border-color: rgb(229, 231, 235);
+				--teal-primary: #0d9488;
+				--teal-light: #5eead4;
+			}
+			
+			:root.dark {
+				--bg-color: rgb(15 23 42);
+				--card-bg: rgb(30, 41, 59);
+				--cluster-bg: rgb(51, 65, 85);
+				--task-bg: rgb(30, 41, 59);
+				--border-color: rgb(71, 85, 105);
+				--teal-primary: #14b8a6;
+				--teal-light: #2dd4bf;
+			}
+
+			html, body {
+				min-height: 100vh;
+				margin: 0;
+				padding: 0;
+				background-color: var(--bg-color);
+			}
+			
+			html {
+				font-family: system-ui, sans-serif;
+			}
+			code {
+				font-family:
+					Menlo,
+					Monaco,
+					Lucida Console,
+					Liberation Mono,
+					DejaVu Sans Mono,
+					Bitstream Vera Sans Mono,
+					Courier New,
+					monospace;
 			}
 		</style>
 
+		<style is:global>
+			.force-repaint {
+				transform: translateZ(0);
+			}
+		</style>
+
+		<script>
+			// Enable transitions after initial render
+			document.addEventListener('DOMContentLoaded', () => {
+				document.documentElement.classList.add('theme-loaded');
+			});
+		</script>
+		
 		<script
 		type="module" src="/src/components/taskManager.js">
 	</script>
@@ -76,44 +165,3 @@ const { title } = Astro.props;
 		</div>
 	</body>
 </html>
-
-<style is:global>
-    :root {
-        --accent: 136, 58, 234;
-        --accent-light: 224, 204, 250;
-        --accent-dark: 49, 10, 101;
-        --accent-gradient: linear-gradient(
-            45deg,
-            rgb(var(--accent)),
-            rgb(var(--accent-light)) 30%,
-            white 60%
-        );
-        --bg-color: rgb(245 245 244);
-    }
-    
-    :root.dark {
-        --bg-color: rgb(15 23 42);
-    }
-
-    html, body {
-        min-height: 100vh;
-        margin: 0;
-        padding: 0;
-        background-color: var(--bg-color);
-    }
-    
-    html {
-        font-family: system-ui, sans-serif;
-    }
-    code {
-        font-family:
-            Menlo,
-            Monaco,
-            Lucida Console,
-            Liberation Mono,
-            DejaVu Sans Mono,
-            Bitstream Vera Sans Mono,
-            Courier New,
-            monospace;
-    }
-</style>

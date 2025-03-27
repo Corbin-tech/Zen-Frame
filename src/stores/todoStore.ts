@@ -6,7 +6,6 @@ const TodoSchema = z.object({
   todo: z.string().min(1, "Task must not be empty"),
   completed: z.boolean(),
   section: z.enum(['taskManager', 'Completed', 'mainContainer']),
-  priority: z.enum(['none', 'low', 'medium', 'high']).default('none'),
   isEditing: z.boolean().optional().default(false),
   isCluster: z.boolean().optional().default(false),
   isPinned: z.boolean().optional().default(false),
@@ -31,6 +30,7 @@ interface TodoStore {
   readonly incompleteTasks: Todo[];
   readonly currentTask: Todo | null;
   readonly hasMoreTasks: boolean;
+  skippedClusters: string[];
   init(): void;
   loadTodos(): void;
   saveTodos(): void;
@@ -61,6 +61,9 @@ interface TodoStore {
   isFirstCluster(clusterId: string): boolean;
   isLastCluster(clusterId: string): boolean;
   getClusterPosition(clusterId: string): number;
+  skipTaskToEndOfCluster(taskId: string): void;
+  skipCurrentCluster(): void;
+  getClusterIdsWithIncompleteTasks(): string[];
 }
 
 interface WeeklyTask {
@@ -93,7 +96,7 @@ export function initStores(): void {
   const todosStore: TodoStore = {
     items: [] as Todo[],
     currentIndex: 0,
-
+    skippedClusters: [] as string[],
     get incompleteTasks(): Todo[] {
       return this.items.filter(item => !item.completed && !item.isCluster);
     },
@@ -118,10 +121,18 @@ export function initStores(): void {
       if (savedTodos) {
         this.items = JSON.parse(savedTodos);
       }
+      
+      // Also load the skipped clusters state
+      const savedSkippedClusters = localStorage.getItem("skippedClusters");
+      if (savedSkippedClusters) {
+        this.skippedClusters = JSON.parse(savedSkippedClusters);
+      }
     },
 
     saveTodos(): void {
       localStorage.setItem("todos", JSON.stringify(this.items));
+      // Also save the skipped clusters state
+      localStorage.setItem("skippedClusters", JSON.stringify(this.skippedClusters));
     },
 
     addTodo(todoText: string, isCluster: boolean = false): string {
@@ -132,7 +143,6 @@ export function initStores(): void {
         todo: todoText,
         completed: false,
         section: "taskManager",
-        priority: "none",
         isEditing: false,
         isCluster,
         isPinned: false,
@@ -383,7 +393,6 @@ export function initStores(): void {
         todo: clusterName,
         completed: false,
         section: "taskManager",
-        priority: "none",
         isEditing: false,
         isCluster: true,
         isPinned: false,
@@ -619,10 +628,134 @@ export function initStores(): void {
     getClusterPosition(clusterId: string): number {
       const clusters = this.items.filter(item => item.isCluster);
       const index = clusters.findIndex(c => c.id === clusterId);
-      return index !== -1 ? index + 1 : 0;
-    }
+      return index >= 0 ? index + 1 : 0; // 1-indexed for display
+    },
+    
+    skipTaskToEndOfCluster(taskId: string): void {
+      const task = this.items.find(t => t.id === taskId);
+      if (!task) return;
+      
+      // If the task is not in a cluster, nothing to do
+      if (!task.parentId) return;
+      
+      // Find all tasks in the same cluster
+      const clusterTasks = this.items.filter(t => t.parentId === task.parentId && !t.completed && t.id !== taskId);
+      
+      // Remove the task from its current position
+      const newItems = this.items.filter(t => t.id !== taskId);
+      
+      // Find the position of the last task in the cluster
+      let insertIndex = newItems.length;
+      if (clusterTasks.length > 0) {
+        const lastTaskIndex = newItems.findIndex(t => t.id === clusterTasks[clusterTasks.length - 1].id);
+        insertIndex = lastTaskIndex !== -1 ? lastTaskIndex + 1 : insertIndex;
+      }
+      
+      // Insert the task at the new position
+      newItems.splice(insertIndex, 0, task);
+      this.items = newItems;
+      this.saveTodos();
+      
+      // Refresh the currentTodoCache in the zenTodoList component
+      document.dispatchEvent(new CustomEvent('zen-task-skipped'));
+    },
+    
+    skipCurrentCluster(): void {
+      // This method is meant to be used in Zen mode
+      const todos = this.items;
+      if (!todos || !todos.length) return;
+      
+      // Filter out clusters and only consider actual tasks
+      const tasks = todos.filter(task => !task.isCluster);
+      const clusters = todos.filter(item => item.isCluster);
+      
+      // Get all incomplete tasks
+      const incompleteTasks = tasks.filter(task => !task.completed);
+      if (incompleteTasks.length === 0) return;
+      
+      // Get all non-skipped incomplete tasks
+      const nonSkippedIncompleteTasks = incompleteTasks.filter(task => {
+        return !task.parentId || !this.skippedClusters.includes(task.parentId);
+      });
+      
+      // Get the current highest priority task and its cluster
+      let currentHighestTask;
+      
+      if (nonSkippedIncompleteTasks.length > 0) {
+        // Get the first non-skipped task in visual order
+        // Tasks appear in the same order as they are in the items array
+        currentHighestTask = nonSkippedIncompleteTasks[0];
+      } else {
+        // If all tasks are in skipped clusters, use the first cluster in the skipped list
+        // to implement cycling through all clusters
+        const firstSkippedClusterId = this.skippedClusters[0];
+        
+        // Find tasks in this cluster
+        const tasksInFirstSkippedCluster = incompleteTasks.filter(task => 
+          task.parentId === firstSkippedClusterId
+        );
+        
+        if (tasksInFirstSkippedCluster.length > 0) {
+          currentHighestTask = tasksInFirstSkippedCluster[0];
+        } else {
+          // No tasks found, reset skipped clusters
+          this.skippedClusters = [];
+          // Dispatch event to refresh
+          document.dispatchEvent(new CustomEvent('zen-cluster-skipped'));
+          return;
+        }
+      }
+      
+      // Get the current cluster ID
+      const currentClusterId = currentHighestTask.parentId;
+      
+      // If not in a cluster, nothing to skip
+      if (!currentClusterId) return;
+      
+      // If we have already skipped all but one cluster, and we're trying to skip the last one,
+      // rotate the skipped clusters instead
+      const clustersWithIncompleteTasks = this.getClusterIdsWithIncompleteTasks();
+      const nonSkippedClusters = clustersWithIncompleteTasks.filter(id => 
+        !this.skippedClusters.includes(id)
+      );
+      
+      if (nonSkippedClusters.length <= 1 && clustersWithIncompleteTasks.length > 1) {
+        // If this is the last non-skipped cluster, rotate the skipped clusters
+        const oldestSkippedCluster = this.skippedClusters.shift();
+        
+        // If we have an oldest skipped cluster, move the current cluster to the skipped list
+        if (oldestSkippedCluster !== undefined) {
+          this.skippedClusters.push(currentClusterId);
+        }
+      } else {
+        // Normal case: Add this cluster to the skipped clusters list
+        if (!this.skippedClusters.includes(currentClusterId)) {
+          this.skippedClusters.push(currentClusterId);
+        }
+      }
+      
+      // Save the changes to localStorage
+      this.saveTodos();
+      
+      // Refresh the currentTodoCache in the zenTodoList component
+      document.dispatchEvent(new CustomEvent('zen-cluster-skipped'));
+    },
+    
+    // Helper method to get all cluster IDs that have incomplete tasks
+    getClusterIdsWithIncompleteTasks(): string[] {
+      const tasks = this.items.filter(item => !item.isCluster && !item.completed);
+      const clusterIds = new Set<string>();
+      
+      tasks.forEach(task => {
+        if (task.parentId) {
+          clusterIds.add(task.parentId);
+        }
+      });
+      
+      return Array.from(clusterIds);
+    },
   };
-  
+
   window.Alpine.store("todos", todosStore);
 
   window.Alpine.store("quickTask", {
