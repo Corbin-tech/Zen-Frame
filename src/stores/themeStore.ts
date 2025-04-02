@@ -20,8 +20,11 @@ interface ThemeStore {
  * Initialize the Alpine.js theme store
  * This should be the ONLY place where theme manipulation happens
  */
-export function initThemeStore(): void {
-    if (typeof window === "undefined") return;
+export function initThemeStore(): ThemeStore {
+    if (typeof window === "undefined") {
+        // Return a dummy store for SSR
+        return {} as ThemeStore;
+    }
     
     const store = {
         current: 'light' as Theme,
@@ -105,6 +108,6 @@ export function initThemeStore(): void {
             this.setTheme(newTheme);
         }
     } as ThemeStore;
-
-    window.Alpine.store('theme', store);
+    
+    return store;
 }

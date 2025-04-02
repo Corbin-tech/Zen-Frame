@@ -8,6 +8,10 @@
         "href": "#taskmanager"
       },
       {
+        "title": "Schedule",
+        "href": "#schedule"
+      },
+      {
         "title": "Pomodoro",
         "href": "#pomodoro"
       },

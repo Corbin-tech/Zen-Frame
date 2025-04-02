@@ -1,0 +1,1432 @@
+---
+import DashboardView from "./dashboardView.astro";
+---
+
+<div class="container mx-auto px-4">
+    <div class="flex flex-col space-y-6 max-w-4xl mx-auto">
+        <div
+            x-data="calendar"
+            x-init="init()"
+            class="bg-white dark:bg-slate-800 rounded-lg shadow-md p-6"
+        >
+            <!-- Header: Month Navigation -->
+            <div class="flex justify-between items-center mb-4">
+                <button
+                    @click="prevMonth()"
+                    type="button"
+                    class="p-2 rounded-full hover:bg-teal-100 dark:hover:bg-teal-800/50 text-teal-600 dark:text-teal-400 focus:outline-none focus:ring-2 focus:ring-teal-300"
+                    aria-label="Previous month"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                    </svg>
+                </button>
+                <h2 class="text-4xl mb-4 font-bold text-black dark:text-white" x-text="`${monthNames[currentMonth]} ${currentYear}`"></h2>
+                <button
+                    @click="nextMonth()"
+                    type="button"
+                    class="p-2 rounded-full hover:bg-teal-100 dark:hover:bg-teal-800/50 text-teal-600 dark:text-teal-400 focus:outline-none focus:ring-2 focus:ring-teal-300"
+                    aria-label="Next month"
+                >
+                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Days of the Week Header -->
+            <div class="grid grid-cols-7 gap-1 text-center text-xs font-medium text-teal-600 dark:text-teal-400 mb-2">
+                <div x-text="weekDays[0]"></div>
+                <div x-text="weekDays[1]"></div>
+                <div x-text="weekDays[2]"></div>
+                <div x-text="weekDays[3]"></div>
+                <div x-text="weekDays[4]"></div>
+                <div x-text="weekDays[5]"></div>
+                <div x-text="weekDays[6]"></div>
+            </div>
+
+            <!-- Calendar Days Grid -->
+            <div class="grid grid-cols-7 gap-1">
+                <template x-for="(day, index) in days" :key="index">
+                    <div 
+                        @click="selectDate(day.date)"
+                        class="aspect-square flex flex-col p-1 rounded-xl cursor-pointer transition-colors relative"
+                        x-bind:class="selectedDate === day.date ? 'bg-teal-50 dark:bg-teal-900/30 ring-2 ring-teal-500 dark:ring-teal-600' : day.isCurrentMonth ? 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600' : 'bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-700/50 opacity-60'"
+                    >
+                        <!-- Day Number -->
+                        <div 
+                            class="text-center font-medium mb-1 rounded-full w-6 h-6 flex items-center justify-center mx-auto"
+                            x-bind:class="selectedDate === day.date
+                                ? 'bg-teal-500 dark:bg-teal-600 text-white ring-2 ring-teal-400 dark:ring-teal-500' 
+                                : day.isToday
+                                    ? 'bg-gray-400 dark:bg-gray-500 text-gray-800 dark:text-gray-100 ring-2 ring-teal-200 dark:ring-teal-700'
+                                    : day.isCurrentMonth
+                                        ? 'text-gray-900 dark:text-white bg-gray-300 dark:bg-gray-600'
+                                        : 'text-gray-400 dark:text-gray-500 bg-gray-300 dark:bg-gray-600'"
+                        >
+                            <span x-text="day.day"></span>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+        
+        <!-- Time Blocking Feature -->
+        <div 
+            x-data="timeBlocking"
+            x-init="initTimeBlocking()" 
+            class="bg-white dark:bg-slate-800 rounded-lg shadow-md p-6"
+        >
+            <h3 class="text-4xl font-bold text-center mb-6 text-black dark:text-white">Schedule</h3>
+            
+            <!-- Selected date indicator -->
+            <div class="flex justify-center items-center mb-6">
+                <div 
+                    class="flex flex-col items-center px-6 py-3 rounded-lg transition-colors duration-150"
+                    x-bind:class="isToday(selectedDate) 
+                        ? 'bg-white dark:bg-slate-800 border border-teal-200 dark:border-teal-700 shadow-sm' 
+                        : 'bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 shadow-xs'" 
+                >
+                    <h2 class="text-xl font-semibold text-black dark:text-white" x-text="selectedDateFormatted"></h2>
+                </div>
+            </div>
+            
+            <!-- Timeline Container - Taller for better visualization -->
+            <div class="relative h-64 mb-6"> 
+                <!-- Scrollable container for the timeline -->
+                <div class="overflow-x-auto pb-4 border border-gray-200 dark:border-gray-700 rounded-lg shadow-md relative bg-white dark:bg-slate-800 hover:shadow-lg transition-shadow duration-300">
+                    <!-- Hour Markers and Click Area - made wider for better visibility -->
+                    <div 
+                        class="relative flex items-stretch p-0 min-w-full" 
+                        x-ref="timelineContainer"
+                        style="width: 150%; min-width: 800px; height: 180px;"
+                     >
+                        <!-- Timeline Hours Strip - only for display -->
+                        <div class="absolute inset-0 flex pointer-events-none">
+                            <template x-for="(hour, index) in hours" :key="hour">
+                                <!-- Hour columns with alternating background colors for better readability -->
+                                <div 
+                                    class="flex-1 flex flex-col justify-start h-full border-r border-gray-200 dark:border-gray-700 relative"
+                                    :class="index % 2 === 0 ? 'bg-gray-50 dark:bg-slate-700/50' : 'bg-white dark:bg-slate-800'"
+                                    :id="'hour-' + hour"
+                                >
+                                    <!-- Hour label (positioned at top) -->
+                                    <div class="absolute top-0 left-0 right-0 h-8 flex items-center justify-center border-b border-gray-200 dark:border-gray-700 bg-gradient-to-b from-white dark:from-slate-700 to-transparent dark:to-transparent">
+                                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300" x-text="formatHour(hour)"></span>
+                                    </div>
+                                    
+                                    <!-- Time markers -->
+                                    <!-- Vertical time markers container -->
+                                    <div class="absolute inset-0 flex mt-8"> 
+                                        <!-- 15-minute marker -->
+                                        <div class="w-1/4 h-full border-r border-dashed border-teal-100 dark:border-teal-900/30"></div>
+                                        <!-- 30-minute marker (more prominent) -->
+                                        <div class="w-1/4 h-full border-r border-dashed border-teal-200 dark:border-teal-800/50"></div>
+                                        <!-- 45-minute marker -->
+                                        <div class="w-1/4 h-full border-r border-dashed border-teal-100 dark:border-teal-900/30"></div>
+                                        <!-- Remaining space -->
+                                        <div class="w-1/4 h-full"></div>
+                                    </div>
+                                    
+                                    <!-- Current time indicator (only for today, and only for the correct hour) -->
+                                    <div 
+                                        x-show="isToday(selectedDate) && isCurrentHour(hour)" 
+                                        class="absolute h-full w-0.5 bg-teal-500 dark:bg-teal-400 z-10"
+                                        :style="getCurrentTimePosition(hour)"
+                                    >
+                                        <div class="absolute -left-1.5 top-0 w-3 h-3 rounded-full bg-teal-500 dark:bg-teal-400"></div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                         
+                        <!-- Interactive Layer - For Click Handling (z-index to ensure it's above the visuals but below tasks) -->
+                        <div class="absolute inset-0 flex z-10">
+                            <template x-for="(hour, index) in hours" :key="hour">
+                                <div 
+                                    class="flex-1 h-full cursor-pointer" 
+                                    :data-hour="hour"
+                                    @click.stop="handleHourClick($event, hour)"
+                                ></div>
+                            </template>
+                        </div>
+                        
+                        <!-- Scheduled Task Blocks - moved inside the scrollable container with z-index to ensure they're on top -->
+                        <div class="absolute inset-0 pointer-events-none z-20"> 
+                            <template x-for="item in scheduledItemsForCurrentDate" :key="item.id">
+                                <div 
+                                    :style="getTaskBlockStyle(item)"
+                                    class="absolute flex flex-col justify-between bg-teal-100 dark:bg-teal-900/80 rounded-md overflow-hidden p-2 pointer-events-auto cursor-pointer hover:bg-teal-200 dark:hover:bg-teal-800 transition-all duration-150 shadow-sm hover:shadow-md border-l-4 border-teal-500 dark:border-teal-600"
+                                    @click.stop="editScheduledTask(item)"
+                                >
+                                    <span class="text-sm font-medium text-teal-800 dark:text-teal-200 truncate" x-text="getTaskTitle(item.taskId)"></span>
+                                    <span class="text-xs text-teal-600 dark:text-teal-400 mt-1">
+                                        <span x-text="formatTime(item.startTimeMinutes)"></span> - <span x-text="formatTime(item.endTimeMinutes)"></span>
+                                    </span>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Scroll indicator with better visual cue -->
+                <div class="flex items-center justify-center gap-2 text-sm text-gray-600 text-center mt-3 dark:text-gray-400 font-medium">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                    </svg>
+                    <span>Scroll to see more hours</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                    </svg>
+                </div>
+            </div>
+            
+            <!-- Time Block Scheduling Modal -->
+            <div
+                x-ref="timeBlockModal"
+                x-show="showTimeBlockModal"
+                x-transition:enter="transition ease-out duration-300"
+                x-transition:enter-start="opacity-0 transform scale-90"
+                x-transition:enter-end="opacity-100 transform scale-100"
+                x-transition:leave="transition ease-in duration-300"
+                x-transition:leave-start="opacity-100 transform scale-100"
+                x-transition:leave-end="opacity-0 transform scale-90"
+                x-cloak
+                class="fixed inset-0 z-50 overflow-y-auto"
+                @keydown.escape="closeTimeBlockModal()"
+            >
+                <!-- Modal Backdrop -->
+                <div class="fixed inset-0 bg-black opacity-30" @click="closeTimeBlockModal()"></div>
+                
+                <!-- Modal Content -->
+                <div class="flex items-center justify-center min-h-screen p-4">
+                    <div 
+                        class="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl p-5 w-full max-w-lg z-60"
+                        @click.outside="closeTimeBlockModal()"
+                    >
+                        <!-- Close Button -->
+                        <button
+                            type="button"
+                            @click="closeTimeBlockModal()"
+                            class="absolute top-3 right-3 text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-teal-500 rounded-full p-1"
+                        >
+                            <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4" x-text="modalTitle"></h3>
+                        
+                        <!-- Schedule New Task Form -->
+                        <div x-show="!editingItemId" class="space-y-4">
+                            <div>
+                                <label for="task-select" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Select Task</label>
+                                <select 
+                                    id="task-select"
+                                    x-model="selectedTaskId"
+                                    class="block w-full mt-1 border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:border-teal-500 focus:ring-teal-500 rounded-md shadow-sm"
+                                >
+                                    <option value="">-- Select a Task --</option>
+                                    <template x-for="task in availableTasksForScheduling" :key="task.id">
+                                        <option :value="task.id" x-text="task.todo"></option>
+                                    </template>
+                                </select>
+                                <p x-show="availableTasksForScheduling.length === 0" class="text-sm text-gray-500 dark:text-gray-400 mt-1">No unscheduled tasks available.</p>
+                            </div>
+                            
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label for="start-time" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Start Time</label>
+                                    <select 
+                                        id="start-time"
+                                        x-model="startTime" 
+                                        class="block w-full mt-1 border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:border-teal-500 focus:ring-teal-500 rounded-md shadow-sm"
+                                    >
+                                        <option value="06:00">6:00 AM</option>
+                                        <option value="06:15">6:15 AM</option>
+                                        <option value="06:30">6:30 AM</option>
+                                        <option value="06:45">6:45 AM</option>
+                                        <option value="07:00">7:00 AM</option>
+                                        <option value="07:15">7:15 AM</option>
+                                        <option value="07:30">7:30 AM</option>
+                                        <option value="07:45">7:45 AM</option>
+                                        <option value="08:00">8:00 AM</option>
+                                        <option value="08:15">8:15 AM</option>
+                                        <option value="08:30">8:30 AM</option>
+                                        <option value="08:45">8:45 AM</option>
+                                        <option value="09:00">9:00 AM</option>
+                                        <option value="09:15">9:15 AM</option>
+                                        <option value="09:30">9:30 AM</option>
+                                        <option value="09:45">9:45 AM</option>
+                                        <option value="10:00">10:00 AM</option>
+                                        <option value="10:15">10:15 AM</option>
+                                        <option value="10:30">10:30 AM</option>
+                                        <option value="10:45">10:45 AM</option>
+                                        <option value="11:00">11:00 AM</option>
+                                        <option value="11:15">11:15 AM</option>
+                                        <option value="11:30">11:30 AM</option>
+                                        <option value="11:45">11:45 AM</option>
+                                        <option value="12:00">12:00 PM</option>
+                                        <option value="12:15">12:15 PM</option>
+                                        <option value="12:30">12:30 PM</option>
+                                        <option value="12:45">12:45 PM</option>
+                                        <option value="13:00">1:00 PM</option>
+                                        <option value="13:15">1:15 PM</option>
+                                        <option value="13:30">1:30 PM</option>
+                                        <option value="13:45">1:45 PM</option>
+                                        <option value="14:00">2:00 PM</option>
+                                        <option value="14:15">2:15 PM</option>
+                                        <option value="14:30">2:30 PM</option>
+                                        <option value="14:45">2:45 PM</option>
+                                        <option value="15:00">3:00 PM</option>
+                                        <option value="15:15">3:15 PM</option>
+                                        <option value="15:30">3:30 PM</option>
+                                        <option value="15:45">3:45 PM</option>
+                                        <option value="16:00">4:00 PM</option>
+                                        <option value="16:15">4:15 PM</option>
+                                        <option value="16:30">4:30 PM</option>
+                                        <option value="16:45">4:45 PM</option>
+                                        <option value="17:00">5:00 PM</option>
+                                        <option value="17:15">5:15 PM</option>
+                                        <option value="17:30">5:30 PM</option>
+                                        <option value="17:45">5:45 PM</option>
+                                        <option value="18:00">6:00 PM</option>
+                                        <option value="18:15">6:15 PM</option>
+                                        <option value="18:30">6:30 PM</option>
+                                        <option value="18:45">6:45 PM</option>
+                                        <option value="19:00">7:00 PM</option>
+                                        <option value="19:15">7:15 PM</option>
+                                        <option value="19:30">7:30 PM</option>
+                                        <option value="19:45">7:45 PM</option>
+                                        <option value="20:00">8:00 PM</option>
+                                        <option value="20:15">8:15 PM</option>
+                                        <option value="20:30">8:30 PM</option>
+                                        <option value="20:45">8:45 PM</option>
+                                        <option value="21:00">9:00 PM</option>
+                                        <option value="21:15">9:15 PM</option>
+                                        <option value="21:30">9:30 PM</option>
+                                        <option value="21:45">9:45 PM</option>
+                                        <option value="22:00">10:00 PM</option>
+                                        <option value="22:15">10:15 PM</option>
+                                        <option value="22:30">10:30 PM</option>
+                                        <option value="22:45">10:45 PM</option>
+                                        <option value="23:00">11:00 PM</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="end-time" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">End Time</label>
+                                    <select 
+                                        id="end-time"
+                                        x-model="endTime"
+                                        class="block w-full mt-1 border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:border-teal-500 focus:ring-teal-500 rounded-md shadow-sm"
+                                    >
+                                        <option value="06:00">6:00 AM</option>
+                                        <option value="06:15">6:15 AM</option>
+                                        <option value="06:30">6:30 AM</option>
+                                        <option value="06:45">6:45 AM</option>
+                                        <option value="07:00">7:00 AM</option>
+                                        <option value="07:15">7:15 AM</option>
+                                        <option value="07:30">7:30 AM</option>
+                                        <option value="07:45">7:45 AM</option>
+                                        <option value="08:00">8:00 AM</option>
+                                        <option value="08:15">8:15 AM</option>
+                                        <option value="08:30">8:30 AM</option>
+                                        <option value="08:45">8:45 AM</option>
+                                        <option value="09:00">9:00 AM</option>
+                                        <option value="09:15">9:15 AM</option>
+                                        <option value="09:30">9:30 AM</option>
+                                        <option value="09:45">9:45 AM</option>
+                                        <option value="10:00">10:00 AM</option>
+                                        <option value="10:15">10:15 AM</option>
+                                        <option value="10:30">10:30 AM</option>
+                                        <option value="10:45">10:45 AM</option>
+                                        <option value="11:00">11:00 AM</option>
+                                        <option value="11:15">11:15 AM</option>
+                                        <option value="11:30">11:30 AM</option>
+                                        <option value="11:45">11:45 AM</option>
+                                        <option value="12:00">12:00 PM</option>
+                                        <option value="12:15">12:15 PM</option>
+                                        <option value="12:30">12:30 PM</option>
+                                        <option value="12:45">12:45 PM</option>
+                                        <option value="13:00">1:00 PM</option>
+                                        <option value="13:15">1:15 PM</option>
+                                        <option value="13:30">1:30 PM</option>
+                                        <option value="13:45">1:45 PM</option>
+                                        <option value="14:00">2:00 PM</option>
+                                        <option value="14:15">2:15 PM</option>
+                                        <option value="14:30">2:30 PM</option>
+                                        <option value="14:45">2:45 PM</option>
+                                        <option value="15:00">3:00 PM</option>
+                                        <option value="15:15">3:15 PM</option>
+                                        <option value="15:30">3:30 PM</option>
+                                        <option value="15:45">3:45 PM</option>
+                                        <option value="16:00">4:00 PM</option>
+                                        <option value="16:15">4:15 PM</option>
+                                        <option value="16:30">4:30 PM</option>
+                                        <option value="16:45">4:45 PM</option>
+                                        <option value="17:00">5:00 PM</option>
+                                        <option value="17:15">5:15 PM</option>
+                                        <option value="17:30">5:30 PM</option>
+                                        <option value="17:45">5:45 PM</option>
+                                        <option value="18:00">6:00 PM</option>
+                                        <option value="18:15">6:15 PM</option>
+                                        <option value="18:30">6:30 PM</option>
+                                        <option value="18:45">6:45 PM</option>
+                                        <option value="19:00">7:00 PM</option>
+                                        <option value="19:15">7:15 PM</option>
+                                        <option value="19:30">7:30 PM</option>
+                                        <option value="19:45">7:45 PM</option>
+                                        <option value="20:00">8:00 PM</option>
+                                        <option value="20:15">8:15 PM</option>
+                                        <option value="20:30">8:30 PM</option>
+                                        <option value="20:45">8:45 PM</option>
+                                        <option value="21:00">9:00 PM</option>
+                                        <option value="21:15">9:15 PM</option>
+                                        <option value="21:30">9:30 PM</option>
+                                        <option value="21:45">9:45 PM</option>
+                                        <option value="22:00">10:00 PM</option>
+                                        <option value="22:15">10:15 PM</option>
+                                        <option value="22:30">10:30 PM</option>
+                                        <option value="22:45">10:45 PM</option>
+                                        <option value="23:00">11:00 PM</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Edit Existing Task Form -->
+                        <div x-show="editingItemId" class="space-y-4">
+                            <p class="text-gray-800 dark:text-gray-200">
+                                Task: <strong x-text="getTaskTitle(selectedTaskId)"></strong>
+                            </p>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label for="edit-start-time" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Start Time</label>
+                                    <select 
+                                        id="edit-start-time"
+                                        x-model="startTime" 
+                                        class="block w-full mt-1 border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:border-teal-500 focus:ring-teal-500 rounded-md shadow-sm"
+                                    >
+                                        <option value="06:00">6:00 AM</option>
+                                        <option value="06:15">6:15 AM</option>
+                                        <option value="06:30">6:30 AM</option>
+                                        <option value="06:45">6:45 AM</option>
+                                        <option value="07:00">7:00 AM</option>
+                                        <option value="07:15">7:15 AM</option>
+                                        <option value="07:30">7:30 AM</option>
+                                        <option value="07:45">7:45 AM</option>
+                                        <option value="08:00">8:00 AM</option>
+                                        <option value="08:15">8:15 AM</option>
+                                        <option value="08:30">8:30 AM</option>
+                                        <option value="08:45">8:45 AM</option>
+                                        <option value="09:00">9:00 AM</option>
+                                        <option value="09:15">9:15 AM</option>
+                                        <option value="09:30">9:30 AM</option>
+                                        <option value="09:45">9:45 AM</option>
+                                        <option value="10:00">10:00 AM</option>
+                                        <option value="10:15">10:15 AM</option>
+                                        <option value="10:30">10:30 AM</option>
+                                        <option value="10:45">10:45 AM</option>
+                                        <option value="11:00">11:00 AM</option>
+                                        <option value="11:15">11:15 AM</option>
+                                        <option value="11:30">11:30 AM</option>
+                                        <option value="11:45">11:45 AM</option>
+                                        <option value="12:00">12:00 PM</option>
+                                        <option value="12:15">12:15 PM</option>
+                                        <option value="12:30">12:30 PM</option>
+                                        <option value="12:45">12:45 PM</option>
+                                        <option value="13:00">1:00 PM</option>
+                                        <option value="13:15">1:15 PM</option>
+                                        <option value="13:30">1:30 PM</option>
+                                        <option value="13:45">1:45 PM</option>
+                                        <option value="14:00">2:00 PM</option>
+                                        <option value="14:15">2:15 PM</option>
+                                        <option value="14:30">2:30 PM</option>
+                                        <option value="14:45">2:45 PM</option>
+                                        <option value="15:00">3:00 PM</option>
+                                        <option value="15:15">3:15 PM</option>
+                                        <option value="15:30">3:30 PM</option>
+                                        <option value="15:45">3:45 PM</option>
+                                        <option value="16:00">4:00 PM</option>
+                                        <option value="16:15">4:15 PM</option>
+                                        <option value="16:30">4:30 PM</option>
+                                        <option value="16:45">4:45 PM</option>
+                                        <option value="17:00">5:00 PM</option>
+                                        <option value="17:15">5:15 PM</option>
+                                        <option value="17:30">5:30 PM</option>
+                                        <option value="17:45">5:45 PM</option>
+                                        <option value="18:00">6:00 PM</option>
+                                        <option value="18:15">6:15 PM</option>
+                                        <option value="18:30">6:30 PM</option>
+                                        <option value="18:45">6:45 PM</option>
+                                        <option value="19:00">7:00 PM</option>
+                                        <option value="19:15">7:15 PM</option>
+                                        <option value="19:30">7:30 PM</option>
+                                        <option value="19:45">7:45 PM</option>
+                                        <option value="20:00">8:00 PM</option>
+                                        <option value="20:15">8:15 PM</option>
+                                        <option value="20:30">8:30 PM</option>
+                                        <option value="20:45">8:45 PM</option>
+                                        <option value="21:00">9:00 PM</option>
+                                        <option value="21:15">9:15 PM</option>
+                                        <option value="21:30">9:30 PM</option>
+                                        <option value="21:45">9:45 PM</option>
+                                        <option value="22:00">10:00 PM</option>
+                                        <option value="22:15">10:15 PM</option>
+                                        <option value="22:30">10:30 PM</option>
+                                        <option value="22:45">10:45 PM</option>
+                                        <option value="23:00">11:00 PM</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="edit-end-time" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">End Time</label>
+                                    <select 
+                                        id="edit-end-time"
+                                        x-model="endTime"
+                                        class="block w-full mt-1 border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:border-teal-500 focus:ring-teal-500 rounded-md shadow-sm"
+                                    >
+                                        <option value="06:00">6:00 AM</option>
+                                        <option value="06:15">6:15 AM</option>
+                                        <option value="06:30">6:30 AM</option>
+                                        <option value="06:45">6:45 AM</option>
+                                        <option value="07:00">7:00 AM</option>
+                                        <option value="07:15">7:15 AM</option>
+                                        <option value="07:30">7:30 AM</option>
+                                        <option value="07:45">7:45 AM</option>
+                                        <option value="08:00">8:00 AM</option>
+                                        <option value="08:15">8:15 AM</option>
+                                        <option value="08:30">8:30 AM</option>
+                                        <option value="08:45">8:45 AM</option>
+                                        <option value="09:00">9:00 AM</option>
+                                        <option value="09:15">9:15 AM</option>
+                                        <option value="09:30">9:30 AM</option>
+                                        <option value="09:45">9:45 AM</option>
+                                        <option value="10:00">10:00 AM</option>
+                                        <option value="10:15">10:15 AM</option>
+                                        <option value="10:30">10:30 AM</option>
+                                        <option value="10:45">10:45 AM</option>
+                                        <option value="11:00">11:00 AM</option>
+                                        <option value="11:15">11:15 AM</option>
+                                        <option value="11:30">11:30 AM</option>
+                                        <option value="11:45">11:45 AM</option>
+                                        <option value="12:00">12:00 PM</option>
+                                        <option value="12:15">12:15 PM</option>
+                                        <option value="12:30">12:30 PM</option>
+                                        <option value="12:45">12:45 PM</option>
+                                        <option value="13:00">1:00 PM</option>
+                                        <option value="13:15">1:15 PM</option>
+                                        <option value="13:30">1:30 PM</option>
+                                        <option value="13:45">1:45 PM</option>
+                                        <option value="14:00">2:00 PM</option>
+                                        <option value="14:15">2:15 PM</option>
+                                        <option value="14:30">2:30 PM</option>
+                                        <option value="14:45">2:45 PM</option>
+                                        <option value="15:00">3:00 PM</option>
+                                        <option value="15:15">3:15 PM</option>
+                                        <option value="15:30">3:30 PM</option>
+                                        <option value="15:45">3:45 PM</option>
+                                        <option value="16:00">4:00 PM</option>
+                                        <option value="16:15">4:15 PM</option>
+                                        <option value="16:30">4:30 PM</option>
+                                        <option value="16:45">4:45 PM</option>
+                                        <option value="17:00">5:00 PM</option>
+                                        <option value="17:15">5:15 PM</option>
+                                        <option value="17:30">5:30 PM</option>
+                                        <option value="17:45">5:45 PM</option>
+                                        <option value="18:00">6:00 PM</option>
+                                        <option value="18:15">6:15 PM</option>
+                                        <option value="18:30">6:30 PM</option>
+                                        <option value="18:45">6:45 PM</option>
+                                        <option value="19:00">7:00 PM</option>
+                                        <option value="19:15">7:15 PM</option>
+                                        <option value="19:30">7:30 PM</option>
+                                        <option value="19:45">7:45 PM</option>
+                                        <option value="20:00">8:00 PM</option>
+                                        <option value="20:15">8:15 PM</option>
+                                        <option value="20:30">8:30 PM</option>
+                                        <option value="20:45">8:45 PM</option>
+                                        <option value="21:00">9:00 PM</option>
+                                        <option value="21:15">9:15 PM</option>
+                                        <option value="21:30">9:30 PM</option>
+                                        <option value="21:45">9:45 PM</option>
+                                        <option value="22:00">10:00 PM</option>
+                                        <option value="22:15">10:15 PM</option>
+                                        <option value="22:30">10:30 PM</option>
+                                        <option value="22:45">10:45 PM</option>
+                                        <option value="23:00">11:00 PM</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="flex justify-end gap-3 mt-6">
+                            <!-- Editing mode buttons layout -->
+                            <div x-show="editingItemId" class="flex gap-3">
+                                <button
+                                    type="button"
+                                    @click="closeTimeBlockModal()"
+                                    class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    @click="deleteScheduledTask()"
+                                    class="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md transition-colors"
+                                >
+                                    Remove
+                                </button>
+                                <button
+                                    @click="saveScheduledTask()"
+                                    :disabled="!selectedTaskId || startTime === '' || endTime === '' || parseTimeToMinutes(endTime) <= parseTimeToMinutes(startTime)"
+                                    class="px-4 py-2 text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    Update
+                                </button>
+                            </div>
+                            
+                            <!-- Non-editing mode buttons layout -->
+                            <div x-show="!editingItemId" class="flex gap-3">
+                                <button
+                                    type="button"
+                                    @click="closeTimeBlockModal()"
+                                    class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    @click="saveScheduledTask()"
+                                    :disabled="!selectedTaskId || startTime === '' || endTime === '' || parseTimeToMinutes(endTime) <= parseTimeToMinutes(startTime)"
+                                    class="px-4 py-2 text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    Schedule
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Dashboard View -->
+        <DashboardView />
+    </div>
+</div>
+
+<script is:inline>
+// is:inline is crucial for Alpine.js functions within Astro components
+
+// Helper to format date to YYYY-MM-DD - used by both components
+function formatDateToYYYYMMDD(date) {
+    return date.toISOString().split('T')[0];
+}
+
+function calendar() {
+    const today = new Date();
+    return {
+        currentMonth: today.getMonth(),
+        currentYear: today.getFullYear(),
+        selectedDate: null,
+        days: [],
+        monthNames: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
+        weekDays: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+        
+        init() {
+            this.generateCalendar();
+            
+            // Set today as the initial selected date
+            this.selectDate(today);
+        },
+        
+        // Generate the calendar days for the current month and year
+        generateCalendar() {
+            const firstDay = new Date(this.currentYear, this.currentMonth, 1);
+            const lastDay = new Date(this.currentYear, this.currentMonth + 1, 0);
+            const daysInMonth = lastDay.getDate();
+            const startingDayOfWeek = firstDay.getDay();
+            
+            this.days = [];
+            
+            // Add days from previous month to fill the first week
+            const prevMonthLastDay = new Date(this.currentYear, this.currentMonth, 0).getDate();
+            for (let i = startingDayOfWeek - 1; i >= 0; i--) {
+                const day = prevMonthLastDay - i;
+                const date = new Date(this.currentYear, this.currentMonth - 1, day);
+                this.days.push({
+                    day,
+                    isCurrentMonth: false,
+                    date: formatDateToYYYYMMDD(date),
+                    isToday: this.isToday(date)
+                });
+            }
+            
+            // Add days from current month
+            for (let day = 1; day <= daysInMonth; day++) {
+                const date = new Date(this.currentYear, this.currentMonth, day);
+                this.days.push({
+                    day,
+                    isCurrentMonth: true,
+                    date: formatDateToYYYYMMDD(date),
+                    isToday: this.isToday(date)
+                });
+            }
+            
+            // Calculate how many days from next month are needed to complete the last week
+            const remainingDays = 7 - (this.days.length % 7);
+            if (remainingDays < 7) {
+                for (let day = 1; day <= remainingDays; day++) {
+                    const date = new Date(this.currentYear, this.currentMonth + 1, day);
+                    this.days.push({
+                        day,
+                        isCurrentMonth: false,
+                        date: formatDateToYYYYMMDD(date),
+                        isToday: this.isToday(date)
+                    });
+                }
+            }
+        },
+        
+        // Navigate to the previous month
+        prevMonth() {
+            if (this.currentMonth === 0) {
+                this.currentMonth = 11;
+                this.currentYear--;
+            } else {
+                this.currentMonth--;
+            }
+            this.generateCalendar();
+        },
+        
+        // Navigate to the next month
+        nextMonth() {
+            if (this.currentMonth === 11) {
+                this.currentMonth = 0;
+                this.currentYear++;
+            } else {
+                this.currentMonth++;
+            }
+            this.generateCalendar();
+        },
+        
+        // Select a date and notify the timeBlocking component
+        selectDate(date) {
+            // Format the date to YYYY-MM-DD
+            const formattedDate = date instanceof Date
+                ? formatDateToYYYYMMDD(date)
+                : date; // If already formatted
+            
+            this.selectedDate = formattedDate;
+            
+            // Dispatch a standard CustomEvent that the listener in timeBlocking expects
+            document.dispatchEvent(new CustomEvent('calendar-date-selected', {
+                detail: { date: formattedDate }
+            }));
+            
+            console.log('Calendar: Date selected:', formattedDate);
+        },
+
+        // Check if a date is today
+        isToday(date) {
+            const today = new Date();
+            return date.getDate() === today.getDate() &&
+                  date.getMonth() === today.getMonth() &&
+                  date.getFullYear() === today.getFullYear();
+        },
+    }
+}
+
+function timeBlocking() {
+    const START_HOUR = 6;
+    const END_HOUR = 23; // Non-inclusive, so up to 10:59 PM
+    const TOTAL_HOURS = END_HOUR - START_HOUR;
+    const TOTAL_MINUTES = TOTAL_HOURS * 60;
+    const MINUTE_INCREMENT = 15;
+
+    return {
+        hours: Array.from({ length: TOTAL_HOURS }, (_, i) => START_HOUR + i),
+        selectedDate: new Date(),
+        scheduledItems: [], // Stores { id: string, taskId: string, startTimeMinutes: number, endTimeMinutes: number }
+        showTimeBlockModal: false,
+        editingItemId: null, // ID of the item being edited
+        modalTitle: '',
+        selectedTaskId: '',
+        startTime: '',
+        endTime: '',
+        selectedStartTimeMinutes: null,
+        selectedEndTimeMinutes: null,
+        activeTab: 'tasks',
+        availableTasksForScheduling: [], // Add this property
+        
+        // Layout caching
+        timelineRect: null,
+        hourBoundaries: [], // Stores { hour: number, x: number }
+        
+        // Helper method to safely check if store exists
+        storeExists() {
+            try {
+                return (
+                    typeof Alpine !== 'undefined' && 
+                    Alpine.store && 
+                    typeof Alpine.store === 'function' && 
+                    Alpine.store('todos') && 
+                    typeof Alpine.store('todos') === 'object'
+                );
+            } catch (e) {
+                console.error("Error checking store existence", e);
+                return false;
+            }
+        },
+
+        initTimeBlocking() {
+            console.log("TimeBlocking: Initializing component setup...");
+            
+            // Try loading tasks or retry with exponential backoff
+            this.tryLoadingTasks(0);
+
+            // Define the logic that depends on the todoStore
+            const runStoreDependentInit = () => {
+                console.log("TimeBlocking: todos store confirmed available. Running store-dependent initialization.");
+                Alpine.effect(() => {
+                    const currentDate = this.selectedDate;
+                    console.log(`TimeBlocking: Effect triggered for date: ${this.formatDateForStore(currentDate)}. Loading tasks and calculating layout.`);
+                    this.loadScheduledTasks();
+                    
+                    // Only try to load available tasks if store exists
+                    if (this.storeExists()) {
+                        this.loadAvailableTasks();
+                    }
+                    
+                    // Delay layout calculation slightly to ensure DOM updates from task loading are potentially settled
+                    this.$nextTick(() => this.calculateTimelineLayout());
+                });
+
+                // Calculate layout initially now that store effect is set up
+                this.$nextTick(() => this.calculateTimelineLayout());
+            };
+
+            // Check if store is ready immediately
+            if (Alpine.store('todos')) {
+                runStoreDependentInit();
+            } else {
+                // If not ready, listen for the event
+                console.log("TimeBlocking: todos store not yet available. Waiting for 'todostore-ready' event.");
+                const handleStoreReady = () => {
+                    console.log("TimeBlocking: 'todostore-ready' event received.");
+                    runStoreDependentInit();
+                    document.removeEventListener('todostore-ready', handleStoreReady);
+                };
+                document.addEventListener('todostore-ready', handleStoreReady);
+
+                // Fallback: Check again after a short delay in case the event fired before listener was attached
+                // Or if the event dispatch mechanism isn't implemented yet.
+                setTimeout(() => {
+                    if (Alpine.store('todos') && !this.scheduledItems.length) { // Check if store exists but maybe init didn't run
+                         console.warn("TimeBlocking: todos store found on fallback check, running init.");
+                         // Ensure we don't double-init if event listener also worked
+                         document.removeEventListener('todostore-ready', handleStoreReady);
+                         runStoreDependentInit();
+                    }
+                }, 1000); // Wait a bit longer for store to be ready
+            }
+
+            // Initial layout calculation for non-store-dependent elements and resize listener can run immediately
+            this.$nextTick(() => {
+                this.calculateTimelineLayout(); // Calculate initial layout based on container size
+                window.addEventListener('resize', () => this.calculateTimelineLayout());
+            });
+
+            // Initialize Sortable for unscheduled tasks (assuming it doesn't strictly need the store immediately)
+            // If Sortable *does* need the store data, move this inside runStoreDependentInit
+            // this.initSortable(); // Assuming initSortable handles its own store checks or is independent
+        },
+
+        // Calculate and cache timeline and hour element boundaries
+        calculateTimelineLayout() {
+            const container = this.$refs.timelineContainer;
+            if (!container) {
+                console.error("TimeBlocking: Timeline container ref not found!");
+                this.timelineRect = null;
+                this.hourBoundaries = [];
+                return;
+            }
+            this.timelineRect = container.getBoundingClientRect();
+            this.hourBoundaries = this.hours.map(hour => {
+                const hourIndex = hour - START_HOUR;
+                const x = (hourIndex / TOTAL_HOURS) * this.timelineRect.width;
+                return { hour, x };
+            });
+            console.log("TimeBlocking: Layout calculated", { rect: this.timelineRect, boundaries: this.hourBoundaries });
+        },
+
+        loadScheduledTasks() {
+            const dateString = this.formatDateForStore(this.selectedDate);
+            console.log(`TimeBlocking: Loading scheduled tasks for ${dateString}`);
+
+            // Check if store exists before trying to load
+            if (!this.storeExists()) {
+                console.error('TimeBlocking: Cannot load scheduled tasks, todos store not available');
+                return;
+            }
+
+            try {
+                const store = Alpine.store('todos');
+                
+                if (!store) {
+                    console.error('TimeBlocking: Todos store not available');
+                    return;
+                }
+
+                // Initialize scheduledItems if it doesn't exist in the store
+                if (!store.scheduledItems) {
+                    store.scheduledItems = [];
+                    this.scheduledItems = [];
+                    return;
+                }
+
+                // Simply filter the array by date
+                if (Array.isArray(store.scheduledItems)) {
+                    this.scheduledItems = store.scheduledItems.filter(item => 
+                        item && item.date === dateString
+                    );
+                    console.log(`TimeBlocking: Loaded ${this.scheduledItems.length} scheduled items from array for ${dateString}`);
+                } 
+                // Alternative: create the array structure if it doesn't exist as expected
+                else {
+                    store.scheduledItems = [];
+                    console.log('TimeBlocking: Created new scheduledItems array');
+                }
+                
+                // Reload to update display
+                this.loadAvailableTasks();
+                
+                console.log('TimeBlocking: Successfully loaded scheduled tasks');
+            } catch (error) {
+                console.error('TimeBlocking: Error loading scheduled items', error);
+                this.scheduledItems = [];
+            }
+        },
+        
+        // --- Date Formatting ---
+        get selectedDateFormatted() {
+            return this.formatDate(this.selectedDate);
+        },
+        
+        formatDate(date, options = { year: 'numeric', month: 'long', day: 'numeric' }) {
+            return date.toLocaleDateString(undefined, options);
+        },
+
+        formatDateForStore(date) {
+            // YYYY-MM-DD format for consistency with storage
+            return date.toISOString().split('T')[0];
+        },
+
+        formatHour(hour) {
+            // Display correct hour in 12-hour format with AM/PM
+            const h = hour % 12 === 0 ? 12 : hour % 12;
+            const ampm = hour < 12 ? 'AM' : 'PM';
+            return `${h} ${ampm}`;
+        },
+        
+        formatTimeRange(startMinutes, endMinutes) {
+            if (startMinutes === null || endMinutes === null) return 'Select time range';
+            return `${this.formatMinutesToTime(startMinutes)} - ${this.formatMinutesToTime(endMinutes)}`;
+        },
+        
+        formatMinutesToTime(totalMinutes) {
+            if (totalMinutes === null || totalMinutes === undefined) return '';
+            const hours = Math.floor(totalMinutes / 60);
+            const minutes = totalMinutes % 60;
+            return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+        },
+
+        parseTimeToMinutes(timeString) { // e.g., "09:30"
+            if (!timeString || typeof timeString !== 'string') {
+                console.error('TimeBlocking: Invalid time string:', timeString);
+                return 0;
+            }
+            
+            try {
+                const [hours, minutes] = timeString.split(':').map(Number);
+                
+                // Debug logging to help diagnose time conversion issues
+                console.log(`TimeBlocking: Parsed time ${timeString} to ${hours * 60 + minutes} minutes (${hours}h ${minutes}m)`);
+                
+                return hours * 60 + minutes;
+            } catch (error) {
+                console.error('TimeBlocking: Error parsing time string:', timeString, error);
+                return 0;
+            }
+        },
+        
+        // --- Time Parsing and Formatting ---
+        validateAndFormatTime(timeProperty) {
+            // Get the current value from the model
+            const timeValue = this[timeProperty];
+            if (!timeValue) return;
+            
+            try {
+                // Parse the time string into hours and minutes
+                const [hours, minutes] = timeValue.split(':').map(Number);
+                
+                // Check if time is within allowed range (6am to 11pm)
+                let validHours = Math.min(Math.max(hours, 6), 23);
+                
+                // Round minutes to nearest 15-minute increment
+                let validMinutes = Math.round(minutes / 15) * 15;
+                
+                // Handle edge case where rounding to 60 minutes
+                if (validMinutes === 60) {
+                    validMinutes = 0;
+                    validHours = (validHours + 1) % 24;
+                }
+                
+                // Format back to HH:MM format with leading zeros
+                const formattedTime = `${String(validHours).padStart(2, '0')}:${String(validMinutes).padStart(2, '0')}`;
+                
+                // Only update if it's different
+                if (formattedTime !== timeValue) {
+                    console.log(`TimeBlocking: Adjusted time from ${timeValue} to ${formattedTime}`);
+                    this[timeProperty] = formattedTime;
+                }
+            } catch (error) {
+                console.error('TimeBlocking: Error validating time', error);
+            }
+        },
+        
+        // --- Timeline Click Handling ---
+        handleHourClick(event, hour) {
+            console.log(`TimeBlocking: Hour ${hour} clicked`);
+            const startMinutes = hour * 60; 
+            const endMinutes = startMinutes + 60; 
+            console.log(`TimeBlocking: Opening modal with start: ${this.formatMinutesToTime(startMinutes)}, end: ${this.formatMinutesToTime(endMinutes)}`);
+            this.openTimeBlockModal(startMinutes, endMinutes);
+            this.loadAvailableTasks(); // Add this call to ensure tasks are loaded when modal opens
+        },
+
+        // --- Modal Handling ---
+        openTimeBlockModal(startTimeMinutes = null, endTimeMinutes = null, existingItem = null) {
+            console.log('TimeBlocking: Opening time block modal', { startTimeMinutes, endTimeMinutes, existingItem });
+            
+            // Set default times if not provided
+            const now = new Date();
+            const currentHour = now.getHours();
+            const roundedMinutes = Math.ceil(now.getMinutes() / 15) * 15;
+            
+            // Default to current hour rounded up to next 15 min increment
+            if (startTimeMinutes === null) {
+                this.startTime = `${String(currentHour).padStart(2, '0')}:${String(roundedMinutes).padStart(2, '0')}`;
+                this.endTime = `${String(currentHour + 1).padStart(2, '0')}:${String(roundedMinutes).padStart(2, '0')}`;
+            } else {
+                // Convert minutes to HH:MM format for the inputs
+                this.startTime = this.formatMinutesToTime(startTimeMinutes);
+                this.endTime = this.formatMinutesToTime(endTimeMinutes);
+            }
+            
+            // Set editing state if we're editing an existing item
+            if (existingItem) {
+                this.editingItemId = existingItem.id;
+                this.selectedTaskId = existingItem.taskId;
+            } else {
+                this.editingItemId = null;
+                this.selectedTaskId = null;
+            }
+            
+            // Load available tasks before showing the modal
+            this.loadAvailableTasks();
+            
+            // Show the modal
+            this.showTimeBlockModal = true;
+        },
+
+        closeTimeBlockModal() {
+            // Set the Alpine.js state
+            this.showTimeBlockModal = false;
+
+            // Clear other modal state immediately
+            this.editingItemId = null;
+            this.selectedTaskId = '';
+            this.selectedStartTimeMinutes = null;
+            this.selectedEndTimeMinutes = null;
+            this.startTime = ''; // Clear input field model
+            this.endTime = '';   // Clear input field model
+        },
+
+        deleteScheduledTask() {
+            if (!this.editingItemId) return;
+            
+            console.log('TimeBlocking: Deleting scheduled task ID:', this.editingItemId);
+            
+            try {
+                // Get the task information before removing it (so we can update the UI after)
+                const taskId = this.selectedTaskId;
+                
+                // Call removeScheduledTask with the current editing item's ID
+                this.removeScheduledTask(this.editingItemId);
+                
+                // Close the modal
+                this.closeTimeBlockModal();
+                
+                console.log('TimeBlocking: Successfully deleted scheduled task');
+            } catch (error) {
+                console.error('TimeBlocking: Error deleting scheduled task', error);
+            }
+        },
+
+        removeScheduledTask(itemId) {
+            if (!itemId) {
+                console.error('TimeBlocking: Cannot remove scheduled task, no item ID provided');
+                return;
+            }
+
+            // Check if store exists before trying to remove
+            if (!this.storeExists()) {
+                console.error('TimeBlocking: Cannot remove scheduled task, todos store not available');
+                return;
+            }
+
+            try {
+                const store = Alpine.store('todos');
+                
+                // Ensure scheduledItems exists and is an array
+                if (!store.scheduledItems) {
+                    console.warn('TimeBlocking: No scheduledItems in store to remove from');
+                    return;
+                }
+
+                // Handle array storage
+                if (Array.isArray(store.scheduledItems)) {
+                    // Remove the item by ID
+                    const originalLength = store.scheduledItems.length;
+                    store.scheduledItems = store.scheduledItems.filter(item => 
+                        item.id !== itemId
+                    );
+                    
+                    const removed = originalLength - store.scheduledItems.length;
+                    if (removed > 0) {
+                        console.log(`TimeBlocking: Removed scheduled item from array: ${itemId}`);
+                    } else {
+                        console.warn(`TimeBlocking: Item with ID ${itemId} not found in scheduledItems array`);
+                    }
+                } 
+                // Alternative: create the array structure if it doesn't exist as expected
+                else {
+                    store.scheduledItems = [];
+                    console.log('TimeBlocking: Created new scheduledItems array');
+                }
+                
+                // Reload to update display
+                this.loadScheduledTasks();
+                
+                console.log('TimeBlocking: Successfully removed scheduled task');
+            } catch (error) {
+                console.error('TimeBlocking: Error removing scheduled task', error);
+            }
+        },
+        
+        // --- Visual Rendering ---
+        getTaskBlockStyle(item) {
+            if (!item) return 'display: none;';
+            
+            // Get the hour and minute components
+            const startHour = Math.floor(item.startTimeMinutes / 60);
+            const startMinute = item.startTimeMinutes % 60;
+            const endHour = Math.floor(item.endTimeMinutes / 60);
+            const endMinute = item.endTimeMinutes % 60;
+            
+            // Calculate the hour index (0-based from START_HOUR)
+            const startHourIndex = startHour - START_HOUR;
+            const endHourIndex = endHour - START_HOUR;
+            
+            if (startHourIndex < 0 || startHourIndex >= TOTAL_HOURS) {
+                console.error(`Task scheduled outside visible range: ${startHour}:${startMinute}`);
+                return 'display: none;';
+            }
+            
+            // Calculate position based on hour blocks
+            // Each hour block is exactly 1/TOTAL_HOURS of the container width (as percentage)
+            const hourWidth = 100 / TOTAL_HOURS;
+            
+            // Calculate the start position: hourIndex * hourWidth + (minute/60) * hourWidth
+            // This gives us a position that's exactly aligned with the hour blocks
+            const startPosition = (startHourIndex * hourWidth) + ((startMinute / 60) * hourWidth);
+            const endPosition = (endHourIndex * hourWidth) + ((endMinute / 60) * hourWidth);
+            
+            // Ensure values are within bounds
+            const left = Math.max(0, Math.min(startPosition, 100));
+            const width = Math.max(0, Math.min(endPosition - startPosition, 100));
+            
+            if (width <= 0) return 'display: none;'; // Avoid rendering zero-width blocks
+            
+            // Center the task vertically in the timeline
+            const top = 40; // 40% from the top
+            
+            // Debug logging
+            console.log(`Task: ${this.getTaskTitle(item.taskId)}, ` +
+                      `Time: ${startHour}:${String(startMinute).padStart(2,'0')}, ` +
+                      `Position: ${left.toFixed(1)}%, Width: ${width.toFixed(1)}%, Hour: ${startHourIndex}`);
+            
+            return `left: ${left}%; width: ${Math.max(width, 3)}%; top: ${top}%;`;
+        },
+        
+        getTimeBlockStyle(startTimeMinutes, endTimeMinutes) {
+            // Min-width is 2% to ensure very short blocks are still visible
+            const totalMinutes = TOTAL_MINUTES;
+            // Adjust for the start hour offset
+            const startMinutesFromDayStart = startTimeMinutes - (START_HOUR * 60);
+            const endMinutesFromDayStart = endTimeMinutes - (START_HOUR * 60);
+            
+            // Calculate percentages based on the visible time range
+            const left = (startMinutesFromDayStart / totalMinutes) * 100;
+            const width = (endMinutesFromDayStart - startMinutesFromDayStart) / totalMinutes * 100;
+            return `left: ${left}%; width: ${Math.max(width, 2)}%;`;
+        },
+        
+        loadAvailableTasks() {
+            // Reset the array first
+            this.availableTasksForScheduling = [];
+            
+            // Only attempt to load if store exists
+            if (!this.storeExists()) {
+                console.error('TimeBlocking: Cannot load available tasks, store not available');
+                return;
+            }
+            
+            try {
+                const store = Alpine.store('todos');
+                
+                if (!store || !store.items || !Array.isArray(store.items)) {
+                    console.error('TimeBlocking: Store items not available or not an array');
+                    return;
+                }
+                
+                // Get the current date string for filtering
+                const dateString = this.formatDateForStore(this.selectedDate);
+                
+                // Get list of already scheduled task IDs for this date
+                const scheduledTaskIds = new Set();
+                
+                if (store.scheduledItems && Array.isArray(store.scheduledItems)) {
+                    store.scheduledItems.forEach(item => {
+                        if (item && item.date === dateString) {
+                            scheduledTaskIds.add(item.taskId);
+                        }
+                    });
+                }
+                
+                console.log(`TimeBlocking: Found ${scheduledTaskIds.size} already scheduled tasks for this date`);
+                
+                // Filter to only include non-completed, non-cluster tasks that are not already scheduled
+                this.availableTasksForScheduling = store.items.filter(item => {
+                    // Skip if task is already scheduled for this date (unless we're editing it)
+                    if (scheduledTaskIds.has(item.id) && (!this.editingItemId || this.selectedTaskId !== item.id)) {
+                        return false;
+                    }
+                    
+                    // Only include valid, non-completed tasks
+                    return item && 
+                           !item.completed && 
+                           !item.isCluster && 
+                           item.todo && 
+                           item.todo.trim() !== '';
+                });
+                
+                console.log(`TimeBlocking: Loaded ${this.availableTasksForScheduling.length} available tasks for scheduling`);
+            } catch (error) {
+                console.error('TimeBlocking: Error loading available tasks', error);
+                this.availableTasksForScheduling = [];
+            }
+        },
+        
+        // Safely get store items with error handling
+        safelyGetStoreItems() {
+            try {
+                if (!this.storeExists()) return [];
+                
+                const store = Alpine.store('todos');
+                if (!store) return [];
+                
+                const items = store.items;
+                if (!items) return [];
+                
+                return Array.isArray(items) ? items : [];
+            } catch (e) {
+                console.error('Error getting store items', e);
+                return [];
+            }
+        },
+        
+        // Try loading tasks with retry backoff
+        tryLoadingTasks(attempt) {
+            const maxAttempts = 5;
+            const backoffMs = Math.min(100 * Math.pow(2, attempt), 3000); // Exponential backoff, max 3 seconds
+            
+            if (attempt >= maxAttempts) {
+                console.warn(`TimeBlocking: Failed to load tasks after ${maxAttempts} attempts`);
+                return;
+            }
+            
+            if (this.storeExists()) {
+                console.log(`TimeBlocking: Store available on attempt ${attempt + 1}, loading tasks`);
+                this.loadAvailableTasks();
+            } else {
+                console.log(`TimeBlocking: Store not available on attempt ${attempt + 1}, retrying in ${backoffMs}ms`);
+                setTimeout(() => this.tryLoadingTasks(attempt + 1), backoffMs);
+            }
+        },
+
+        getTaskTitle(taskId) {
+            if (!taskId) return 'Unknown Task';
+            
+            // More thorough store existence check
+            if (!this.storeExists()) {
+                console.error("TimeBlocking: Cannot get task title - store not available");
+                return 'Unknown Task';
+            }
+            
+            try {
+                // Safely get the items
+                const storeItems = this.safelyGetStoreItems();
+                
+                if (!storeItems || !Array.isArray(storeItems)) {
+                    console.warn('TimeBlocking: Store items not available or not an array');
+                    return 'Unknown Task';
+                }
+                
+                const task = storeItems.find(t => t && t.id === taskId);
+                return task && task.todo ? task.todo : 'Unknown Task';
+            } catch (error) {
+                console.error('TimeBlocking: Error getting task title', error);
+                return 'Unknown Task';
+            }
+        },
+        
+        // Edit an existing scheduled task
+        editScheduledTask(item) {
+            console.log('TimeBlocking: Editing scheduled task', item);
+            if (!item) return;
+            
+            // Open the modal with the existing item's data
+            this.openTimeBlockModal(
+                item.startTimeMinutes,
+                item.endTimeMinutes,
+                item
+            );
+        },
+        
+        // Re-implementation of schedule task saving
+        saveScheduledTask() {
+            // Parse times from input fields
+            const startMinutes = this.parseTimeToMinutes(this.startTime);
+            const endMinutes = this.parseTimeToMinutes(this.endTime);
+            const dateString = this.formatDateForStore(this.selectedDate);
+            
+            console.log('TimeBlocking: Starting to save scheduled task', {
+                startMinutes, endMinutes, taskId: this.selectedTaskId
+            });
+            
+            // Basic validation
+            if (!startMinutes || !endMinutes || !this.selectedTaskId) {
+                console.error('TimeBlocking: Missing required data for scheduling');
+                return;
+            }
+            
+            if (endMinutes <= startMinutes) {
+                console.error('TimeBlocking: End time must be after start time');
+                return;
+            }
+            
+            // Get store reference
+            if (!this.storeExists()) {
+                console.error('TimeBlocking: Store not available');
+                return;
+            }
+
+            try {
+                const store = Alpine.store('todos');
+                
+                // Create the scheduled item
+                const newItem = {
+                    id: this.editingItemId || crypto.randomUUID(),
+                    taskId: this.selectedTaskId,
+                    date: dateString,
+                    startTimeMinutes: startMinutes,
+                    endTimeMinutes: endMinutes
+                };
+                
+                // Initialize scheduledItems if it doesn't exist
+                if (!store.scheduledItems) {
+                    store.scheduledItems = [];
+                }
+                
+                // Handle array storage
+                if (Array.isArray(store.scheduledItems)) {
+                    // Remove existing item if we're editing
+                    if (this.editingItemId) {
+                        store.scheduledItems = store.scheduledItems.filter(item => 
+                            item.id !== this.editingItemId
+                        );
+                    }
+                    
+                    // Add the new/updated item
+                    store.scheduledItems.push(newItem);
+                    console.log('TimeBlocking: Added item to scheduledItems array', newItem);
+                } 
+                // Alternative: create the array structure if it doesn't exist as expected
+                else {
+                    store.scheduledItems = [newItem];
+                    console.log('TimeBlocking: Created new scheduledItems array with item', newItem);
+                }
+                
+                // Directly update our component's scheduledItems to show immediately
+                this.loadScheduledTasks();
+                
+                // Close the modal
+                this.closeTimeBlockModal();
+                
+                console.log('TimeBlocking: Successfully saved scheduled task');
+            } catch (error) {
+                console.error('TimeBlocking: Error saving scheduled task', error);
+            }
+        },
+        
+        // Listen for date selection events from the calendar component
+        initTimeBlocking() {
+            document.addEventListener('calendar-date-selected', (event) => {
+                this.selectedDate = event.detail.date;
+                this.loadScheduledItems();
+                console.log('TimeBlocking: Date updated from calendar:', this.selectedDate);
+            });
+        },
+        
+        // Computed property to show only items for the current selected date
+        get scheduledItemsForCurrentDate() {
+            return this.scheduledItems.filter(item => item.date === this.formatDateForStore(this.selectedDate));
+        },
+        
+        // Check if the selected date is today
+        isToday(dateString) {
+            const today = this.formatDateForStore(new Date());
+            return dateString === today;
+        },
+        
+        // Check if the given hour is the current hour (for today only)
+        isCurrentHour(hour) {
+            const now = new Date();
+            const currentHour = now.getHours();
+            return hour === currentHour;
+        },
+        
+        // Calculate the current time position within an hour
+        getCurrentTimePosition(hour) {
+            const now = new Date();
+            const currentHour = now.getHours();
+            const currentMinute = now.getMinutes();
+            
+            // Only relevant for the current hour
+            if (hour !== currentHour) return 'left: 0%;';
+            
+            // Calculate the percentage position within the hour
+            const minutePercentage = (currentMinute / 60) * 100;
+            return `left: ${minutePercentage}%;`;
+        },
+    }
+}
+</script>

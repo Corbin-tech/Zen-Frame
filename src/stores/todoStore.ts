@@ -30,17 +30,16 @@ interface TodoStore {
   readonly incompleteTasks: Todo[];
   readonly currentTask: Todo | null;
   readonly hasMoreTasks: boolean;
+  readonly hasCompletedTasks: boolean;
   skippedClusters: string[];
   init(): void;
   loadTodos(): void;
   saveTodos(): void;
   addTodo(todoText: string, isCluster?: boolean): string;
   deleteTodo(id: string): void;
-  createNewTaskDraft(): void;
   toggleTodo(id: string): void;
   deleteCompleted(): void;
   updateTask(id: string, updates: Partial<Todo>): void;
-  deleteTasksByGroup(groupId: string): void;
   toggleSubtask(taskId: string, subtaskId: string): void;
   moveTask(taskId: string, newGroupId: string): void;
   reorderTask(taskId: string, targetId: string, position: "above" | "below"): void;
@@ -64,19 +63,6 @@ interface TodoStore {
   skipTaskToEndOfCluster(taskId: string): void;
   skipCurrentCluster(): void;
   getClusterIdsWithIncompleteTasks(): string[];
-}
-
-interface WeeklyTask {
-  [day: string]: string[];
-}
-
-interface WeeklyTaskStore {
-  tasks: WeeklyTask;
-  init(): void;
-  loadTasks(): void;
-  saveTasks(): void;
-  addTaskToDay(day: string, taskId: string): void;
-  removeTaskFromDay(day: string, taskId: string): void;
 }
 
 export interface QuickTaskStore {
@@ -109,6 +95,10 @@ export function initStores(): void {
     get hasMoreTasks(): boolean {
       const tasks = this.items.filter(item => !item.completed && !item.isCluster);
       return this.currentIndex < tasks.length;
+    },
+
+    get hasCompletedTasks(): boolean {
+      return this.items.some(item => item.completed);
     },
 
     init(): void {
@@ -280,16 +270,6 @@ export function initStores(): void {
       this.saveTodos();
     },
 
-    deleteTasksByGroup(groupId: string): void {
-      // Adjust filtering logic as needed.
-      this.items = this.items.filter(task => task.section !== groupId);
-      this.saveTodos();
-    },
-
-    createNewTaskDraft(): void {
-      console.log("createNewTaskDraft not implemented");
-    },
-
     toggleSubtask(taskId: string, subtaskId: string): void {
       const task = this.items.find(t => t.id === taskId);
       if (task && task.subtasks) {
@@ -307,9 +287,35 @@ export function initStores(): void {
     moveTask(taskId: string, newGroupId: string): void {
       const taskIndex = this.items.findIndex(t => t.id === taskId);
       if (taskIndex > -1) {
-        const newItems = [...this.items];
-        newItems[taskIndex].section = newGroupId as 'taskManager' | 'Completed';
-        this.items = newItems;
+        // Update the task's section or parentId depending on what newGroupId represents
+        const task = this.items[taskIndex];
+        
+        // If newGroupId is one of the defined sections, update the section
+        if (newGroupId === 'taskManager' || newGroupId === 'Completed' || newGroupId === 'mainContainer') {
+          this.items = this.items.map((item, index) => {
+            if (index === taskIndex) {
+              return { 
+                ...item, 
+                section: newGroupId as 'taskManager' | 'Completed' | 'mainContainer',
+                parentId: null // Remove any cluster association
+              };
+            }
+            return item;
+          });
+        } else {
+          // Otherwise, treat it as a cluster ID and update the parentId
+          this.items = this.items.map((item, index) => {
+            if (index === taskIndex) {
+              return { 
+                ...item, 
+                parentId: newGroupId,
+                section: 'taskManager' // Ensure consistent section for clustered tasks
+              };
+            }
+            return item;
+          });
+        }
+        
         this.saveTodos();
       }
     },
@@ -526,7 +532,8 @@ export function initStores(): void {
     },
 
     setParentId(taskId: string, parentId: string): void {
-      this.updateTask(taskId, { parentId });
+      // Use the moveTask method for consistency
+      this.moveTask(taskId, parentId === 'null' ? 'mainContainer' : parentId);
     },
 
     performTaskDeletion(id: string): void {
@@ -757,15 +764,4 @@ export function initStores(): void {
   };
 
   window.Alpine.store("todos", todosStore);
-
-  window.Alpine.store("quickTask", {
-    text: '',
-    handleEnter(this: QuickTaskStore): void {
-      const todoStore = window.Alpine.store('todos') as TodoStore;
-      if (this.text.trim()) {
-        todoStore.addTodo(this.text);
-        this.text = '';
-      }
-    }
-  } as QuickTaskStore);
 }

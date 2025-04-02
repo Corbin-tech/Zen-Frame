@@ -38,7 +38,11 @@ const { title } = Astro.props;
 			import '../scripts/dragDropInit.js';
 
 			document.addEventListener('alpine:init', () => {
-				initThemeStore();
+				// Initialize theme store and register it with Alpine
+				const themeStore = initThemeStore();
+				window.Alpine.store('theme', themeStore);
+				
+				// Initialize other stores
 				initStores();
 			});
 		</script>
