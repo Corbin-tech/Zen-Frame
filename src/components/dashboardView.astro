@@ -1,0 +1,107 @@
+---
+---
+
+<div
+    x-data="{
+        get tasksToday() {
+            return $store.todos.items.filter(t => !$store.todos.isCluster(t.id) && !t.completed).length;
+        },
+        get tasksCompleted() {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            return $store.todos.items.filter(t => 
+                !$store.todos.isCluster(t.id) && 
+                t.completed && 
+                new Date(t.completedAt) >= today
+            ).length;
+        },
+        get upcomingTasks() {
+            return $store.todos.items.filter(t => 
+                !$store.todos.isCluster(t.id) && 
+                !t.completed && 
+                t.dueDate && 
+                new Date(t.dueDate) > new Date()
+            ).sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+        },
+        get nextTaskTime() {
+            const upcoming = this.upcomingTasks[0];
+            if (!upcoming || !upcoming.dueDate) return null;
+            
+            const dueDate = new Date(upcoming.dueDate);
+            const now = new Date();
+            const diffMinutes = Math.round((dueDate - now) / (1000 * 60));
+            
+            if (diffMinutes < 60) {
+                return `in ${diffMinutes} minutes`;
+            } else {
+                const hours = Math.floor(diffMinutes / 60);
+                const remainingMinutes = diffMinutes % 60;
+                let timeString = `in ${hours} hour${hours > 1 ? 's' : ''}`;
+                if (remainingMinutes > 0) {
+                    timeString += ` ${remainingMinutes} min${remainingMinutes > 1 ? 's' : ''}`;
+                }
+                return timeString;
+            }
+        },
+        get completionPercentage() {
+            const totalTasks = this.tasksToday + this.tasksCompleted;
+            return totalTasks > 0 ? Math.round((this.tasksCompleted / totalTasks) * 100) : 0;
+        },
+        get monthlyStats() {
+            const now = new Date();
+            const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+            return $store.todos.items.filter(t => 
+                !$store.todos.isCluster(t.id) && 
+                t.completed && 
+                new Date(t.completedAt) >= startOfMonth
+            ).length;
+        }
+    }"
+    class="max-w-xl mx-auto bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mt-8"
+>
+    <h3 class="text-xl font-medium text-teal-800 dark:text-teal-300 mb-4">Today's Focus</h3>
+
+    <!-- Today's Tasks Summary -->
+    <div class="mb-5">
+        <p class="text-gray-700 dark:text-gray-300 mb-2">
+            You have <strong class="text-teal-700 dark:text-teal-400" x-text="tasksToday"></strong> task(s) remaining today.
+        </p>
+        <div class="flex items-center gap-3">
+            <div class="w-full bg-teal-100 dark:bg-teal-900 rounded-full h-2.5 overflow-hidden">
+                <div
+                    class="bg-teal-500 h-2.5 rounded-full transition-all duration-500 ease-out"
+                    :style="`width: ${completionPercentage}%`"
+                ></div>
+            </div>
+            <span class="text-sm font-medium text-teal-700 dark:text-teal-400" x-text="`${completionPercentage}%`"></span>
+        </div>
+        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1" x-show="tasksToday > 0 || tasksCompleted > 0">
+            <span x-text="tasksCompleted"></span> completed today
+        </p>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1" x-show="tasksToday === 0 && tasksCompleted === 0">
+            No tasks scheduled for today. Enjoy the calm!
+        </p>
+    </div>
+
+    <!-- Monthly Progress -->
+    <div class="mb-5">
+        <p class="text-gray-700 dark:text-gray-300">
+            You've completed <strong class="text-teal-700 dark:text-teal-400" x-text="monthlyStats"></strong> tasks this month.
+        </p>
+    </div>
+
+    <!-- Upcoming Tasks Summary -->
+    <div>
+        <p class="text-gray-700 dark:text-gray-300">
+            <span x-show="upcomingTasks.length > 0">
+                You have <strong class="text-teal-700 dark:text-teal-400" x-text="upcomingTasks.length"></strong> upcoming task(s).
+            </span>
+            <span x-show="upcomingTasks.length === 0">
+                No upcoming tasks scheduled.
+            </span>
+        </p>
+        <p class="text-sm text-teal-600 dark:text-teal-400 mt-1" x-show="nextTaskTime">
+            Next task due <span x-text="nextTaskTime"></span>.
+        </p>
+    </div>
+</div>

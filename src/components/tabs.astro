@@ -2,6 +2,7 @@
 import PomoTimer from './pomoTimer.astro';
 import ZenToDoList from './zenToDoList.astro';
 import TaskManager from './taskManager.astro';
+import Schedule from './schedule.astro';
 ---
 
 <div 
@@ -40,6 +41,20 @@ import TaskManager from './taskManager.astro';
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                         </svg>
                         <span>Task Manager</span>
+                    </div>
+                </button>
+            </li>
+            <li class="mr-2 min-w-[120px]">
+                <button 
+                    @click="activeTab = 'schedule'; if (typeof window !== 'undefined') localStorage.setItem('activeTab', 'schedule')"
+                    :class="activeTab === 'schedule' ? 'border-teal-600 text-teal-600 dark:text-teal-500 dark:border-teal-500' : 'border-transparent hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300'"
+                    class="w-full pb-4 px-2 text-sm font-medium border-b-2 focus:outline-none transition-colors duration-200 select-none"
+                >
+                    <div class="flex items-center justify-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <span>Schedule</span>
                     </div>
                 </button>
             </li>
@@ -118,6 +133,9 @@ import TaskManager from './taskManager.astro';
     <div class="mt-4">
         <div x-show="activeTab === 'taskmanager'" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100">
             <TaskManager />
+        </div>
+        <div x-show="activeTab === 'schedule'" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100">
+            <Schedule />
         </div>
         <div x-show="activeTab === 'pomodoro'" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100">
             <PomoTimer />
