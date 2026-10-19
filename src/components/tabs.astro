@@ -3,24 +3,36 @@ import PomoTimer from './pomoTimer.astro';
 import ZenToDoList from './zenToDoList.astro';
 import TaskManager from './taskManager.astro';
 import Schedule from './schedule.astro';
+
+const tabs = [
+    {
+        id: 'taskmanager',
+        label: 'Task Manager',
+        icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2'
+    },
+    {
+        id: 'schedule',
+        label: 'Schedule',
+        icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z'
+    },
+    {
+        id: 'pomodoro',
+        label: 'Pomodoro',
+        icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z'
+    },
+    {
+        id: 'zenmode',
+        label: 'Zen Mode',
+        icon: 'M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z'
+    }
+];
 ---
 
 <div 
     x-data="{ 
-        activeTab: 'taskmanager',
+        activeTab: localStorage.getItem('activeTab') || 'taskmanager',
         init() {
-            if (typeof window !== 'undefined') {
-                this.activeTab = localStorage.getItem('activeTab') || 'taskmanager';
-                this.$nextTick(() => {
-                    this.$el.removeAttribute('x-cloak');
-                });
-                this.$watch('activeTab', (value) => {
-                    localStorage.setItem('activeTab', value);
-                });
-            }
-        },
-        handleTabChange(e) {
-            this.activeTab = e.detail.tab;
+            this.$watch('activeTab', (value) => localStorage.setItem('activeTab', value));
         }
     }" 
     x-cloak
@@ -30,66 +42,26 @@ import Schedule from './schedule.astro';
     <!-- Tab Navigation -->
     <div class="border-b transition-colors duration-300 ease-in-out" style="border-color: var(--border-color);">
         <ul class="flex flex-wrap -mb-px text-sm font-medium text-center text-gray-500 dark:text-gray-400">
-            <li class="mr-2 min-w-[120px]">
-                <button 
-                    @click="activeTab = 'taskmanager'; if (typeof window !== 'undefined') localStorage.setItem('activeTab', 'taskmanager')"
-                    :class="activeTab === 'taskmanager' ? 'border-teal-600 text-teal-600 dark:text-teal-500 dark:border-teal-500' : 'border-transparent hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300'"
-                    class="w-full pb-4 px-2 text-sm font-medium border-b-2 focus:outline-none transition-colors duration-200 select-none"
-                >
-                    <div class="flex items-center justify-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                        </svg>
-                        <span>Task Manager</span>
-                    </div>
-                </button>
-            </li>
-            <li class="mr-2 min-w-[120px]">
-                <button 
-                    @click="activeTab = 'schedule'; if (typeof window !== 'undefined') localStorage.setItem('activeTab', 'schedule')"
-                    :class="activeTab === 'schedule' ? 'border-teal-600 text-teal-600 dark:text-teal-500 dark:border-teal-500' : 'border-transparent hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300'"
-                    class="w-full pb-4 px-2 text-sm font-medium border-b-2 focus:outline-none transition-colors duration-200 select-none"
-                >
-                    <div class="flex items-center justify-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                        <span>Schedule</span>
-                    </div>
-                </button>
-            </li>
-            <li class="mr-2 min-w-[120px]">
-                <button 
-                    @click="activeTab = 'pomodoro'; if (typeof window !== 'undefined') localStorage.setItem('activeTab', 'pomodoro')"
-                    :class="activeTab === 'pomodoro' ? 'border-teal-600 text-teal-600 dark:text-teal-500 dark:border-teal-500' : 'border-transparent hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300'"
-                    class="w-full pb-4 px-2 text-sm font-medium border-b-2 focus:outline-none transition-colors duration-200 select-none"
-                >
-                    <div class="flex items-center justify-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <span>Pomodoro</span>
-                    </div>
-                </button>
-            </li>
-            <li class="mr-2 min-w-[120px]">
-                <button 
-                    @click="activeTab = 'zenmode'; if (typeof window !== 'undefined') localStorage.setItem('activeTab', 'zenmode')"
-                    :class="activeTab === 'zenmode' ? 'border-teal-600 text-teal-600 dark:text-teal-500 dark:border-teal-500' : 'border-transparent hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300'"
-                    class="w-full pb-4 px-2 text-sm font-medium border-b-2 focus:outline-none transition-colors duration-200 select-none"
-                >
-                    <div class="flex items-center justify-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-                        </svg>
-                        <span>Zen Mode</span>
-                    </div>
-                </button>
-            </li>
+            {tabs.map((tab) => (
+                <li class="mr-2 min-w-[120px]">
+                    <button 
+                        x-on:click={`activeTab = '${tab.id}'`}
+                        x-bind:class={`activeTab === '${tab.id}' ? 'border-teal-600 text-teal-600 dark:text-teal-500 dark:border-teal-500' : 'border-transparent hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300'`}
+                        class="w-full pb-4 px-2 text-sm font-medium border-b-2 focus:outline-none transition-colors duration-200 select-none"
+                    >
+                        <div class="flex items-center justify-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={tab.icon} />
+                            </svg>
+                            <span>{tab.label}</span>
+                        </div>
+                    </button>
+                </li>
+            ))}
             
             <!-- Timer Status (shows only when timer is running) -->
             <li class="ml-auto flex items-center" 
-                x-show="$store && $store.pomoState && ($store.pomoState.isRunning || $store.pomoState.timeLeft < $store.pomoState.totalTime)"
+                x-show="$store.pomoState.isRunning || $store.pomoState.timeLeft < $store.pomoState.totalTime"
                 x-cloak role="timer" aria-live="polite"
                 :aria-label="$store.pomoState.isRunning ? 'A running Pomodoro timer displaying minutes and seconds remaining' : 'A paused Pomodoro timer displaying minutes and seconds remaining'">
                 <div class="inline-flex items-center space-x-2 p-2 bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm transform -translate-y-3 hover:shadow transition-all animate-in fade-in-50 duration-300"

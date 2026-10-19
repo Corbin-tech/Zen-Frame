@@ -1,0 +1,126 @@
+---
+// One task row. Render it inside an Alpine x-for that provides `task`.
+---
+
+<div 
+    class="relative group/task flex items-center border border-gray-100 dark:border-slate-600 rounded-lg shadow-sm hover:shadow-md transition-all duration-300 ease-in-out task-item"
+    style="background-color: var(--task-bg);"
+    x-bind:class="{'bg-green-50 dark:bg-green-900/10 border-green-100 dark:border-green-900/30': task.completed, 'hover:border-teal-300 dark:hover:border-teal-700': !task.completed}"
+    x-drag-task="task.id"
+>
+    <div class="flex-1 py-3 pl-3 pr-16">
+        <div class="flex items-center gap-3">
+            <div 
+                data-drag-handle
+                class="p-1 cursor-grab text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 flex items-center"
+                title="Drag to add to a cluster"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16" />
+                </svg>
+            </div>
+            <input
+                type="checkbox"
+                class="w-5 h-5 rounded border-gray-300 dark:border-slate-500 text-teal-600 dark:text-teal-400 focus:ring-teal-500 dark:focus:ring-teal-400 dark:bg-slate-700"
+                x-bind:checked="task.completed"
+                x-on:change="$store.todos.toggleTodo(task.id)"
+            />
+            <input
+                type="text"
+                x-model="task.todo"
+                x-bind:readonly="task.completed"
+                x-on:keydown.enter="$event.target.blur()"
+                x-on:input="$store.todos.saveTodos()"
+                x-on:blur="$store.todos.updateTask(task.id, { todo: task.todo })"
+                class="flex-1 bg-transparent border-none focus:ring-0 focus:outline-none"
+                x-bind:class="{
+                    'line-through text-gray-400 dark:text-gray-500': task.completed,
+                    'text-gray-700 dark:text-gray-300': !task.completed
+                }"
+            />
+        </div>
+    </div>
+    
+    <!-- Task ordering and actions (to the right) -->
+    <div class="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
+        <!-- Up/down controls -->
+        <div class="flex flex-col space-y-1">
+            <button 
+                @click="$store.todos.shiftTask(task.id, -1)"
+                class="p-0.5 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 transition-colors"
+                :disabled="$store.todos.isFirstTask(task.id)"
+                :class="$store.todos.isFirstTask(task.id) ? 'opacity-30 cursor-not-allowed' : ''"
+                aria-label="Move task up"
+            >
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
+                </svg>
+            </button>
+            <button 
+                @click="$store.todos.shiftTask(task.id, 1)"
+                class="p-0.5 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 transition-colors"
+                :disabled="$store.todos.isLastTask(task.id)"
+                :class="$store.todos.isLastTask(task.id) ? 'opacity-30 cursor-not-allowed' : ''"
+                aria-label="Move task down"
+            >
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                </svg>
+            </button>
+        </div>
+        
+        <!-- Position number -->
+        <div 
+            class="text-xs font-medium px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded"
+            x-text="$store.todos.getTaskPosition(task.id)"
+        ></div>
+        
+        <!-- Delete button -->
+        <button 
+            x-on:click="$store.todos.deleteTodo(task.id)"
+            class="p-1 text-gray-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400 transition-colors"
+            aria-label="Delete task"
+        >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+            </svg>
+        </button>
+    </div>
+</div>
+
+<style>
+    .task-item {
+        position: relative;
+        margin-bottom: 16px;
+    }
+    
+    .task-item:last-child {
+        margin-bottom: 0;
+    }
+
+    .task-item:hover {
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+    
+    :global(.dark) .task-item:hover {
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    /* The task being dragged */
+    [data-drag-active="true"] {
+        opacity: 0.8;
+        transform: scale(1.03);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        z-index: 50;
+        cursor: grabbing;
+        border: 2px solid #0d9488 !important;
+    }
+    
+    [data-drag-handle] {
+        cursor: grab;
+    }
+    
+    [data-drag-handle]:active {
+        cursor: grabbing;
+    }
+</style>

@@ -16,11 +16,6 @@ export default defineConfig({
   vite: {
     ssr: {
       noExternal: ['@astrojs/alpinejs']
-    },
-    build: {
-      rollupOptions: {
-        external: ['@atlaskit/pragmatic-drag-and-drop/adapter']
-      }
     }
   }
 });

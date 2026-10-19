@@ -20,8 +20,6 @@ const { title } = Astro.props;
 				
 				document.documentElement.classList.toggle('dark', initialTheme === 'dark');
 				document.documentElement.setAttribute('data-theme', initialTheme);
-				
-				window.initialTheme = initialTheme;
 			})();
 		</script>
 		
@@ -35,23 +33,23 @@ const { title } = Astro.props;
 		<script>
 			import { initThemeStore } from '../stores/themeStore';
 			import { initStores } from '../stores/todoStore';
-			import '../scripts/dragDropInit.js';
+			import { registerTaskDragDrop } from '../scripts/taskDragDrop.js';
+			import JSConfetti from 'js-confetti';
+
+			window.jsConfetti = new JSConfetti();
 
 			document.addEventListener('alpine:init', () => {
-				// Initialize theme store and register it with Alpine
-				const themeStore = initThemeStore();
-				window.Alpine.store('theme', themeStore);
-				
-				// Initialize other stores
+				window.Alpine.store('theme', initThemeStore());
 				initStores();
+				registerTaskDragDrop(window.Alpine);
 			});
 		</script>
 		
-		<!-- Additional dependencies -->
-		<script defer src="https://cdn.jsdelivr.net/npm/js-confetti@0.12.0/dist/js-confetti.browser.min.js"></script>
-        <script defer src="https://cdnjs.cloudflare.com/ajax/libs/flowbite/2.2.1/flowbite.min.js"></script>
-		
 		<style is:global>
+			[x-cloak] {
+				display: none !important;
+			}
+
 			/* Base state: no transitions */
 			* {
 				transition: none !important;
@@ -75,12 +73,6 @@ const { title } = Astro.props;
 			svg {
 				stroke: currentColor;
 				fill: none;
-			}
-			
-			/* Special handling for timer digits */
-			.transition-[color] {
-				transition-property: color !important;
-				transition-duration: 150ms !important;
 			}
 		</style>
 		
@@ -137,22 +129,12 @@ const { title } = Astro.props;
 			}
 		</style>
 
-		<style is:global>
-			.force-repaint {
-				transform: translateZ(0);
-			}
-		</style>
-
 		<script>
 			// Enable transitions after initial render
 			document.addEventListener('DOMContentLoaded', () => {
 				document.documentElement.classList.add('theme-loaded');
 			});
 		</script>
-		
-		<script
-		type="module" src="/src/components/taskManager.js">
-	</script>
 	</head>
 	<body>
 		<div class="min-h-screen flex flex-col">

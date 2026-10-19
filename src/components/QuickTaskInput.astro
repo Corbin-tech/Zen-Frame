@@ -1,32 +1,14 @@
----
----
-
-<div class="flex gap-4">
+<div class="flex gap-4" x-data="{ text: '' }">
     <div class="flex-1 flex gap-4">
         <input
             type="text"
-            x-model="$store.quickTask.text"
-            x-on:keyup.enter="$store.quickTask.handleEnter('task')"
+            x-model="text"
+            x-on:keyup.enter="if (text.trim()) { $store.todos.addTodo(text.trim()); text = '' }"
             placeholder="Add a new task..."
             class="flex-1 px-4 py-2 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 dark:text-white"
         />
         <button 
-            x-on:click="
-                const taskId = $store.todos.addTodo($store.quickTask.text || 'New Task');
-                $store.quickTask.text = '';
-                
-                // Trigger event to notify about task addition
-                document.dispatchEvent(new CustomEvent('task-added', { 
-                    detail: { taskId } 
-                }));
-                
-                // Give DOM time to update, then force initialization again
-                setTimeout(() => {
-                    if (window.initTaskManagerDragDrop) {
-                        window.initTaskManagerDragDrop();
-                    }
-                }, 100);
-            "
+            x-on:click="$store.todos.addTodo(text.trim() || 'New Task'); text = ''"
             class="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
         >
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -35,19 +17,7 @@
             Add Task
         </button>
         <button 
-            x-on:click="
-                const clusterId = $store.todos.createCluster();
-                document.dispatchEvent(new CustomEvent('task-added', { 
-                    detail: { taskId: clusterId } 
-                }));
-                
-                // Give DOM time to update, then force initialization again
-                setTimeout(() => {
-                    if (window.initTaskManagerDragDrop) {
-                        window.initTaskManagerDragDrop();
-                    }
-                }, 100);
-            "
+            x-on:click="$store.todos.createCluster()"
             class="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
         >
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -57,39 +27,3 @@
         </button>
     </div>
 </div>
-
-<script>
-    // Add TypeScript interface declaration for the global function
-    declare global {
-        interface Window {
-            initTaskManagerDragDrop: () => boolean;
-        }
-    }
-
-    document.addEventListener('alpine:init', () => {
-      Alpine.store('quickTask', {
-        text: '',
-        handleEnter(mode) {
-          if (this.text?.trim()) {
-            if (mode === 'task') {
-              const taskId = window.Alpine.store('todos').addTodo(this.text);
-              this.text = '';
-              
-              // Trigger event to notify about task addition
-              console.log('Dispatching task-added event with ID:', taskId);
-              document.dispatchEvent(new CustomEvent('task-added', { 
-                detail: { taskId } 
-              }));
-              
-              // Give DOM time to update, then force initialization again
-              setTimeout(() => {
-                if (window.initTaskManagerDragDrop) {
-                  window.initTaskManagerDragDrop();
-                }
-              }, 100);
-            }
-          }
-        }
-      });
-    });
-</script>

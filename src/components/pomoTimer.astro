@@ -1,18 +1,5 @@
----
----
-
-<script>
-    declare global {
-        interface Window {
-            Alpine: any;
-            pomoTimer(): any;
-        }
-    }
-</script>
-
 <div
-    x-data="pomoTimer()"
-    x-init="init()"
+    x-data
     x-cloak
     class="w-full max-w-3xl mx-auto bg-white dark:bg-slate-800 rounded-xl shadow-sm p-6"
 >
@@ -71,7 +58,7 @@
             <button 
                 @click="if (confirm('Are you sure you want to reset the current timer?')) { $store.pomoState.resetTimer() }"
                 class="flex items-center gap-2 px-4 py-2 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 rounded-lg transition-colors duration-300 ease-in-out"
-        >
+            >
                 <div class="flex items-center">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -114,27 +101,41 @@
                 <span x-text="$store.pomoState.isBreak ? 'Work' : 'Break'"></span>
             </button>
         </div>
+    </div>
+</div>
 
 <script is:inline>
-    document.addEventListener('alpine:init', () => {
-        window.Alpine.store('pomoState', {
-            totalTime: 25 * 60,  // Total time for the current mode in seconds
-            timeLeft: 25 * 60,   // Remaining time in seconds
-            isRunning: false,
-            preset: 'pomodoro',  // pomodoro, long, or custom
-            isBreak: false,
-            timer: null,
-            customMinutes: 5,
+    // Minutes for each preset
+    const POMO_DURATIONS = {
+        pomodoro: { work: 25, break: 5 },
+        long: { work: 50, break: 10 }
+    };
 
+    document.addEventListener('alpine:init', () => {
+        Alpine.store('pomoState', {
+            preset: 'pomodoro',
+            isBreak: false,
+            totalTime: POMO_DURATIONS.pomodoro.work * 60, // Seconds
+            timeLeft: POMO_DURATIONS.pomodoro.work * 60,  // Seconds
+            isRunning: false,
+            timer: null,
+
+            // Alpine calls init() when the store is registered
             init() {
-                // Request notification permission
-                if (Notification.permission !== "granted" && Notification.permission !== "denied") {
+                if ('Notification' in window && Notification.permission === 'default') {
                     Notification.requestPermission();
                 }
-                
-                // Initialize from localStorage if available
+
                 this.loadState();
-                this.setPreset('pomodoro');
+                this.resetTimer();
+
+                // Space starts or pauses the timer, unless the user is typing or on a control
+                document.addEventListener('keydown', (e) => {
+                    if (e.code !== 'Space') return;
+                    if (e.target.closest('input, textarea, select, button, [contenteditable]')) return;
+                    e.preventDefault();
+                    this.isRunning ? this.pauseTimer() : this.startTimer();
+                });
             },
             
             get percentComplete() {
@@ -142,186 +143,85 @@
             },
             
             get currentPresetName() {
-                if (this.preset === 'custom') {
-                    return `Custom ${this.customMinutes} min`;
-                }
-                
-                if (this.preset === 'pomodoro') {
-                    return this.isBreak ? 'Recharge' : 'Burst Focus';
-                }
-                
-                if (this.preset === 'long') {
-                    return this.isBreak ? 'Recharge' : 'Extended Focus';
-                }
-                
-                return 'Timer';
+                if (this.isBreak) return 'Recharge';
+                return this.preset === 'long' ? 'Extended Focus' : 'Burst Focus';
             },
 
             startTimer() {
                 if (this.isRunning) return;
-                
                 this.isRunning = true;
+
+                // Count down from a fixed end time so throttled background tabs stay accurate
+                const endsAt = Date.now() + this.timeLeft * 1000;
                 this.timer = setInterval(() => {
-                    if (this.timeLeft > 0) {
-                        this.timeLeft--;
-                        this.saveState();
-                    } else {
-                        this.completeTimer();
-                    }
+                    this.timeLeft = Math.max(0, Math.round((endsAt - Date.now()) / 1000));
+                    if (this.timeLeft === 0) this.completeTimer();
                 }, 1000);
             },
 
-            pauseTimer() {
+            stopTimer() {
                 this.isRunning = false;
-                if (this.timer) {
-                    clearInterval(this.timer);
-                    this.timer = null;
-                }
-                this.saveState();
+                clearInterval(this.timer);
+                this.timer = null;
+            },
+
+            pauseTimer() {
+                this.stopTimer();
             },
 
             resetTimer() {
-                this.isRunning = false;
-                if (this.timer) {
-                    clearInterval(this.timer);
-                    this.timer = null;
-                }
-                this.updateTimerDuration();
+                this.stopTimer();
+                const minutes = POMO_DURATIONS[this.preset][this.isBreak ? 'break' : 'work'];
+                this.totalTime = minutes * 60;
+                this.timeLeft = this.totalTime;
+                this.saveState();
             },
             
             completeTimer() {
                 this.playAlarm();
-                this.isRunning = false;
-                
-                if (this.timer) {
-                    clearInterval(this.timer);
-                    this.timer = null;
-                }
-                
-                // Auto toggle between work and break
+                // Switch between work and break
                 this.isBreak = !this.isBreak;
-                this.updateTimerDuration();
+                this.resetTimer();
             },
             
             toggleBreak() {
                 this.isBreak = !this.isBreak;
-                this.updateTimerDuration();
+                this.resetTimer();
             },
 
             setPreset(newPreset) {
                 this.preset = newPreset;
-                this.updateTimerDuration();
-            },
-            
-            updateTimerDuration() {
-                this.isRunning = false;
-                if (this.timer) {
-                    clearInterval(this.timer);
-                    this.timer = null;
-                }
-                
-                // Set duration based on preset and break status
-                if (this.preset === 'pomodoro') {
-                    this.totalTime = this.isBreak ? 5 * 60 : 25 * 60;
-                } else if (this.preset === 'long') {
-                    this.totalTime = this.isBreak ? 10 * 60 : 50 * 60;
-                }
-                
-                this.timeLeft = this.totalTime;
-                this.saveState();
-            },
-            
-            setCustomTime() {
-                if (this.customMinutes < 1) this.customMinutes = 1;
-                if (this.customMinutes > 120) this.customMinutes = 120;
-                
-                this.preset = 'custom';
-                this.totalTime = this.customMinutes * 60;
-                this.timeLeft = this.totalTime;
-                this.isRunning = false;
-                
-                if (this.timer) {
-                    clearInterval(this.timer);
-                    this.timer = null;
-                }
-                
-                this.saveState();
+                this.resetTimer();
             },
 
             playAlarm() {
                 const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
                 audio.play().catch(e => console.log('Audio play failed:', e));
                 
-                if (Notification.permission === "granted") {
-                    new Notification("Timer Complete!", {
+                if ('Notification' in window && Notification.permission === 'granted') {
+                    new Notification('Timer Complete!', {
                         body: `Your ${this.isBreak ? 'break' : 'focus'} session is complete!`,
-                        icon: "/favicon.ico"
+                        icon: '/favicon.svg'
                     });
                 }
             },
             
             saveState() {
-                try {
-                    const state = {
-                        preset: this.preset,
-                        isBreak: this.isBreak,
-                        customMinutes: this.customMinutes
-                    };
-                    localStorage.setItem('pomoState', JSON.stringify(state));
-                } catch (e) {
-                    console.error('Error saving state:', e);
-                }
+                localStorage.setItem('pomoState', JSON.stringify({
+                    preset: this.preset,
+                    isBreak: this.isBreak
+                }));
             },
             
             loadState() {
                 try {
-                    const savedState = localStorage.getItem('pomoState');
-                    if (savedState) {
-                        const state = JSON.parse(savedState);
-                        this.preset = state.preset || 'pomodoro';
-                        this.isBreak = state.isBreak || false;
-                        this.customMinutes = state.customMinutes || 5;
-                    }
+                    const state = JSON.parse(localStorage.getItem('pomoState') || '{}');
+                    this.preset = state.preset in POMO_DURATIONS ? state.preset : 'pomodoro';
+                    this.isBreak = Boolean(state.isBreak);
                 } catch (e) {
-                    console.error('Error loading state:', e);
+                    console.error('Error loading timer state:', e);
                 }
             }
         });
     });
-
-    function pomoTimer() {
-        return {
-            init() {
-                window.Alpine.store('pomoState').init();
-                this.setupEventListeners();
-            },
-            
-            setupEventListeners() {
-                // Setup custom input for user-defined timer length
-                const customLengthInput = document.getElementById('customLength');
-                if (customLengthInput) {
-                    customLengthInput.addEventListener('input', (e) => {
-                        if (e.target && e.target instanceof HTMLInputElement) {
-                            const value = parseInt(e.target.value);
-                            if (value > 0) {
-                                window.Alpine.store('pomoState').setCustomMinutes(value);
-                            }
-                        }
-                    });
-                }
-                
-                // Add event listener for keyboard shortcuts
-                document.addEventListener('keydown', (e) => {
-                    // Only process if not in an input field
-                    if (document.activeElement?.tagName !== 'INPUT') {
-                        if (e.code === 'Space') {
-                            e.preventDefault();
-                            const store = window.Alpine.store('pomoState');
-                            store.isRunning ? store.pauseTimer() : store.startTimer();
-                        }
-                    }
-                });
-            }
-        };
-    }
 </script>
