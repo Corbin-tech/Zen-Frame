@@ -1,3 +1,5 @@
+import { toDateKey } from "../lib/dates";
+
 export interface Todo {
   id: string;
   todo: string;
@@ -5,6 +7,8 @@ export interface Todo {
   isCluster: boolean;
   isPinned: boolean;
   parentId: string | null;
+  dueDate?: string | null; // Local date as YYYY-MM-DD
+  color?: string; // Clusters only: a key of CLUSTER_COLORS
   createdAt: string;
   updatedAt?: string;
   completedAt?: string;
@@ -19,6 +23,11 @@ export interface ScheduledItem {
 }
 
 const NEW_CLUSTER_NAME = "New Cluster";
+
+// Cluster colors, picked in this order for new clusters. Each key is a CSS variable
+// (--c-<key>) in Layout.astro with separate light and dark values. The order keeps
+// neighbors distinct for color-blind readers; check changes with a palette validator.
+export const CLUSTER_COLORS = ["teal", "indigo", "amber", "sky", "rose", "violet", "emerald", "orange"];
 
 function loadJson<T>(key: string, fallback: T): T {
   const saved = localStorage.getItem(key);
@@ -39,6 +48,21 @@ function createTodosStore() {
       return this.items.some(item => item.completed);
     },
 
+    get openTasks(): Todo[] {
+      return this.items.filter(item => !item.isCluster && !item.completed);
+    },
+
+    // The task Zen mode shows: the first open task in list order, skipping clusters the user skipped.
+    // When every open task is in a skipped cluster, fall back to the first open task.
+    get nextTask(): Todo | null {
+      const openTasks = this.openTasks;
+      return openTasks.find(task => !task.parentId || !this.skippedClusters.includes(task.parentId))
+        ?? openTasks[0]
+        ?? null;
+    },
+
+    palette: CLUSTER_COLORS,
+
     // Alpine calls init() when the store is registered
     init(): void {
       this.items = loadJson<Todo[]>("todos", []).map(item => ({ ...item, parentId: item.parentId ?? null }));
@@ -56,23 +80,65 @@ function createTodosStore() {
       return this.items.find(item => item.id === id);
     },
 
-    addTodo(todoText: string, isCluster = false): string {
+    addTodo(todoText: string, fields: Partial<Todo> = {}): string {
       const id = crypto.randomUUID();
       this.items = [...this.items, {
         id,
         todo: todoText,
         completed: false,
-        isCluster,
+        isCluster: false,
         isPinned: false,
         parentId: null,
-        createdAt: new Date().toISOString()
+        dueDate: null,
+        createdAt: new Date().toISOString(),
+        ...fields
       }];
       this.saveTodos();
       return id;
     },
 
     createCluster(name = NEW_CLUSTER_NAME): string {
-      return this.addTodo(name.trim() || NEW_CLUSTER_NAME, true);
+      const color = CLUSTER_COLORS[this.clusters.length % CLUSTER_COLORS.length];
+      return this.addTodo(name.trim() || NEW_CLUSTER_NAME, { isCluster: true, color });
+    },
+
+    clusterName(clusterId: string | null): string {
+      return clusterId ? this.find(clusterId)?.todo ?? "" : "";
+    },
+
+    // Clusters made before colors existed get a color from their position
+    clusterColorKey(clusterId: string | null): string {
+      const cluster = clusterId ? this.find(clusterId) : undefined;
+      if (!cluster) return "none";
+      if (cluster.color && CLUSTER_COLORS.includes(cluster.color)) return cluster.color;
+      const position = Math.max(0, this.clusters.findIndex(item => item.id === clusterId));
+      return CLUSTER_COLORS[position % CLUSTER_COLORS.length];
+    },
+
+    // A CSS color for inline styles, for example "var(--c-teal)"
+    clusterColor(clusterId: string | null): string {
+      return `var(--c-${this.clusterColorKey(clusterId)})`;
+    },
+
+    setClusterColor(clusterId: string, color: string): void {
+      const cluster = this.find(clusterId);
+      if (!cluster?.isCluster) return;
+      cluster.color = color;
+      this.saveTodos();
+    },
+
+    setDueDate(taskId: string, dueDate: string | null): void {
+      const task = this.find(taskId);
+      if (!task) return;
+      task.dueDate = dueDate || null;
+      task.updatedAt = new Date().toISOString();
+      this.saveTodos();
+    },
+
+    scheduledItemsOn(dateKey: string = toDateKey()): ScheduledItem[] {
+      return this.scheduledItems
+        .filter(item => item.date === dateKey)
+        .sort((a, b) => a.startTimeMinutes - b.startTimeMinutes);
     },
 
     deleteTodo(id: string): void {

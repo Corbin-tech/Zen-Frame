@@ -1,441 +1,869 @@
 ---
-// The timeline and the time pickers cover 6:00 AM to 11:00 PM in 15-minute steps
-const timeOptions: { value: string; label: string }[] = [];
-for (let minutes = 6 * 60; minutes <= 23 * 60; minutes += 15) {
-    const hour = Math.floor(minutes / 60);
-    const minute = String(minutes % 60).padStart(2, '0');
-    timeOptions.push({
-        value: `${String(hour).padStart(2, '0')}:${minute}`,
-        label: `${hour % 12 || 12}:${minute} ${hour < 12 ? 'AM' : 'PM'}`
-    });
+import { START_HOUR, END_HOUR, HOUR_HEIGHT, SLOT_MINUTES } from '../lib/timeline';
+import { formatTime, toTimeValue } from '../lib/dates';
+
+const hours = Array.from({ length: END_HOUR - START_HOUR }, (_, i) => START_HOUR + i);
+const timelineHeight = hours.length * HOUR_HEIGHT;
+
+const timeOptions = [];
+for (let minutes = START_HOUR * 60; minutes <= END_HOUR * 60; minutes += SLOT_MINUTES) {
+    timeOptions.push({ value: toTimeValue(minutes), label: formatTime(minutes) });
 }
+const startOptions = timeOptions.slice(0, -1);
+const endOptions = timeOptions.slice(1);
+
+const panel = 'rounded-2xl bg-white dark:bg-slate-800 shadow-sm ring-1 ring-black/5 dark:ring-white/5';
+const iconButton = 'p-2 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-slate-700 transition-colors';
 ---
 
-<div class="container mx-auto px-4" x-data="schedule">
-    <div class="flex flex-col space-y-6 max-w-4xl mx-auto">
-        <!-- Calendar -->
-        <div class="bg-white dark:bg-slate-800 rounded-lg shadow-md p-6">
-            <!-- Header: Month Navigation -->
-            <div class="flex justify-between items-center mb-4">
-                <button
-                    @click="shiftMonth(-1)"
-                    type="button"
-                    class="p-2 rounded-full hover:bg-teal-100 dark:hover:bg-teal-800/50 text-teal-600 dark:text-teal-400 focus:outline-none focus:ring-2 focus:ring-teal-300"
-                    aria-label="Previous month"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-                    </svg>
-                </button>
-                <h2 class="text-4xl mb-4 font-bold text-black dark:text-white" x-text="`${monthNames[currentMonth]} ${currentYear}`"></h2>
-                <button
-                    @click="shiftMonth(1)"
-                    type="button"
-                    class="p-2 rounded-full hover:bg-teal-100 dark:hover:bg-teal-800/50 text-teal-600 dark:text-teal-400 focus:outline-none focus:ring-2 focus:ring-teal-300"
-                    aria-label="Next month"
-                >
-                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                    </svg>
-                </button>
-            </div>
+<div
+    x-data="schedule"
+    class="w-full"
+    x-on:pointermove.window="onPointerMove($event)"
+    x-on:pointerup.window="onPointerUp()"
+    x-on:pointercancel.window="drag = null"
+    x-on:keydown.escape.window="showModal && closeModal()"
+>
+    <div class="grid gap-6 lg:grid-cols-[17rem_minmax(0,1fr)] items-start">
 
-            <!-- Days of the Week Header -->
-            <div class="grid grid-cols-7 gap-1.5 px-2 max-w-lg mx-auto text-center text-xs font-medium text-teal-600 dark:text-teal-400 mb-2">
-                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((weekDay) => <div>{weekDay}</div>)}
-            </div>
-
-            <!-- Calendar Days Grid -->
-            <div class="grid grid-cols-7 gap-1.5 px-2 max-w-lg mx-auto">
-                <template x-for="day in days" :key="day.date">
-                    <div
-                        @click="selectedDate = day.date"
-                        class="aspect-square flex flex-col p-0.5 rounded-2xl cursor-pointer transition-colors relative scale-95"
-                        x-bind:class="selectedDate === day.date ? 'bg-teal-50 dark:bg-teal-900/30 ring-2 ring-teal-500 dark:ring-teal-600' : day.isCurrentMonth ? 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600' : 'bg-gray-200/60 dark:bg-gray-700/30 hover:bg-gray-200/80 dark:hover:bg-gray-700/40 opacity-70'"
-                    >
-                        <!-- Day Number -->
-                        <div
-                            class="text-center font-medium rounded-full w-5 h-5 flex items-center justify-center mx-auto text-xs mt-1.5"
-                            x-bind:class="selectedDate === day.date
-                                ? 'bg-teal-500 dark:bg-teal-600 text-white ring-1 ring-teal-400 dark:ring-teal-500'
-                                : day.date === todayKey
-                                    ? 'bg-gray-400 dark:bg-gray-500 text-gray-800 dark:text-gray-100 ring-1 ring-teal-200 dark:ring-teal-700'
-                                    : day.isCurrentMonth
-                                        ? 'text-gray-900 dark:text-white bg-gray-300 dark:bg-gray-600'
-                                        : 'text-gray-500 dark:text-gray-400 bg-gray-300/80 dark:bg-gray-600/80'"
-                        >
-                            <span x-text="day.day"></span>
-                        </div>
-                    </div>
-                </template>
-            </div>
-        </div>
-
-        <!-- Time Blocking -->
-        <div class="bg-white dark:bg-slate-800 rounded-lg shadow-md p-6">
-            <h3 class="text-4xl font-bold text-center mb-6 text-black dark:text-white">Schedule</h3>
-
-            <!-- Selected date indicator -->
-            <div class="flex justify-center items-center mb-6">
-                <div
-                    class="flex flex-col items-center px-6 py-3 rounded-lg transition-colors duration-150"
-                    x-bind:class="selectedDate === todayKey
-                        ? 'bg-white dark:bg-slate-800 border border-teal-200 dark:border-teal-700 shadow-sm'
-                        : 'bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 shadow-xs'"
-                >
-                    <h2 class="text-xl font-semibold text-black dark:text-white" x-text="selectedDateFormatted"></h2>
-                </div>
-            </div>
-
-            <!-- Timeline Container -->
-            <div class="relative h-64 mb-6">
-                <!-- Scrollable container for the timeline -->
-                <div class="overflow-x-auto pb-4 border border-gray-200 dark:border-gray-700 rounded-lg shadow-md relative bg-white dark:bg-slate-800 hover:shadow-lg transition-shadow duration-300">
-                    <div
-                        class="relative flex items-stretch p-0 min-w-full"
-                        style="width: 150%; min-width: 800px; height: 180px;"
-                     >
-                        <!-- Timeline Hours Strip - only for display -->
-                        <div class="absolute inset-0 flex pointer-events-none">
-                            <template x-for="(hour, index) in hours" :key="hour">
-                                <!-- Hour columns with alternating background colors for better readability -->
-                                <div
-                                    class="flex-1 flex flex-col justify-start h-full border-r border-gray-200 dark:border-gray-700 relative"
-                                    :class="index % 2 === 0 ? 'bg-gray-50 dark:bg-slate-700/50' : 'bg-white dark:bg-slate-800'"
-                                >
-                                    <!-- Hour label (positioned at top) -->
-                                    <div class="absolute top-0 left-0 right-0 h-8 flex items-center justify-center border-b border-gray-200 dark:border-gray-700 bg-gradient-to-b from-white dark:from-slate-700 to-transparent dark:to-transparent">
-                                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300" x-text="formatHour(hour)"></span>
-                                    </div>
-
-                                    <!-- 15, 30 and 45 minute markers -->
-                                    <div class="absolute inset-0 flex mt-8">
-                                        <div class="w-1/4 h-full border-r border-dashed border-teal-100 dark:border-teal-900/30"></div>
-                                        <div class="w-1/4 h-full border-r border-dashed border-teal-200 dark:border-teal-800/50"></div>
-                                        <div class="w-1/4 h-full border-r border-dashed border-teal-100 dark:border-teal-900/30"></div>
-                                        <div class="w-1/4 h-full"></div>
-                                    </div>
-
-                                    <!-- Current time indicator (only for today, and only for the correct hour) -->
-                                    <div
-                                        x-show="selectedDate === todayKey && hour === now.getHours()"
-                                        class="absolute h-full w-0.5 bg-teal-500 dark:bg-teal-400 z-10"
-                                        :style="`left: ${now.getMinutes() / 60 * 100}%;`"
-                                    >
-                                        <div class="absolute -left-1.5 top-0 w-3 h-3 rounded-full bg-teal-500 dark:bg-teal-400"></div>
-                                    </div>
-                                </div>
-                            </template>
-                        </div>
-
-                        <!-- Interactive Layer - For Click Handling (z-index to ensure it's above the visuals but below tasks) -->
-                        <div class="absolute inset-0 flex z-10">
-                            <template x-for="hour in hours" :key="hour">
-                                <div
-                                    class="flex-1 h-full cursor-pointer"
-                                    @click.stop="openTimeBlockModal(hour * 60, hour * 60 + 60)"
-                                ></div>
-                            </template>
-                        </div>
-
-                        <!-- Scheduled Task Blocks -->
-                        <div class="absolute inset-0 pointer-events-none z-20">
-                            <template x-for="item in scheduledItemsForSelectedDate" :key="item.id">
-                                <div
-                                    :style="getTaskBlockStyle(item)"
-                                    class="absolute flex flex-col justify-between bg-teal-100 dark:bg-teal-900/80 rounded-md overflow-hidden p-2 pointer-events-auto cursor-pointer hover:bg-teal-200 dark:hover:bg-teal-800 transition-all duration-150 shadow-sm hover:shadow-md border-l-4 border-teal-500 dark:border-teal-600"
-                                    @click.stop="openTimeBlockModal(item.startTimeMinutes, item.endTimeMinutes, item)"
-                                >
-                                    <span class="text-sm font-medium text-teal-800 dark:text-teal-200 truncate" x-text="getTaskTitle(item.taskId)"></span>
-                                    <span class="text-xs text-teal-600 dark:text-teal-400 mt-1">
-                                        <span x-text="formatTime(item.startTimeMinutes)"></span> - <span x-text="formatTime(item.endTimeMinutes)"></span>
-                                    </span>
-                                </div>
-                            </template>
-                        </div>
+        <!-- Sidebar -->
+        <aside class="order-2 lg:order-1 min-w-0 space-y-6">
+            <!-- Month calendar -->
+            <section class={`${panel} p-4`}>
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="text-sm font-semibold text-gray-900 dark:text-white" x-text="viewMonthLabel"></h3>
+                    <div class="flex items-center">
+                        <button type="button" class={iconButton} x-on:click="shiftMonth(-1)" aria-label="Previous month">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+                        </button>
+                        <button type="button" class={iconButton} x-on:click="shiftMonth(1)" aria-label="Next month">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+                        </button>
                     </div>
                 </div>
 
-                <!-- Scroll indicator with better visual cue -->
-                <div class="flex items-center justify-center gap-2 text-sm text-gray-600 text-center mt-3 dark:text-gray-400 font-medium">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-                    </svg>
-                    <span>Scroll to see more hours</span>
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                    </svg>
+                <div class="grid grid-cols-7 text-center text-[11px] font-medium text-gray-400 dark:text-gray-500 mb-1">
+                    {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((weekDay) => <div class="py-1">{weekDay}</div>)}
                 </div>
-            </div>
 
-            <!-- Time Block Scheduling Modal -->
-            <div
-                x-show="showTimeBlockModal"
-                x-transition:enter="transition ease-out duration-300"
-                x-transition:enter-start="opacity-0 transform scale-90"
-                x-transition:enter-end="opacity-100 transform scale-100"
-                x-transition:leave="transition ease-in duration-300"
-                x-transition:leave-start="opacity-100 transform scale-100"
-                x-transition:leave-end="opacity-0 transform scale-90"
-                x-cloak
-                class="fixed inset-0 z-50 overflow-y-auto"
-                @keydown.escape.window="showTimeBlockModal && closeTimeBlockModal()"
-            >
-                <!-- Modal Backdrop -->
-                <div class="fixed inset-0 bg-black opacity-30" @click="closeTimeBlockModal()"></div>
-
-                <!-- Modal Content -->
-                <div class="flex items-center justify-center min-h-screen p-4">
-                    <div class="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl p-5 w-full max-w-lg">
-                        <!-- Close Button -->
+                <div class="grid grid-cols-7 gap-1">
+                    <template x-for="day in calendarDays" :key="day.date">
                         <button
                             type="button"
-                            @click="closeTimeBlockModal()"
-                            class="absolute top-3 right-3 text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-teal-500 rounded-full p-1"
-                            aria-label="Close"
+                            x-on:click="selectDate(day.date)"
+                            class="relative aspect-square rounded-lg text-sm tabular-nums flex items-center justify-center transition-colors"
+                            x-bind:class="day.date === selectedDate
+                                ? 'bg-teal-600 text-white font-semibold shadow-sm'
+                                : day.date === todayKey
+                                    ? 'text-teal-700 dark:text-teal-300 font-semibold ring-1 ring-inset ring-teal-500/50 hover:bg-teal-50 dark:hover:bg-teal-900/30'
+                                    : day.isCurrentMonth
+                                        ? 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-700'
+                                        : 'text-gray-300 dark:text-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700/50'"
+                            x-bind:aria-label="$dates.formatDate(day.date, { weekday: 'long', month: 'long', day: 'numeric' })"
+                            x-bind:aria-pressed="day.date === selectedDate"
                         >
-                            <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                            </svg>
+                            <span x-text="day.day"></span>
+                            <span class="absolute bottom-1 left-1/2 -translate-x-1/2 flex gap-0.5">
+                                <span x-show="plannedDays.has(day.date)" class="w-1 h-1 rounded-full" x-bind:class="day.date === selectedDate ? 'bg-white' : 'bg-teal-500'"></span>
+                                <span x-show="dueDays.has(day.date)" class="w-1 h-1 rounded-full" x-bind:class="day.date === selectedDate ? 'bg-amber-200' : 'bg-amber-500'"></span>
+                            </span>
                         </button>
-                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4" x-text="editingItemId ? 'Edit Scheduled Task' : 'Schedule a Task'"></h3>
+                    </template>
+                </div>
 
-                        <div class="space-y-4">
-                            <!-- New block: pick a task -->
-                            <div x-show="!editingItemId">
-                                <label for="task-select" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Select Task</label>
-                                <select
-                                    id="task-select"
-                                    x-model="selectedTaskId"
-                                    class="block w-full mt-1 border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:border-teal-500 focus:ring-teal-500 rounded-md shadow-sm"
-                                >
-                                    <option value="">-- Select a Task --</option>
-                                    <template x-for="task in availableTasksForScheduling" :key="task.id">
-                                        <option :value="task.id" x-text="task.todo"></option>
-                                    </template>
-                                </select>
-                                <p x-show="availableTasksForScheduling.length === 0" class="text-sm text-gray-500 dark:text-gray-400 mt-1">No unscheduled tasks available.</p>
+                <div class="flex items-center gap-4 mt-3 text-[11px] text-gray-500 dark:text-gray-400">
+                    <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-teal-500"></span>Planned</span>
+                    <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>Due</span>
+                </div>
+            </section>
+
+            <!-- Tasks without a block on this day -->
+            <section class={`${panel} p-4`}>
+                <div class="flex items-baseline justify-between">
+                    <h3 class="text-sm font-semibold text-gray-900 dark:text-white">To schedule</h3>
+                    <span class="text-xs font-medium tabular-nums text-gray-400" x-text="unscheduledTasks.length"></span>
+                </div>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 mb-3">Drag a task onto the timeline, or press + to pick a time.</p>
+
+                <ul class="space-y-1.5 max-h-80 overflow-y-auto -mr-1 pr-1">
+                    <template x-for="task in unscheduledTasks" :key="task.id">
+                        <li
+                            x-drag-task="task.id"
+                            class="schedule-chip group flex items-center gap-2 rounded-lg pl-2.5 pr-1 py-1.5 bg-gray-50 dark:bg-slate-700/50 hover:bg-gray-100 dark:hover:bg-slate-700 cursor-grab transition-colors"
+                        >
+                            <span class="w-2 h-2 rounded-full shrink-0" x-bind:style="`background-color: ${$store.todos.clusterColor(task.parentId)};`"></span>
+                            <div class="flex-1 min-w-0">
+                                <p class="truncate text-sm text-gray-700 dark:text-gray-200" x-text="task.todo" x-bind:title="task.todo"></p>
+                                <p x-show="task.parentId || task.dueDate" class="flex items-center gap-1.5 text-[11px] text-gray-500 dark:text-gray-400">
+                                    <span class="truncate" x-text="$store.todos.clusterName(task.parentId)"></span>
+                                    <span
+                                        x-show="task.dueDate"
+                                        class="shrink-0 font-medium px-1 rounded"
+                                        x-bind:class="task.dueDate ? $dates.dueClass(task.dueDate) : ''"
+                                        x-text="task.dueDate ? $dates.dueLabel(task.dueDate) : ''"
+                                    ></span>
+                                </p>
                             </div>
+                            <button
+                                type="button"
+                                x-on:click="openModalFor(task.id)"
+                                class="shrink-0 p-1 rounded-md text-teal-600 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/40"
+                                x-bind:aria-label="`Schedule ${task.todo}`"
+                            >
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v12m6-6H6" /></svg>
+                            </button>
+                        </li>
+                    </template>
+                </ul>
+                <p x-show="unscheduledTasks.length === 0" class="text-sm text-gray-400 dark:text-gray-500 py-2">Every open task has a block on this day.</p>
+            </section>
+        </aside>
 
-                            <!-- Existing block: show its task -->
-                            <p x-show="editingItemId" class="text-gray-800 dark:text-gray-200">
-                                Task: <strong x-text="getTaskTitle(selectedTaskId)"></strong>
-                            </p>
+        <!-- Day view -->
+        <section class={`${panel} order-1 lg:order-2 min-w-0 overflow-hidden`}>
+            <header class="flex flex-wrap items-start justify-between gap-4 p-5 border-b border-gray-100 dark:border-slate-700">
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-wider text-teal-600 dark:text-teal-400" x-text="selectedDayLabel"></p>
+                    <h2 class="text-2xl font-bold text-gray-900 dark:text-white" x-text="$dates.formatDate(selectedDate, { weekday: 'long', month: 'long', day: 'numeric' })"></h2>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-0.5" x-text="daySummary"></p>
+                </div>
+                <div class="flex items-center gap-1">
+                    <button type="button" class={iconButton} x-on:click="selectDate($dates.addDays(selectedDate, -1))" aria-label="Previous day">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+                    </button>
+                    <button
+                        type="button"
+                        x-on:click="selectDate(todayKey)"
+                        x-bind:disabled="selectedDate === todayKey"
+                        class="px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-200 dark:border-slate-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-default transition-colors"
+                    >Today</button>
+                    <button type="button" class={iconButton} x-on:click="selectDate($dates.addDays(selectedDate, 1))" aria-label="Next day">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+                    </button>
+                    <button
+                        type="button"
+                        x-on:click="openModalFor(null)"
+                        class="ml-2 flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg bg-teal-600 text-white hover:bg-teal-700 shadow-sm transition-colors"
+                    >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v12m6-6H6" /></svg>
+                        Add block
+                    </button>
+                </div>
+            </header>
 
-                            <div class="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label for="start-time" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Start Time</label>
-                                    <select
-                                        id="start-time"
-                                        x-model="startTime"
-                                        class="block w-full mt-1 border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:border-teal-500 focus:ring-teal-500 rounded-md shadow-sm"
-                                    >
-                                        {timeOptions.map((option) => <option value={option.value}>{option.label}</option>)}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label for="end-time" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">End Time</label>
-                                    <select
-                                        id="end-time"
-                                        x-model="endTime"
-                                        class="block w-full mt-1 border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:border-teal-500 focus:ring-teal-500 rounded-md shadow-sm"
-                                    >
-                                        {timeOptions.map((option) => <option value={option.value}>{option.label}</option>)}
-                                    </select>
-                                </div>
+            <!-- Timeline -->
+            <div x-ref="scroller" class="max-h-[36rem] overflow-y-auto overscroll-contain">
+                <div class="flex py-3 pr-3 select-none">
+                    <!-- Hour labels -->
+                    <div class="relative w-16 shrink-0" style={`height: ${timelineHeight}px;`} aria-hidden="true">
+                        {hours.map((hour) => (
+                            <span
+                                class="absolute right-3 -translate-y-1/2 text-[11px] font-medium text-gray-400 dark:text-gray-500"
+                                style={`top: ${(hour - START_HOUR) * HOUR_HEIGHT}px;`}
+                            >{formatTime(hour * 60).replace(':00', '')}</span>
+                        ))}
+                    </div>
+
+                    <!-- Grid: drag here to plan a block, or drop a task -->
+                    <div
+                        x-ref="grid"
+                        class="timeline-grid relative flex-1 border-l border-gray-100 dark:border-slate-700 cursor-crosshair"
+                        style={`height: ${timelineHeight}px;`}
+                        x-on:pointerdown="startCreate($event)"
+                        x-task-drop="scheduleDroppedTask($taskId, $clientY)"
+                        x-on:task-dragover="dropPreview = rangeAt($event.detail.clientY)"
+                        x-on:task-dragleave="dropPreview = null"
+                    >
+                        {hours.map((hour) => (
+                            <>
+                                <div class="absolute inset-x-0 border-t border-gray-100 dark:border-slate-700/70 pointer-events-none" style={`top: ${(hour - START_HOUR) * HOUR_HEIGHT}px;`}></div>
+                                <div class="absolute inset-x-0 border-t border-dashed border-gray-100/70 dark:border-slate-700/40 pointer-events-none" style={`top: ${(hour - START_HOUR + 0.5) * HOUR_HEIGHT}px;`}></div>
+                            </>
+                        ))}
+
+                        <!-- Current time -->
+                        <div
+                            x-show="isNowVisible"
+                            class="absolute inset-x-0 z-20 pointer-events-none"
+                            x-bind:style="`top: ${toY(nowMinutes)}px;`"
+                        >
+                            <div class="relative h-0.5 bg-rose-500">
+                                <span class="absolute -left-1.5 -top-[5px] w-3 h-3 rounded-full bg-rose-500 ring-2 ring-white dark:ring-slate-800"></span>
                             </div>
                         </div>
 
-                        <div class="flex justify-end gap-3 mt-6">
+                        <!-- New block preview while dragging -->
+                        <div
+                            x-show="preview"
+                            class="absolute left-1 right-1 z-10 rounded-lg border-2 border-dashed border-teal-500 bg-teal-500/10 px-2 py-1 text-xs font-medium text-teal-700 dark:text-teal-300 pointer-events-none"
+                            x-bind:style="preview ? `top: ${toY(preview.start)}px; height: ${toY(preview.end) - toY(preview.start)}px;` : ''"
+                            x-text="preview ? formatRange(preview.start, preview.end) : ''"
+                        ></div>
+
+                        <!-- Scheduled blocks -->
+                        <template x-for="block in blocks" :key="block.id">
+                            <div
+                                class="absolute z-10 rounded-lg pl-2.5 pr-2 py-1 overflow-hidden cursor-grab active:cursor-grabbing shadow-sm hover:shadow-md touch-none transition-shadow"
+                                x-bind:class="{ 'opacity-60': block.completed, 'z-30 shadow-lg ring-2 ring-teal-500': drag && drag.itemId === block.id && drag.moved }"
+                                x-bind:style="block.style"
+                                x-on:pointerdown.stop="startMove($event, block)"
+                                role="button"
+                                tabindex="0"
+                                x-bind:aria-label="`${block.title}, ${formatRange(block.start, block.end)}. Press Enter to edit.`"
+                                x-on:keydown.enter="openModalFor(block.taskId, block.item)"
+                            >
+                                <div class="flex items-start gap-2 min-w-0">
+                                    <input
+                                        type="checkbox"
+                                        class="mt-0.5 w-3.5 h-3.5 shrink-0 rounded border-gray-300 dark:border-slate-500 text-teal-600 focus:ring-teal-500 dark:bg-slate-700 cursor-pointer"
+                                        x-bind:checked="block.completed"
+                                        x-on:pointerdown.stop
+                                        x-on:click.stop="$store.todos.toggleTodo(block.taskId)"
+                                        x-bind:aria-label="`Mark ${block.title} ${block.completed ? 'not done' : 'done'}`"
+                                    />
+                                    <div class="min-w-0 leading-tight">
+                                        <p class="text-sm font-medium text-gray-900 dark:text-white truncate" x-bind:class="block.completed && 'line-through'" x-text="block.title"></p>
+                                        <p x-show="block.end - block.start >= 30" class="text-xs text-gray-600 dark:text-gray-300 truncate mt-0.5" x-text="block.subtitle"></p>
+                                    </div>
+                                </div>
+                                <!-- Bottom edge resizes the block -->
+                                <div class="absolute inset-x-0 bottom-0 h-2 cursor-ns-resize" x-on:pointerdown.stop="startResize($event, block)"></div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+
+            <p class="px-5 py-3 text-xs text-gray-500 dark:text-gray-400 border-t border-gray-100 dark:border-slate-700">
+                Drag on the timeline to plan a block. Drag a block to move it, or its bottom edge to change its length. Click a block to edit it.
+            </p>
+        </section>
+    </div>
+
+    <!-- Block editor -->
+    <div
+        x-show="showModal"
+        x-transition:leave="duration-150"
+        x-cloak
+        class="fixed inset-0 z-50 flex items-center justify-center p-4"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="block-editor-title"
+    >
+        <div
+            x-show="showModal"
+            x-transition.opacity.duration.200ms
+            class="absolute inset-0 bg-slate-900/40 backdrop-blur-[2px]"
+            x-on:click="closeModal()"
+        ></div>
+
+        <div
+            x-show="showModal"
+            x-transition:enter="transition ease-out duration-200"
+            x-transition:enter-start="opacity-0 translate-y-2 scale-95"
+            x-transition:enter-end="opacity-100 translate-y-0 scale-100"
+            x-transition:leave="transition ease-in duration-150"
+            x-transition:leave-start="opacity-100 scale-100"
+            x-transition:leave-end="opacity-0 scale-95"
+            class="relative w-full max-w-md rounded-2xl bg-white dark:bg-slate-800 shadow-2xl ring-1 ring-black/5 dark:ring-white/10"
+        >
+            <div class="p-5 space-y-5">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <h3 id="block-editor-title" class="text-lg font-semibold text-gray-900 dark:text-white" x-text="editingItemId ? 'Edit block' : 'Plan a block'"></h3>
+                        <p class="text-sm text-gray-500 dark:text-gray-400" x-text="$dates.formatDate(selectedDate, { weekday: 'long', month: 'long', day: 'numeric' })"></p>
+                    </div>
+                    <button type="button" class={iconButton} x-on:click="closeModal()" aria-label="Close">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                </div>
+
+                <!-- Editing: the block's task -->
+                <div x-show="editingItemId" class="flex items-center gap-3 rounded-xl bg-gray-50 dark:bg-slate-700/50 px-3 py-2.5">
+                    <span class="w-2.5 h-2.5 rounded-full shrink-0" x-bind:style="`background-color: ${$store.todos.clusterColor(selectedTask?.parentId ?? null)};`"></span>
+                    <div class="min-w-0 flex-1">
+                        <p class="text-sm font-medium text-gray-900 dark:text-white truncate" x-text="selectedTask?.todo ?? 'Deleted task'"></p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400" x-text="$store.todos.clusterName(selectedTask?.parentId ?? null) || 'No cluster'"></p>
+                    </div>
+                    <label class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 cursor-pointer">
+                        <input
+                            type="checkbox"
+                            class="w-4 h-4 rounded border-gray-300 dark:border-slate-500 text-teal-600 focus:ring-teal-500 dark:bg-slate-700"
+                            x-bind:checked="selectedTask?.completed"
+                            x-on:change="selectedTask && $store.todos.toggleTodo(selectedTask.id)"
+                        />
+                        Done
+                    </label>
+                </div>
+
+                <!-- New block: find a task or create one -->
+                <div x-show="!editingItemId" class="space-y-2">
+                    <label for="block-task-search" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Task</label>
+                    <input
+                        id="block-task-search"
+                        x-ref="search"
+                        type="text"
+                        x-model="query"
+                        x-on:keydown.enter.prevent="pickFirstMatch()"
+                        placeholder="Search tasks or type a new one"
+                        autocomplete="off"
+                        class="block w-full rounded-lg border-gray-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-sm focus:border-teal-500 focus:ring-teal-500"
+                    />
+                    <ul class="max-h-44 overflow-y-auto rounded-lg border border-gray-100 dark:border-slate-700 divide-y divide-gray-100 dark:divide-slate-700" x-show="pickerTasks.length || canCreateFromQuery">
+                        <template x-for="task in pickerTasks" :key="task.id">
+                            <li>
+                                <button
+                                    type="button"
+                                    x-on:click="selectedTaskId = task.id"
+                                    class="w-full flex items-center gap-2 px-3 py-2 text-left text-sm transition-colors"
+                                    x-bind:class="selectedTaskId === task.id ? 'bg-teal-50 dark:bg-teal-900/30 text-teal-800 dark:text-teal-200' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-700/60'"
+                                    x-bind:aria-pressed="selectedTaskId === task.id"
+                                >
+                                    <span class="w-2 h-2 rounded-full shrink-0" x-bind:style="`background-color: ${$store.todos.clusterColor(task.parentId)};`"></span>
+                                    <span class="flex-1 min-w-0 truncate" x-text="task.todo"></span>
+                                    <span x-show="task.parentId" class="shrink-0 text-xs text-gray-400" x-text="$store.todos.clusterName(task.parentId)"></span>
+                                    <svg x-show="selectedTaskId === task.id" class="w-4 h-4 shrink-0 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                                </button>
+                            </li>
+                        </template>
+                        <li x-show="canCreateFromQuery">
                             <button
                                 type="button"
-                                @click="closeTimeBlockModal()"
-                                class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
+                                x-on:click="selectedTaskId = NEW_TASK"
+                                class="w-full flex items-center gap-2 px-3 py-2 text-left text-sm transition-colors"
+                                x-bind:class="selectedTaskId === NEW_TASK ? 'bg-teal-50 dark:bg-teal-900/30 text-teal-800 dark:text-teal-200' : 'text-teal-700 dark:text-teal-300 hover:bg-gray-50 dark:hover:bg-slate-700/60'"
                             >
-                                Cancel
+                                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v12m6-6H6" /></svg>
+                                <span class="truncate" x-text="`Create “${query.trim()}”`"></span>
                             </button>
-                            <button
-                                x-show="editingItemId"
-                                @click="deleteScheduledTask()"
-                                class="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md transition-colors"
-                            >
-                                Remove
-                            </button>
-                            <button
-                                @click="saveScheduledTask()"
-                                :disabled="!canSave"
-                                class="px-4 py-2 text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                x-text="editingItemId ? 'Update' : 'Schedule'"
-                            ></button>
+                        </li>
+                    </ul>
+                    <p x-show="!pickerTasks.length && !canCreateFromQuery" class="text-sm text-gray-400 dark:text-gray-500">Type a name to create a new task.</p>
+
+                    <!-- Options for a new task -->
+                    <div x-show="selectedTaskId === NEW_TASK" class="grid grid-cols-2 gap-3 pt-1">
+                        <div>
+                            <label for="new-task-cluster" class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Cluster</label>
+                            <select id="new-task-cluster" x-model="newTaskClusterId" class="block w-full rounded-lg border-gray-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-sm focus:border-teal-500 focus:ring-teal-500">
+                                <option value="">No cluster</option>
+                                <template x-for="cluster in $store.todos.clusters" :key="cluster.id">
+                                    <option x-bind:value="cluster.id" x-text="cluster.todo"></option>
+                                </template>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="new-task-due" class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Due date</label>
+                            <input id="new-task-due" type="date" x-model="newTaskDueDate" class="block w-full rounded-lg border-gray-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-sm focus:border-teal-500 focus:ring-teal-500" />
                         </div>
                     </div>
                 </div>
+
+                <!-- Time -->
+                <div class="space-y-3">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label for="block-start" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Start</label>
+                            <select id="block-start" x-model="startTime" x-on:change="setDuration(length)" class="block w-full rounded-lg border-gray-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-sm focus:border-teal-500 focus:ring-teal-500">
+                                {startOptions.map((option) => <option value={option.value}>{option.label}</option>)}
+                            </select>
+                        </div>
+                        <div>
+                            <label for="block-end" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">End</label>
+                            <select id="block-end" x-model="endTime" x-on:change="length = duration" class="block w-full rounded-lg border-gray-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-sm focus:border-teal-500 focus:ring-teal-500">
+                                {endOptions.map((option) => <option value={option.value}>{option.label}</option>)}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap gap-1.5" role="group" aria-label="Length">
+                        <template x-for="minutes in [30, 45, 60, 90, 120]" :key="minutes">
+                            <button
+                                type="button"
+                                x-on:click="setDuration(minutes)"
+                                class="px-2.5 py-1 text-xs font-medium rounded-full border transition-colors"
+                                x-bind:class="duration === minutes
+                                    ? 'border-teal-600 bg-teal-600 text-white'
+                                    : 'border-gray-200 dark:border-slate-600 text-gray-600 dark:text-gray-300 hover:border-teal-400 hover:text-teal-700 dark:hover:text-teal-300'"
+                                x-text="$dates.formatDuration(minutes)"
+                            ></button>
+                        </template>
+                    </div>
+                    <p x-show="duration <= 0" class="text-sm text-red-600 dark:text-red-400">The block must end after it starts.</p>
+                    <p x-show="conflicts.length" class="flex items-start gap-1.5 text-sm text-amber-700 dark:text-amber-300">
+                        <svg class="w-4 h-4 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /></svg>
+                        <span x-text="`Overlaps ${conflicts.join(', ')}`"></span>
+                    </p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2 px-5 py-4 border-t border-gray-100 dark:border-slate-700 bg-gray-50/60 dark:bg-slate-800/60 rounded-b-2xl">
+                <button
+                    type="button"
+                    x-show="editingItemId"
+                    x-on:click="deleteBlock()"
+                    class="px-3 py-2 text-sm font-medium rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
+                >Remove</button>
+                <div class="flex-1"></div>
+                <button type="button" x-on:click="closeModal()" class="px-4 py-2 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors">Cancel</button>
+                <button
+                    type="button"
+                    x-on:click="saveBlock()"
+                    x-bind:disabled="!canSave"
+                    class="px-4 py-2 text-sm font-medium rounded-lg bg-teal-600 text-white hover:bg-teal-700 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    x-text="editingItemId ? 'Save' : 'Add block'"
+                ></button>
             </div>
         </div>
     </div>
 </div>
 
-<script is:inline>
-document.addEventListener('alpine:init', () => {
-    const START_HOUR = 6;
-    const END_HOUR = 23; // The timeline ends at 11:00 PM
-    const TIMELINE_MINUTES = (END_HOUR - START_HOUR) * 60;
-    const LANE_TOPS = [25, 45, 65, 85]; // Percent from the top, below the hour labels
-
-    // Local calendar date as YYYY-MM-DD. toISOString() would use UTC and can shift the day.
-    function toDateKey(date) {
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        return `${date.getFullYear()}-${month}-${day}`;
+<style>
+    /* A task from the list is over the timeline */
+    .timeline-grid[data-drop-active] {
+        background-color: rgba(20, 184, 166, 0.04);
     }
 
-    // "HH:MM" <-> minutes after midnight
-    function toTimeValue(minutes) {
-        return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
+    .schedule-chip[data-drag-active="true"] {
+        opacity: 0.5;
     }
+</style>
 
-    function toMinutes(timeValue) {
-        const [hours, minutes] = timeValue.split(':').map(Number);
-        return hours * 60 + minutes;
-    }
+<script>
+    import { dates } from '../lib/dates';
+    import { DAY_START, DAY_END, HOUR_HEIGHT, SLOT_MINUTES } from '../lib/timeline';
 
-    Alpine.data('schedule', () => {
-        const today = new Date();
+    const NEW_TASK = '__new__';
+    const DEFAULT_LENGTH = 60;
+    const DRAG_THRESHOLD_PX = 4;
 
-        return {
-            monthNames: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
-            hours: Array.from({ length: END_HOUR - START_HOUR }, (_, i) => START_HOUR + i),
-            currentMonth: today.getMonth(),
-            currentYear: today.getFullYear(),
-            selectedDate: toDateKey(today),
-            now: today,
+    const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+    const snap = (minutes) => Math.round(minutes / SLOT_MINUTES) * SLOT_MINUTES;
 
-            // Time block modal
-            showTimeBlockModal: false,
+    document.addEventListener('alpine:init', () => {
+        window.Alpine.data('schedule', () => ({
+            NEW_TASK,
+            now: new Date(),
+            selectedDate: dates.toDateKey(),
+            viewMonth: new Date().getMonth(),
+            viewYear: new Date().getFullYear(),
+
+            // Pointer drag on the timeline: { mode: 'create' | 'move' | 'resize', start, end, moved, ... }
+            drag: null,
+            // Where a task from the list would land while it is dragged over the timeline
+            dropPreview: null,
+
+            // Block editor
+            showModal: false,
             editingItemId: null,
             selectedTaskId: '',
+            query: '',
+            newTaskClusterId: '',
+            newTaskDueDate: '',
             startTime: '',
             endTime: '',
+            length: DEFAULT_LENGTH, // Minutes the block keeps when its start moves
 
             init() {
                 // Keeps the current-time line and "today" up to date
                 setInterval(() => { this.now = new Date(); }, 60 * 1000);
+                this.$watch('selectedDate', () => this.$nextTick(() => this.scrollToFocus()));
+
+                // The tab can be hidden at load, where scrolling does nothing.
+                // Scroll each time the timeline appears after being hidden, but not on page scroll.
+                let wasHidden = true;
+                new IntersectionObserver(([entry]) => {
+                    if (entry.isIntersecting && wasHidden) this.scrollToFocus();
+                    wasHidden = !entry.isIntersecting && this.$refs.scroller.offsetParent === null;
+                }).observe(this.$refs.scroller);
             },
 
             get todayKey() {
-                return toDateKey(this.now);
+                return dates.toDateKey(this.now);
             },
 
-            // Six-row-or-less grid of whole weeks around the current month
-            get days() {
-                const firstDay = new Date(this.currentYear, this.currentMonth, 1);
-                const lastDay = new Date(this.currentYear, this.currentMonth + 1, 0);
+            get nowMinutes() {
+                return dates.minutesNow(this.now);
+            },
+
+            get isNowVisible() {
+                return this.selectedDate === this.todayKey && this.nowMinutes >= DAY_START && this.nowMinutes < DAY_END;
+            },
+
+            // --- Calendar ---
+
+            get viewMonthLabel() {
+                return new Date(this.viewYear, this.viewMonth, 1).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+            },
+
+            // Whole weeks that cover the month in view
+            get calendarDays() {
+                const firstDay = new Date(this.viewYear, this.viewMonth, 1);
+                const lastDay = new Date(this.viewYear, this.viewMonth + 1, 0);
                 const cellCount = Math.ceil((firstDay.getDay() + lastDay.getDate()) / 7) * 7;
 
                 return Array.from({ length: cellCount }, (_, i) => {
-                    const date = new Date(this.currentYear, this.currentMonth, i - firstDay.getDay() + 1);
+                    const date = new Date(this.viewYear, this.viewMonth, i - firstDay.getDay() + 1);
                     return {
                         day: date.getDate(),
-                        date: toDateKey(date),
-                        isCurrentMonth: date.getMonth() === this.currentMonth
+                        date: dates.toDateKey(date),
+                        isCurrentMonth: date.getMonth() === this.viewMonth
                     };
                 });
             },
 
+            get plannedDays() {
+                return new Set(this.$store.todos.scheduledItems.map(item => item.date));
+            },
+
+            get dueDays() {
+                return new Set(this.$store.todos.openTasks.map(task => task.dueDate).filter(Boolean));
+            },
+
             shiftMonth(offset) {
-                const date = new Date(this.currentYear, this.currentMonth + offset, 1);
-                this.currentMonth = date.getMonth();
-                this.currentYear = date.getFullYear();
+                const date = new Date(this.viewYear, this.viewMonth + offset, 1);
+                this.viewMonth = date.getMonth();
+                this.viewYear = date.getFullYear();
             },
 
-            get selectedDateFormatted() {
-                return new Date(this.selectedDate + 'T00:00:00')
-                    .toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+            selectDate(key) {
+                this.selectedDate = key;
+                const date = dates.fromDateKey(key);
+                this.viewMonth = date.getMonth();
+                this.viewYear = date.getFullYear();
             },
 
-            formatHour(hour) {
-                return `${hour % 12 || 12} ${hour < 12 ? 'AM' : 'PM'}`;
+            // --- Day ---
+
+            get selectedDayLabel() {
+                const days = dates.daysBetween(this.todayKey, this.selectedDate);
+                if (days === 0) return 'Today';
+                if (days === 1) return 'Tomorrow';
+                if (days === -1) return 'Yesterday';
+                return days > 0 ? `In ${days} days` : `${-days} days ago`;
             },
 
-            formatTime(totalMinutes) {
-                const hour = Math.floor(totalMinutes / 60);
-                const minute = String(totalMinutes % 60).padStart(2, '0');
-                return `${hour % 12 || 12}:${minute} ${hour < 12 ? 'AM' : 'PM'}`;
+            get itemsForDay() {
+                return this.$store.todos.scheduledItemsOn(this.selectedDate);
             },
 
-            getTaskTitle(taskId) {
-                return this.$store.todos.find(taskId)?.todo || 'Unknown Task';
+            get daySummary() {
+                const items = this.itemsForDay;
+                const dueCount = this.$store.todos.openTasks.filter(task => task.dueDate === this.selectedDate).length;
+                const parts = [];
+                if (items.length) {
+                    const minutes = items.reduce((sum, item) => sum + item.endTimeMinutes - item.startTimeMinutes, 0);
+                    parts.push(`${items.length} ${items.length === 1 ? 'block' : 'blocks'}`, `${dates.formatDuration(minutes)} planned`);
+                } else {
+                    parts.push('Nothing planned yet');
+                }
+                if (dueCount) parts.push(`${dueCount} due`);
+                return parts.join(' · ');
             },
 
-            get scheduledItemsForSelectedDate() {
-                return this.$store.todos.scheduledItems.filter(item => item.date === this.selectedDate);
+            // Open tasks without a block on this day, soonest due date first
+            get unscheduledTasks() {
+                const scheduled = new Set(this.itemsForDay.map(item => item.taskId));
+                return this.$store.todos.openTasks
+                    .filter(task => task.todo.trim() !== '' && !scheduled.has(task.id))
+                    .sort((a, b) => (a.dueDate || '9999-12-31').localeCompare(b.dueDate || '9999-12-31'));
             },
 
-            get availableTasksForScheduling() {
-                const scheduledTaskIds = new Set(this.scheduledItemsForSelectedDate.map(item => item.taskId));
-                return this.$store.todos.items.filter(item =>
-                    !item.isCluster && !item.completed && item.todo.trim() !== '' && !scheduledTaskIds.has(item.id)
-                );
+            // Blocks with their position. Overlapping blocks share the width side by side.
+            get blocks() {
+                const items = this.itemsForDay.map(item => {
+                    const dragged = this.drag && this.drag.itemId === item.id && this.drag.moved;
+                    return { item, start: dragged ? this.drag.start : item.startTimeMinutes, end: dragged ? this.drag.end : item.endTimeMinutes };
+                }).sort((a, b) => a.start - b.start || b.end - a.end);
+
+                // Group blocks that overlap in a chain, then give each a column in its group
+                let group = [];
+                let groupEnd = -1;
+                let columnEnds = [];
+                const finishGroup = () => group.forEach(entry => { entry.columns = columnEnds.length; });
+                items.forEach(entry => {
+                    if (entry.start >= groupEnd) {
+                        finishGroup();
+                        group = [];
+                        columnEnds = [];
+                    }
+                    let column = columnEnds.findIndex(end => end <= entry.start);
+                    if (column === -1) column = columnEnds.length;
+                    columnEnds[column] = entry.end;
+                    entry.column = column;
+                    group.push(entry);
+                    groupEnd = Math.max(groupEnd, entry.end);
+                });
+                finishGroup();
+
+                return items.map(({ item, start, end, column, columns }) => {
+                    const task = this.$store.todos.find(item.taskId);
+                    const color = this.$store.todos.clusterColor(task?.parentId ?? null);
+                    const clusterName = this.$store.todos.clusterName(task?.parentId ?? null);
+                    const top = this.toY(start);
+                    const height = Math.max(this.toY(end) - top - 2, 18);
+                    return {
+                        id: item.id,
+                        item,
+                        taskId: item.taskId,
+                        start,
+                        end,
+                        title: task?.todo || 'Deleted task',
+                        subtitle: [this.formatRange(start, end), clusterName].filter(Boolean).join(' · '),
+                        completed: Boolean(task?.completed),
+                        style: `top: ${top}px; height: ${height}px; left: calc(${(column / columns) * 100}% + 4px); width: calc(${100 / columns}% - 8px); ` +
+                            `background-color: color-mix(in srgb, ${color} 16%, var(--card-bg)); border-left: 3px solid ${color};`
+                    };
+                });
             },
 
-            // Overlapping blocks go in separate rows: each block takes the first row that is free at its start
-            get laneByItemId() {
-                const laneEnds = [];
-                const lanes = {};
-                [...this.scheduledItemsForSelectedDate]
-                    .sort((a, b) => a.startTimeMinutes - b.startTimeMinutes)
-                    .forEach(item => {
-                        let lane = laneEnds.findIndex(end => end <= item.startTimeMinutes);
-                        if (lane === -1) lane = laneEnds.length;
-                        laneEnds[lane] = item.endTimeMinutes;
-                        lanes[item.id] = Math.min(lane, LANE_TOPS.length - 1);
-                    });
-                return lanes;
+            // --- Timeline geometry ---
+
+            toY(minutes) {
+                return (minutes - DAY_START) / 60 * HOUR_HEIGHT;
             },
 
-            getTaskBlockStyle(item) {
-                const left = (item.startTimeMinutes - START_HOUR * 60) / TIMELINE_MINUTES * 100;
-                const width = (item.endTimeMinutes - item.startTimeMinutes) / TIMELINE_MINUTES * 100;
-                const lane = this.laneByItemId[item.id] ?? 0;
-                return `left: ${left}%; width: ${Math.max(width, 3)}%; top: ${LANE_TOPS[lane]}%; height: 15%; z-index: ${30 - lane};`;
+            // Minutes at a screen position, not snapped
+            minutesAt(clientY) {
+                const top = this.$refs.grid.getBoundingClientRect().top;
+                return DAY_START + (clientY - top) / HOUR_HEIGHT * 60;
             },
 
-            openTimeBlockModal(startMinutes, endMinutes, existingItem = null) {
-                this.startTime = toTimeValue(startMinutes);
-                this.endTime = toTimeValue(endMinutes);
-                this.editingItemId = existingItem?.id ?? null;
-                this.selectedTaskId = existingItem?.taskId ?? '';
-                this.showTimeBlockModal = true;
+            // The slot under a screen position
+            slotAt(clientY) {
+                const slot = Math.floor(this.minutesAt(clientY) / SLOT_MINUTES) * SLOT_MINUTES;
+                return clamp(slot, DAY_START, DAY_END - SLOT_MINUTES);
             },
 
-            closeTimeBlockModal() {
-                this.showTimeBlockModal = false;
-                this.editingItemId = null;
-                this.selectedTaskId = '';
+            rangeAt(clientY, length = DEFAULT_LENGTH) {
+                const start = this.slotAt(clientY);
+                return { start, end: Math.min(start + length, DAY_END) };
+            },
+
+            formatRange(start, end) {
+                return `${dates.formatTime(start)} – ${dates.formatTime(end)}`;
+            },
+
+            get preview() {
+                if (this.drag && this.drag.mode === 'create' && this.drag.moved) {
+                    return { start: this.drag.start, end: this.drag.end };
+                }
+                return this.dropPreview;
+            },
+
+            // Show the current time on today, else the first block, else 8 AM
+            scrollToFocus() {
+                const scroller = this.$refs.scroller;
+                if (!scroller) return;
+                const first = this.itemsForDay[0];
+                const focus = this.selectedDate === this.todayKey
+                    ? this.nowMinutes - 60
+                    : (first ? first.startTimeMinutes - 30 : 8 * 60);
+                scroller.scrollTop = Math.max(0, this.toY(focus));
+            },
+
+            // First free hour-long slot: after now on today, from 9 AM on other days
+            suggestedStart() {
+                const earliest = this.selectedDate === this.todayKey
+                    ? Math.ceil(this.nowMinutes / SLOT_MINUTES) * SLOT_MINUTES
+                    : 9 * 60;
+                const base = clamp(earliest, DAY_START, DAY_END - DEFAULT_LENGTH);
+                const items = this.itemsForDay;
+                for (let start = base; start + DEFAULT_LENGTH <= DAY_END; start += SLOT_MINUTES) {
+                    const end = start + DEFAULT_LENGTH;
+                    if (!items.some(item => item.startTimeMinutes < end && item.endTimeMinutes > start)) return start;
+                }
+                return base;
+            },
+
+            // --- Pointer dragging on the timeline ---
+
+            startCreate(event) {
+                if (event.button !== 0) return;
+                event.preventDefault();
+                const slot = this.slotAt(event.clientY);
+                this.drag = { mode: 'create', anchor: slot, start: slot, end: slot + SLOT_MINUTES, startY: event.clientY, moved: false };
+            },
+
+            startMove(event, block) {
+                if (event.button !== 0) return;
+                event.preventDefault();
+                this.drag = {
+                    mode: 'move',
+                    itemId: block.id,
+                    offset: this.minutesAt(event.clientY) - block.start,
+                    start: block.start,
+                    end: block.end,
+                    startY: event.clientY,
+                    moved: false
+                };
+            },
+
+            startResize(event, block) {
+                if (event.button !== 0) return;
+                event.preventDefault();
+                this.drag = { mode: 'resize', itemId: block.id, start: block.start, end: block.end, startY: event.clientY, moved: false };
+            },
+
+            onPointerMove(event) {
+                const drag = this.drag;
+                if (!drag) return;
+                if (!drag.moved && Math.abs(event.clientY - drag.startY) < DRAG_THRESHOLD_PX) return;
+                drag.moved = true;
+                this.autoScroll(event.clientY);
+
+                if (drag.mode === 'create') {
+                    const slot = this.slotAt(event.clientY);
+                    drag.start = Math.min(drag.anchor, slot);
+                    drag.end = Math.max(drag.anchor, slot) + SLOT_MINUTES;
+                } else if (drag.mode === 'move') {
+                    const length = drag.end - drag.start;
+                    drag.start = clamp(snap(this.minutesAt(event.clientY) - drag.offset), DAY_START, DAY_END - length);
+                    drag.end = drag.start + length;
+                } else {
+                    drag.end = clamp(snap(this.minutesAt(event.clientY)), drag.start + SLOT_MINUTES, DAY_END);
+                }
+            },
+
+            onPointerUp() {
+                const drag = this.drag;
+                if (!drag) return;
+                this.drag = null;
+
+                const item = drag.itemId ? this.itemsForDay.find(entry => entry.id === drag.itemId) : null;
+
+                if (drag.mode === 'create') {
+                    const end = drag.moved ? drag.end : Math.min(drag.anchor + DEFAULT_LENGTH, DAY_END);
+                    this.openModal(drag.start, end);
+                } else if (!drag.moved) {
+                    // A click on a block opens it
+                    if (item && drag.mode === 'move') this.openModal(item.startTimeMinutes, item.endTimeMinutes, item);
+                } else if (item) {
+                    this.$store.todos.saveScheduledItem({ ...item, startTimeMinutes: drag.start, endTimeMinutes: drag.end });
+                }
+            },
+
+            // Scroll the timeline while dragging near its top or bottom edge
+            autoScroll(clientY) {
+                const scroller = this.$refs.scroller;
+                const rect = scroller.getBoundingClientRect();
+                if (clientY < rect.top + 40) scroller.scrollTop -= 12;
+                else if (clientY > rect.bottom - 40) scroller.scrollTop += 12;
+            },
+
+            // A task from the list was dropped on the timeline
+            scheduleDroppedTask(taskId, clientY) {
+                const { start, end } = this.rangeAt(clientY);
+                this.dropPreview = null;
+                this.$store.todos.saveScheduledItem({
+                    id: crypto.randomUUID(),
+                    taskId,
+                    date: this.selectedDate,
+                    startTimeMinutes: start,
+                    endTimeMinutes: end
+                });
+            },
+
+            // --- Block editor ---
+
+            get selectedTask() {
+                return this.selectedTaskId && this.selectedTaskId !== NEW_TASK
+                    ? this.$store.todos.find(this.selectedTaskId) ?? null
+                    : null;
+            },
+
+            get pickerTasks() {
+                const query = this.query.trim().toLowerCase();
+                return this.unscheduledTasks.filter(task => task.todo.toLowerCase().includes(query));
+            },
+
+            get canCreateFromQuery() {
+                const query = this.query.trim().toLowerCase();
+                return query !== '' && !this.pickerTasks.some(task => task.todo.trim().toLowerCase() === query);
+            },
+
+            get startMinutes() {
+                return dates.fromTimeValue(this.startTime || '00:00');
+            },
+
+            get duration() {
+                return dates.fromTimeValue(this.endTime || '00:00') - this.startMinutes;
+            },
+
+            get conflicts() {
+                const start = this.startMinutes;
+                const end = start + this.duration;
+                return this.itemsForDay
+                    .filter(item => item.id !== this.editingItemId && item.startTimeMinutes < end && item.endTimeMinutes > start)
+                    .map(item => `${this.$store.todos.find(item.taskId)?.todo ?? 'a block'} (${this.formatRange(item.startTimeMinutes, item.endTimeMinutes)})`);
             },
 
             get canSave() {
-                return Boolean(this.selectedTaskId) && toMinutes(this.endTime) > toMinutes(this.startTime);
+                if (this.duration <= 0) return false;
+                if (this.editingItemId) return true;
+                return this.selectedTaskId === NEW_TASK ? this.query.trim() !== '' : Boolean(this.selectedTask);
             },
 
-            saveScheduledTask() {
+            openModal(start, end, item = null, taskId = '') {
+                this.editingItemId = item?.id ?? null;
+                this.selectedTaskId = item?.taskId ?? taskId ?? '';
+                this.query = '';
+                this.newTaskClusterId = '';
+                this.newTaskDueDate = '';
+                this.startTime = dates.toTimeValue(start);
+                this.endTime = dates.toTimeValue(end);
+                this.length = end - start;
+                this.showModal = true;
+                if (!item && !taskId) this.$nextTick(() => this.$refs.search.focus());
+            },
+
+            // From the "To schedule" list (+) or the header button (no task)
+            openModalFor(taskId, item = null) {
+                if (item) {
+                    this.openModal(item.startTimeMinutes, item.endTimeMinutes, item);
+                    return;
+                }
+                const start = this.suggestedStart();
+                this.openModal(start, Math.min(start + DEFAULT_LENGTH, DAY_END), null, taskId ?? '');
+            },
+
+            closeModal() {
+                this.showModal = false;
+            },
+
+            pickFirstMatch() {
+                if (this.pickerTasks.length) this.selectedTaskId = this.pickerTasks[0].id;
+                else if (this.canCreateFromQuery) this.selectedTaskId = NEW_TASK;
+            },
+
+            setDuration(minutes) {
+                this.length = minutes;
+                this.endTime = dates.toTimeValue(Math.min(this.startMinutes + minutes, DAY_END));
+            },
+
+            saveBlock() {
                 if (!this.canSave) return;
+
+                let taskId = this.selectedTaskId;
+                if (taskId === NEW_TASK) {
+                    taskId = this.$store.todos.addTodo(this.query.trim(), {
+                        parentId: this.newTaskClusterId || null,
+                        dueDate: this.newTaskDueDate || null
+                    });
+                }
 
                 this.$store.todos.saveScheduledItem({
                     id: this.editingItemId || crypto.randomUUID(),
-                    taskId: this.selectedTaskId,
+                    taskId,
                     date: this.selectedDate,
-                    startTimeMinutes: toMinutes(this.startTime),
-                    endTimeMinutes: toMinutes(this.endTime)
+                    startTimeMinutes: this.startMinutes,
+                    endTimeMinutes: this.startMinutes + this.duration
                 });
-                this.closeTimeBlockModal();
+                this.closeModal();
             },
 
-            deleteScheduledTask() {
+            deleteBlock() {
                 this.$store.todos.removeScheduledItem(this.editingItemId);
-                this.closeTimeBlockModal();
+                this.closeModal();
             }
-        };
+        }));
     });
-});
 </script>

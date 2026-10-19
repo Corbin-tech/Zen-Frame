@@ -3,13 +3,14 @@
 ---
 
 <div 
-    class="relative group/task flex items-center border border-gray-100 dark:border-slate-600 rounded-lg shadow-sm hover:shadow-md transition-all duration-300 ease-in-out task-item"
+    class="relative group/task flex flex-wrap sm:flex-nowrap items-center gap-x-2 pr-2 border border-gray-100 dark:border-slate-600 rounded-lg shadow-sm hover:shadow-md transition-all duration-300 ease-in-out task-item"
     style="background-color: var(--task-bg);"
     x-bind:class="{'bg-green-50 dark:bg-green-900/10 border-green-100 dark:border-green-900/30': task.completed, 'hover:border-teal-300 dark:hover:border-teal-700': !task.completed}"
     x-drag-task="task.id"
 >
-    <div class="flex-1 py-3 pl-3 pr-16">
-        <div class="flex items-center gap-3">
+    <!-- On small screens the due date and controls wrap to a second line -->
+    <div class="basis-full sm:basis-auto flex-1 min-w-0 py-3 pl-2 sm:pl-3">
+        <div class="flex items-center gap-2 sm:gap-3">
             <div 
                 data-drag-handle
                 class="p-1 cursor-grab text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 flex items-center"
@@ -32,7 +33,7 @@
                 x-on:keydown.enter="$event.target.blur()"
                 x-on:input="$store.todos.saveTodos()"
                 x-on:blur="$store.todos.updateTask(task.id, { todo: task.todo })"
-                class="flex-1 bg-transparent border-none focus:ring-0 focus:outline-none"
+                class="flex-1 min-w-0 bg-transparent border-none focus:ring-0 focus:outline-none"
                 x-bind:class="{
                     'line-through text-gray-400 dark:text-gray-500': task.completed,
                     'text-gray-700 dark:text-gray-300': !task.completed
@@ -40,9 +41,37 @@
             />
         </div>
     </div>
+
+    <!-- Due date: the chip opens the browser date picker -->
+    <div class="relative shrink-0 pl-14 sm:pl-0 pb-2 sm:pb-0" x-data>
+        <button
+            type="button"
+            x-on:click="$refs.due.showPicker ? $refs.due.showPicker() : $refs.due.focus()"
+            class="flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-md transition-opacity"
+            x-bind:class="task.dueDate
+                ? $dates.dueClass(task.dueDate, task.completed)
+                : 'text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 sm:opacity-0 sm:group-hover/task:opacity-100 focus:opacity-100'"
+            x-bind:title="task.dueDate ? 'Due ' + $dates.formatDate(task.dueDate, { weekday: 'long', month: 'long', day: 'numeric' }) : 'Set a due date'"
+            x-bind:aria-label="task.dueDate ? 'Due ' + $dates.dueLabel(task.dueDate) + '. Change due date' : 'Set a due date'"
+        >
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            <span x-show="task.dueDate" x-text="task.dueDate ? $dates.dueLabel(task.dueDate) : ''"></span>
+        </button>
+        <input
+            type="date"
+            x-ref="due"
+            tabindex="-1"
+            aria-hidden="true"
+            class="absolute inset-0 w-full h-full opacity-0 pointer-events-none"
+            x-bind:value="task.dueDate ?? ''"
+            x-on:change="$store.todos.setDueDate(task.id, $event.target.value)"
+        />
+    </div>
     
-    <!-- Task ordering and actions (to the right) -->
-    <div class="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
+    <!-- Task ordering and actions -->
+    <div class="shrink-0 ml-auto pb-2 sm:pb-0 flex items-center gap-2">
         <!-- Up/down controls -->
         <div class="flex flex-col space-y-1">
             <button 
@@ -71,7 +100,7 @@
         
         <!-- Position number -->
         <div 
-            class="text-xs font-medium px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded"
+            class="hidden sm:block text-xs font-medium px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded"
             x-text="$store.todos.getTaskPosition(task.id)"
         ></div>
         

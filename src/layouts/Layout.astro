@@ -34,6 +34,7 @@ const { title } = Astro.props;
 			import { initThemeStore } from '../stores/themeStore';
 			import { initStores } from '../stores/todoStore';
 			import { registerTaskDragDrop } from '../scripts/taskDragDrop.js';
+			import { dates } from '../lib/dates';
 			import JSConfetti from 'js-confetti';
 
 			window.jsConfetti = new JSConfetti();
@@ -42,6 +43,8 @@ const { title } = Astro.props;
 				window.Alpine.store('theme', initThemeStore());
 				initStores();
 				registerTaskDragDrop(window.Alpine);
+				// $dates in templates: date and time helpers from src/lib/dates.ts
+				window.Alpine.magic('dates', () => dates);
 			});
 		</script>
 		
@@ -50,17 +53,7 @@ const { title } = Astro.props;
 				display: none !important;
 			}
 
-			/* Base state: no transitions */
-			* {
-				transition: none !important;
-			}
-			
-			/* Theme loaded class to enable transitions after initial load */
-			.theme-loaded * {
-				transition: color 150ms ease-out !important;
-			}
-			
-			/* Active transition state */
+			/* While the theme switches, every color changes together at the same speed */
 			.theme-transition,
 			.theme-transition * {
 				transition: background-color 150ms ease-out, 
@@ -94,6 +87,17 @@ const { title } = Astro.props;
 				--border-color: rgb(229, 231, 235);
 				--teal-primary: #0d9488;
 				--teal-light: #5eead4;
+
+				/* Cluster colors (see CLUSTER_COLORS in todoStore.ts) */
+				--c-teal: #14b8a6;
+				--c-indigo: #6366f1;
+				--c-amber: #f59e0b;
+				--c-sky: #0ea5e9;
+				--c-rose: #f43f5e;
+				--c-violet: #8b5cf6;
+				--c-emerald: #10b981;
+				--c-orange: #f97316;
+				--c-none: #94a3b8;
 			}
 			
 			:root.dark {
@@ -104,6 +108,14 @@ const { title } = Astro.props;
 				--border-color: rgb(71, 85, 105);
 				--teal-primary: #14b8a6;
 				--teal-light: #2dd4bf;
+
+				/* Darker steps keep the cluster colors in a readable band on dark surfaces */
+				--c-teal: #0d9488;
+				--c-amber: #d97706;
+				--c-sky: #0284c7;
+				--c-emerald: #059669;
+				--c-orange: #ea580c;
+				--c-none: #64748b;
 			}
 
 			html, body {
@@ -128,19 +140,12 @@ const { title } = Astro.props;
 					monospace;
 			}
 		</style>
-
-		<script>
-			// Enable transitions after initial render
-			document.addEventListener('DOMContentLoaded', () => {
-				document.documentElement.classList.add('theme-loaded');
-			});
-		</script>
 	</head>
 	<body>
 		<div class="min-h-screen flex flex-col">
 			<!-- Content Wrapper -->
 			<div class="flex-1">
-				<main class="p-6">
+				<main class="px-3 py-4 sm:p-6">
 					<div class="flex justify-end mb-4">
 						<DarkModeToggle />
 					</div>

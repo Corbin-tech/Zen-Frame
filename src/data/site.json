@@ -3,21 +3,25 @@
     "siteName": "Zen Frame",
     "siteDescription": "A simple to do list application with a Zen Mode and pomodoro timer.",
     "pages": [
-      {
-        "title": "Task Manager",
-        "href": "#taskmanager"
-      },
-      {
-        "title": "Schedule",
-        "href": "#schedule"
-      },
-      {
-        "title": "Pomodoro",
-        "href": "#pomodoro"
-      },
-      {
-        "title": "Zen Mode",
-        "href": "#zenmode"
-      }
+        {
+            "title": "Dashboard",
+            "href": "#dashboard"
+        },
+        {
+            "title": "Task Manager",
+            "href": "#taskmanager"
+        },
+        {
+            "title": "Schedule",
+            "href": "#schedule"
+        },
+        {
+            "title": "Pomodoro",
+            "href": "#pomodoro"
+        },
+        {
+            "title": "Zen Mode",
+            "href": "#zenmode"
+        }
     ]
 }

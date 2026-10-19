@@ -119,6 +119,7 @@
             timeLeft: POMO_DURATIONS.pomodoro.work * 60,  // Seconds
             isRunning: false,
             timer: null,
+            sessions: [], // Finished focus sessions: { completedAt, minutes }
 
             // Alpine calls init() when the store is registered
             init() {
@@ -177,8 +178,24 @@
                 this.saveState();
             },
             
+            // Start or resume a focus session, leaving a break if one is set
+            startFocus() {
+                if (this.isBreak) {
+                    this.isBreak = false;
+                    this.resetTimer();
+                }
+                this.startTimer();
+            },
+
             completeTimer() {
                 this.playAlarm();
+                if (!this.isBreak) {
+                    this.sessions = [...this.sessions, {
+                        completedAt: new Date().toISOString(),
+                        minutes: this.totalTime / 60
+                    }].slice(-500);
+                    localStorage.setItem('pomoSessions', JSON.stringify(this.sessions));
+                }
                 // Switch between work and break
                 this.isBreak = !this.isBreak;
                 this.resetTimer();
@@ -218,6 +235,7 @@
                     const state = JSON.parse(localStorage.getItem('pomoState') || '{}');
                     this.preset = state.preset in POMO_DURATIONS ? state.preset : 'pomodoro';
                     this.isBreak = Boolean(state.isBreak);
+                    this.sessions = JSON.parse(localStorage.getItem('pomoSessions') || '[]');
                 } catch (e) {
                     console.error('Error loading timer state:', e);
                 }

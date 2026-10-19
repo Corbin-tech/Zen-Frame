@@ -1,0 +1,557 @@
+---
+const panel = 'rounded-2xl bg-white dark:bg-slate-800 shadow-sm ring-1 ring-black/5 dark:ring-white/5';
+const panelTitle = 'text-base font-semibold text-gray-900 dark:text-white';
+const linkButton = 'text-sm font-medium text-teal-700 dark:text-teal-400 hover:text-teal-800 dark:hover:text-teal-300 transition-colors';
+const checkbox = 'w-4 h-4 shrink-0 rounded border-gray-300 dark:border-slate-500 text-teal-600 focus:ring-teal-500 dark:bg-slate-700 cursor-pointer';
+---
+
+<div x-data="dashboard" class="space-y-6">
+    <!-- Header -->
+    <header class="flex flex-wrap items-end justify-between gap-4">
+        <div>
+            <p class="text-sm font-medium text-teal-700 dark:text-teal-400" x-text="$dates.formatDate(todayKey, { weekday: 'long', month: 'long', day: 'numeric' })"></p>
+            <h1 class="text-3xl font-bold tracking-tight text-gray-900 dark:text-white" x-text="greeting"></h1>
+            <p class="mt-1 text-gray-500 dark:text-gray-400" x-text="headline"></p>
+        </div>
+        <form
+            class="flex w-full sm:w-auto items-center gap-2"
+            x-data="{ text: '' }"
+            x-on:submit.prevent="if (text.trim()) { $store.todos.addTodo(text.trim()); text = '' }"
+        >
+            <label for="dashboard-quick-add" class="sr-only">New task</label>
+            <input
+                id="dashboard-quick-add"
+                type="text"
+                x-model="text"
+                placeholder="Add a task…"
+                class="flex-1 sm:w-64 rounded-lg border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-800 dark:text-white text-sm focus:border-teal-500 focus:ring-teal-500"
+            />
+            <button type="submit" class="px-4 py-2 text-sm font-medium rounded-lg bg-teal-600 text-white hover:bg-teal-700 shadow-sm transition-colors">Add</button>
+        </form>
+    </header>
+
+    <!-- Key numbers -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <template x-for="tile in tiles" :key="tile.label">
+            <button
+                type="button"
+                x-on:click="$dispatch('change-tab', { tab: tile.tab })"
+                class={`${panel} group p-4 text-left hover:shadow-md hover:-translate-y-0.5 transition-all`}
+                x-bind:aria-label="`${tile.label}: ${tile.value}. ${tile.detail}. Open ${tile.tabLabel}.`"
+            >
+                <div class="flex items-center justify-between">
+                    <p class="text-sm font-medium text-gray-500 dark:text-gray-400" x-text="tile.label"></p>
+                    <span class="p-1.5 rounded-lg bg-teal-50 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" x-bind:d="tile.icon" /></svg>
+                    </span>
+                </div>
+                <p class="mt-2 text-3xl font-semibold text-gray-900 dark:text-white" x-text="tile.value"></p>
+                <p class="mt-1 flex items-center gap-1 text-xs truncate" x-bind:class="tile.alert ? 'text-red-600 dark:text-red-400 font-medium' : 'text-gray-500 dark:text-gray-400'">
+                    <svg x-show="tile.alert" class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /></svg>
+                    <span class="truncate" x-text="tile.detail"></span>
+                </p>
+            </button>
+        </template>
+    </div>
+
+    <div class="grid gap-6 lg:grid-cols-3 items-start">
+        <!-- Main column -->
+        <div class="lg:col-span-2 min-w-0 space-y-6">
+            <!-- Today's plan -->
+            <section class={`${panel} p-5`}>
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h2 class={panelTitle}>Today's plan</h2>
+                        <p class="text-sm text-gray-500 dark:text-gray-400" x-text="planSummary"></p>
+                    </div>
+                    <button type="button" class={linkButton} x-on:click="$dispatch('change-tab', { tab: 'schedule' })">Open schedule →</button>
+                </div>
+
+                <ol class="space-y-2" x-show="todayBlocks.length">
+                    <template x-for="block in todayBlocks" :key="block.id">
+                        <li
+                            class="relative flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors"
+                            x-bind:class="block.status === 'now' ? 'bg-teal-50/70 dark:bg-teal-900/20 ring-1 ring-teal-500/30' : 'bg-gray-50 dark:bg-slate-700/40'"
+                        >
+                            <span class="self-stretch w-1 rounded-full shrink-0" x-bind:style="`background-color: ${block.color};`"></span>
+                            <div class="w-24 shrink-0 text-xs font-medium tabular-nums text-gray-500 dark:text-gray-400">
+                                <p x-text="$dates.formatTime(block.start)"></p>
+                                <p class="text-gray-400 dark:text-gray-500" x-text="$dates.formatDuration(block.end - block.start)"></p>
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <p
+                                    class="text-sm font-medium truncate"
+                                    x-bind:class="block.completed ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-white'"
+                                    x-text="block.title"
+                                ></p>
+                                <p class="text-xs text-gray-500 dark:text-gray-400 truncate" x-text="block.clusterName || 'No cluster'"></p>
+                                <!-- Time left in the current block -->
+                                <div x-show="block.status === 'now'" class="mt-1.5 h-1 rounded-full bg-teal-100 dark:bg-teal-900/60 overflow-hidden">
+                                    <div class="h-full rounded-full bg-teal-600 dark:bg-teal-400 transition-[width] duration-700" x-bind:style="`width: ${block.progress}%;`"></div>
+                                </div>
+                            </div>
+                            <span
+                                x-show="block.status === 'now'"
+                                class="shrink-0 flex items-center gap-1.5 text-xs font-semibold text-teal-700 dark:text-teal-300"
+                            >
+                                <span class="relative flex w-2 h-2">
+                                    <span class="absolute inline-flex w-full h-full rounded-full bg-teal-400 opacity-75 animate-ping"></span>
+                                    <span class="relative inline-flex w-2 h-2 rounded-full bg-teal-500"></span>
+                                </span>
+                                Now
+                            </span>
+                            <span x-show="block.status === 'past' && !block.completed" class="shrink-0 text-xs text-gray-400 dark:text-gray-500">Ended</span>
+                            <input
+                                type="checkbox"
+                                class={checkbox}
+                                x-bind:checked="block.completed"
+                                x-on:change="$store.todos.toggleTodo(block.taskId)"
+                                x-bind:aria-label="`Mark ${block.title} ${block.completed ? 'not done' : 'done'}`"
+                            />
+                        </li>
+                    </template>
+                </ol>
+
+                <div x-show="!todayBlocks.length" class="rounded-xl border-2 border-dashed border-gray-200 dark:border-slate-700 px-6 py-8 text-center">
+                    <p class="text-sm font-medium text-gray-700 dark:text-gray-200">Nothing planned for today</p>
+                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Give your tasks a time so the day has a shape.</p>
+                    <button
+                        type="button"
+                        x-on:click="$dispatch('change-tab', { tab: 'schedule' })"
+                        class="mt-4 px-4 py-2 text-sm font-medium rounded-lg bg-teal-600 text-white hover:bg-teal-700 shadow-sm transition-colors"
+                    >Plan your day</button>
+                </div>
+            </section>
+
+            <!-- Clusters -->
+            <section class={`${panel} p-5`}>
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h2 class={panelTitle}>Clusters</h2>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Progress across each group of tasks</p>
+                    </div>
+                    <button type="button" class={linkButton} x-on:click="$dispatch('change-tab', { tab: 'taskmanager' })">Manage →</button>
+                </div>
+
+                <ul class="grid gap-3 sm:grid-cols-2" x-show="clusterProgress.length">
+                    <template x-for="cluster in clusterProgress" :key="cluster.id">
+                        <li class="rounded-xl bg-gray-50 dark:bg-slate-700/40 p-4">
+                            <div class="flex items-center gap-2">
+                                <span class="w-2.5 h-2.5 rounded-full shrink-0" x-bind:style="`background-color: ${cluster.color};`"></span>
+                                <p class="flex-1 min-w-0 text-sm font-semibold text-gray-900 dark:text-white truncate" x-text="cluster.name"></p>
+                                <span class="text-sm font-medium tabular-nums text-gray-600 dark:text-gray-300" x-text="`${cluster.percent}%`"></span>
+                            </div>
+                            <!-- Meter: the track is a light step of the cluster color -->
+                            <div
+                                class="mt-3 h-1.5 rounded-full overflow-hidden"
+                                x-bind:style="`background-color: color-mix(in srgb, ${cluster.color} 18%, transparent);`"
+                                role="progressbar"
+                                aria-valuemin="0"
+                                aria-valuemax="100"
+                                x-bind:aria-valuenow="cluster.percent"
+                                x-bind:aria-label="`${cluster.name}: ${cluster.done} of ${cluster.total} done`"
+                            >
+                                <div class="h-full rounded-full transition-[width] duration-700" x-bind:style="`width: ${cluster.percent}%; background-color: ${cluster.color};`"></div>
+                            </div>
+                            <div class="mt-2 flex items-center justify-between gap-2 text-xs text-gray-500 dark:text-gray-400">
+                                <span x-text="`${cluster.open} open · ${cluster.done}/${cluster.total} done`"></span>
+                                <span
+                                    x-show="cluster.nextDue"
+                                    class="px-1.5 py-0.5 rounded font-medium"
+                                    x-bind:class="cluster.nextDue ? $dates.dueClass(cluster.nextDue) : ''"
+                                    x-text="!cluster.nextDue ? '' : $dates.dueTone(cluster.nextDue) === 'overdue' ? $dates.dueText(cluster.nextDue) : `Next ${$dates.dueText(cluster.nextDue)}`"
+                                ></span>
+                            </div>
+                        </li>
+                    </template>
+                </ul>
+                <p x-show="!clusterProgress.length" class="text-sm text-gray-500 dark:text-gray-400">
+                    Clusters group related tasks, for example one per class. Create one in the Task Manager.
+                </p>
+            </section>
+
+            <!-- Completed per day -->
+            <section class={`${panel} p-5`}>
+                <div class="flex items-baseline justify-between">
+                    <h2 class={panelTitle}>Tasks completed</h2>
+                    <span class="text-xs text-gray-500 dark:text-gray-400" x-text="`Last 7 days · ${weekTotal} total`"></span>
+                </div>
+
+                <div class="relative mt-6" x-on:mouseleave="hoveredDay = null">
+                    <!-- Tooltip -->
+                    <div
+                        x-show="hoveredDay"
+                        x-cloak
+                        class="absolute -top-2 z-10 -translate-x-1/2 -translate-y-full px-2.5 py-1.5 rounded-lg bg-gray-900 dark:bg-slate-950 text-white shadow-lg pointer-events-none whitespace-nowrap"
+                        x-bind:style="hoveredDay ? `left: ${(hoveredDay.index + 0.5) / weekActivity.length * 100}%;` : ''"
+                    >
+                        <p class="text-sm font-semibold" x-text="hoveredDay ? `${hoveredDay.count} ${hoveredDay.count === 1 ? 'task' : 'tasks'}` : ''"></p>
+                        <p class="text-xs text-gray-300" x-text="hoveredDay ? $dates.formatDate(hoveredDay.date, { weekday: 'short', month: 'short', day: 'numeric' }) : ''"></p>
+                    </div>
+
+                    <div class="flex items-end h-28 border-b border-gray-200 dark:border-slate-600">
+                        <template x-for="day in weekActivity" :key="day.date">
+                            <!-- The whole column is the hover and focus target -->
+                            <div
+                                class="flex-1 h-full flex flex-col items-center justify-end gap-1 cursor-default rounded-t focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
+                                tabindex="0"
+                                role="img"
+                                x-bind:aria-label="`${$dates.formatDate(day.date, { weekday: 'long', month: 'short', day: 'numeric' })}: ${day.count} ${day.count === 1 ? 'task' : 'tasks'} completed`"
+                                x-on:mouseenter="hoveredDay = day"
+                                x-on:focus="hoveredDay = day"
+                                x-on:blur="hoveredDay = null"
+                            >
+                                <!-- Selective label: today and the best day -->
+                                <span
+                                    class="text-xs font-medium text-gray-700 dark:text-gray-200"
+                                    x-show="day.count > 0 && (day.isToday || day.count === weekMax)"
+                                    x-text="day.count"
+                                ></span>
+                                <div
+                                    class="w-6 max-w-[70%] rounded-t transition-[height,opacity] duration-500"
+                                    x-bind:class="[
+                                        day.isToday ? 'bg-teal-600 dark:bg-teal-400' : 'bg-teal-600/60 dark:bg-teal-400/60',
+                                        hoveredDay && hoveredDay.date === day.date ? 'opacity-80' : ''
+                                    ]"
+                                    x-bind:style="`height: ${weekMax ? day.count / weekMax * 80 : 0}%;`"
+                                ></div>
+                            </div>
+                        </template>
+                    </div>
+                    <div class="flex mt-1.5" aria-hidden="true">
+                        <template x-for="day in weekActivity" :key="day.date">
+                            <span
+                                class="flex-1 text-center text-[11px]"
+                                x-bind:class="day.isToday ? 'font-semibold text-gray-900 dark:text-white' : 'text-gray-400 dark:text-gray-500'"
+                                x-text="day.label"
+                            ></span>
+                        </template>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- Side column -->
+        <div class="min-w-0 space-y-6">
+            <!-- Up next -->
+            <section class="rounded-2xl p-5 shadow-sm bg-gradient-to-br from-teal-600 to-teal-700 dark:from-teal-700 dark:to-slate-800 text-white">
+                <p class="text-xs font-semibold uppercase tracking-wider text-teal-100">Up next</p>
+                <template x-if="nextTask">
+                    <div>
+                        <p class="mt-2 text-xl font-semibold leading-snug" x-text="nextTask.todo"></p>
+                        <div class="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                            <span x-show="nextTask.parentId" class="px-2 py-0.5 rounded-full bg-white/15" x-text="$store.todos.clusterName(nextTask.parentId)"></span>
+                            <span x-show="nextTask.dueDate" class="px-2 py-0.5 rounded-full bg-white/15" x-text="nextTask.dueDate ? $dates.dueText(nextTask.dueDate).replace(/^d/, 'D') : ''"></span>
+                        </div>
+                        <div class="mt-4 flex gap-2">
+                            <button
+                                type="button"
+                                x-on:click="$store.pomoState.startFocus(); $dispatch('change-tab', { tab: 'pomodoro' })"
+                                class="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-semibold rounded-lg bg-white text-teal-800 hover:bg-teal-50 transition-colors"
+                            >
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                Start focus
+                            </button>
+                            <button
+                                type="button"
+                                x-on:click="$store.todos.toggleTodo(nextTask.id)"
+                                class="px-3 py-2 text-sm font-semibold rounded-lg bg-white/15 hover:bg-white/25 transition-colors"
+                            >Done</button>
+                        </div>
+                    </div>
+                </template>
+                <template x-if="!nextTask">
+                    <div>
+                        <p class="mt-2 text-xl font-semibold">All caught up</p>
+                        <p class="mt-1 text-sm text-teal-100">No open tasks. Add one above when something comes up.</p>
+                    </div>
+                </template>
+            </section>
+
+            <!-- Deadlines -->
+            <section class={`${panel} p-5`}>
+                <div class="flex items-baseline justify-between mb-3">
+                    <h2 class={panelTitle}>Deadlines</h2>
+                    <span class="text-xs text-gray-500 dark:text-gray-400">Next 14 days</span>
+                </div>
+                <ul class="space-y-1" x-show="deadlines.length">
+                    <template x-for="task in deadlines" :key="task.id">
+                        <li class="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-gray-50 dark:hover:bg-slate-700/40 transition-colors">
+                            <input
+                                type="checkbox"
+                                class={checkbox}
+                                x-on:change="$store.todos.toggleTodo(task.id)"
+                                x-bind:aria-label="`Mark ${task.todo} done`"
+                            />
+                            <div class="min-w-0 flex-1">
+                                <p class="text-sm text-gray-900 dark:text-white truncate" x-text="task.todo"></p>
+                                <p x-show="task.parentId" class="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+                                    <span class="w-1.5 h-1.5 rounded-full" x-bind:style="`background-color: ${$store.todos.clusterColor(task.parentId)};`"></span>
+                                    <span class="truncate" x-text="$store.todos.clusterName(task.parentId)"></span>
+                                </p>
+                            </div>
+                            <span class="shrink-0 text-xs font-medium px-2 py-0.5 rounded-md" x-bind:class="$dates.dueClass(task.dueDate)" x-text="$dates.dueLabel(task.dueDate)"></span>
+                        </li>
+                    </template>
+                </ul>
+                <p x-show="!deadlines.length" class="text-sm text-gray-500 dark:text-gray-400">
+                    No due dates coming up. Set one with the calendar icon on any task.
+                </p>
+            </section>
+
+            <!-- Recently completed -->
+            <section class={`${panel} p-5`} x-show="recentlyCompleted.length">
+                <h2 class={`${panelTitle} mb-3`}>Recently completed</h2>
+                <ul class="space-y-2">
+                    <template x-for="task in recentlyCompleted" :key="task.id">
+                        <li class="flex items-center gap-2.5 text-sm">
+                            <svg class="w-4 h-4 shrink-0 text-teal-600 dark:text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" /></svg>
+                            <span class="flex-1 min-w-0 truncate text-gray-600 dark:text-gray-300" x-text="task.todo"></span>
+                            <span class="shrink-0 text-xs text-gray-400 dark:text-gray-500" x-text="timeAgo(task.completedAt)"></span>
+                        </li>
+                    </template>
+                </ul>
+            </section>
+        </div>
+    </div>
+</div>
+
+<script>
+    import { dates } from '../lib/dates';
+
+    const ICONS = {
+        tasks: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2',
+        done: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
+        calendar: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z',
+        focus: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z'
+    };
+
+    // Local day of an ISO timestamp
+    const dayOf = (iso) => dates.toDateKey(new Date(iso));
+
+    document.addEventListener('alpine:init', () => {
+        window.Alpine.data('dashboard', () => ({
+            now: new Date(),
+            hoveredDay: null,
+
+            init() {
+                setInterval(() => { this.now = new Date(); }, 60 * 1000);
+            },
+
+            get todayKey() {
+                return dates.toDateKey(this.now);
+            },
+
+            get greeting() {
+                const hour = this.now.getHours();
+                if (hour < 12) return 'Good morning';
+                if (hour < 18) return 'Good afternoon';
+                return 'Good evening';
+            },
+
+            get headline() {
+                const parts = [];
+                if (this.overdue.length) parts.push(`${this.overdue.length} overdue`);
+                const dueSoon = this.$store.todos.openTasks.filter(task => {
+                    if (!task.dueDate) return false;
+                    const days = dates.daysBetween(this.todayKey, task.dueDate);
+                    return days >= 0 && days < 7;
+                }).length;
+                if (dueSoon) parts.push(`${dueSoon} due this week`);
+                if (this.plannedMinutes) parts.push(`${dates.formatDuration(this.plannedMinutes)} planned today`);
+                if (!parts.length) {
+                    return this.$store.todos.openTasks.length ? 'No deadlines pressing. A good day to get ahead.' : 'A clear slate. Add a task to get started.';
+                }
+                return `You have ${parts.join(', ')}.`;
+            },
+
+            // --- Tasks ---
+
+            get overdue() {
+                return this.$store.todos.openTasks.filter(task => task.dueDate && task.dueDate < this.todayKey);
+            },
+
+            get completedTasks() {
+                return this.$store.todos.items.filter(item => !item.isCluster && item.completed && item.completedAt);
+            },
+
+            get completedToday() {
+                return this.completedTasks.filter(task => dayOf(task.completedAt) === this.todayKey).length;
+            },
+
+            // Overdue first, then the next 14 days
+            get deadlines() {
+                const horizon = dates.addDays(this.todayKey, 14);
+                return this.$store.todos.openTasks
+                    .filter(task => task.dueDate && task.dueDate <= horizon)
+                    .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
+                    .slice(0, 8);
+            },
+
+            get nextTask() {
+                return this.$store.todos.nextTask;
+            },
+
+            get recentlyCompleted() {
+                return [...this.completedTasks]
+                    .sort((a, b) => b.completedAt.localeCompare(a.completedAt))
+                    .slice(0, 5);
+            },
+
+            timeAgo(iso) {
+                const minutes = Math.round((this.now.getTime() - new Date(iso).getTime()) / 60000);
+                if (minutes < 1) return 'Just now';
+                if (minutes < 60) return `${minutes}m ago`;
+                if (dayOf(iso) === this.todayKey) return `${Math.floor(minutes / 60)}h ago`;
+                const days = dates.daysBetween(dayOf(iso), this.todayKey);
+                return days === 1 ? 'Yesterday' : `${days} days ago`;
+            },
+
+            // --- Schedule ---
+
+            get todayBlocks() {
+                const nowMinutes = dates.minutesNow(this.now);
+                return this.$store.todos.scheduledItemsOn(this.todayKey).map(item => {
+                    const task = this.$store.todos.find(item.taskId);
+                    const start = item.startTimeMinutes;
+                    const end = item.endTimeMinutes;
+                    const status = nowMinutes >= end ? 'past' : nowMinutes >= start ? 'now' : 'later';
+                    return {
+                        id: item.id,
+                        taskId: item.taskId,
+                        start,
+                        end,
+                        status,
+                        progress: status === 'now' ? Math.round((nowMinutes - start) / (end - start) * 100) : 0,
+                        title: task?.todo || 'Deleted task',
+                        completed: Boolean(task?.completed),
+                        clusterName: this.$store.todos.clusterName(task?.parentId ?? null),
+                        color: this.$store.todos.clusterColor(task?.parentId ?? null)
+                    };
+                });
+            },
+
+            get plannedMinutes() {
+                return this.todayBlocks.reduce((sum, block) => sum + block.end - block.start, 0);
+            },
+
+            get planSummary() {
+                const blocks = this.todayBlocks;
+                if (!blocks.length) return 'No blocks yet';
+                const done = blocks.filter(block => block.completed).length;
+                return `${blocks.length} ${blocks.length === 1 ? 'block' : 'blocks'} · ${dates.formatDuration(this.plannedMinutes)} · ${done} done`;
+            },
+
+            // --- Focus sessions (Pomodoro) ---
+
+            get focusMinutesToday() {
+                return this.$store.pomoState.sessions
+                    .filter(session => dayOf(session.completedAt) === this.todayKey)
+                    .reduce((sum, session) => sum + session.minutes, 0);
+            },
+
+            get focusSessionsThisWeek() {
+                const weekStart = dates.addDays(this.todayKey, -6);
+                return this.$store.pomoState.sessions.filter(session => dayOf(session.completedAt) >= weekStart).length;
+            },
+
+            // --- Summary tiles ---
+
+            get tiles() {
+                const open = this.$store.todos.openTasks.length;
+                const dueToday = this.$store.todos.openTasks.filter(task => task.dueDate === this.todayKey).length;
+                const nextBlock = this.todayBlocks.find(block => block.status !== 'past' && !block.completed);
+                const sessions = this.focusSessionsThisWeek;
+
+                return [
+                    {
+                        label: 'Open tasks',
+                        value: open,
+                        detail: this.overdue.length ? `${this.overdue.length} overdue` : dueToday ? `${dueToday} due today` : 'Nothing overdue',
+                        alert: this.overdue.length > 0,
+                        icon: ICONS.tasks,
+                        tab: 'taskmanager',
+                        tabLabel: 'Task Manager'
+                    },
+                    {
+                        label: 'Done today',
+                        value: this.completedToday,
+                        detail: `${this.weekTotal} in the last 7 days`,
+                        icon: ICONS.done,
+                        tab: 'taskmanager',
+                        tabLabel: 'Task Manager'
+                    },
+                    {
+                        label: 'Planned today',
+                        value: dates.formatDuration(this.plannedMinutes),
+                        detail: nextBlock
+                            ? `${nextBlock.status === 'now' ? 'Now' : 'Next'}: ${nextBlock.title}${nextBlock.status === 'now' ? '' : ` at ${dates.formatTime(nextBlock.start)}`}`
+                            : this.todayBlocks.length ? 'All blocks finished' : 'No blocks yet',
+                        icon: ICONS.calendar,
+                        tab: 'schedule',
+                        tabLabel: 'Schedule'
+                    },
+                    {
+                        label: 'Focus today',
+                        value: dates.formatDuration(this.focusMinutesToday),
+                        detail: `${sessions} ${sessions === 1 ? 'session' : 'sessions'} in the last 7 days`,
+                        icon: ICONS.focus,
+                        tab: 'pomodoro',
+                        tabLabel: 'Pomodoro'
+                    }
+                ];
+            },
+
+            // --- Clusters ---
+
+            get clusterProgress() {
+                return this.$store.todos.clusters.map(cluster => {
+                    const tasks = this.$store.todos.items.filter(item => item.parentId === cluster.id);
+                    const done = tasks.filter(task => task.completed).length;
+                    const nextDue = tasks
+                        .filter(task => !task.completed && task.dueDate)
+                        .map(task => task.dueDate)
+                        .sort()[0] ?? null;
+                    return {
+                        id: cluster.id,
+                        name: cluster.todo,
+                        color: this.$store.todos.clusterColor(cluster.id),
+                        total: tasks.length,
+                        done,
+                        open: tasks.length - done,
+                        percent: tasks.length ? Math.round(done / tasks.length * 100) : 0,
+                        nextDue
+                    };
+                });
+            },
+
+            // --- Last 7 days ---
+
+            get weekActivity() {
+                const counts = {};
+                this.completedTasks.forEach(task => {
+                    const day = dayOf(task.completedAt);
+                    counts[day] = (counts[day] ?? 0) + 1;
+                });
+                return Array.from({ length: 7 }, (_, i) => {
+                    const date = dates.addDays(this.todayKey, i - 6);
+                    return {
+                        index: i,
+                        date,
+                        label: dates.formatDate(date, { weekday: 'short' }),
+                        count: counts[date] ?? 0,
+                        isToday: date === this.todayKey
+                    };
+                });
+            },
+
+            get weekTotal() {
+                return this.weekActivity.reduce((sum, day) => sum + day.count, 0);
+            },
+
+            get weekMax() {
+                return Math.max(...this.weekActivity.map(day => day.count));
+            }
+        }));
+    });
+</script>
