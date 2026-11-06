@@ -47,6 +47,46 @@ export const TIMER_STYLES = [
   { id: "flip", label: "Flip", hint: "Split-flap cards" }
 ] as const;
 
+// Dashboard widgets. "stats" is the row of key numbers across the top; the rest go in the
+// main or side column, in any order. Widgets in neither list are hidden.
+export const DASHBOARD_WIDGETS = [
+  { id: "stats", label: "Key numbers", hint: "Open tasks, done today, planned, focus", zone: "top" },
+  { id: "plan", label: "Today's plan", hint: "Today's blocks from the schedule", zone: "column" },
+  { id: "clusters", label: "Clusters", hint: "Progress for each cluster", zone: "column" },
+  { id: "completed", label: "Tasks completed", hint: "The last 7 days", zone: "column" },
+  { id: "upnext", label: "Up next", hint: "The next task, with a focus button", zone: "column" },
+  { id: "deadlines", label: "Deadlines", hint: "Overdue and the next 14 days", zone: "column" },
+  { id: "recent", label: "Recently completed", hint: "Your last few finished tasks", zone: "column" },
+  { id: "focus", label: "Focus timer", hint: "Start a Pomodoro from here", zone: "column" },
+  { id: "goals", label: "Goals", hint: "Progress on your open goals", zone: "column" },
+  { id: "notes", label: "Notes", hint: "Pinned and recent notes", zone: "column" },
+  { id: "quote", label: "Quote of the day", hint: "A new one each morning", zone: "column" },
+  { id: "streak", label: "Streak", hint: "Days in a row and the last two weeks", zone: "column" }
+] as const;
+
+export interface DashboardLayout {
+  top: string[];
+  main: string[];
+  side: string[];
+}
+
+const DEFAULT_DASHBOARD: DashboardLayout = {
+  top: ["stats"],
+  main: ["plan", "clusters", "completed"],
+  side: ["upnext", "deadlines", "recent"]
+};
+
+// Zen mode extras, each a switch in Zen mode's Customize menu and in Settings
+export const ZEN_OPTIONS = [
+  { key: "zenShowCluster", label: "Cluster and position", hint: "Which cluster the task is in, and where" },
+  { key: "zenShowDue", label: "Due date", hint: "When the task is due" },
+  { key: "zenShowNext", label: "Up next", hint: "The two tasks after this one" },
+  { key: "zenShowTimer", label: "Focus timer", hint: "Start a Pomodoro without leaving Zen mode" },
+  { key: "zenShowProgress", label: "Progress bar", hint: "Tasks completed out of all tasks" },
+  { key: "showQuotes", label: "Calming quotes", hint: "A quote that changes each time you finish a task" },
+  { key: "zenAmbient", label: "Ambient background", hint: "Slow, soft colors behind the task" }
+] as const;
+
 // Minutes before a scheduled block starts that its reminder fires
 export const BLOCK_LEADS = [0, 5, 10, 15, 30];
 
@@ -64,6 +104,13 @@ interface Settings {
   navLayout: NavLayout;
   sidebarCollapsed: boolean; // Sidebar shows icons only
   showQuotes: boolean;
+  zenShowCluster: boolean;
+  zenShowDue: boolean;
+  zenShowNext: boolean;
+  zenShowTimer: boolean;
+  zenShowProgress: boolean;
+  zenAmbient: boolean;
+  dashboardLayout: DashboardLayout;
   timerStyle: TimerStyle;
   alarmSound: AlarmSound;
   alarmVolume: number; // 0 to 1
@@ -83,6 +130,13 @@ const DEFAULTS: Settings = {
   navLayout: "top",
   sidebarCollapsed: false,
   showQuotes: true,
+  zenShowCluster: true,
+  zenShowDue: true,
+  zenShowNext: false,
+  zenShowTimer: false,
+  zenShowProgress: true,
+  zenAmbient: false,
+  dashboardLayout: DEFAULT_DASHBOARD,
   timerStyle: "classic",
   alarmSound: "classic",
   alarmVolume: 0.7,
@@ -93,6 +147,20 @@ const DEFAULTS: Settings = {
   notifyDue: true,
   notifyDueTime: "09:00"
 };
+
+// Known widgets in the right zone, each placed once
+function cleanLayout(saved: unknown): DashboardLayout {
+  if (!saved || typeof saved !== "object") return structuredClone(DEFAULT_DASHBOARD);
+  const placed = new Set<string>();
+  const keep = (list: unknown, zone: "top" | "column") => (Array.isArray(list) ? list : []).filter(id => {
+    const widget = DASHBOARD_WIDGETS.find(item => item.id === id);
+    if (!widget || widget.zone !== zone || placed.has(id)) return false;
+    placed.add(id);
+    return true;
+  });
+  const layout = saved as Partial<DashboardLayout>;
+  return { top: keep(layout.top, "top"), main: keep(layout.main, "column"), side: keep(layout.side, "column") };
+}
 
 // Keeps only known values, so an old or edited save can't break the page
 function loadSettings(): Settings {
@@ -109,6 +177,13 @@ function loadSettings(): Settings {
     navLayout: pick(saved.navLayout, NAV_LAYOUTS, DEFAULTS.navLayout),
     sidebarCollapsed: flag(saved.sidebarCollapsed, DEFAULTS.sidebarCollapsed),
     showQuotes: flag(saved.showQuotes, DEFAULTS.showQuotes),
+    zenShowCluster: flag(saved.zenShowCluster, DEFAULTS.zenShowCluster),
+    zenShowDue: flag(saved.zenShowDue, DEFAULTS.zenShowDue),
+    zenShowNext: flag(saved.zenShowNext, DEFAULTS.zenShowNext),
+    zenShowTimer: flag(saved.zenShowTimer, DEFAULTS.zenShowTimer),
+    zenShowProgress: flag(saved.zenShowProgress, DEFAULTS.zenShowProgress),
+    zenAmbient: flag(saved.zenAmbient, DEFAULTS.zenAmbient),
+    dashboardLayout: cleanLayout(saved.dashboardLayout),
     timerStyle: pick(saved.timerStyle, TIMER_STYLES, DEFAULTS.timerStyle),
     alarmSound: pick(saved.alarmSound, ALARM_SOUNDS, DEFAULTS.alarmSound),
     alarmVolume: typeof saved.alarmVolume === "number" ? Math.min(1, Math.max(0, saved.alarmVolume)) : DEFAULTS.alarmVolume,
@@ -129,6 +204,8 @@ export function initSettingsStore() {
     textSizes: TEXT_SIZES,
     navLayouts: NAV_LAYOUTS,
     timerStyles: TIMER_STYLES,
+    dashboardWidgets: DASHBOARD_WIDGETS,
+    zenOptions: ZEN_OPTIONS,
     alarmSounds: ALARM_SOUNDS,
     blockLeads: BLOCK_LEADS,
     // The browser's answer to the notification prompt: "default", "granted", "denied", or "unsupported"
@@ -152,7 +229,15 @@ export function initSettingsStore() {
     },
 
     reset(): void {
-      this.update({ ...DEFAULTS, name: this.name, notifyEnabled: this.notifyEnabled });
+      this.update({ ...DEFAULTS, dashboardLayout: structuredClone(DEFAULT_DASHBOARD), name: this.name, notifyEnabled: this.notifyEnabled });
+    },
+
+    setDashboardLayout(layout: DashboardLayout): void {
+      this.update({ dashboardLayout: cleanLayout(layout) });
+    },
+
+    resetDashboardLayout(): void {
+      this.setDashboardLayout(structuredClone(DEFAULT_DASHBOARD));
     },
 
     save(): void {

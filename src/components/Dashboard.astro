@@ -1,4 +1,9 @@
 ---
+import DashboardWidget from './DashboardWidget.astro';
+
+// Widgets that can sit in the main or side column (see DASHBOARD_WIDGETS in settingsStore.ts)
+const COLUMN_WIDGETS = ['plan', 'clusters', 'completed', 'upnext', 'deadlines', 'recent', 'focus', 'goals', 'notes', 'quote', 'streak'];
+const toolButton = 'p-1 rounded-full text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-slate-700 disabled:opacity-30 disabled:pointer-events-none transition-colors';
 const panel = 'rounded-2xl bg-white/80 dark:bg-slate-800/70 backdrop-blur-sm shadow-sm ring-1 ring-black/5 dark:ring-white/10';
 const panelTitle = 'text-base font-semibold text-gray-900 dark:text-white';
 const linkButton = 'text-sm font-medium text-teal-700 dark:text-teal-400 hover:text-teal-800 dark:hover:text-teal-300 transition-colors';
@@ -13,8 +18,19 @@ const checkbox = 'w-4 h-4 shrink-0 rounded border-gray-300 dark:border-slate-500
             <h1 class="text-3xl sm:text-4xl font-bold tracking-tight bg-gradient-to-r from-gray-900 via-gray-800 to-teal-700 dark:from-white dark:via-gray-100 dark:to-teal-300 bg-clip-text text-transparent pb-1" x-text="greeting"></h1>
             <p class="mt-1 text-gray-500 dark:text-gray-400" x-text="headline"></p>
         </div>
+        <div class="flex w-full sm:w-auto items-center gap-2">
+        <button
+            type="button"
+            x-on:click="editing = !editing"
+            class="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg ring-1 transition-colors"
+            x-bind:class="editing ? 'bg-teal-600 text-white ring-teal-600 hover:bg-teal-700' : 'bg-white text-gray-700 ring-black/10 hover:bg-gray-50 dark:bg-slate-800 dark:text-gray-200 dark:ring-white/10 dark:hover:bg-slate-700'"
+            x-bind:aria-pressed="editing"
+        >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h10M4 18h7m9-3l-3 3-3-3m3 3v-7" /></svg>
+            <span x-text="editing ? 'Done' : 'Customize'"></span>
+        </button>
         <form
-            class="flex w-full sm:w-auto items-center gap-2"
+            class="flex flex-1 sm:flex-none items-center gap-2"
             x-data="{ text: '' }"
             x-on:submit.prevent="if (text.trim()) { $store.todos.addTodo(text.trim()); text = '' }"
         >
@@ -28,304 +44,136 @@ const checkbox = 'w-4 h-4 shrink-0 rounded border-gray-300 dark:border-slate-500
             />
             <button type="submit" class="px-4 py-2 text-sm font-medium rounded-lg bg-teal-600 text-white hover:bg-teal-700 shadow-sm transition-colors">Add</button>
         </form>
+        </div>
     </header>
 
+    <!-- Customize mode -->
+    <div x-show="editing" x-cloak x-transition.opacity class="flex flex-wrap items-center justify-between gap-3 rounded-2xl px-4 py-3 bg-teal-50 text-teal-900 ring-1 ring-teal-600/20 dark:bg-teal-900/30 dark:text-teal-100 dark:ring-teal-400/20">
+        <p class="text-sm">Move, hide, or add widgets. Changes save as you go.</p>
+        <div class="flex gap-2">
+            <button type="button" x-on:click="if (confirm('Put the dashboard back to its original widgets?')) $store.settings.resetDashboardLayout()" class="px-3 py-1.5 text-sm font-medium rounded-lg text-teal-800 hover:bg-teal-100 dark:text-teal-200 dark:hover:bg-teal-900/50">Reset layout</button>
+            <button type="button" x-on:click="editing = false" class="px-3 py-1.5 text-sm font-semibold rounded-lg bg-teal-600 text-white hover:bg-teal-700">Done</button>
+        </div>
+    </div>
+
     <!-- Key numbers -->
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <template x-for="tile in tiles" :key="tile.label">
-            <button
-                type="button"
-                x-on:click="$dispatch('change-tab', { tab: tile.tab })"
-                class={`${panel} group p-4 text-left hover:shadow-md hover:-translate-y-0.5 transition-all`}
-                x-bind:aria-label="`${tile.label}: ${tile.value}. ${tile.detail}. Open ${tile.tabLabel}.`"
-            >
-                <div class="flex items-center justify-between">
-                    <p class="text-sm font-medium text-gray-500 dark:text-gray-400" x-text="tile.label"></p>
-                    <span class="p-1.5 rounded-lg bg-gradient-to-br from-teal-50 to-teal-100 text-teal-700 ring-1 ring-teal-600/10 dark:from-teal-900/50 dark:to-teal-800/30 dark:text-teal-300 dark:ring-teal-300/10 group-hover:scale-110 transition-transform">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" x-bind:d="tile.icon" /></svg>
-                    </span>
-                </div>
-                <p class="mt-2 text-3xl font-semibold tracking-tight tabular-nums text-gray-900 dark:text-white" x-text="tile.value"></p>
-                <p class="mt-1 flex items-center gap-1 text-xs truncate" x-bind:class="tile.alert ? 'text-red-600 dark:text-red-400 font-medium' : 'text-gray-500 dark:text-gray-400'">
-                    <svg x-show="tile.alert" class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /></svg>
-                    <span class="truncate" x-text="tile.detail"></span>
-                </p>
+    <div class="relative" x-show="layout.top.includes('stats')">
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <template x-for="tile in tiles" :key="tile.label">
+                <button
+                    type="button"
+                    x-on:click="$dispatch('change-tab', { tab: tile.tab })"
+                    class={`${panel} group p-4 text-left hover:shadow-md hover:-translate-y-0.5 transition-all`}
+                    x-bind:aria-label="`${tile.label}: ${tile.value}. ${tile.detail}. Open ${tile.tabLabel}.`"
+                >
+                    <div class="flex items-center justify-between">
+                        <p class="text-sm font-medium text-gray-500 dark:text-gray-400" x-text="tile.label"></p>
+                        <span class="p-1.5 rounded-lg bg-gradient-to-br from-teal-50 to-teal-100 text-teal-700 ring-1 ring-teal-600/10 dark:from-teal-900/50 dark:to-teal-800/30 dark:text-teal-300 dark:ring-teal-300/10 group-hover:scale-110 transition-transform">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" x-bind:d="tile.icon" /></svg>
+                        </span>
+                    </div>
+                    <p class="mt-2 text-3xl font-semibold tracking-tight tabular-nums text-gray-900 dark:text-white" x-text="tile.value"></p>
+                    <p class="mt-1 flex items-center gap-1 text-xs truncate" x-bind:class="tile.alert ? 'text-red-600 dark:text-red-400 font-medium' : 'text-gray-500 dark:text-gray-400'">
+                        <svg x-show="tile.alert" class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /></svg>
+                        <span class="truncate" x-text="tile.detail"></span>
+                    </p>
+                </button>
+            </template>
+        </div>
+        <div x-show="editing" class="absolute inset-0 z-10 rounded-2xl bg-white/30 dark:bg-slate-900/30 outline-2 outline-dashed outline-offset-4 outline-teal-500/60"></div>
+        <div x-show="editing" class="absolute -top-3 right-3 z-20 flex items-center gap-0.5 pl-3 pr-1 py-0.5 rounded-full bg-white dark:bg-slate-800 shadow-md ring-1 ring-black/10 dark:ring-white/10">
+            <span class="mr-1 text-xs font-semibold text-gray-700 dark:text-gray-200">Key numbers</span>
+            <button type="button" class={`${toolButton} hover:!text-red-600`} x-on:click="hideWidget('stats')" aria-label="Hide Key numbers" title="Hide">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
-        </template>
+        </div>
     </div>
 
+    <!-- Columns: widgets in the order saved in Settings -->
     <div class="grid gap-6 lg:grid-cols-3 items-start">
-        <!-- Main column -->
         <div class="lg:col-span-2 min-w-0 space-y-6">
-            <!-- Today's plan -->
-            <section class={`${panel} p-5`}>
-                <div class="flex items-center justify-between mb-4">
-                    <div>
-                        <h2 class={panelTitle}>Today's plan</h2>
-                        <p class="text-sm text-gray-500 dark:text-gray-400" x-text="planSummary"></p>
-                    </div>
-                    <button type="button" class={linkButton} x-on:click="$dispatch('change-tab', { tab: 'schedule' })">Open schedule →</button>
+            <template x-for="id in layout.main" :key="id">
+            <div class="relative">
+                {COLUMN_WIDGETS.map(widget => <template x-if={`id === '${widget}'`}><DashboardWidget id={widget} /></template>)}
+                <!-- In customize mode a cover blocks clicks, and a toolbar edits the widget -->
+                <div x-show="editing" class="absolute inset-0 z-10 rounded-2xl bg-white/30 dark:bg-slate-900/30 outline-2 outline-dashed outline-offset-4 outline-teal-500/60 cursor-default"></div>
+                <div x-show="editing" class="absolute -top-3 right-3 z-20 flex items-center gap-0.5 pl-3 pr-1 py-0.5 rounded-full bg-white dark:bg-slate-800 shadow-md ring-1 ring-black/10 dark:ring-white/10">
+                    <span class="mr-1 text-xs font-semibold text-gray-700 dark:text-gray-200" x-text="widgetLabel(id)"></span>
+                    <button type="button" class={toolButton} x-on:click="moveWidget(id, -1)" x-bind:disabled="!canMove(id, -1)" x-bind:aria-label="`Move ${widgetLabel(id)} up`" title="Move up">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 15l7-7 7 7" /></svg>
+                    </button>
+                    <button type="button" class={toolButton} x-on:click="moveWidget(id, 1)" x-bind:disabled="!canMove(id, 1)" x-bind:aria-label="`Move ${widgetLabel(id)} down`" title="Move down">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7" /></svg>
+                    </button>
+                    <button type="button" class={`${toolButton} hidden lg:block`} x-on:click="switchColumn(id)" x-bind:aria-label="`Move ${widgetLabel(id)} to the side column`" x-bind:title="'Move to the side column'">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
+                    </button>
+                    <button type="button" class={`${toolButton} hover:!text-red-600`} x-on:click="hideWidget(id)" x-bind:aria-label="`Hide ${widgetLabel(id)}`" title="Hide">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
                 </div>
-
-                <ol class="space-y-2" x-show="todayBlocks.length">
-                    <template x-for="block in todayBlocks" :key="block.id">
-                        <li
-                            class="relative flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors"
-                            x-bind:class="block.status === 'now' ? 'bg-teal-50/70 dark:bg-teal-900/20 ring-1 ring-teal-500/30' : 'bg-gray-50 dark:bg-slate-700/40'"
-                        >
-                            <span class="self-stretch w-1 rounded-full shrink-0" x-bind:style="`background-color: ${block.color};`"></span>
-                            <div class="w-24 shrink-0 text-xs font-medium tabular-nums text-gray-500 dark:text-gray-400">
-                                <p x-text="$dates.formatTime(block.start)"></p>
-                                <p class="text-gray-400 dark:text-gray-500" x-text="$dates.formatDuration(block.end - block.start)"></p>
-                            </div>
-                            <div class="min-w-0 flex-1">
-                                <p
-                                    class="text-sm font-medium truncate"
-                                    x-bind:class="block.completed ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-white'"
-                                    x-text="block.title"
-                                ></p>
-                                <p class="text-xs text-gray-500 dark:text-gray-400 truncate" x-text="block.detail"></p>
-                                <!-- Time left in the current block -->
-                                <div x-show="block.status === 'now'" class="mt-1.5 h-1 rounded-full bg-teal-100 dark:bg-teal-900/60 overflow-hidden">
-                                    <div class="h-full rounded-full bg-teal-600 dark:bg-teal-400 transition-[width] duration-700" x-bind:style="`width: ${block.progress}%;`"></div>
-                                </div>
-                            </div>
-                            <span
-                                x-show="block.status === 'now'"
-                                class="shrink-0 flex items-center gap-1.5 text-xs font-semibold text-teal-700 dark:text-teal-300"
-                            >
-                                <span class="relative flex w-2 h-2">
-                                    <span class="absolute inline-flex w-full h-full rounded-full bg-teal-400 opacity-75 animate-ping"></span>
-                                    <span class="relative inline-flex w-2 h-2 rounded-full bg-teal-500"></span>
-                                </span>
-                                Now
-                            </span>
-                            <span x-show="block.status === 'past' && !block.completed" class="shrink-0 text-xs text-gray-400 dark:text-gray-500">Ended</span>
-                            <!-- A class meeting (a cluster block) is not a to-do. Invisible keeps the rows aligned. -->
-                            <input name="block-done"
-                                type="checkbox"
-                                class={checkbox}
-                                x-bind:class="block.isCluster && 'invisible'"
-                                x-bind:checked="block.completed"
-                                x-on:change="$store.todos.toggleBlockDone(block.item, todayKey)"
-                                x-bind:aria-label="`Mark ${block.title} ${block.completed ? 'not done' : 'done'}`"
-                            />
-                        </li>
-                    </template>
-                </ol>
-
-                <div x-show="!todayBlocks.length" class="rounded-xl border-2 border-dashed border-gray-200 dark:border-slate-700 px-6 py-8 text-center">
-                    <p class="text-sm font-medium text-gray-700 dark:text-gray-200">Nothing planned for today</p>
-                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Give your tasks a time so the day has a shape.</p>
-                    <button
-                        type="button"
-                        x-on:click="$dispatch('change-tab', { tab: 'schedule' })"
-                        class="mt-4 px-4 py-2 text-sm font-medium rounded-lg bg-teal-600 text-white hover:bg-teal-700 shadow-sm transition-colors"
-                    >Plan your day</button>
-                </div>
-            </section>
-
-            <!-- Clusters -->
-            <section class={`${panel} p-5`}>
-                <div class="flex items-center justify-between mb-4">
-                    <div>
-                        <h2 class={panelTitle}>Clusters</h2>
-                        <p class="text-sm text-gray-500 dark:text-gray-400">Progress across each group of tasks</p>
-                    </div>
-                    <button type="button" class={linkButton} x-on:click="$dispatch('change-tab', { tab: 'taskmanager' })">Manage →</button>
-                </div>
-
-                <ul class="grid gap-3 sm:grid-cols-2" x-show="clusterProgress.length">
-                    <template x-for="cluster in clusterProgress" :key="cluster.id">
-                        <li class="rounded-xl bg-gray-50 dark:bg-slate-700/40 p-4">
-                            <div class="flex items-center gap-2">
-                                <span class="w-2.5 h-2.5 rounded-full shrink-0" x-bind:style="`background-color: ${cluster.color};`"></span>
-                                <p class="flex-1 min-w-0 text-sm font-semibold text-gray-900 dark:text-white truncate" x-text="cluster.name"></p>
-                                <span class="text-sm font-medium tabular-nums text-gray-600 dark:text-gray-300" x-text="`${cluster.percent}%`"></span>
-                            </div>
-                            <!-- Meter: the track is a light step of the cluster color -->
-                            <div
-                                class="mt-3 h-1.5 rounded-full overflow-hidden"
-                                x-bind:style="`background-color: color-mix(in srgb, ${cluster.color} 18%, transparent);`"
-                                role="progressbar"
-                                aria-valuemin="0"
-                                aria-valuemax="100"
-                                x-bind:aria-valuenow="cluster.percent"
-                                x-bind:aria-label="`${cluster.name}: ${cluster.done} of ${cluster.total} done`"
-                            >
-                                <div class="h-full rounded-full transition-[width] duration-700" x-bind:style="`width: ${cluster.percent}%; background-color: ${cluster.color};`"></div>
-                            </div>
-                            <div class="mt-2 flex items-center justify-between gap-2 text-xs text-gray-500 dark:text-gray-400">
-                                <span x-text="`${cluster.open} open · ${cluster.done}/${cluster.total} done`"></span>
-                                <span
-                                    x-show="cluster.nextDue"
-                                    class="px-1.5 py-0.5 rounded font-medium"
-                                    x-bind:class="cluster.nextDue ? $dates.dueClass(cluster.nextDue) : ''"
-                                    x-text="!cluster.nextDue ? '' : $dates.dueTone(cluster.nextDue) === 'overdue' ? $dates.dueText(cluster.nextDue) : `Next ${$dates.dueText(cluster.nextDue)}`"
-                                ></span>
-                            </div>
-                        </li>
-                    </template>
-                </ul>
-                <p x-show="!clusterProgress.length" class="text-sm text-gray-500 dark:text-gray-400">
-                    Clusters group related tasks, for example one per class. Create one in the Task Manager.
-                </p>
-            </section>
-
-            <!-- Completed per day -->
-            <section class={`${panel} p-5`}>
-                <div class="flex items-baseline justify-between">
-                    <h2 class={panelTitle}>Tasks completed</h2>
-                    <span class="text-xs text-gray-500 dark:text-gray-400" x-text="`Last 7 days · ${weekTotal} total`"></span>
-                </div>
-
-                <div class="relative mt-6" x-on:mouseleave="hoveredDay = null">
-                    <!-- Tooltip -->
-                    <div
-                        x-show="hoveredDay"
-                        x-cloak
-                        class="absolute -top-2 z-10 -translate-x-1/2 -translate-y-full px-2.5 py-1.5 rounded-lg bg-gray-900 dark:bg-slate-950 text-white shadow-lg pointer-events-none whitespace-nowrap"
-                        x-bind:style="hoveredDay ? `left: ${(hoveredDay.index + 0.5) / weekActivity.length * 100}%;` : ''"
-                    >
-                        <p class="text-sm font-semibold" x-text="hoveredDay ? `${hoveredDay.count} ${hoveredDay.count === 1 ? 'task' : 'tasks'}` : ''"></p>
-                        <p class="text-xs text-gray-300" x-text="hoveredDay ? $dates.formatDate(hoveredDay.date, { weekday: 'short', month: 'short', day: 'numeric' }) : ''"></p>
-                    </div>
-
-                    <div class="flex items-end h-28 border-b border-gray-200 dark:border-slate-600">
-                        <template x-for="day in weekActivity" :key="day.date">
-                            <!-- The whole column is the hover and focus target -->
-                            <div
-                                class="flex-1 h-full flex flex-col items-center justify-end gap-1 cursor-default rounded-t focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
-                                tabindex="0"
-                                role="img"
-                                x-bind:aria-label="`${$dates.formatDate(day.date, { weekday: 'long', month: 'short', day: 'numeric' })}: ${day.count} ${day.count === 1 ? 'task' : 'tasks'} completed`"
-                                x-on:mouseenter="hoveredDay = day"
-                                x-on:focus="hoveredDay = day"
-                                x-on:blur="hoveredDay = null"
-                            >
-                                <!-- Selective label: today and the best day -->
-                                <span
-                                    class="text-xs font-medium text-gray-700 dark:text-gray-200"
-                                    x-show="day.count > 0 && (day.isToday || day.count === weekMax)"
-                                    x-text="day.count"
-                                ></span>
-                                <div
-                                    class="w-6 max-w-[70%] rounded-t-md transition-[height,opacity] duration-500"
-                                    x-bind:class="[
-                                        day.isToday ? 'bg-gradient-to-t from-teal-700 to-teal-400 dark:from-teal-600 dark:to-teal-300 shadow-[0_0_16px_rgb(20_184_166/0.35)]' : 'bg-gradient-to-t from-teal-600/50 to-teal-400/50 dark:from-teal-500/40 dark:to-teal-300/50',
-                                        hoveredDay && hoveredDay.date === day.date ? 'opacity-80' : ''
-                                    ]"
-                                    x-bind:style="`height: ${weekMax ? day.count / weekMax * 80 : 0}%;`"
-                                ></div>
-                            </div>
-                        </template>
-                    </div>
-                    <div class="flex mt-1.5" aria-hidden="true">
-                        <template x-for="day in weekActivity" :key="day.date">
-                            <span
-                                class="flex-1 text-center text-[11px]"
-                                x-bind:class="day.isToday ? 'font-semibold text-gray-900 dark:text-white' : 'text-gray-400 dark:text-gray-500'"
-                                x-text="day.label"
-                            ></span>
-                        </template>
-                    </div>
-                </div>
-            </section>
+            </div>
+            </template>
+            <p x-show="editing && !layout.main.length" class="rounded-2xl border-2 border-dashed border-gray-200 dark:border-slate-700 px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">This column is empty. Add a widget below.</p>
         </div>
-
-        <!-- Side column -->
         <div class="min-w-0 space-y-6">
-            <!-- Up next -->
-            <section class="relative overflow-hidden isolate rounded-2xl p-5 shadow-lg shadow-teal-900/20 ring-1 ring-white/10 bg-gradient-to-br from-teal-600 via-teal-700 to-slate-800 text-white">
-                <!-- Decorative glows -->
-                <span class="up-next-glow absolute -z-10 -top-16 -right-10 w-48 h-48 rounded-full bg-teal-300/30 blur-3xl" aria-hidden="true"></span>
-                <span class="absolute -z-10 -bottom-20 -left-12 w-48 h-48 rounded-full bg-indigo-400/25 blur-3xl" aria-hidden="true"></span>
-                <p class="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-teal-100">
-                    <span x-show="nextTask?.startedAt" class="w-1.5 h-1.5 rounded-full bg-amber-300" aria-hidden="true"></span>
-                    <span x-text="nextTask?.startedAt ? 'In progress' : 'Up next'"></span>
-                </p>
-                <template x-if="nextTask">
-                    <div>
-                        <p class="mt-2 text-xl font-semibold leading-snug" x-text="nextTask.todo"></p>
-                        <div class="mt-2 flex flex-wrap items-center gap-2 text-xs">
-                            <span x-show="nextTask.parentId" class="px-2 py-0.5 rounded-full bg-white/15" x-text="$store.todos.clusterName(nextTask.parentId)"></span>
-                            <span x-show="nextTask.dueDate" class="px-2 py-0.5 rounded-full bg-white/15" x-text="nextTask.dueDate ? $dates.dueText(nextTask.dueDate).replace(/^d/, 'D') : ''"></span>
-                        </div>
-                        <div class="mt-4 flex gap-2">
-                            <button
-                                type="button"
-                                x-on:click="$store.pomoState.startFocus(); $dispatch('change-tab', { tab: 'pomodoro' })"
-                                class="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-semibold rounded-lg bg-white text-teal-800 hover:bg-teal-50 transition-colors"
-                            >
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                Start focus
-                            </button>
-                            <button
-                                type="button"
-                                x-on:click="$store.todos.toggleTodo(nextTask.id)"
-                                class="px-3 py-2 text-sm font-semibold rounded-lg bg-white/15 hover:bg-white/25 transition-colors"
-                            >Done</button>
-                        </div>
-                    </div>
-                </template>
-                <template x-if="!nextTask">
-                    <div>
-                        <p class="mt-2 text-xl font-semibold">All caught up</p>
-                        <p class="mt-1 text-sm text-teal-100">No open tasks. Add one above when something comes up.</p>
-                    </div>
-                </template>
-            </section>
-
-            <!-- Deadlines -->
-            <section class={`${panel} p-5`}>
-                <div class="flex items-baseline justify-between mb-3">
-                    <h2 class={panelTitle}>Deadlines</h2>
-                    <span class="text-xs text-gray-500 dark:text-gray-400">Next 14 days</span>
+            <template x-for="id in layout.side" :key="id">
+            <div class="relative">
+                {COLUMN_WIDGETS.map(widget => <template x-if={`id === '${widget}'`}><DashboardWidget id={widget} /></template>)}
+                <!-- In customize mode a cover blocks clicks, and a toolbar edits the widget -->
+                <div x-show="editing" class="absolute inset-0 z-10 rounded-2xl bg-white/30 dark:bg-slate-900/30 outline-2 outline-dashed outline-offset-4 outline-teal-500/60 cursor-default"></div>
+                <div x-show="editing" class="absolute -top-3 right-3 z-20 flex items-center gap-0.5 pl-3 pr-1 py-0.5 rounded-full bg-white dark:bg-slate-800 shadow-md ring-1 ring-black/10 dark:ring-white/10">
+                    <span class="mr-1 text-xs font-semibold text-gray-700 dark:text-gray-200" x-text="widgetLabel(id)"></span>
+                    <button type="button" class={toolButton} x-on:click="moveWidget(id, -1)" x-bind:disabled="!canMove(id, -1)" x-bind:aria-label="`Move ${widgetLabel(id)} up`" title="Move up">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 15l7-7 7 7" /></svg>
+                    </button>
+                    <button type="button" class={toolButton} x-on:click="moveWidget(id, 1)" x-bind:disabled="!canMove(id, 1)" x-bind:aria-label="`Move ${widgetLabel(id)} down`" title="Move down">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7" /></svg>
+                    </button>
+                    <button type="button" class={`${toolButton} hidden lg:block`} x-on:click="switchColumn(id)" x-bind:aria-label="`Move ${widgetLabel(id)} to the main column`" x-bind:title="'Move to the main column'">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
+                    </button>
+                    <button type="button" class={`${toolButton} hover:!text-red-600`} x-on:click="hideWidget(id)" x-bind:aria-label="`Hide ${widgetLabel(id)}`" title="Hide">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
                 </div>
-                <ul class="space-y-1" x-show="deadlines.length">
-                    <template x-for="task in deadlines" :key="task.id">
-                        <li class="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-gray-50 dark:hover:bg-slate-700/40 transition-colors">
-                            <input name="deadline-done"
-                                type="checkbox"
-                                class={checkbox}
-                                x-on:change="$store.todos.toggleTodo(task.id)"
-                                x-bind:aria-label="`Mark ${task.todo} done`"
-                            />
-                            <div class="min-w-0 flex-1">
-                                <p class="text-sm text-gray-900 dark:text-white truncate" x-text="task.todo"></p>
-                                <p x-show="task.parentId" class="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
-                                    <span class="w-1.5 h-1.5 rounded-full" x-bind:style="`background-color: ${$store.todos.clusterColor(task.parentId)};`"></span>
-                                    <span class="truncate" x-text="$store.todos.clusterName(task.parentId)"></span>
-                                </p>
-                            </div>
-                            <span class="shrink-0 text-xs font-medium px-2 py-0.5 rounded-md" x-bind:class="$dates.dueClass(task.dueDate)" x-text="$dates.dueLabel(task.dueDate)"></span>
-                        </li>
-                    </template>
-                </ul>
-                <p x-show="!deadlines.length" class="text-sm text-gray-500 dark:text-gray-400">
-                    No due dates coming up. Set one with the calendar icon on any task.
-                </p>
-            </section>
-
-            <!-- Recently completed -->
-            <section class={`${panel} p-5`} x-show="recentlyCompleted.length">
-                <h2 class={`${panelTitle} mb-3`}>Recently completed</h2>
-                <ul class="space-y-2">
-                    <template x-for="task in recentlyCompleted" :key="task.id">
-                        <li class="flex items-center gap-2.5 text-sm">
-                            <svg class="w-4 h-4 shrink-0 text-teal-600 dark:text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" /></svg>
-                            <span class="flex-1 min-w-0 truncate text-gray-600 dark:text-gray-300" x-text="task.todo"></span>
-                            <span class="shrink-0 text-xs text-gray-400 dark:text-gray-500" x-text="timeAgo(task.completedAt)"></span>
-                        </li>
-                    </template>
-                </ul>
-            </section>
+            </div>
+            </template>
+            <p x-show="editing && !layout.side.length" class="rounded-2xl border-2 border-dashed border-gray-200 dark:border-slate-700 px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">This column is empty. Add a widget below.</p>
         </div>
     </div>
+
+    <!-- Widgets that aren't on the dashboard, shown while customizing -->
+    <section x-show="editing" x-cloak class="rounded-2xl p-5 bg-white/80 dark:bg-slate-800/70 ring-1 ring-black/5 dark:ring-white/10">
+        <h2 class="text-base font-semibold text-gray-900 dark:text-white">Add widgets</h2>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mb-4" x-text="hiddenWidgets.length ? 'Pick where each one goes.' : 'Every widget is on your dashboard.'"></p>
+        <ul class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <template x-for="widget in hiddenWidgets" :key="widget.id">
+                <li class="flex flex-col rounded-xl p-4 bg-gray-50 dark:bg-slate-700/40 ring-1 ring-black/5 dark:ring-white/5">
+                    <p class="text-sm font-semibold text-gray-900 dark:text-white" x-text="widget.label"></p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 flex-1" x-text="widget.hint"></p>
+                    <div class="mt-3 flex gap-2">
+                        <template x-if="widget.zone === 'top'">
+                            <button type="button" x-on:click="addWidget(widget.id, 'top')" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-teal-600 text-white hover:bg-teal-700">Add to top</button>
+                        </template>
+                        <template x-if="widget.zone === 'column'">
+                            <div class="flex gap-2">
+                                <button type="button" x-on:click="addWidget(widget.id, 'main')" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-teal-600 text-white hover:bg-teal-700">Add to main</button>
+                                <button type="button" x-on:click="addWidget(widget.id, 'side')" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-white text-gray-700 ring-1 ring-black/10 hover:bg-gray-100 dark:bg-slate-800 dark:text-gray-200 dark:ring-white/10 dark:hover:bg-slate-700">Add to side</button>
+                            </div>
+                        </template>
+                    </div>
+                </li>
+            </template>
+        </ul>
+    </section>
 </div>
 
 <script>
     import { dates } from '../lib/dates';
+    import { QUOTES } from '../lib/quotes';
+    import { activeDays, streaks } from '../lib/insights';
+    import { DASHBOARD_WIDGETS } from '../stores/settingsStore';
 
     const ICONS = {
         tasks: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2',
@@ -341,6 +189,7 @@ const checkbox = 'w-4 h-4 shrink-0 rounded border-gray-300 dark:border-slate-500
         window.Alpine.data('dashboard', () => ({
             now: new Date(),
             hoveredDay: null,
+            editing: false,
 
             init() {
                 setInterval(() => { this.now = new Date(); }, 60 * 1000);
@@ -539,6 +388,94 @@ const checkbox = 'w-4 h-4 shrink-0 rounded border-gray-300 dark:border-slate-500
                 });
             },
 
+            // --- Layout (Customize) ---
+
+            get layout() {
+                return this.$store.settings.dashboardLayout;
+            },
+
+            widgetLabel(id) {
+                return DASHBOARD_WIDGETS.find(widget => widget.id === id)?.label ?? id;
+            },
+
+            get hiddenWidgets() {
+                const { top, main, side } = this.layout;
+                return DASHBOARD_WIDGETS.filter(widget => ![...top, ...main, ...side].includes(widget.id));
+            },
+
+            columnOf(id) {
+                return this.layout.main.includes(id) ? 'main' : 'side';
+            },
+
+            // A plain copy to change and save
+            copyLayout() {
+                return JSON.parse(JSON.stringify(this.layout));
+            },
+
+            canMove(id, direction) {
+                const list = this.layout[this.columnOf(id)];
+                const index = list.indexOf(id) + direction;
+                return index >= 0 && index < list.length;
+            },
+
+            moveWidget(id, direction) {
+                if (!this.canMove(id, direction)) return;
+                const layout = this.copyLayout();
+                const list = layout[this.columnOf(id)];
+                const index = list.indexOf(id);
+                [list[index], list[index + direction]] = [list[index + direction], list[index]];
+                this.$store.settings.setDashboardLayout(layout);
+            },
+
+            // To the top of the other column, where it's easy to see
+            switchColumn(id) {
+                const layout = this.copyLayout();
+                const from = this.columnOf(id);
+                const to = from === 'main' ? 'side' : 'main';
+                layout[from] = layout[from].filter(item => item !== id);
+                layout[to] = [id, ...layout[to]];
+                this.$store.settings.setDashboardLayout(layout);
+            },
+
+            hideWidget(id) {
+                const layout = this.copyLayout();
+                for (const zone of ['top', 'main', 'side']) layout[zone] = layout[zone].filter(item => item !== id);
+                this.$store.settings.setDashboardLayout(layout);
+            },
+
+            addWidget(id, zone) {
+                const layout = this.copyLayout();
+                layout[zone] = zone === 'top' ? [id] : [...layout[zone], id];
+                this.$store.settings.setDashboardLayout(layout);
+            },
+
+            // --- Extra widgets ---
+
+            get openGoals() {
+                const goals = this.$store.goals;
+                return goals.goals.filter(goal => !goal.done).slice(0, 4).map(goal => ({
+                    id: goal.id,
+                    title: goal.title,
+                    targetDate: goal.targetDate,
+                    percent: goals.goalProgress(goal, this.$store.todos.items)
+                }));
+            },
+
+            // The same quote all day, a different one tomorrow
+            get quoteOfDay() {
+                return QUOTES[dates.daysBetween('2026-01-01', this.todayKey) % QUOTES.length] ?? QUOTES[0];
+            },
+
+            get streak() {
+                const active = activeDays(this.$store.todos.history, this.$store.pomoState.sessions);
+                const { current, longest } = streaks(active, this.todayKey);
+                const days = Array.from({ length: 14 }, (_, i) => {
+                    const date = dates.addDays(this.todayKey, i - 13);
+                    return { date, active: active.has(date), isToday: date === this.todayKey, label: dates.formatDate(date, { weekday: 'narrow' }) };
+                });
+                return { current, longest, days };
+            },
+
             // --- Last 7 days ---
 
             get weekActivity() {
@@ -569,14 +506,3 @@ const checkbox = 'w-4 h-4 shrink-0 rounded border-gray-300 dark:border-slate-500
         }));
     });
 </script>
-
-<style>
-    /* The Up next glow drifts slowly */
-    .up-next-glow {
-        animation: drift 9s ease-in-out infinite alternate;
-    }
-
-    @keyframes drift {
-        to { transform: translate(-1.5rem, 1.25rem) scale(1.15); }
-    }
-</style>

@@ -1,0 +1,411 @@
+---
+// One dashboard widget, picked by id. Dashboard.astro places these in its columns in the
+// order saved in Settings, inside its x-data="dashboard" scope, so every widget reads the
+// dashboard's getters. To add a widget: add it to DASHBOARD_WIDGETS in settingsStore.ts,
+// add its markup here, and list its id in Dashboard.astro.
+interface Props {
+    id: string;
+}
+
+const { id } = Astro.props;
+const panel = 'rounded-2xl bg-white/80 dark:bg-slate-800/70 backdrop-blur-sm shadow-sm ring-1 ring-black/5 dark:ring-white/10';
+const panelTitle = 'text-base font-semibold text-gray-900 dark:text-white';
+const linkButton = 'text-sm font-medium text-teal-700 dark:text-teal-400 hover:text-teal-800 dark:hover:text-teal-300 transition-colors';
+const checkbox = 'w-4 h-4 shrink-0 rounded border-gray-300 dark:border-slate-500 text-teal-600 focus:ring-teal-500 dark:bg-slate-700 cursor-pointer';
+---
+
+{id === 'plan' && (
+    <section class={`${panel} p-5`}>
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <h2 class={panelTitle}>Today's plan</h2>
+                <p class="text-sm text-gray-500 dark:text-gray-400" x-text="planSummary"></p>
+            </div>
+            <button type="button" class={linkButton} x-on:click="$dispatch('change-tab', { tab: 'schedule' })">Open schedule →</button>
+        </div>
+
+        <ol class="space-y-2" x-show="todayBlocks.length">
+            <template x-for="block in todayBlocks" :key="block.id">
+                <li
+                    class="relative flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors"
+                    x-bind:class="block.status === 'now' ? 'bg-teal-50/70 dark:bg-teal-900/20 ring-1 ring-teal-500/30' : 'bg-gray-50 dark:bg-slate-700/40'"
+                >
+                    <span class="self-stretch w-1 rounded-full shrink-0" x-bind:style="`background-color: ${block.color};`"></span>
+                    <div class="w-24 shrink-0 text-xs font-medium tabular-nums text-gray-500 dark:text-gray-400">
+                        <p x-text="$dates.formatTime(block.start)"></p>
+                        <p class="text-gray-400 dark:text-gray-500" x-text="$dates.formatDuration(block.end - block.start)"></p>
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <p
+                            class="text-sm font-medium truncate"
+                            x-bind:class="block.completed ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-white'"
+                            x-text="block.title"
+                        ></p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 truncate" x-text="block.detail"></p>
+                        <!-- Time left in the current block -->
+                        <div x-show="block.status === 'now'" class="mt-1.5 h-1 rounded-full bg-teal-100 dark:bg-teal-900/60 overflow-hidden">
+                            <div class="h-full rounded-full bg-teal-600 dark:bg-teal-400 transition-[width] duration-700" x-bind:style="`width: ${block.progress}%;`"></div>
+                        </div>
+                    </div>
+                    <span
+                        x-show="block.status === 'now'"
+                        class="shrink-0 flex items-center gap-1.5 text-xs font-semibold text-teal-700 dark:text-teal-300"
+                    >
+                        <span class="relative flex w-2 h-2">
+                            <span class="absolute inline-flex w-full h-full rounded-full bg-teal-400 opacity-75 animate-ping"></span>
+                            <span class="relative inline-flex w-2 h-2 rounded-full bg-teal-500"></span>
+                        </span>
+                        Now
+                    </span>
+                    <span x-show="block.status === 'past' && !block.completed" class="shrink-0 text-xs text-gray-400 dark:text-gray-500">Ended</span>
+                    <!-- A class meeting (a cluster block) is not a to-do. Invisible keeps the rows aligned. -->
+                    <input name="block-done"
+                        type="checkbox"
+                        class={checkbox}
+                        x-bind:class="block.isCluster && 'invisible'"
+                        x-bind:checked="block.completed"
+                        x-on:change="$store.todos.toggleBlockDone(block.item, todayKey)"
+                        x-bind:aria-label="`Mark ${block.title} ${block.completed ? 'not done' : 'done'}`"
+                    />
+                </li>
+            </template>
+        </ol>
+
+        <div x-show="!todayBlocks.length" class="rounded-xl border-2 border-dashed border-gray-200 dark:border-slate-700 px-6 py-8 text-center">
+            <p class="text-sm font-medium text-gray-700 dark:text-gray-200">Nothing planned for today</p>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Give your tasks a time so the day has a shape.</p>
+            <button
+                type="button"
+                x-on:click="$dispatch('change-tab', { tab: 'schedule' })"
+                class="mt-4 px-4 py-2 text-sm font-medium rounded-lg bg-teal-600 text-white hover:bg-teal-700 shadow-sm transition-colors"
+            >Plan your day</button>
+        </div>
+    </section>
+)}
+
+{id === 'clusters' && (
+    <section class={`${panel} p-5`}>
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <h2 class={panelTitle}>Clusters</h2>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Progress across each group of tasks</p>
+            </div>
+            <button type="button" class={linkButton} x-on:click="$dispatch('change-tab', { tab: 'taskmanager' })">Manage →</button>
+        </div>
+
+        <ul class="grid gap-3 sm:grid-cols-2" x-show="clusterProgress.length">
+            <template x-for="cluster in clusterProgress" :key="cluster.id">
+                <li class="rounded-xl bg-gray-50 dark:bg-slate-700/40 p-4">
+                    <div class="flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full shrink-0" x-bind:style="`background-color: ${cluster.color};`"></span>
+                        <p class="flex-1 min-w-0 text-sm font-semibold text-gray-900 dark:text-white truncate" x-text="cluster.name"></p>
+                        <span class="text-sm font-medium tabular-nums text-gray-600 dark:text-gray-300" x-text="`${cluster.percent}%`"></span>
+                    </div>
+                    <!-- Meter: the track is a light step of the cluster color -->
+                    <div
+                        class="mt-3 h-1.5 rounded-full overflow-hidden"
+                        x-bind:style="`background-color: color-mix(in srgb, ${cluster.color} 18%, transparent);`"
+                        role="progressbar"
+                        aria-valuemin="0"
+                        aria-valuemax="100"
+                        x-bind:aria-valuenow="cluster.percent"
+                        x-bind:aria-label="`${cluster.name}: ${cluster.done} of ${cluster.total} done`"
+                    >
+                        <div class="h-full rounded-full transition-[width] duration-700" x-bind:style="`width: ${cluster.percent}%; background-color: ${cluster.color};`"></div>
+                    </div>
+                    <div class="mt-2 flex items-center justify-between gap-2 text-xs text-gray-500 dark:text-gray-400">
+                        <span x-text="`${cluster.open} open · ${cluster.done}/${cluster.total} done`"></span>
+                        <span
+                            x-show="cluster.nextDue"
+                            class="px-1.5 py-0.5 rounded font-medium"
+                            x-bind:class="cluster.nextDue ? $dates.dueClass(cluster.nextDue) : ''"
+                            x-text="!cluster.nextDue ? '' : $dates.dueTone(cluster.nextDue) === 'overdue' ? $dates.dueText(cluster.nextDue) : `Next ${$dates.dueText(cluster.nextDue)}`"
+                        ></span>
+                    </div>
+                </li>
+            </template>
+        </ul>
+        <p x-show="!clusterProgress.length" class="text-sm text-gray-500 dark:text-gray-400">
+            Clusters group related tasks, for example one per class. Create one in the Task Manager.
+        </p>
+    </section>
+)}
+
+{id === 'completed' && (
+    <section class={`${panel} p-5`}>
+        <div class="flex items-baseline justify-between">
+            <h2 class={panelTitle}>Tasks completed</h2>
+            <span class="text-xs text-gray-500 dark:text-gray-400" x-text="`Last 7 days · ${weekTotal} total`"></span>
+        </div>
+
+        <div class="relative mt-6" x-on:mouseleave="hoveredDay = null">
+            <!-- Tooltip -->
+            <div
+                x-show="hoveredDay"
+                x-cloak
+                class="absolute -top-2 z-10 -translate-x-1/2 -translate-y-full px-2.5 py-1.5 rounded-lg bg-gray-900 dark:bg-slate-950 text-white shadow-lg pointer-events-none whitespace-nowrap"
+                x-bind:style="hoveredDay ? `left: ${(hoveredDay.index + 0.5) / weekActivity.length * 100}%;` : ''"
+            >
+                <p class="text-sm font-semibold" x-text="hoveredDay ? `${hoveredDay.count} ${hoveredDay.count === 1 ? 'task' : 'tasks'}` : ''"></p>
+                <p class="text-xs text-gray-300" x-text="hoveredDay ? $dates.formatDate(hoveredDay.date, { weekday: 'short', month: 'short', day: 'numeric' }) : ''"></p>
+            </div>
+
+            <div class="flex items-end h-28 border-b border-gray-200 dark:border-slate-600">
+                <template x-for="day in weekActivity" :key="day.date">
+                    <!-- The whole column is the hover and focus target -->
+                    <div
+                        class="flex-1 h-full flex flex-col items-center justify-end gap-1 cursor-default rounded-t focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
+                        tabindex="0"
+                        role="img"
+                        x-bind:aria-label="`${$dates.formatDate(day.date, { weekday: 'long', month: 'short', day: 'numeric' })}: ${day.count} ${day.count === 1 ? 'task' : 'tasks'} completed`"
+                        x-on:mouseenter="hoveredDay = day"
+                        x-on:focus="hoveredDay = day"
+                        x-on:blur="hoveredDay = null"
+                    >
+                        <!-- Selective label: today and the best day -->
+                        <span
+                            class="text-xs font-medium text-gray-700 dark:text-gray-200"
+                            x-show="day.count > 0 && (day.isToday || day.count === weekMax)"
+                            x-text="day.count"
+                        ></span>
+                        <div
+                            class="w-6 max-w-[70%] rounded-t-md transition-[height,opacity] duration-500"
+                            x-bind:class="[
+                                day.isToday ? 'bg-gradient-to-t from-teal-700 to-teal-400 dark:from-teal-600 dark:to-teal-300 shadow-[0_0_16px_rgb(20_184_166/0.35)]' : 'bg-gradient-to-t from-teal-600/50 to-teal-400/50 dark:from-teal-500/40 dark:to-teal-300/50',
+                                hoveredDay && hoveredDay.date === day.date ? 'opacity-80' : ''
+                            ]"
+                            x-bind:style="`height: ${weekMax ? day.count / weekMax * 80 : 0}%;`"
+                        ></div>
+                    </div>
+                </template>
+            </div>
+            <div class="flex mt-1.5" aria-hidden="true">
+                <template x-for="day in weekActivity" :key="day.date">
+                    <span
+                        class="flex-1 text-center text-[11px]"
+                        x-bind:class="day.isToday ? 'font-semibold text-gray-900 dark:text-white' : 'text-gray-400 dark:text-gray-500'"
+                        x-text="day.label"
+                    ></span>
+                </template>
+            </div>
+        </div>
+    </section>
+)}
+
+{id === 'upnext' && (
+    <section class="relative overflow-hidden isolate rounded-2xl p-5 shadow-lg shadow-teal-900/20 ring-1 ring-white/10 bg-gradient-to-br from-teal-600 via-teal-700 to-slate-800 text-white">
+        <!-- Decorative glows -->
+        <span class="up-next-glow absolute -z-10 -top-16 -right-10 w-48 h-48 rounded-full bg-teal-300/30 blur-3xl" aria-hidden="true"></span>
+        <span class="absolute -z-10 -bottom-20 -left-12 w-48 h-48 rounded-full bg-indigo-400/25 blur-3xl" aria-hidden="true"></span>
+        <p class="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-teal-100">
+            <span x-show="nextTask?.startedAt" class="w-1.5 h-1.5 rounded-full bg-amber-300" aria-hidden="true"></span>
+            <span x-text="nextTask?.startedAt ? 'In progress' : 'Up next'"></span>
+        </p>
+        <template x-if="nextTask">
+            <div>
+                <p class="mt-2 text-xl font-semibold leading-snug" x-text="nextTask.todo"></p>
+                <div class="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                    <span x-show="nextTask.parentId" class="px-2 py-0.5 rounded-full bg-white/15" x-text="$store.todos.clusterName(nextTask.parentId)"></span>
+                    <span x-show="nextTask.dueDate" class="px-2 py-0.5 rounded-full bg-white/15" x-text="nextTask.dueDate ? $dates.dueText(nextTask.dueDate).replace(/^d/, 'D') : ''"></span>
+                </div>
+                <div class="mt-4 flex gap-2">
+                    <button
+                        type="button"
+                        x-on:click="$store.pomoState.startFocus(); $dispatch('change-tab', { tab: 'pomodoro' })"
+                        class="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-semibold rounded-lg bg-white text-teal-800 hover:bg-teal-50 transition-colors"
+                    >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        Start focus
+                    </button>
+                    <button
+                        type="button"
+                        x-on:click="$store.todos.toggleTodo(nextTask.id)"
+                        class="px-3 py-2 text-sm font-semibold rounded-lg bg-white/15 hover:bg-white/25 transition-colors"
+                    >Done</button>
+                </div>
+            </div>
+        </template>
+        <template x-if="!nextTask">
+            <div>
+                <p class="mt-2 text-xl font-semibold">All caught up</p>
+                <p class="mt-1 text-sm text-teal-100">No open tasks. Add one above when something comes up.</p>
+            </div>
+        </template>
+    </section>
+)}
+
+{id === 'deadlines' && (
+    <section class={`${panel} p-5`}>
+        <div class="flex items-baseline justify-between mb-3">
+            <h2 class={panelTitle}>Deadlines</h2>
+            <span class="text-xs text-gray-500 dark:text-gray-400">Next 14 days</span>
+        </div>
+        <ul class="space-y-1" x-show="deadlines.length">
+            <template x-for="task in deadlines" :key="task.id">
+                <li class="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-gray-50 dark:hover:bg-slate-700/40 transition-colors">
+                    <input name="deadline-done"
+                        type="checkbox"
+                        class={checkbox}
+                        x-on:change="$store.todos.toggleTodo(task.id)"
+                        x-bind:aria-label="`Mark ${task.todo} done`"
+                    />
+                    <div class="min-w-0 flex-1">
+                        <p class="text-sm text-gray-900 dark:text-white truncate" x-text="task.todo"></p>
+                        <p x-show="task.parentId" class="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+                            <span class="w-1.5 h-1.5 rounded-full" x-bind:style="`background-color: ${$store.todos.clusterColor(task.parentId)};`"></span>
+                            <span class="truncate" x-text="$store.todos.clusterName(task.parentId)"></span>
+                        </p>
+                    </div>
+                    <span class="shrink-0 text-xs font-medium px-2 py-0.5 rounded-md" x-bind:class="$dates.dueClass(task.dueDate)" x-text="$dates.dueLabel(task.dueDate)"></span>
+                </li>
+            </template>
+        </ul>
+        <p x-show="!deadlines.length" class="text-sm text-gray-500 dark:text-gray-400">
+            No due dates coming up. Set one with the calendar icon on any task.
+        </p>
+    </section>
+)}
+
+{id === 'recent' && (
+    <section class={`${panel} p-5`}>
+        <h2 class={`${panelTitle} mb-3`}>Recently completed</h2>
+        <p x-show="!recentlyCompleted.length" class="text-sm text-gray-500 dark:text-gray-400">Nothing finished yet. Your next win shows up here.</p>
+        <ul class="space-y-2" x-show="recentlyCompleted.length">
+            <template x-for="task in recentlyCompleted" :key="task.id">
+                <li class="flex items-center gap-2.5 text-sm">
+                    <svg class="w-4 h-4 shrink-0 text-teal-600 dark:text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" /></svg>
+                    <span class="flex-1 min-w-0 truncate text-gray-600 dark:text-gray-300" x-text="task.todo"></span>
+                    <span class="shrink-0 text-xs text-gray-400 dark:text-gray-500" x-text="timeAgo(task.completedAt)"></span>
+                </li>
+            </template>
+        </ul>
+    </section>
+)}
+
+{id === 'focus' && (
+    <section class={`${panel} p-5`}>
+        <div class="flex items-center justify-between mb-4">
+            <h2 class={panelTitle}>Focus timer</h2>
+            <button type="button" class={linkButton} x-on:click="$dispatch('change-tab', { tab: 'pomodoro' })">Open timer →</button>
+        </div>
+        <div class="flex items-center gap-4">
+            <svg class="w-16 h-16 shrink-0" viewBox="0 0 100 100" aria-hidden="true">
+                <circle cx="50" cy="50" r="42" fill="none" stroke="currentColor" stroke-width="9" class="text-gray-200 dark:text-slate-700" />
+                <circle
+                    cx="50" cy="50" r="42" fill="none" stroke="currentColor" stroke-width="9" stroke-linecap="round"
+                    transform="rotate(-90 50 50)" stroke-dasharray="263.9"
+                    x-bind:stroke-dashoffset="263.9 - 263.9 * $store.pomoState.percentComplete / 100"
+                    x-bind:class="$store.pomoState.isRunning ? 'text-teal-500 dark:text-teal-400' : 'text-gray-400 dark:text-gray-500'"
+                />
+            </svg>
+            <div class="min-w-0">
+                <p class="text-3xl font-semibold tabular-nums tracking-tight text-gray-900 dark:text-white" x-text="`${$store.pomoState.digits.slice(0, 2)}:${$store.pomoState.digits.slice(2)}`"></p>
+                <p class="text-sm text-gray-500 dark:text-gray-400" x-text="$store.pomoState.currentPresetName"></p>
+            </div>
+        </div>
+        <div class="mt-4 flex gap-2">
+            <button
+                type="button"
+                x-on:click="$store.pomoState.isRunning ? $store.pomoState.pauseTimer() : $store.pomoState.startTimer()"
+                class="flex-1 px-3 py-2 text-sm font-semibold rounded-lg bg-teal-600 text-white hover:bg-teal-700 shadow-sm transition-colors"
+                x-text="$store.pomoState.isRunning ? 'Pause' : ($store.pomoState.timeLeft < $store.pomoState.totalTime ? 'Resume' : 'Start')"
+            ></button>
+            <button
+                type="button"
+                x-on:click="$store.pomoState.toggleBreak()"
+                class="px-3 py-2 text-sm font-medium rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-slate-700 dark:text-gray-200 dark:hover:bg-slate-600 transition-colors"
+                x-text="$store.pomoState.isBreak ? 'Work' : 'Break'"
+            ></button>
+        </div>
+    </section>
+)}
+
+{id === 'goals' && (
+    <section class={`${panel} p-5`}>
+        <div class="flex items-center justify-between mb-4">
+            <h2 class={panelTitle}>Goals</h2>
+            <button type="button" class={linkButton} x-on:click="$dispatch('change-tab', { tab: 'goals' })">Open goals →</button>
+        </div>
+        <ul class="space-y-3" x-show="openGoals.length">
+            <template x-for="goal in openGoals" :key="goal.id">
+                <li>
+                    <div class="flex items-baseline justify-between gap-2 text-sm">
+                        <span class="min-w-0 truncate font-medium text-gray-900 dark:text-white" x-text="goal.title"></span>
+                        <span class="shrink-0 tabular-nums text-gray-600 dark:text-gray-300" x-text="`${goal.percent}%`"></span>
+                    </div>
+                    <div class="mt-1.5 h-1.5 rounded-full bg-teal-100 dark:bg-teal-900/50 overflow-hidden" role="progressbar" aria-valuemin="0" aria-valuemax="100" x-bind:aria-valuenow="goal.percent" x-bind:aria-label="goal.title">
+                        <div class="h-full rounded-full bg-teal-600 dark:bg-teal-400 transition-[width] duration-700" x-bind:style="`width: ${goal.percent}%;`"></div>
+                    </div>
+                    <p x-show="goal.targetDate" class="mt-1 text-xs text-gray-500 dark:text-gray-400" x-text="goal.targetDate ? `Target ${$dates.formatDate(goal.targetDate)}` : ''"></p>
+                </li>
+            </template>
+        </ul>
+        <p x-show="!openGoals.length" class="text-sm text-gray-500 dark:text-gray-400">No open goals. Set one on the Goals tab.</p>
+    </section>
+)}
+
+{id === 'notes' && (
+    <section class={`${panel} p-5`}>
+        <div class="flex items-center justify-between mb-3">
+            <h2 class={panelTitle}>Notes</h2>
+            <button type="button" class={linkButton} x-on:click="$dispatch('change-tab', { tab: 'goals' })">All notes →</button>
+        </div>
+        <form class="flex gap-2 mb-3" x-data="{ text: '' }" x-on:submit.prevent="if (text.trim()) { $store.goals.addNote(text.trim()); text = '' }">
+            <label for="dashboard-note" class="sr-only">New note</label>
+            <input id="dashboard-note" type="text" x-model="text" placeholder="Jot something down…" class="flex-1 min-w-0 rounded-lg border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-800 dark:text-white text-sm focus:border-teal-500 focus:ring-teal-500" />
+            <button type="submit" class="px-3 py-2 text-sm font-medium rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-slate-700 dark:text-gray-200 dark:hover:bg-slate-600 transition-colors">Add</button>
+        </form>
+        <ul class="space-y-2" x-show="$store.goals.sortedNotes.length">
+            <template x-for="note in $store.goals.sortedNotes.slice(0, 4)" :key="note.id">
+                <li class="flex gap-2 rounded-lg bg-gray-50 dark:bg-slate-700/40 px-3 py-2 text-sm text-gray-700 dark:text-gray-200">
+                    <svg x-show="note.pinned" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-teal-600 dark:text-teal-400" viewBox="0 0 24 24" aria-label="Pinned"><path fill="currentColor" stroke="none" d="M16 3l5 5-3 1-4 4 1 5-2 2-4-4-5 5-1-1 5-5-4-4 2-2 5 1 4-4z" /></svg>
+                    <span class="min-w-0 line-clamp-3 whitespace-pre-line" x-text="note.text"></span>
+                </li>
+            </template>
+        </ul>
+    </section>
+)}
+
+{id === 'quote' && (
+    <section class="relative overflow-hidden isolate rounded-2xl p-5 bg-white/80 dark:bg-slate-800/70 backdrop-blur-sm shadow-sm ring-1 ring-black/5 dark:ring-white/10">
+        <span class="absolute -z-10 -top-10 -right-8 w-40 h-40 rounded-full bg-teal-400/15 blur-3xl" aria-hidden="true"></span>
+        <p class="text-xs font-semibold uppercase tracking-wider text-teal-700 dark:text-teal-400">Quote of the day</p>
+        <blockquote class="mt-2 text-lg font-medium leading-snug text-gray-900 dark:text-white text-balance" x-text="quoteOfDay.text"></blockquote>
+        <p x-show="quoteOfDay.author" class="mt-2 text-sm text-gray-500 dark:text-gray-400" x-text="quoteOfDay.author ? `— ${quoteOfDay.author}` : ''"></p>
+    </section>
+)}
+
+{id === 'streak' && (
+    <section class={`${panel} p-5`}>
+        <div class="flex items-center justify-between mb-3">
+            <h2 class={panelTitle}>Streak</h2>
+            <button type="button" class={linkButton} x-on:click="$dispatch('change-tab', { tab: 'insights' })">Insights →</button>
+        </div>
+        <p class="text-3xl font-semibold tracking-tight tabular-nums text-gray-900 dark:text-white" x-text="`${streak.current} ${streak.current === 1 ? 'day' : 'days'}`"></p>
+        <p class="text-sm text-gray-500 dark:text-gray-400" x-text="streak.current ? `In a row. Longest: ${streak.longest} days.` : 'Finish a task or a focus session to start one.'"></p>
+        <!-- The last 14 days: filled when something got done -->
+        <ol class="mt-4 grid grid-cols-7 gap-1.5">
+            <template x-for="day in streak.days" :key="day.date">
+                <li class="flex flex-col items-center gap-1">
+                    <span
+                        class="w-full aspect-square rounded-md"
+                        x-bind:class="[day.active ? 'bg-teal-500 dark:bg-teal-400' : 'bg-gray-100 dark:bg-slate-700/60', day.isToday ? 'ring-2 ring-offset-1 ring-teal-500/50 ring-offset-white dark:ring-offset-slate-800' : '']"
+                        x-bind:title="`${$dates.formatDate(day.date, { weekday: 'short', month: 'short', day: 'numeric' })}: ${day.active ? 'active' : 'no activity'}`"
+                    ></span>
+                    <span class="text-[10px] text-gray-400 dark:text-gray-500" x-text="day.label"></span>
+                </li>
+            </template>
+        </ol>
+    </section>
+)}
+
+<style>
+    /* The Up next glow drifts slowly */
+    .up-next-glow {
+        animation: drift 9s ease-in-out infinite alternate;
+    }
+
+    @keyframes drift {
+        to { transform: translate(-1.5rem, 1.25rem) scale(1.15); }
+    }
+</style>
