@@ -1,3 +1,18 @@
+---
+import TimerFaces from './TimerFaces.astro';
+
+// Minute ticks inside the classic ring
+const ringTicks = Array.from({ length: 60 }, (_, m) => {
+    const angle = m * Math.PI / 30;
+    const inner = m % 5 ? 37.5 : 36;
+    return {
+        x1: 50 + Math.sin(angle) * inner, y1: 50 - Math.cos(angle) * inner,
+        x2: 50 + Math.sin(angle) * 39, y2: 50 - Math.cos(angle) * 39,
+        major: m % 5 === 0
+    };
+});
+---
+
 <div
     x-data
     x-cloak
@@ -8,42 +23,100 @@
     <!-- Timer Display -->
     <div class="flex flex-col items-center justify-center">
         
-        <!-- Timer Circle -->
+        <!-- Timer Circle: the classic face. The others are in TimerFaces.astro, picked in Settings. -->
+        <template x-if="$store.settings.timerStyle === 'classic'">
         <div class="relative w-72 h-72 mb-8">
-            <!-- Background Circle -->
-            <svg class="w-full h-full rotate-90 -scale-y-100"
+            <!-- Halo that breathes behind the ring while the timer runs -->
+            <div
+                class="absolute inset-3 rounded-full bg-teal-400/35 dark:bg-teal-400/30 blur-3xl transition-opacity duration-700"
+                :class="$store.pomoState.isRunning ? 'opacity-100 classic-breathe' : 'opacity-0'"
+                aria-hidden="true"
+            ></div>
+
+            <svg class="relative w-full h-full overflow-visible"
                 viewBox="0 0 100 100"
                 role="progressbar"
-                aria-label="Pomodoro progress circle">
+                aria-label="Pomodoro progress"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                :aria-valuenow="Math.round($store.pomoState.percentComplete)">
+                <defs>
+                    <linearGradient id="classic-progress" x1="0" y1="0" x2="1" y2="1">
+                        <stop offset="0" stop-color="currentColor" class="text-teal-300" />
+                        <stop offset="1" stop-color="currentColor" class="text-teal-600" />
+                    </linearGradient>
+                    <filter id="classic-glow" x="-50%" y="-50%" width="200%" height="200%">
+                        <feGaussianBlur stdDeviation="2" result="near" />
+                        <feGaussianBlur stdDeviation="5" result="far" />
+                        <feMerge><feMergeNode in="far" /><feMergeNode in="near" /></feMerge>
+                    </filter>
+                    <filter id="classic-head-glow" x="-300%" y="-300%" width="700%" height="700%">
+                        <feGaussianBlur stdDeviation="2.5" />
+                    </filter>
+                </defs>
+
+                <!-- Inner disc and minute ticks -->
+                <circle cx="50" cy="50" r="40.5" fill="currentColor" class="text-white/50 dark:text-slate-900/20" />
+                <g stroke="currentColor" stroke-linecap="round" class="text-gray-300 dark:text-slate-600">
+                    {ringTicks.map(tick => <line x1={tick.x1} y1={tick.y1} x2={tick.x2} y2={tick.y2} stroke-width={tick.major ? 0.8 : 0.35} />)}
+                </g>
+
+                <!-- Track -->
                 <circle
                     cx="50" cy="50" r="45"
                     fill="transparent"
                     stroke="currentColor"
-                    stroke-width="2"
-                    class="text-gray-200 dark:text-gray-700"
+                    stroke-width="6"
+                    class="text-gray-200 dark:text-slate-700"
                 />
-                
-                <!-- Progress Circle -->
-                <circle
-                    cx="50" cy="50" r="45"
-                    fill="transparent"
-                    stroke="currentColor"
-                    stroke-width="10"
-                    stroke-linecap="round"
-                    :stroke-dasharray="283"
-                    :stroke-dashoffset="283 - (283 * $store.pomoState.percentComplete) / 100"
-                    :class="$store.pomoState.isRunning ? 'text-teal-500 dark:text-teal-400' : 'text-gray-400 dark:text-gray-500'"
-                />
+
+                <g transform="rotate(-90 50 50)">
+                    <!-- Glow under the progress arc -->
+                    <circle
+                        cx="50" cy="50" r="45"
+                        fill="transparent"
+                        stroke="currentColor"
+                        stroke-width="8"
+                        stroke-linecap="round"
+                        stroke-dasharray="282.74"
+                        filter="url(#classic-glow)"
+                        class="text-teal-400 transition-opacity duration-500"
+                        :stroke-dashoffset="282.74 - (282.74 * $store.pomoState.percentComplete) / 100"
+                        :opacity="$store.pomoState.isRunning ? 1 : 0"
+                    />
+                    <!-- Progress Circle -->
+                    <circle
+                        cx="50" cy="50" r="45"
+                        fill="transparent"
+                        stroke-width="6"
+                        stroke-linecap="round"
+                        stroke-dasharray="282.74"
+                        :stroke-dashoffset="282.74 - (282.74 * $store.pomoState.percentComplete) / 100"
+                        :stroke="$store.pomoState.isRunning ? 'url(#classic-progress)' : 'currentColor'"
+                        class="text-gray-400 dark:text-gray-500"
+                    />
+                </g>
+
+                <!-- Bright head at the leading edge of the arc -->
+                <g :transform="`rotate(${3.6 * $store.pomoState.percentComplete} 50 50)`">
+                    <circle cx="50" cy="5" r="4" fill="currentColor" class="text-teal-300" filter="url(#classic-head-glow)" :opacity="$store.pomoState.isRunning ? 1 : 0" />
+                    <circle cx="50" cy="5" r="2.1" fill="currentColor" :class="$store.pomoState.isRunning ? 'text-white' : 'text-gray-100 dark:text-gray-300'" />
+                </g>
             </svg>
             
             <!-- Timer Text -->
             <div class="absolute top-0 left-0 w-full h-full flex flex-col items-center justify-center">
-                <div class="text-6xl font-mono font-bold text-gray-800 dark:text-white">
-                    <span class="transition-[color] duration-300 ease-in-out" x-text="Math.floor($store.pomoState.timeLeft / 60).toString().padStart(2, '0')"></span><span class="transition-[color] duration-300 ease-in-out">:</span><span class="transition-[color] duration-300 ease-in-out" x-text="($store.pomoState.timeLeft % 60).toString().padStart(2, '0')"></span>
+                <div
+                    class="text-6xl font-mono font-bold tabular-nums text-gray-800 dark:text-white transition-[text-shadow] duration-500"
+                    :class="$store.pomoState.isRunning && 'classic-text-glow'"
+                >
+                    <span class="transition-[color] duration-300 ease-in-out" x-text="Math.floor($store.pomoState.timeLeft / 60).toString().padStart(2, '0')"></span><span class="transition-[color] duration-300 ease-in-out" :class="$store.pomoState.isRunning && $store.pomoState.timeLeft % 2 && 'opacity-40'">:</span><span class="transition-[color] duration-300 ease-in-out" x-text="($store.pomoState.timeLeft % 60).toString().padStart(2, '0')"></span>
                 </div>
                 <div class="mt-1 text-md font-medium text-gray-600 dark:text-gray-300 transition-[color] duration-300 ease-in-out" x-text="$store.pomoState.currentPresetName"></div>
             </div>
         </div>
+        </template>
+        <TimerFaces />
         
         <!-- Timer Controls -->
         <div class="flex justify-center space-x-4 mb-8">
@@ -104,6 +177,18 @@
     </div>
 </div>
 
+<style is:global>
+    .classic-breathe { animation: classic-breathe 4s ease-in-out infinite; }
+    @keyframes classic-breathe {
+        0%, 100% { transform: scale(0.94); opacity: 0.7; }
+        50% { transform: scale(1.04); opacity: 1; }
+    }
+    .classic-text-glow { text-shadow: 0 0 22px rgb(var(--accent-400) / 0.55); }
+    @media (prefers-reduced-motion: reduce) {
+        .classic-breathe { animation: none; }
+    }
+</style>
+
 <script is:inline>
     // Minutes for each preset
     const POMO_DURATIONS = {
@@ -112,6 +197,34 @@
     };
 
     document.addEventListener('alpine:init', () => {
+        // One card of the flip face. Each change of value flips the top flap down to show it.
+        Alpine.data('flipCard', () => ({
+            current: '',
+            previous: '',
+            flipping: false,
+            timeout: null,
+
+            flipTo(value) {
+                if (value === this.current) return;
+                if (!this.current) {
+                    this.current = value;
+                    return;
+                }
+                this.previous = this.current;
+                this.current = value;
+                this.flipping = true;
+                // Restart the flap animation, even if the last flip hasn't finished
+                this.$el.classList.remove('tf-flipping');
+                this.$el.offsetWidth;
+                this.$el.classList.add('tf-flipping');
+                clearTimeout(this.timeout);
+                this.timeout = setTimeout(() => {
+                    this.flipping = false;
+                    this.$el.classList.remove('tf-flipping');
+                }, 600);
+            }
+        }));
+
         Alpine.store('pomoState', {
             preset: 'pomodoro',
             isBreak: false,
@@ -139,6 +252,17 @@
                 return 100 - (this.timeLeft / this.totalTime * 100);
             },
             
+            // "MMSS", for the faces that draw each digit
+            get digits() {
+                const minutes = Math.floor(this.timeLeft / 60);
+                return minutes.toString().padStart(2, '0') + (this.timeLeft % 60).toString().padStart(2, '0');
+            },
+
+            // Full length in seconds of the work or break phase for the current preset
+            phaseTime(isBreak) {
+                return POMO_DURATIONS[this.preset][isBreak ? 'break' : 'work'] * 60;
+            },
+
             get currentPresetName() {
                 if (this.isBreak) return 'Recharge';
                 return this.preset === 'long' ? 'Extended Focus' : 'Burst Focus';
@@ -168,8 +292,7 @@
 
             resetTimer() {
                 this.stopTimer();
-                const minutes = POMO_DURATIONS[this.preset][this.isBreak ? 'break' : 'work'];
-                this.totalTime = minutes * 60;
+                this.totalTime = this.phaseTime(this.isBreak);
                 this.timeLeft = this.totalTime;
                 this.saveState();
             },

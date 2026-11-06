@@ -300,9 +300,31 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
                 </div>
             </section>
 
-            <!-- Sounds -->
+            <!-- Timer -->
             <section class={section}>
-                <h3 class={sectionTitle}>Timer alarm</h3>
+                <h3 class={sectionTitle}>Timer</h3>
+
+                <div>
+                    <p class={`${label} mb-2`}>Timer style</p>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2" role="group" aria-label="Timer style">
+                        <template x-for="style in $store.settings.timerStyles" :key="style.id">
+                            <button
+                                type="button"
+                                x-on:click="$store.settings.update({ timerStyle: style.id })"
+                                class="flex flex-col items-start px-3 py-2 rounded-xl text-left ring-1 transition-all"
+                                x-bind:class="$store.settings.timerStyle === style.id
+                                    ? 'ring-2 ring-teal-500 bg-teal-50 text-gray-900 dark:bg-teal-900/30 dark:text-white'
+                                    : 'ring-black/10 text-gray-600 hover:ring-black/20 dark:ring-white/10 dark:text-gray-300 dark:hover:ring-white/20'"
+                                x-bind:aria-pressed="$store.settings.timerStyle === style.id"
+                            >
+                                <span class="text-sm font-medium" x-text="style.label"></span>
+                                <span class="text-xs text-gray-500 dark:text-gray-400" x-text="style.hint"></span>
+                            </button>
+                        </template>
+                    </div>
+                </div>
+
+                <p class={label}>Alarm sound</p>
                 <ul class="space-y-1.5" role="radiogroup" aria-label="Alarm sound">
                     <template x-for="sound in $store.settings.alarmSounds" :key="sound.id">
                         <li
@@ -360,7 +382,7 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
         <footer class="px-6 py-4 border-t border-black/5 dark:border-white/10">
             <button
                 type="button"
-                x-on:click="if (confirm('Reset appearance, quotes, and sound to their defaults? Your name is kept.')) $store.settings.reset()"
+                x-on:click="if (confirm('Reset appearance, quotes, timer style, and sound to their defaults? Your name is kept.')) $store.settings.reset()"
                 class="text-sm font-medium text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400 transition-colors"
             >Reset to defaults</button>
         </footer>

@@ -30,12 +30,24 @@ export const TEXT_SIZES = [
   { id: "xl", label: "Extra large" }
 ] as const;
 
+// Faces for the Pomodoro timer, drawn in TimerFaces.astro
+export const TIMER_STYLES = [
+  { id: "classic", label: "Classic", hint: "Progress ring" },
+  { id: "chess", label: "Chess clock", hint: "Focus against break" },
+  { id: "apple", label: "Apple", hint: "Twist kitchen timer" },
+  { id: "cat", label: "Cat", hint: "Watches the seconds" },
+  { id: "digital", label: "Digital", hint: "Seven-segment LCD" },
+  { id: "nixie", label: "Nixie tube", hint: "Glowing neon digits" },
+  { id: "flip", label: "Flip", hint: "Split-flap cards" }
+] as const;
+
 // Minutes before a scheduled block starts that its reminder fires
 export const BLOCK_LEADS = [0, 5, 10, 15, 30];
 
 type Accent = typeof ACCENTS[number]["id"];
 type Font = typeof FONTS[number]["id"];
 type TextSize = typeof TEXT_SIZES[number]["id"];
+type TimerStyle = typeof TIMER_STYLES[number]["id"];
 
 interface Settings {
   name: string;
@@ -43,6 +55,7 @@ interface Settings {
   font: Font;
   textSize: TextSize;
   showQuotes: boolean;
+  timerStyle: TimerStyle;
   alarmSound: AlarmSound;
   alarmVolume: number; // 0 to 1
   notifyEnabled: boolean; // Master switch for reminders and alerts
@@ -59,6 +72,7 @@ const DEFAULTS: Settings = {
   font: "inter",
   textSize: "md",
   showQuotes: true,
+  timerStyle: "classic",
   alarmSound: "classic",
   alarmVolume: 0.7,
   notifyEnabled: false,
@@ -82,6 +96,7 @@ function loadSettings(): Settings {
     font: pick(saved.font, FONTS, DEFAULTS.font),
     textSize: pick(saved.textSize, TEXT_SIZES, DEFAULTS.textSize),
     showQuotes: flag(saved.showQuotes, DEFAULTS.showQuotes),
+    timerStyle: pick(saved.timerStyle, TIMER_STYLES, DEFAULTS.timerStyle),
     alarmSound: pick(saved.alarmSound, ALARM_SOUNDS, DEFAULTS.alarmSound),
     alarmVolume: typeof saved.alarmVolume === "number" ? Math.min(1, Math.max(0, saved.alarmVolume)) : DEFAULTS.alarmVolume,
     notifyEnabled: flag(saved.notifyEnabled, DEFAULTS.notifyEnabled),
@@ -99,6 +114,7 @@ export function initSettingsStore() {
     accents: ACCENTS,
     fonts: FONTS,
     textSizes: TEXT_SIZES,
+    timerStyles: TIMER_STYLES,
     alarmSounds: ALARM_SOUNDS,
     blockLeads: BLOCK_LEADS,
     // The browser's answer to the notification prompt: "default", "granted", "denied", or "unsupported"
