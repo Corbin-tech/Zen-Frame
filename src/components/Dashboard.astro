@@ -384,8 +384,9 @@ const checkbox = 'w-4 h-4 shrink-0 rounded border-gray-300 dark:border-slate-500
                 return this.$store.todos.items.filter(item => !item.isCluster && item.completed && item.completedAt);
             },
 
+            // From the history, so clearing completed tasks doesn't erase the counts
             get completedToday() {
-                return this.completedTasks.filter(task => dayOf(task.completedAt) === this.todayKey).length;
+                return this.$store.todos.history.filter(record => dayOf(record.at) === this.todayKey).length;
             },
 
             // Overdue first, then the next 14 days
@@ -542,8 +543,8 @@ const checkbox = 'w-4 h-4 shrink-0 rounded border-gray-300 dark:border-slate-500
 
             get weekActivity() {
                 const counts = {};
-                this.completedTasks.forEach(task => {
-                    const day = dayOf(task.completedAt);
+                this.$store.todos.history.forEach(record => {
+                    const day = dayOf(record.at);
                     counts[day] = (counts[day] ?? 0) + 1;
                 });
                 return Array.from({ length: 7 }, (_, i) => {

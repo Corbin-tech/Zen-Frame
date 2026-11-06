@@ -6,6 +6,7 @@ import Schedule from './schedule.astro';
 import Dashboard from './Dashboard.astro';
 import Board from './Board.astro';
 import Goals from './Goals.astro';
+import Insights from './Insights.astro';
 import DarkModeToggle from './darkModeToggle.astro';
 import SettingsPanel from './SettingsPanel.astro';
 import QuickAdd from './QuickAdd.astro';
@@ -37,6 +38,11 @@ const tabs = [
         id: 'goals',
         label: 'Goals',
         icon: 'M3 21V4m0 0h11l-1.5 4L14 12H3'
+    },
+    {
+        id: 'insights',
+        label: 'Insights',
+        icon: 'M3 3v18h18M7 15l4-4 3 3 5-6'
     },
     {
         id: 'pomodoro',
@@ -171,6 +177,9 @@ const tabs = [
         </div>
         <div x-show="activeTab === 'goals'" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-1.5" x-transition:enter-end="opacity-100 translate-y-0">
             <Goals />
+        </div>
+        <div x-show="activeTab === 'insights'" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-1.5" x-transition:enter-end="opacity-100 translate-y-0">
+            <Insights />
         </div>
         <div x-show="activeTab === 'pomodoro'" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-1.5" x-transition:enter-end="opacity-100 translate-y-0">
             <PomoTimer />

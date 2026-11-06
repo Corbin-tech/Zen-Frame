@@ -17,6 +17,18 @@ export interface Todo {
   completedAt?: string;
 }
 
+// One finished task, kept after the task itself is cleared so Insights can count it
+export interface CompletionRecord {
+  taskId: string;
+  title: string;
+  clusterId: string | null;
+  clusterName: string; // Kept in case the cluster is deleted later
+  dueDate: string | null;
+  at: string; // ISO time it was completed
+}
+
+const HISTORY_LIMIT = 5000;
+
 // Kanban columns. A task's column comes from completed and startedAt.
 export type BoardColumn = "todo" | "doing" | "done";
 
@@ -56,6 +68,7 @@ function createTodosStore() {
     skippedClusters: [] as string[],
     scheduledItems: [] as ScheduledItem[],
     planning: { ...DEFAULT_PLANNING } as Planning,
+    history: [] as CompletionRecord[],
 
     get clusters(): Todo[] {
       return this.items.filter(item => item.isCluster);
@@ -87,6 +100,8 @@ function createTodosStore() {
       this.skippedClusters = loadJson<string[]>("skippedClusters", []);
       this.scheduledItems = loadJson<ScheduledItem[]>("scheduledItems", []);
       this.planning = { ...DEFAULT_PLANNING, ...loadJson<Partial<Planning>>("planning", {}) };
+      this.history = loadJson<CompletionRecord[]>("history", []);
+      this.recordExistingCompletions();
       // Last: it may save, and saving writes every list, so all of them must be loaded first
       this.giveClustersDistinctColors();
     },
@@ -96,6 +111,28 @@ function createTodosStore() {
       localStorage.setItem("skippedClusters", JSON.stringify(this.skippedClusters));
       localStorage.setItem("scheduledItems", JSON.stringify(this.scheduledItems));
       localStorage.setItem("planning", JSON.stringify(this.planning));
+      localStorage.setItem("history", JSON.stringify(this.history));
+    },
+
+    // Completed tasks from before the history existed, so their stats aren't lost
+    recordExistingCompletions(): void {
+      const recorded = new Set(this.history.map(record => `${record.taskId}|${record.at}`));
+      const missing = this.items.filter(item => !item.isCluster && item.completed && item.completedAt && !recorded.has(`${item.id}|${item.completedAt}`));
+      if (!missing.length) return;
+      this.history = [...this.history, ...missing.map(task => this.completionRecord(task, task.completedAt!))]
+        .sort((a, b) => a.at.localeCompare(b.at));
+      localStorage.setItem("history", JSON.stringify(this.history));
+    },
+
+    completionRecord(task: Todo, at: string): CompletionRecord {
+      return {
+        taskId: task.id,
+        title: task.todo,
+        clusterId: task.parentId,
+        clusterName: this.clusterName(task.parentId),
+        dueDate: task.dueDate ?? null,
+        at
+      };
     },
 
     find(id: string): Todo | undefined {
@@ -266,6 +303,11 @@ function createTodosStore() {
       if (!todo) return;
 
       const now = new Date().toISOString();
+      if (!todo.isCluster) {
+        this.history = todo.completed
+          ? this.history.filter(record => !(record.taskId === id && record.at === todo.completedAt))
+          : [...this.history, this.completionRecord(todo, now)].slice(-HISTORY_LIMIT);
+      }
       todo.completed = !todo.completed;
       todo.completedAt = todo.completed ? now : undefined;
       todo.updatedAt = now;
