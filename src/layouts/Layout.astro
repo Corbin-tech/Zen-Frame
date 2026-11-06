@@ -1,6 +1,7 @@
 ---
 import Footer from '../components/footer.astro';
-import DarkModeToggle from '../components/darkModeToggle.astro';
+import '@fontsource-variable/inter';
+import '../styles/preferences.css';
 
 interface Props {
 	title: string;
@@ -20,6 +21,14 @@ const { title } = Astro.props;
 				
 				document.documentElement.classList.toggle('dark', initialTheme === 'dark');
 				document.documentElement.setAttribute('data-theme', initialTheme);
+
+				// Accent, font, and text size from Settings, applied before the first paint
+				try {
+					const settings = JSON.parse(localStorage.getItem('settings') || '{}');
+					if (settings.accent) document.documentElement.dataset.accent = settings.accent;
+					if (settings.font) document.documentElement.dataset.font = settings.font;
+					if (settings.textSize) document.documentElement.dataset.textSize = settings.textSize;
+				} catch (e) {}
 			})();
 		</script>
 		
@@ -33,6 +42,9 @@ const { title } = Astro.props;
 		<script>
 			import { initThemeStore } from '../stores/themeStore';
 			import { initStores } from '../stores/todoStore';
+			import { initSettingsStore } from '../stores/settingsStore';
+			import { initGoalsStore } from '../stores/goalsStore';
+			import { notify, startReminders } from '../lib/notifications';
 			import { registerTaskDragDrop } from '../scripts/taskDragDrop.js';
 			import { dates } from '../lib/dates';
 			import JSConfetti from 'js-confetti';
@@ -41,10 +53,18 @@ const { title } = Astro.props;
 
 			document.addEventListener('alpine:init', () => {
 				window.Alpine.store('theme', initThemeStore());
+				window.Alpine.store('settings', initSettingsStore());
+				window.Alpine.store('goals', initGoalsStore());
 				initStores();
 				registerTaskDragDrop(window.Alpine);
 				// $dates in templates: date and time helpers from src/lib/dates.ts
 				window.Alpine.magic('dates', () => dates);
+			});
+
+			// Block and due-date reminders, once every store is ready
+			document.addEventListener('alpine:initialized', () => {
+				window.notify = (kind, title, body) => notify(window.Alpine, kind, title, body);
+				startReminders(window.Alpine);
 			});
 		</script>
 		
@@ -71,22 +91,17 @@ const { title } = Astro.props;
 		
 		<style is:global>
 			:root {
-				--accent: 136, 58, 234;
-				--accent-light: 224, 204, 250;
-				--accent-dark: 49, 10, 101;
-				--accent-gradient: linear-gradient(
-					45deg,
-					rgb(var(--accent)),
-					rgb(var(--accent-light)) 30%,
-					white 60%
-				);
 				--bg-color: rgb(245 245 244);
 				--card-bg: rgb(255, 255, 255);
 				--cluster-bg: rgb(255, 255, 255);
 				--task-bg: rgb(255, 255, 255);
-				--border-color: rgb(229, 231, 235);
-				--teal-primary: #0d9488;
-				--teal-light: #5eead4;
+				--teal-primary: rgb(var(--accent-600));
+
+				/* Ambient page glow and the frosted header */
+				--glow-1: rgb(var(--accent-400) / 0.16);
+				--glow-2: rgb(99 102 241 / 0.10);
+				--grid-dot: rgb(15 23 42 / 0.07);
+				--glass: rgb(245 245 244 / 0.72);
 
 				/* Cluster colors (see CLUSTER_COLORS in todoStore.ts) */
 				--c-teal: #14b8a6;
@@ -97,6 +112,10 @@ const { title } = Astro.props;
 				--c-violet: #8b5cf6;
 				--c-emerald: #10b981;
 				--c-orange: #f97316;
+				--c-pink: #ec4899;
+				--c-lime: #84cc16;
+				--c-cyan: #06b6d4;
+				--c-fuchsia: #d946ef;
 				--c-none: #94a3b8;
 			}
 			
@@ -105,9 +124,12 @@ const { title } = Astro.props;
 				--card-bg: rgb(30, 41, 59);
 				--cluster-bg: rgb(51, 65, 85);
 				--task-bg: rgb(30, 41, 59);
-				--border-color: rgb(71, 85, 105);
-				--teal-primary: #14b8a6;
-				--teal-light: #2dd4bf;
+				--teal-primary: rgb(var(--accent-500));
+
+				--glow-1: rgb(var(--accent-500) / 0.16);
+				--glow-2: rgb(99 102 241 / 0.14);
+				--grid-dot: rgb(255 255 255 / 0.05);
+				--glass: rgb(15 23 42 / 0.7);
 
 				/* Darker steps keep the cluster colors in a readable band on dark surfaces */
 				--c-teal: #0d9488;
@@ -115,6 +137,10 @@ const { title } = Astro.props;
 				--c-sky: #0284c7;
 				--c-emerald: #059669;
 				--c-orange: #ea580c;
+				--c-pink: #db2777;
+				--c-lime: #65a30d;
+				--c-cyan: #0891b2;
+				--c-fuchsia: #c026d3;
 				--c-none: #64748b;
 			}
 
@@ -122,11 +148,64 @@ const { title } = Astro.props;
 				min-height: 100vh;
 				margin: 0;
 				padding: 0;
+			}
+
+			/* Only the root paints the page color, so the glows on body::before show above it */
+			html {
 				background-color: var(--bg-color);
 			}
 			
 			html {
-				font-family: system-ui, sans-serif;
+				font-family: 'Inter Variable', system-ui, sans-serif;
+				font-feature-settings: 'cv11', 'ss01';
+				-webkit-font-smoothing: antialiased;
+				-moz-osx-font-smoothing: grayscale;
+			}
+
+			/* Soft color glows and a fading dot grid behind everything */
+			body::before {
+				content: '';
+				position: fixed;
+				inset: 0;
+				z-index: -1;
+				pointer-events: none;
+				background:
+					radial-gradient(40rem 28rem at 8% -6%, var(--glow-1), transparent 70%),
+					radial-gradient(36rem 26rem at 96% 4%, var(--glow-2), transparent 70%);
+			}
+			body::after {
+				content: '';
+				position: fixed;
+				inset: 0;
+				z-index: -1;
+				pointer-events: none;
+				background-image: radial-gradient(var(--grid-dot) 1px, transparent 1px);
+				background-size: 22px 22px;
+				mask-image: linear-gradient(to bottom, black, transparent 60%);
+				-webkit-mask-image: linear-gradient(to bottom, black, transparent 60%);
+			}
+
+			::selection {
+				background-color: rgb(var(--accent-400) / 0.3);
+			}
+
+			:focus-visible {
+				outline: 2px solid var(--teal-primary);
+				outline-offset: 2px;
+			}
+
+			* {
+				scrollbar-width: thin;
+				scrollbar-color: rgb(148 163 184 / 0.5) transparent;
+			}
+
+			@media (prefers-reduced-motion: reduce) {
+				*, *::before, *::after {
+					animation-duration: 0.01ms !important;
+					animation-iteration-count: 1 !important;
+					transition-duration: 0.01ms !important;
+					scroll-behavior: auto !important;
+				}
 			}
 			code {
 				font-family:
@@ -145,10 +224,7 @@ const { title } = Astro.props;
 		<div class="min-h-screen flex flex-col">
 			<!-- Content Wrapper -->
 			<div class="flex-1">
-				<main class="px-3 py-4 sm:p-6">
-					<div class="flex justify-end mb-4">
-						<DarkModeToggle />
-					</div>
+				<main class="px-3 pb-8 sm:px-6">
 					<slot />
 				</main>
 			</div>

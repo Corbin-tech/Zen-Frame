@@ -4,10 +4,9 @@ import TaskRow from './TaskRow.astro';
 ---
 
 <div 
-  class="w-full max-w-4xl mx-auto rounded-xl shadow-lg p-4 sm:p-8"
-  style="background-color: var(--card-bg);"
+  class="w-full max-w-4xl mx-auto rounded-2xl bg-white/80 dark:bg-slate-800/70 backdrop-blur-sm shadow-sm ring-1 ring-black/5 dark:ring-white/10 p-4 sm:p-8"
 >
-    <h1 class="text-3xl sm:text-4xl font-bold text-center mb-6 sm:mb-8 text-gray-800 dark:text-white">Task Manager</h1>
+    <h1 class="text-3xl sm:text-4xl font-bold tracking-tight text-center mb-6 sm:mb-8 text-gray-900 dark:text-white">Task Manager</h1>
     
     <!-- Quick Task Input -->
     <div class="mb-8">
@@ -42,6 +41,7 @@ import TaskRow from './TaskRow.astro';
                 class="cluster-card group rounded-xl shadow-sm border-2 border-l-4 border-gray-100 dark:border-slate-600 hover:border-teal-200 dark:hover:border-teal-800 transition-all duration-300 ease-in-out"
                 x-bind:style="`background-color: var(--cluster-bg); border-left-color: ${$store.todos.clusterColor(cluster.id)};`"
                 x-task-drop="$store.todos.moveTask($taskId, cluster.id)"
+                x-bind:id="`item-${cluster.id}`"
             >
                 <!-- Cluster Header -->
                 <div class="flex items-center justify-between gap-2 p-3 sm:p-4 border-b border-gray-100 dark:border-slate-600 transition-colors duration-300 ease-in-out"
@@ -66,22 +66,26 @@ import TaskRow from './TaskRow.astro';
                                 x-show="open"
                                 x-transition.opacity.duration.150ms
                                 x-cloak
-                                class="absolute left-0 top-full mt-2 z-30 p-2 rounded-xl bg-white dark:bg-slate-800 shadow-lg ring-1 ring-black/5 dark:ring-white/10 grid grid-cols-4 gap-2"
+                                class="absolute left-0 top-full mt-2 z-30 p-2 rounded-xl bg-white dark:bg-slate-800 shadow-lg ring-1 ring-black/5 dark:ring-white/10 grid grid-cols-6 gap-2"
                             >
                                 <template x-for="color in $store.todos.palette" :key="color">
                                     <button
                                         type="button"
                                         x-on:click="$store.todos.setClusterColor(cluster.id, color); open = false"
                                         class="w-6 h-6 rounded-full ring-offset-2 ring-offset-white dark:ring-offset-slate-800 hover:scale-110 transition-transform"
-                                        x-bind:class="$store.todos.clusterColorKey(cluster.id) === color ? 'ring-2 ring-gray-400 dark:ring-gray-300' : ''"
+                                        x-bind:class="[
+                                            $store.todos.clusterColorKey(cluster.id) === color ? 'ring-2 ring-gray-400 dark:ring-gray-300' : '',
+                                            $store.todos.colorTaken(color, cluster.id) ? 'opacity-35' : ''
+                                        ]"
                                         x-bind:style="`background-color: var(--c-${color});`"
-                                        x-bind:aria-label="`Use ${color}`"
+                                        x-bind:title="$store.todos.colorTaken(color, cluster.id) ? `${color}, used by another cluster` : color"
+                                        x-bind:aria-label="$store.todos.colorTaken(color, cluster.id) ? `Use ${color}, already used by another cluster` : `Use ${color}`"
                                         x-bind:aria-pressed="$store.todos.clusterColorKey(cluster.id) === color"
                                     ></button>
                                 </template>
                             </div>
                         </div>
-                        <input
+                        <input name="cluster-name" aria-label="Cluster name"
                             type="text"
                             x-model="cluster.todo"
                             x-on:input="$store.todos.saveTodos()"
@@ -156,6 +160,14 @@ import TaskRow from './TaskRow.astro';
                             <TaskRow />
                         </template>
                     </div>
+                    <button
+                        type="button"
+                        x-on:click="$dispatch('open-quick-add', { mode: 'task', parentId: cluster.id })"
+                        class="mt-1 ml-1 sm:ml-3 flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-sm text-gray-500 hover:text-gray-800 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-slate-700/50 transition-colors"
+                    >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+                        <span x-text="`Add a task to ${cluster.todo}`"></span>
+                    </button>
                 </div>
             </div>
         </template>
@@ -188,7 +200,7 @@ import TaskRow from './TaskRow.astro';
     /* A task is being dragged over this cluster */
     .cluster-card[data-drop-active] {
         border-style: dashed;
-        border-color: #0d9488;
-        background-color: rgba(13, 148, 136, 0.05) !important;
+        border-color: var(--teal-primary);
+        background-color: color-mix(in srgb, var(--teal-primary) 5%, transparent) !important;
     }
 </style>

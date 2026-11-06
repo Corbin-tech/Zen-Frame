@@ -57,6 +57,15 @@ export function formatDuration(minutes: number): string {
   return rest === 0 ? `${hours}h` : `${hours}h ${rest}m`;
 }
 
+// [1, 3, 5] -> "Mon, Wed, Fri" (0 = Sunday)
+export function formatWeekdays(weekdays: number[]): string {
+  // January 4, 2026 is a Sunday
+  return [...weekdays]
+    .sort((a, b) => a - b)
+    .map(day => new Date(2026, 0, 4 + day).toLocaleDateString(undefined, { weekday: "short" }))
+    .join(", ");
+}
+
 export function minutesNow(now: Date = new Date()): number {
   return now.getHours() * 60 + now.getMinutes();
 }
@@ -89,6 +98,14 @@ export function dueText(dueKey: string, todayKey: string = toDateKey()): string 
   return `due ${formatDate(dueKey)}`;
 }
 
+// "today", "yesterday", "3 days ago", or "Oct 30" after a week
+export function daysAgoText(key: string, todayKey: string = toDateKey()): string {
+  const days = daysBetween(key, todayKey);
+  if (days <= 0) return "today";
+  if (days === 1) return "yesterday";
+  return days < 7 ? `${days} days ago` : formatDate(key);
+}
+
 // Tailwind classes for a due-date chip. Completed tasks use the quiet style.
 const DUE_TONE_CLASSES: Record<DueTone, string> = {
   overdue: "bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-300",
@@ -111,9 +128,11 @@ export const dates = {
   toTimeValue,
   fromTimeValue,
   formatDuration,
+  formatWeekdays,
   minutesNow,
   dueTone,
   dueLabel,
   dueText,
+  daysAgoText,
   dueClass
 };

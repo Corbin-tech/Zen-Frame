@@ -1,6 +1,7 @@
 ---
 import { START_HOUR, END_HOUR, HOUR_HEIGHT, SLOT_MINUTES } from '../lib/timeline';
 import { formatTime, toTimeValue } from '../lib/dates';
+import AutoPlanPanel from './AutoPlanPanel.astro';
 
 const hours = Array.from({ length: END_HOUR - START_HOUR }, (_, i) => START_HOUR + i);
 const timelineHeight = hours.length * HOUR_HEIGHT;
@@ -12,7 +13,9 @@ for (let minutes = START_HOUR * 60; minutes <= END_HOUR * 60; minutes += SLOT_MI
 const startOptions = timeOptions.slice(0, -1);
 const endOptions = timeOptions.slice(1);
 
-const panel = 'rounded-2xl bg-white dark:bg-slate-800 shadow-sm ring-1 ring-black/5 dark:ring-white/5';
+const weekdayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+const panel = 'rounded-2xl bg-white/80 dark:bg-slate-800/70 backdrop-blur-sm shadow-sm ring-1 ring-black/5 dark:ring-white/10';
 const iconButton = 'p-2 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-slate-700 transition-colors';
 ---
 
@@ -76,6 +79,8 @@ const iconButton = 'p-2 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gr
                     <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>Due</span>
                 </div>
             </section>
+
+            <AutoPlanPanel panel={panel} />
 
             <!-- Tasks without a block on this day -->
             <section class={`${panel} p-4`}>
@@ -181,11 +186,20 @@ const iconButton = 'p-2 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gr
                             </>
                         ))}
 
+                        <!-- Hours you're free to work (from Auto-plan) -->
+                        <template x-for="band in availabilityBands" :key="band.start">
+                            <div
+                                class="absolute inset-x-0 bg-teal-500/[0.06] dark:bg-teal-400/[0.07] border-y border-teal-500/15 pointer-events-none"
+                                x-bind:style="{ top: `${toY(band.start)}px`, height: `${toY(band.end) - toY(band.start)}px` }"
+                                aria-hidden="true"
+                            ></div>
+                        </template>
+
                         <!-- Current time -->
                         <div
                             x-show="isNowVisible"
                             class="absolute inset-x-0 z-20 pointer-events-none"
-                            x-bind:style="`top: ${toY(nowMinutes)}px;`"
+                            x-bind:style="{ top: `${toY(nowMinutes)}px` }"
                         >
                             <div class="relative h-0.5 bg-rose-500">
                                 <span class="absolute -left-1.5 -top-[5px] w-3 h-3 rounded-full bg-rose-500 ring-2 ring-white dark:ring-slate-800"></span>
@@ -196,7 +210,7 @@ const iconButton = 'p-2 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gr
                         <div
                             x-show="preview"
                             class="absolute left-1 right-1 z-10 rounded-lg border-2 border-dashed border-teal-500 bg-teal-500/10 px-2 py-1 text-xs font-medium text-teal-700 dark:text-teal-300 pointer-events-none"
-                            x-bind:style="preview ? `top: ${toY(preview.start)}px; height: ${toY(preview.end) - toY(preview.start)}px;` : ''"
+                            x-bind:style="preview ? { top: `${toY(preview.start)}px`, height: `${toY(preview.end) - toY(preview.start)}px` } : {}"
                             x-text="preview ? formatRange(preview.start, preview.end) : ''"
                         ></div>
 
@@ -209,20 +223,25 @@ const iconButton = 'p-2 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gr
                                 x-on:pointerdown.stop="startMove($event, block)"
                                 role="button"
                                 tabindex="0"
-                                x-bind:aria-label="`${block.title}, ${formatRange(block.start, block.end)}. Press Enter to edit.`"
+                                x-bind:aria-label="`${block.title}, ${formatRange(block.start, block.end)}${block.repeatDays ? `, repeats ${block.repeatDays}` : ''}. Press Enter to edit.`"
                                 x-on:keydown.enter="openModalFor(block.taskId, block.item)"
                             >
                                 <div class="flex items-start gap-2 min-w-0">
-                                    <input
+                                    <!-- A class meeting (a cluster block) is not a to-do -->
+                                    <input name="block-done"
+                                        x-show="!block.isCluster"
                                         type="checkbox"
                                         class="mt-0.5 w-3.5 h-3.5 shrink-0 rounded border-gray-300 dark:border-slate-500 text-teal-600 focus:ring-teal-500 dark:bg-slate-700 cursor-pointer"
                                         x-bind:checked="block.completed"
                                         x-on:pointerdown.stop
-                                        x-on:click.stop="$store.todos.toggleTodo(block.taskId)"
+                                        x-on:click.stop="$store.todos.toggleBlockDone(block.item, selectedDate)"
                                         x-bind:aria-label="`Mark ${block.title} ${block.completed ? 'not done' : 'done'}`"
                                     />
                                     <div class="min-w-0 leading-tight">
-                                        <p class="text-sm font-medium text-gray-900 dark:text-white truncate" x-bind:class="block.completed && 'line-through'" x-text="block.title"></p>
+                                        <p class="flex items-center gap-1 text-sm font-medium text-gray-900 dark:text-white">
+                                            <span class="truncate" x-bind:class="block.completed && 'line-through'" x-text="block.title"></span>
+                                            <svg x-show="block.repeatDays" class="w-3 h-3 shrink-0 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                                        </p>
                                         <p x-show="block.end - block.start >= 30" class="text-xs text-gray-600 dark:text-gray-300 truncate mt-0.5" x-text="block.subtitle"></p>
                                     </div>
                                 </div>
@@ -265,7 +284,7 @@ const iconButton = 'p-2 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gr
             x-transition:leave="transition ease-in duration-150"
             x-transition:leave-start="opacity-100 scale-100"
             x-transition:leave-end="opacity-0 scale-95"
-            class="relative w-full max-w-md rounded-2xl bg-white dark:bg-slate-800 shadow-2xl ring-1 ring-black/5 dark:ring-white/10"
+            class="relative w-full max-w-md max-h-full overflow-y-auto rounded-2xl bg-white dark:bg-slate-800 shadow-2xl ring-1 ring-black/5 dark:ring-white/10"
         >
             <div class="p-5 space-y-5">
                 <div class="flex items-start justify-between gap-4">
@@ -280,17 +299,17 @@ const iconButton = 'p-2 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gr
 
                 <!-- Editing: the block's task -->
                 <div x-show="editingItemId" class="flex items-center gap-3 rounded-xl bg-gray-50 dark:bg-slate-700/50 px-3 py-2.5">
-                    <span class="w-2.5 h-2.5 rounded-full shrink-0" x-bind:style="`background-color: ${$store.todos.clusterColor(selectedTask?.parentId ?? null)};`"></span>
+                    <span class="w-2.5 h-2.5 rounded-full shrink-0" x-bind:style="`background-color: ${$store.todos.clusterColor($store.todos.clusterOf(selectedTask))};`"></span>
                     <div class="min-w-0 flex-1">
                         <p class="text-sm font-medium text-gray-900 dark:text-white truncate" x-text="selectedTask?.todo ?? 'Deleted task'"></p>
-                        <p class="text-xs text-gray-500 dark:text-gray-400" x-text="$store.todos.clusterName(selectedTask?.parentId ?? null) || 'No cluster'"></p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400" x-text="selectedTask?.isCluster ? 'Cluster' : $store.todos.clusterName(selectedTask?.parentId ?? null) || 'No cluster'"></p>
                     </div>
-                    <label class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 cursor-pointer">
-                        <input
+                    <label x-show="editingItem && !selectedTask?.isCluster" class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 cursor-pointer">
+                        <input id="block-editor-done" name="block-editor-done"
                             type="checkbox"
                             class="w-4 h-4 rounded border-gray-300 dark:border-slate-500 text-teal-600 focus:ring-teal-500 dark:bg-slate-700"
-                            x-bind:checked="selectedTask?.completed"
-                            x-on:change="selectedTask && $store.todos.toggleTodo(selectedTask.id)"
+                            x-bind:checked="editingItem && $store.todos.isBlockDone(editingItem, selectedDate)"
+                            x-on:change="$store.todos.toggleBlockDone(editingItem, selectedDate)"
                         />
                         Done
                     </label>
@@ -298,18 +317,18 @@ const iconButton = 'p-2 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gr
 
                 <!-- New block: find a task or create one -->
                 <div x-show="!editingItemId" class="space-y-2">
-                    <label for="block-task-search" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Task</label>
+                    <label for="block-task-search" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Task or cluster</label>
                     <input
                         id="block-task-search"
                         x-ref="search"
                         type="text"
                         x-model="query"
                         x-on:keydown.enter.prevent="pickFirstMatch()"
-                        placeholder="Search tasks or type a new one"
+                        placeholder="Search tasks and clusters, or type a new task"
                         autocomplete="off"
                         class="block w-full rounded-lg border-gray-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-sm focus:border-teal-500 focus:ring-teal-500"
                     />
-                    <ul class="max-h-44 overflow-y-auto rounded-lg border border-gray-100 dark:border-slate-700 divide-y divide-gray-100 dark:divide-slate-700" x-show="pickerTasks.length || canCreateFromQuery">
+                    <ul class="max-h-44 overflow-y-auto rounded-lg border border-gray-100 dark:border-slate-700 divide-y divide-gray-100 dark:divide-slate-700" x-show="pickerTasks.length || pickerClusters.length || canCreateFromQuery">
                         <template x-for="task in pickerTasks" :key="task.id">
                             <li>
                                 <button
@@ -326,6 +345,23 @@ const iconButton = 'p-2 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gr
                                 </button>
                             </li>
                         </template>
+                        <!-- A cluster block is a class meeting, not a to-do -->
+                        <template x-for="cluster in pickerClusters" :key="cluster.id">
+                            <li>
+                                <button
+                                    type="button"
+                                    x-on:click="selectedTaskId = cluster.id"
+                                    class="w-full flex items-center gap-2 px-3 py-2 text-left text-sm transition-colors"
+                                    x-bind:class="selectedTaskId === cluster.id ? 'bg-teal-50 dark:bg-teal-900/30 text-teal-800 dark:text-teal-200' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-700/60'"
+                                    x-bind:aria-pressed="selectedTaskId === cluster.id"
+                                >
+                                    <span class="w-2.5 h-2.5 rounded shrink-0" x-bind:style="`background-color: ${$store.todos.clusterColor(cluster.id)};`"></span>
+                                    <span class="flex-1 min-w-0 truncate font-medium" x-text="cluster.todo"></span>
+                                    <span class="shrink-0 text-xs text-gray-400">Cluster</span>
+                                    <svg x-show="selectedTaskId === cluster.id" class="w-4 h-4 shrink-0 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                                </button>
+                            </li>
+                        </template>
                         <li x-show="canCreateFromQuery">
                             <button
                                 type="button"
@@ -338,7 +374,7 @@ const iconButton = 'p-2 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gr
                             </button>
                         </li>
                     </ul>
-                    <p x-show="!pickerTasks.length && !canCreateFromQuery" class="text-sm text-gray-400 dark:text-gray-500">Type a name to create a new task.</p>
+                    <p x-show="!pickerTasks.length && !pickerClusters.length && !canCreateFromQuery" class="text-sm text-gray-400 dark:text-gray-500">Type a name to create a new task.</p>
 
                     <!-- Options for a new task -->
                     <div x-show="selectedTaskId === NEW_TASK" class="grid grid-cols-2 gap-3 pt-1">
@@ -393,6 +429,39 @@ const iconButton = 'p-2 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gr
                         <span x-text="`Overlaps ${conflicts.join(', ')}`"></span>
                     </p>
                 </div>
+
+                <!-- Weekly repeat -->
+                <div class="space-y-3">
+                    <label class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
+                        <input id="block-repeats" name="block-repeats" type="checkbox" x-model="repeats" class="w-4 h-4 rounded border-gray-300 dark:border-slate-500 text-teal-600 focus:ring-teal-500 dark:bg-slate-700" />
+                        Repeats weekly
+                    </label>
+                    <div x-show="repeats" class="space-y-3 pl-6">
+                        <div class="flex gap-1.5" role="group" aria-label="Repeat on">
+                            {weekdayNames.map((name, day) => (
+                                <button
+                                    type="button"
+                                    x-on:click={`toggleRepeatDay(${day})`}
+                                    class="w-8 h-8 rounded-full text-xs font-semibold transition-colors"
+                                    x-bind:class={`repeatDays.includes(${day}) ? 'bg-teal-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-slate-700 dark:text-gray-300 dark:hover:bg-slate-600'`}
+                                    x-bind:aria-pressed={`repeatDays.includes(${day})`}
+                                    aria-label={name}
+                                >{name[0]}</button>
+                            ))}
+                        </div>
+                        <div class="flex flex-wrap items-end gap-3">
+                            <div>
+                                <label for="block-repeat-until" class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Ends on (optional)</label>
+                                <input id="block-repeat-until" type="date" x-model="repeatUntil" x-bind:min="repeatStart" class="block rounded-lg border-gray-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-sm focus:border-teal-500 focus:ring-teal-500" />
+                            </div>
+                            <p class="pb-2 text-xs text-gray-500 dark:text-gray-400" x-text="`Starts ${$dates.formatDate(repeatStart, { weekday: 'short', month: 'short', day: 'numeric' })}`"></p>
+                        </div>
+                        <p x-show="repeatError" class="text-sm text-red-600 dark:text-red-400" x-text="repeatError"></p>
+                    </div>
+                    <p x-show="editingItem?.repeat" class="text-xs text-gray-500 dark:text-gray-400" x-text="repeats
+                        ? 'Changes apply to every day this block repeats.'
+                        : `Saving keeps this block on ${$dates.formatDate(selectedDate)} only and removes it from the other days.`"></p>
+                </div>
             </div>
 
             <div class="flex items-center gap-2 px-5 py-4 border-t border-gray-100 dark:border-slate-700 bg-gray-50/60 dark:bg-slate-800/60 rounded-b-2xl">
@@ -401,7 +470,8 @@ const iconButton = 'p-2 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gr
                     x-show="editingItemId"
                     x-on:click="deleteBlock()"
                     class="px-3 py-2 text-sm font-medium rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
-                >Remove</button>
+                    x-text="editingItem?.repeat ? 'Remove all days' : 'Remove'"
+                ></button>
                 <div class="flex-1"></div>
                 <button type="button" x-on:click="closeModal()" class="px-4 py-2 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors">Cancel</button>
                 <button
@@ -430,6 +500,7 @@ const iconButton = 'p-2 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gr
 <script>
     import { dates } from '../lib/dates';
     import { DAY_START, DAY_END, HOUR_HEIGHT, SLOT_MINUTES } from '../lib/timeline';
+    import { windowsOn } from '../lib/autoPlan';
 
     const NEW_TASK = '__new__';
     const DEFAULT_LENGTH = 60;
@@ -461,6 +532,9 @@ const iconButton = 'p-2 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gr
             startTime: '',
             endTime: '',
             length: DEFAULT_LENGTH, // Minutes the block keeps when its start moves
+            repeats: false,
+            repeatDays: [],
+            repeatUntil: '',
 
             init() {
                 // Keeps the current-time line and "today" up to date
@@ -511,7 +585,7 @@ const iconButton = 'p-2 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gr
             },
 
             get plannedDays() {
-                return new Set(this.$store.todos.scheduledItems.map(item => item.date));
+                return new Set(this.calendarDays.map(day => day.date).filter(date => this.$store.todos.scheduledItemsOn(date).length));
             },
 
             get dueDays() {
@@ -559,6 +633,13 @@ const iconButton = 'p-2 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gr
                 return parts.join(' · ');
             },
 
+            // Availability on this day, clipped to the timeline
+            get availabilityBands() {
+                return windowsOn(this.$store.todos.planning.availability, this.selectedDate)
+                    .map(band => ({ start: Math.max(band.start, DAY_START), end: Math.min(band.end, DAY_END) }))
+                    .filter(band => band.end > band.start);
+            },
+
             // Open tasks without a block on this day, soonest due date first
             get unscheduledTasks() {
                 const scheduled = new Set(this.itemsForDay.map(item => item.taskId));
@@ -596,8 +677,9 @@ const iconButton = 'p-2 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gr
 
                 return items.map(({ item, start, end, column, columns }) => {
                     const task = this.$store.todos.find(item.taskId);
-                    const color = this.$store.todos.clusterColor(task?.parentId ?? null);
-                    const clusterName = this.$store.todos.clusterName(task?.parentId ?? null);
+                    const isCluster = Boolean(task?.isCluster);
+                    const color = this.$store.todos.clusterColor(this.$store.todos.clusterOf(task));
+                    const clusterName = isCluster ? '' : this.$store.todos.clusterName(task?.parentId ?? null);
                     const top = this.toY(start);
                     const height = Math.max(this.toY(end) - top - 2, 18);
                     return {
@@ -606,9 +688,11 @@ const iconButton = 'p-2 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gr
                         taskId: item.taskId,
                         start,
                         end,
+                        isCluster,
+                        repeatDays: item.repeat ? dates.formatWeekdays(item.repeat.weekdays) : '',
                         title: task?.todo || 'Deleted task',
                         subtitle: [this.formatRange(start, end), clusterName].filter(Boolean).join(' · '),
-                        completed: Boolean(task?.completed),
+                        completed: this.$store.todos.isBlockDone(item, this.selectedDate),
                         style: `top: ${top}px; height: ${height}px; left: calc(${(column / columns) * 100}% + 4px); width: calc(${100 / columns}% - 8px); ` +
                             `background-color: color-mix(in srgb, ${color} 16%, var(--card-bg)); border-left: 3px solid ${color};`
                     };
@@ -775,9 +859,30 @@ const iconButton = 'p-2 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gr
                 return this.unscheduledTasks.filter(task => task.todo.toLowerCase().includes(query));
             },
 
+            get pickerClusters() {
+                const query = this.query.trim().toLowerCase();
+                return this.$store.todos.clusters.filter(cluster => cluster.todo.toLowerCase().includes(query));
+            },
+
             get canCreateFromQuery() {
                 const query = this.query.trim().toLowerCase();
-                return query !== '' && !this.pickerTasks.some(task => task.todo.trim().toLowerCase() === query);
+                return query !== '' && ![...this.pickerTasks, ...this.pickerClusters].some(item => item.todo.trim().toLowerCase() === query);
+            },
+
+            get editingItem() {
+                return this.$store.todos.scheduledItems.find(item => item.id === this.editingItemId) ?? null;
+            },
+
+            // A repeating block keeps its first day when it is edited on a later day
+            get repeatStart() {
+                return this.repeats && this.editingItem?.repeat ? this.editingItem.date : this.selectedDate;
+            },
+
+            get repeatError() {
+                if (!this.repeats) return '';
+                if (!this.repeatDays.length) return 'Pick at least one day.';
+                if (this.repeatUntil && this.repeatUntil < this.repeatStart) return 'The end date must be on or after the start date.';
+                return '';
             },
 
             get startMinutes() {
@@ -797,7 +902,7 @@ const iconButton = 'p-2 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gr
             },
 
             get canSave() {
-                if (this.duration <= 0) return false;
+                if (this.duration <= 0 || this.repeatError) return false;
                 if (this.editingItemId) return true;
                 return this.selectedTaskId === NEW_TASK ? this.query.trim() !== '' : Boolean(this.selectedTask);
             },
@@ -811,6 +916,9 @@ const iconButton = 'p-2 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gr
                 this.startTime = dates.toTimeValue(start);
                 this.endTime = dates.toTimeValue(end);
                 this.length = end - start;
+                this.repeats = Boolean(item?.repeat);
+                this.repeatDays = item?.repeat ? [...item.repeat.weekdays] : [dates.fromDateKey(this.selectedDate).getDay()];
+                this.repeatUntil = item?.repeat?.until ?? '';
                 this.showModal = true;
                 if (!item && !taskId) this.$nextTick(() => this.$refs.search.focus());
             },
@@ -830,13 +938,20 @@ const iconButton = 'p-2 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gr
             },
 
             pickFirstMatch() {
-                if (this.pickerTasks.length) this.selectedTaskId = this.pickerTasks[0].id;
+                const match = this.pickerTasks[0] ?? this.pickerClusters[0];
+                if (match) this.selectedTaskId = match.id;
                 else if (this.canCreateFromQuery) this.selectedTaskId = NEW_TASK;
             },
 
             setDuration(minutes) {
                 this.length = minutes;
                 this.endTime = dates.toTimeValue(Math.min(this.startMinutes + minutes, DAY_END));
+            },
+
+            toggleRepeatDay(day) {
+                this.repeatDays = this.repeatDays.includes(day)
+                    ? this.repeatDays.filter(other => other !== day)
+                    : [...this.repeatDays, day].sort((a, b) => a - b);
             },
 
             saveBlock() {
@@ -853,9 +968,12 @@ const iconButton = 'p-2 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gr
                 this.$store.todos.saveScheduledItem({
                     id: this.editingItemId || crypto.randomUUID(),
                     taskId,
-                    date: this.selectedDate,
+                    date: this.repeatStart,
                     startTimeMinutes: this.startMinutes,
-                    endTimeMinutes: this.startMinutes + this.duration
+                    endTimeMinutes: this.startMinutes + this.duration,
+                    repeat: this.repeats
+                        ? { weekdays: [...this.repeatDays], until: this.repeatUntil || null, doneDates: this.editingItem?.repeat?.doneDates ?? [] }
+                        : undefined
                 });
                 this.closeModal();
             },

@@ -1,9 +1,9 @@
 <div
     x-data
     x-cloak
-    class="w-full max-w-3xl mx-auto bg-white dark:bg-slate-800 rounded-xl shadow-sm p-6"
+    class="w-full max-w-3xl mx-auto rounded-2xl bg-white/80 dark:bg-slate-800/70 backdrop-blur-sm shadow-sm ring-1 ring-black/5 dark:ring-white/10 p-6"
 >
-    <h1 class="text-4xl font-bold text-center mb-6 text-gray-800 dark:text-white transition-[color] duration-300 ease-in-out">Pomodoro Timer</h1>
+    <h1 class="text-3xl sm:text-4xl font-bold tracking-tight text-center mb-6 text-gray-900 dark:text-white transition-[color] duration-300 ease-in-out">Pomodoro Timer</h1>
 
     <!-- Timer Display -->
     <div class="flex flex-col items-center justify-center">
@@ -123,10 +123,6 @@
 
             // Alpine calls init() when the store is registered
             init() {
-                if ('Notification' in window && Notification.permission === 'default') {
-                    Notification.requestPermission();
-                }
-
                 this.loadState();
                 this.resetTimer();
 
@@ -212,15 +208,11 @@
             },
 
             playAlarm() {
-                const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
-                audio.play().catch(e => console.log('Audio play failed:', e));
+                // The sound and volume chosen in Settings
+                window.Alpine.store('settings').playAlarm();
                 
-                if ('Notification' in window && Notification.permission === 'granted') {
-                    new Notification('Timer Complete!', {
-                        body: `Your ${this.isBreak ? 'break' : 'focus'} session is complete!`,
-                        icon: '/favicon.svg'
-                    });
-                }
+                // Shown only if timer alerts are on in Settings
+                window.notify('timer', 'Timer complete', `Your ${this.isBreak ? 'break' : 'focus'} session is complete.`);
             },
             
             saveState() {

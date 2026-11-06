@@ -12,8 +12,16 @@
             "href": "#taskmanager"
         },
         {
+            "title": "Board",
+            "href": "#board"
+        },
+        {
             "title": "Schedule",
             "href": "#schedule"
+        },
+        {
+            "title": "Goals",
+            "href": "#goals"
         },
         {
             "title": "Pomodoro",

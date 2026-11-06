@@ -1,4 +1,6 @@
-import { toDateKey } from "../lib/dates";
+import { toDateKey, fromDateKey, addDays, minutesNow } from "../lib/dates";
+import { planTasks, type AvailabilityWindow } from "../lib/autoPlan";
+import { loadJson } from "../lib/storage";
 
 export interface Todo {
   id: string;
@@ -11,34 +13,49 @@ export interface Todo {
   color?: string; // Clusters only: a key of CLUSTER_COLORS
   createdAt: string;
   updatedAt?: string;
+  startedAt?: string; // Set while the task is in the board's In progress column
   completedAt?: string;
 }
 
+// Kanban columns. A task's column comes from completed and startedAt.
+export type BoardColumn = "todo" | "doing" | "done";
+
 export interface ScheduledItem {
   id: string;
-  taskId: string;
-  date: string; // Local date as YYYY-MM-DD
+  taskId: string; // A task, or a cluster for a class meeting
+  date: string; // Local date as YYYY-MM-DD. A repeating block starts on this day.
   startTimeMinutes: number;
   endTimeMinutes: number;
+  repeat?: {
+    weekdays: number[]; // 0 = Sunday to 6 = Saturday
+    until: string | null; // Last day as YYYY-MM-DD, or null for no end
+    doneDates: string[]; // Days the block was checked off. The task stays open for the other days.
+  };
 }
+
+// Auto-planning preferences: when the user is free to work, and how blocks are sized
+export interface Planning {
+  availability: AvailabilityWindow[];
+  duration: number; // Minutes per planned task
+  gap: number; // Free minutes after each planned task
+}
+
+const DEFAULT_PLANNING: Planning = { availability: [], duration: 45, gap: 15 };
 
 const NEW_CLUSTER_NAME = "New Cluster";
 
 // Cluster colors, picked in this order for new clusters. Each key is a CSS variable
 // (--c-<key>) in Layout.astro with separate light and dark values. The order keeps
 // neighbors distinct for color-blind readers; check changes with a palette validator.
-export const CLUSTER_COLORS = ["teal", "indigo", "amber", "sky", "rose", "violet", "emerald", "orange"];
-
-function loadJson<T>(key: string, fallback: T): T {
-  const saved = localStorage.getItem(key);
-  return saved ? JSON.parse(saved) : fallback;
-}
+// The last four extend the set so up to 12 clusters each get their own color.
+export const CLUSTER_COLORS = ["teal", "indigo", "amber", "sky", "rose", "violet", "emerald", "orange", "pink", "lime", "cyan", "fuchsia"];
 
 function createTodosStore() {
   return {
     items: [] as Todo[],
     skippedClusters: [] as string[],
     scheduledItems: [] as ScheduledItem[],
+    planning: { ...DEFAULT_PLANNING } as Planning,
 
     get clusters(): Todo[] {
       return this.items.filter(item => item.isCluster);
@@ -53,9 +70,10 @@ function createTodosStore() {
     },
 
     // The task Zen mode shows: the first open task in list order, skipping clusters the user skipped.
-    // When every open task is in a skipped cluster, fall back to the first open task.
+    // Tasks in progress on the board come first. When every open task is in a skipped cluster,
+    // fall back to the first open task.
     get nextTask(): Todo | null {
-      const openTasks = this.openTasks;
+      const openTasks = [...this.openTasks].sort((a, b) => Number(Boolean(b.startedAt)) - Number(Boolean(a.startedAt)));
       return openTasks.find(task => !task.parentId || !this.skippedClusters.includes(task.parentId))
         ?? openTasks[0]
         ?? null;
@@ -68,12 +86,16 @@ function createTodosStore() {
       this.items = loadJson<Todo[]>("todos", []).map(item => ({ ...item, parentId: item.parentId ?? null }));
       this.skippedClusters = loadJson<string[]>("skippedClusters", []);
       this.scheduledItems = loadJson<ScheduledItem[]>("scheduledItems", []);
+      this.planning = { ...DEFAULT_PLANNING, ...loadJson<Partial<Planning>>("planning", {}) };
+      // Last: it may save, and saving writes every list, so all of them must be loaded first
+      this.giveClustersDistinctColors();
     },
 
     saveTodos(): void {
       localStorage.setItem("todos", JSON.stringify(this.items));
       localStorage.setItem("skippedClusters", JSON.stringify(this.skippedClusters));
       localStorage.setItem("scheduledItems", JSON.stringify(this.scheduledItems));
+      localStorage.setItem("planning", JSON.stringify(this.planning));
     },
 
     find(id: string): Todo | undefined {
@@ -98,8 +120,49 @@ function createTodosStore() {
     },
 
     createCluster(name = NEW_CLUSTER_NAME): string {
-      const color = CLUSTER_COLORS[this.clusters.length % CLUSTER_COLORS.length];
-      return this.addTodo(name.trim() || NEW_CLUSTER_NAME, { isCluster: true, color });
+      return this.addTodo(name.trim() || NEW_CLUSTER_NAME, { isCluster: true, color: this.nextClusterColor() });
+    },
+
+    // The first color no cluster uses yet, or the least used one once all are taken
+    nextClusterColor(): string {
+      const uses = new Map(CLUSTER_COLORS.map(color => [color, 0]));
+      for (const cluster of this.clusters) {
+        if (cluster.color && uses.has(cluster.color)) uses.set(cluster.color, uses.get(cluster.color)! + 1);
+      }
+      return CLUSTER_COLORS.reduce((best, color) => uses.get(color)! < uses.get(best)! ? color : best);
+    },
+
+    // Clusters without a color, or sharing one with an earlier cluster, get an unused color.
+    // Runs at load, so clusters made before there were enough colors are fixed once.
+    giveClustersDistinctColors(): void {
+      const taken = new Set<string>();
+      const repaint: Todo[] = [];
+      for (const cluster of this.clusters) {
+        if (cluster.color && CLUSTER_COLORS.includes(cluster.color) && !taken.has(cluster.color)) {
+          taken.add(cluster.color);
+        } else {
+          repaint.push(cluster);
+        }
+      }
+      const free = CLUSTER_COLORS.filter(color => !taken.has(color));
+      let changed = false;
+      for (const cluster of repaint) {
+        const color = free.shift();
+        if (!color) break; // More clusters than colors: the rest keep what they have
+        cluster.color = color;
+        changed = true;
+      }
+      if (changed) this.saveTodos();
+    },
+
+    // Whether another cluster already has this color (the color picker marks these)
+    colorTaken(color: string, exceptId: string): boolean {
+      return this.clusters.some(cluster => cluster.id !== exceptId && this.clusterColorKey(cluster.id) === color);
+    },
+
+    // The cluster of a task, or the cluster itself
+    clusterOf(item?: Todo | null): string | null {
+      return item?.isCluster ? item.id : item?.parentId ?? null;
     },
 
     clusterName(clusterId: string | null): string {
@@ -135,10 +198,29 @@ function createTodosStore() {
       this.saveTodos();
     },
 
+    // A repeating block is returned as stored, for each day it repeats on
     scheduledItemsOn(dateKey: string = toDateKey()): ScheduledItem[] {
+      const weekday = fromDateKey(dateKey).getDay();
       return this.scheduledItems
-        .filter(item => item.date === dateKey)
+        .filter(item => item.repeat
+          ? item.repeat.weekdays.includes(weekday) && item.date <= dateKey && (!item.repeat.until || dateKey <= item.repeat.until)
+          : item.date === dateKey)
         .sort((a, b) => a.startTimeMinutes - b.startTimeMinutes);
+    },
+
+    // A repeating block is checked off one day at a time, so its other days stay open
+    isBlockDone(item: ScheduledItem, dateKey: string): boolean {
+      return item.repeat ? item.repeat.doneDates.includes(dateKey) : Boolean(this.find(item.taskId)?.completed);
+    },
+
+    toggleBlockDone(item: ScheduledItem, dateKey: string): void {
+      if (!item.repeat) {
+        this.toggleTodo(item.taskId);
+        return;
+      }
+      const { doneDates } = item.repeat;
+      item.repeat.doneDates = doneDates.includes(dateKey) ? doneDates.filter(day => day !== dateKey) : [...doneDates, dateKey];
+      this.saveTodos();
     },
 
     deleteTodo(id: string): void {
@@ -155,10 +237,11 @@ function createTodosStore() {
     },
 
     deleteCompleted(): void {
-      // Unpinned clusters whose tasks are all complete go away with their tasks
+      // Unpinned clusters whose tasks are all complete go away with their tasks.
+      // A cluster with blocks is a class on the timetable, so it stays.
       const finishedClusterIds = this.clusters
         .filter(cluster => {
-          if (cluster.isPinned) return false;
+          if (cluster.isPinned || this.scheduledItems.some(entry => entry.taskId === cluster.id)) return false;
           const tasks = this.items.filter(item => item.parentId === cluster.id);
           return tasks.length > 0 && tasks.every(task => task.completed);
         })
@@ -208,6 +291,38 @@ function createTodosStore() {
 
       task.parentId = clusterId;
       task.updatedAt = new Date().toISOString();
+      this.saveTodos();
+    },
+
+    boardColumn(task: Todo): BoardColumn {
+      if (task.completed) return "done";
+      return task.startedAt ? "doing" : "todo";
+    },
+
+    // Moves a task to a board column. With a target task it lands just before
+    // (or after) that card; without one it keeps its place in list order.
+    moveToColumn(taskId: string, column: BoardColumn, targetId?: string, after = false): void {
+      const task = this.find(taskId);
+      if (!task || task.isCluster) return;
+
+      if (this.boardColumn(task) !== column) {
+        if (column === "done") {
+          this.toggleTodo(taskId);
+        } else {
+          if (task.completed) this.toggleTodo(taskId);
+          task.startedAt = column === "doing" ? task.startedAt ?? new Date().toISOString() : undefined;
+          task.updatedAt = new Date().toISOString();
+        }
+      }
+
+      if (targetId && targetId !== taskId) {
+        const items = this.items.filter(item => item.id !== taskId);
+        const index = items.findIndex(item => item.id === targetId);
+        if (index !== -1) {
+          items.splice(index + (after ? 1 : 0), 0, task);
+          this.items = items;
+        }
+      }
       this.saveTodos();
     },
 
@@ -309,9 +424,53 @@ function createTodosStore() {
       this.saveTodos();
     },
 
-    removeScheduledItem(id: string): void {
-      this.scheduledItems = this.scheduledItems.filter(item => item.id !== id);
+    updatePlanning(changes: Partial<Planning>): void {
+      this.planning = { ...this.planning, ...changes };
       this.saveTodos();
+    },
+
+    // Plans open tasks into free availability on `dayCount` days from `fromDate`.
+    // Skips tasks that already have a block today or later, and routines (repeating blocks).
+    // Returns the new block ids so the plan can be undone.
+    autoPlan(fromDate: string, dayCount: number): string[] {
+      const today = toDateKey();
+      const start = fromDate < today ? today : fromDate;
+      const days = Array.from({ length: dayCount }, (_, i) => addDays(start, i));
+      const planned = new Set(this.scheduledItems
+        .filter(item => item.repeat || item.date >= today)
+        .map(item => item.taskId));
+      const tasks = this.openTasks.filter(task => task.todo.trim() && !planned.has(task.id));
+
+      const blocks = planTasks({
+        tasks,
+        days,
+        availability: this.planning.availability,
+        busyOn: day => this.scheduledItemsOn(day).map(item => ({ start: item.startTimeMinutes, end: item.endTimeMinutes })),
+        earliestOn: day => day === today ? minutesNow() : 0,
+        duration: this.planning.duration,
+        gap: this.planning.gap
+      });
+
+      const created = blocks.map(block => ({
+        id: crypto.randomUUID(),
+        taskId: block.taskId,
+        date: block.date,
+        startTimeMinutes: block.start,
+        endTimeMinutes: block.end
+      }));
+      this.scheduledItems = [...this.scheduledItems, ...created];
+      this.saveTodos();
+      return created.map(item => item.id);
+    },
+
+    removeScheduledItems(ids: string[]): void {
+      const remove = new Set(ids);
+      this.scheduledItems = this.scheduledItems.filter(item => !remove.has(item.id));
+      this.saveTodos();
+    },
+
+    removeScheduledItem(id: string): void {
+      this.removeScheduledItems([id]);
     }
   };
 }

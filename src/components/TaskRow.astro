@@ -7,6 +7,7 @@
     style="background-color: var(--task-bg);"
     x-bind:class="{'bg-green-50 dark:bg-green-900/10 border-green-100 dark:border-green-900/30': task.completed, 'hover:border-teal-300 dark:hover:border-teal-700': !task.completed}"
     x-drag-task="task.id"
+    x-bind:id="`item-${task.id}`"
 >
     <!-- On small screens the due date and controls wrap to a second line -->
     <div class="basis-full sm:basis-auto flex-1 min-w-0 py-3 pl-2 sm:pl-3">
@@ -20,13 +21,13 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16" />
                 </svg>
             </div>
-            <input
+            <input name="task-done" x-bind:aria-label="`Mark ${task.todo || 'task'} ${task.completed ? 'not done' : 'done'}`"
                 type="checkbox"
                 class="w-5 h-5 rounded border-gray-300 dark:border-slate-500 text-teal-600 dark:text-teal-400 focus:ring-teal-500 dark:focus:ring-teal-400 dark:bg-slate-700"
                 x-bind:checked="task.completed"
                 x-on:change="$store.todos.toggleTodo(task.id)"
             />
-            <input
+            <input name="task-name" aria-label="Task name"
                 type="text"
                 x-model="task.todo"
                 x-bind:readonly="task.completed"
@@ -42,8 +43,12 @@
         </div>
     </div>
 
-    <!-- Due date: the chip opens the browser date picker -->
-    <div class="relative shrink-0 pl-14 sm:pl-0 pb-2 sm:pb-0" x-data>
+    <!-- Due date: the chip opens the browser date picker. Tasks started on the board say so. -->
+    <div class="relative shrink-0 pl-14 sm:pl-0 pb-2 sm:pb-0 flex items-center gap-1.5" x-data>
+        <span
+            x-show="task.startedAt && !task.completed"
+            class="text-xs font-medium px-2 py-1 rounded-md bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+        >In progress</span>
         <button
             type="button"
             x-on:click="$refs.due.showPicker ? $refs.due.showPicker() : $refs.due.focus()"
@@ -59,7 +64,7 @@
             </svg>
             <span x-show="task.dueDate" x-text="task.dueDate ? $dates.dueLabel(task.dueDate) : ''"></span>
         </button>
-        <input
+        <input name="task-due-date"
             type="date"
             x-ref="due"
             tabindex="-1"
@@ -142,7 +147,7 @@
         box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
         z-index: 50;
         cursor: grabbing;
-        border: 2px solid #0d9488 !important;
+        border: 2px solid var(--teal-primary) !important;
     }
     
     [data-drag-handle] {
