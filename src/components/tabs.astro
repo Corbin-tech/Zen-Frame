@@ -63,9 +63,111 @@ const tabs = [
     @change-tab.window="activeTab = $event.detail.tab"
     class="w-full"
 >
+    <!-- Sidebar: the same tabs down the left edge, chosen in Settings. Screens 1280px and wider. -->
+    <aside
+        x-show="$store.settings.navLayout === 'side'"
+        x-cloak
+        class="hidden xl:flex fixed z-40 left-3 top-3 bottom-3 flex-col gap-3 p-2 rounded-2xl backdrop-blur-xl backdrop-saturate-150 ring-1 ring-black/5 dark:ring-white/10 shadow-lg shadow-slate-900/[0.04] dark:shadow-black/20 transition-[width] duration-300"
+        style="width: var(--sidebar-w); background-color: var(--glass);"
+        x-data="{ get collapsed() { return $store.settings.sidebarCollapsed } }"
+    >
+        <div class="flex items-center gap-2 px-1 pt-1" x-bind:class="collapsed && 'flex-col'">
+            <button type="button" x-on:click="activeTab = 'dashboard'" class="flex items-center gap-2 min-w-0 rounded-lg" aria-label="Zen Frame, go to the dashboard">
+                <span class="grid place-items-center w-8 h-8 shrink-0 rounded-xl bg-gradient-to-br from-teal-400 to-teal-700 shadow-md shadow-teal-700/25 ring-1 ring-white/20">
+                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.25" d="M4 8V5a1 1 0 011-1h3M16 4h3a1 1 0 011 1v3M20 16v3a1 1 0 01-1 1h-3M8 20H5a1 1 0 01-1-1v-3M9 12h6" /></svg>
+                </span>
+                <span x-show="!collapsed" class="text-[15px] font-semibold tracking-tight text-gray-900 dark:text-white truncate">Zen Frame</span>
+            </button>
+            <button
+                type="button"
+                x-on:click="$store.settings.update({ sidebarCollapsed: !collapsed })"
+                class="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-900/5 dark:hover:text-gray-200 dark:hover:bg-white/10 transition-colors"
+                x-bind:class="!collapsed && 'ml-auto'"
+                x-bind:aria-label="collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+                x-bind:title="collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+            >
+                <svg class="w-4 h-4 transition-transform" x-bind:class="collapsed && 'rotate-180'" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" /></svg>
+            </button>
+        </div>
+
+        <button
+            type="button"
+            x-on:click="$dispatch('open-quick-add')"
+            class="flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-teal-600 text-white text-sm font-medium shadow-sm shadow-teal-700/30 hover:bg-teal-700 transition-colors"
+            aria-label="New task or cluster (N)"
+            title="New task or cluster (N)"
+        >
+            <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 5v14m7-7H5" /></svg>
+            <span x-show="!collapsed">New</span>
+        </button>
+
+        <nav class="flex-1 min-h-0 overflow-y-auto -mx-0.5 px-0.5" aria-label="Sections">
+            <ul class="space-y-0.5">
+                {tabs.map((tab) => (
+                    <li>
+                        <button
+                            type="button"
+                            x-on:click={`activeTab = '${tab.id}'`}
+                            x-bind:class={`activeTab === '${tab.id}' ? 'bg-white text-gray-900 shadow-sm ring-1 ring-black/5 dark:bg-white/[0.14] dark:text-white dark:ring-white/10' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-900/[0.04] dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-white/[0.06]'`}
+                            x-bind:aria-current={`activeTab === '${tab.id}' ? 'page' : null`}
+                            class="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-colors"
+                            aria-label={tab.label}
+                            title={tab.label}
+                        >
+                            <svg class="w-[18px] h-[18px] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={tab.icon} />
+                            </svg>
+                            <span x-show="!collapsed" class="truncate">{tab.label}</span>
+                        </button>
+                    </li>
+                ))}
+            </ul>
+        </nav>
+
+        <!-- Timer status (shows only when a timer is running or paused) -->
+        <button
+            type="button"
+            x-show="$store.pomoState.isRunning || $store.pomoState.timeLeft < $store.pomoState.totalTime"
+            x-on:click="activeTab = 'pomodoro'"
+            :aria-label="$store.pomoState.isRunning ? 'Pomodoro timer running. Open the timer.' : 'Pomodoro timer paused. Open the timer.'"
+            class="flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-white/80 dark:bg-slate-800/80 ring-1 ring-black/5 dark:ring-white/10 text-sm font-semibold tabular-nums"
+            :class="$store.pomoState.isRunning ? 'text-gray-800 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400 opacity-75'"
+        >
+            <span class="relative flex w-2 h-2 shrink-0" aria-hidden="true">
+                <span x-show="$store.pomoState.isRunning" class="absolute inline-flex w-full h-full rounded-full bg-teal-400 opacity-75 animate-ping"></span>
+                <span class="relative inline-flex w-2 h-2 rounded-full" :class="$store.pomoState.isRunning ? 'bg-teal-500' : 'bg-gray-400'"></span>
+            </span>
+            <span x-show="!collapsed"><span x-text="Math.floor($store.pomoState.timeLeft / 60).toString().padStart(2, '0')"></span>:<span x-text="($store.pomoState.timeLeft % 60).toString().padStart(2, '0')"></span></span>
+        </button>
+
+        <div class="flex items-center gap-1 pt-2 border-t border-black/5 dark:border-white/10" x-bind:class="collapsed ? 'flex-col' : 'justify-between'">
+            <button
+                type="button"
+                x-on:click="$store.theme.toggle()"
+                class="p-2.5 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-900/5 dark:hover:bg-white/10 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
+                x-bind:aria-label="$store.theme.current === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'"
+                x-bind:title="$store.theme.current === 'dark' ? 'Light mode' : 'Dark mode'"
+            >
+                <svg x-show="$store.theme.current === 'light'" class="w-5 h-5" viewBox="0 0 20 20" aria-hidden="true"><path fill="currentColor" stroke="none" d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" /></svg>
+                <svg x-show="$store.theme.current === 'dark'" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+            </button>
+            <button
+                type="button"
+                x-on:click="$dispatch('open-settings')"
+                class="p-2.5 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-900/5 dark:hover:bg-white/10 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
+                aria-label="Open settings"
+                title="Settings"
+            >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+            </button>
+        </div>
+    </aside>
+
     <!-- Top bar: brand, tab navigation, timer, theme -->
-    <!-- A floating frosted island that stays at the top while the page scrolls -->
-    <header class="sticky top-3 z-40 mt-3 mb-6 pl-2 pr-1.5 py-1.5 rounded-2xl backdrop-blur-xl backdrop-saturate-150 ring-1 ring-black/5 dark:ring-white/10 shadow-lg shadow-slate-900/[0.04] dark:shadow-black/20" style="background-color: var(--glass);">
+    <!-- A floating frosted island that stays at the top while the page scrolls. With the sidebar on, wide screens hide it. -->
+    <header
+        x-bind:class="$store.settings.navLayout === 'side' && 'xl:hidden'"
+        class="sticky top-3 z-40 mt-3 mb-6 pl-2 pr-1.5 py-1.5 rounded-2xl backdrop-blur-xl backdrop-saturate-150 ring-1 ring-black/5 dark:ring-white/10 shadow-lg shadow-slate-900/[0.04] dark:shadow-black/20" style="background-color: var(--glass);">
         <div class="flex items-center gap-2 sm:gap-3">
             <button type="button" x-on:click="activeTab = 'dashboard'" class="hidden sm:flex items-center gap-2 shrink-0 rounded-lg" aria-label="Zen Frame, go to the dashboard">
                 <span class="grid place-items-center w-8 h-8 rounded-xl bg-gradient-to-br from-teal-400 to-teal-700 shadow-md shadow-teal-700/25 ring-1 ring-white/20">
@@ -156,6 +258,9 @@ const tabs = [
             </button>
         </div>
     </header>
+
+    <!-- Keeps the content clear of the top edge when the top bar is hidden -->
+    <div class="hidden" x-bind:class="$store.settings.navLayout === 'side' && 'xl:block h-3'" aria-hidden="true"></div>
 
     <SettingsPanel />
     <QuickAdd />

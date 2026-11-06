@@ -28,6 +28,8 @@ const { title } = Astro.props;
 					if (settings.accent) document.documentElement.dataset.accent = settings.accent;
 					if (settings.font) document.documentElement.dataset.font = settings.font;
 					if (settings.textSize) document.documentElement.dataset.textSize = settings.textSize;
+					if (settings.navLayout) document.documentElement.dataset.nav = settings.navLayout;
+					document.documentElement.dataset.sidebar = settings.sidebarCollapsed ? 'collapsed' : 'open';
 				} catch (e) {}
 			})();
 		</script>

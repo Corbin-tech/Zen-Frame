@@ -97,6 +97,23 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
                 </div>
 
                 <div>
+                    <p class={`${label} mb-2`}>Navigation</p>
+                    <div class={segmented} role="group" aria-label="Navigation">
+                        <template x-for="layout in $store.settings.navLayouts" :key="layout.id">
+                            <button
+                                type="button"
+                                x-on:click="$store.settings.update({ navLayout: layout.id })"
+                                class={segment}
+                                x-bind:class={`$store.settings.navLayout === layout.id ? '${segmentOn}' : '${segmentOff}'`}
+                                x-bind:aria-pressed="$store.settings.navLayout === layout.id"
+                                x-text="layout.label"
+                            ></button>
+                        </template>
+                    </div>
+                    <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">The sidebar shows on wide screens. Phones and small windows keep the top bar.</p>
+                </div>
+
+                <div>
                     <p class={`${label} mb-2`}>Color scheme</p>
                     <div class="grid grid-cols-3 gap-2" role="group" aria-label="Color scheme">
                         <template x-for="accent in $store.settings.accents" :key="accent.id">

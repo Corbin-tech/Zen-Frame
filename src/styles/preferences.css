@@ -91,3 +91,10 @@
 :root[data-font="rounded"] { font-family: ui-rounded, 'SF Pro Rounded', system-ui, sans-serif; }
 :root[data-font="serif"] { font-family: ui-serif, 'Iowan Old Style', Charter, Georgia, serif; }
 :root[data-font="mono"] { font-family: ui-monospace, 'SF Mono', Menlo, monospace; }
+
+/* Sidebar navigation (1280px and wider; xl in Tailwind). The page makes room for it. */
+:root { --sidebar-w: 14rem; }
+:root[data-sidebar="collapsed"] { --sidebar-w: 4.25rem; }
+@media (min-width: 1280px) {
+	:root[data-nav="side"] body { padding-left: calc(var(--sidebar-w) + 0.75rem); }
+}

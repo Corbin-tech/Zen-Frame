@@ -30,6 +30,12 @@ export const TEXT_SIZES = [
   { id: "xl", label: "Extra large" }
 ] as const;
 
+// Where the tabs go. The sidebar shows on wide screens; narrow ones keep the top bar.
+export const NAV_LAYOUTS = [
+  { id: "top", label: "Top bar" },
+  { id: "side", label: "Sidebar" }
+] as const;
+
 // Faces for the Pomodoro timer, drawn in TimerFaces.astro
 export const TIMER_STYLES = [
   { id: "classic", label: "Classic", hint: "Progress ring" },
@@ -48,12 +54,15 @@ type Accent = typeof ACCENTS[number]["id"];
 type Font = typeof FONTS[number]["id"];
 type TextSize = typeof TEXT_SIZES[number]["id"];
 type TimerStyle = typeof TIMER_STYLES[number]["id"];
+type NavLayout = typeof NAV_LAYOUTS[number]["id"];
 
 interface Settings {
   name: string;
   accent: Accent;
   font: Font;
   textSize: TextSize;
+  navLayout: NavLayout;
+  sidebarCollapsed: boolean; // Sidebar shows icons only
   showQuotes: boolean;
   timerStyle: TimerStyle;
   alarmSound: AlarmSound;
@@ -71,6 +80,8 @@ const DEFAULTS: Settings = {
   accent: "teal",
   font: "inter",
   textSize: "md",
+  navLayout: "top",
+  sidebarCollapsed: false,
   showQuotes: true,
   timerStyle: "classic",
   alarmSound: "classic",
@@ -95,6 +106,8 @@ function loadSettings(): Settings {
     accent: pick(saved.accent, ACCENTS, DEFAULTS.accent),
     font: pick(saved.font, FONTS, DEFAULTS.font),
     textSize: pick(saved.textSize, TEXT_SIZES, DEFAULTS.textSize),
+    navLayout: pick(saved.navLayout, NAV_LAYOUTS, DEFAULTS.navLayout),
+    sidebarCollapsed: flag(saved.sidebarCollapsed, DEFAULTS.sidebarCollapsed),
     showQuotes: flag(saved.showQuotes, DEFAULTS.showQuotes),
     timerStyle: pick(saved.timerStyle, TIMER_STYLES, DEFAULTS.timerStyle),
     alarmSound: pick(saved.alarmSound, ALARM_SOUNDS, DEFAULTS.alarmSound),
@@ -114,6 +127,7 @@ export function initSettingsStore() {
     accents: ACCENTS,
     fonts: FONTS,
     textSizes: TEXT_SIZES,
+    navLayouts: NAV_LAYOUTS,
     timerStyles: TIMER_STYLES,
     alarmSounds: ALARM_SOUNDS,
     blockLeads: BLOCK_LEADS,
@@ -158,6 +172,8 @@ export function initSettingsStore() {
       root.dataset.accent = this.accent;
       root.dataset.font = this.font;
       root.dataset.textSize = this.textSize;
+      root.dataset.nav = this.navLayout;
+      root.dataset.sidebar = this.sidebarCollapsed ? "collapsed" : "open";
     },
 
     playAlarm(sound: AlarmSound = this.alarmSound): void {
