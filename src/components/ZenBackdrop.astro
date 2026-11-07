@@ -61,21 +61,21 @@ const koi = [
 // A drop lands and its rings spread and fade, then the spot rests until its next drop.
 // Each kind of drop differs: how many rings, how far apart, how wide, how flat, how often.
 const RIPPLE_KINDS = {
-    triple: { size: 100, rings: 3, gap: 1.1, flat: 0.42, cycle: 24, width: 2.4 },
-    double: { size: 78, rings: 2, gap: 1.5, flat: 0.45, cycle: 21, width: 2.2 },
-    wide: { size: 125, rings: 1, gap: 0, flat: 0.36, cycle: 28, width: 2 },
-    cluster: { size: 62, rings: 4, gap: 0.6, flat: 0.5, cycle: 20, width: 1.8 },
-    drizzle: { size: 26, rings: 2, gap: 0.5, flat: 0.48, cycle: 13, width: 1.4 }
+    triple: { size: 100, rings: 3, gap: 1.1, flat: 0.42, cycle: 38, width: 2.4 },
+    double: { size: 78, rings: 2, gap: 1.5, flat: 0.45, cycle: 33, width: 2.2 },
+    wide: { size: 125, rings: 1, gap: 0, flat: 0.36, cycle: 44, width: 2 },
+    cluster: { size: 62, rings: 4, gap: 0.6, flat: 0.5, cycle: 32, width: 1.8 },
+    drizzle: { size: 26, rings: 2, gap: 0.5, flat: 0.48, cycle: 21, width: 1.4 }
 };
 const rippleSpots: { x: number; y: number; delay: number; kind: keyof typeof RIPPLE_KINDS }[] = [
     { x: 260, y: 190, delay: 0, kind: 'triple' },
-    { x: 720, y: 560, delay: -6, kind: 'wide' },
-    { x: 520, y: 330, delay: -12, kind: 'double' },
-    { x: 150, y: 600, delay: -15, kind: 'cluster' },
-    { x: 860, y: 300, delay: -9, kind: 'double' },
-    { x: 400, y: 560, delay: -3, kind: 'drizzle' },
-    { x: 640, y: 120, delay: -7, kind: 'drizzle' },
-    { x: 340, y: 90, delay: -11, kind: 'drizzle' },
+    { x: 720, y: 560, delay: -9, kind: 'wide' },
+    { x: 520, y: 330, delay: -19, kind: 'double' },
+    { x: 150, y: 600, delay: -25, kind: 'cluster' },
+    { x: 860, y: 300, delay: -4, kind: 'double' },
+    { x: 400, y: 560, delay: -5, kind: 'drizzle' },
+    { x: 640, y: 120, delay: -12, kind: 'drizzle' },
+    { x: 340, y: 90, delay: -17, kind: 'drizzle' },
     { x: 960, y: 470, delay: -2, kind: 'drizzle' }
 ];
 // Rings take about 20% longer to spread than before; small drops spread a little faster
@@ -104,33 +104,53 @@ const clouds = [
     { y: 80, scale: 0.6, duration: 300, delay: -20 },
     { y: 260, scale: 1, duration: 240, delay: -120 }
 ];
-// Rainy window: city lights out of focus, rain beyond the glass, drops on it
-const rainStreaks = Array.from({ length: 46 }, () => ({
+// Rainy window: a street blurred behind the glass, water running down it, a sill inside
+const rainStreaks = Array.from({ length: 30 }, () => ({
     x: random() * 1060 - 30,
-    length: 18 + random() * 26,
-    duration: 3.6 + random() * 2.6,
+    length: 16 + random() * 22,
+    duration: 4.2 + random() * 2.6,
     delay: -random() * 6,
-    opacity: 0.12 + random() * 0.18
+    opacity: 0.08 + random() * 0.12
 }));
-const BOKEH_TONES = [
-    'fill-[#fbcfe8] dark:fill-[#f59e0b]',
-    'fill-[#bfdbfe] dark:fill-[#fb7185]',
-    'fill-[#fde68a] dark:fill-[#2dd4bf]',
-    'fill-[#ddd6fe] dark:fill-[#fbbf24]'
+const STREET_LIGHTS = [
+    'fill-[#fde68a] dark:fill-[#fbbf24]',
+    'fill-[#fecaca] dark:fill-[#fb7185]',
+    'fill-[#e0f2fe] dark:fill-[#fef3c7]',
+    'fill-[#fed7aa] dark:fill-[#f97316]'
 ];
-const bokeh = Array.from({ length: 16 }, (_, i) => ({
-    x: random() * 1000,
-    y: 120 + random() * 480,
-    r: 18 + random() * 46,
-    tone: BOKEH_TONES.at(i % BOKEH_TONES.length),
-    duration: 8 + random() * 10,
-    delay: -random() * 10
+const streetLights = Array.from({ length: 14 }, (_, i) => ({
+    x: 30 + i * 70 + random() * 30,
+    y: 430 + random() * 90,
+    r: 10 + random() * 24,
+    tone: STREET_LIGHTS.at(i % STREET_LIGHTS.length),
+    duration: 7 + random() * 9,
+    delay: -random() * 9
 }));
-const beads = Array.from({ length: 34 }, () => ({ x: random() * 1000, y: 60 + random() * 600, r: 1.6 + random() * 3.2 }));
-// Drops slide, pause where the glass holds them, then run on
-const slides = Array.from({ length: 7 }, () => {
-    const from = -40 + random() * 200;
-    return { x: 40 + random() * 920, from, hold: from + 160 + random() * 80, duration: 16 + random() * 12, delay: -random() * 24, r: 3.2 + random() * 2.4 };
+// Rooftops across the street, and the windows lit in them at night
+const buildings: { x: number; width: number; top: number }[] = [];
+for (let x = -20; x < 1020;) {
+    const width = 50 + random() * 70;
+    buildings.push({ x, width, top: 250 + random() * 140 });
+    x += width;
+}
+const skyline = `M-20 540 ${buildings.map(b => `L${b.x.toFixed(0)} ${b.top.toFixed(0)} L${(b.x + b.width).toFixed(0)} ${b.top.toFixed(0)}`).join(' ')} L1020 540 Z`;
+const litWindows = buildings.flatMap(b => Array.from({ length: 3 }, () => ({
+    x: b.x + 8 + random() * (b.width - 22),
+    y: b.top + 14 + random() * (500 - b.top - 30),
+    opacity: 0.35 + random() * 0.5
+})));
+// Water on the glass: beads, and trails that drops run down, stopping where the glass holds them
+const beads = Array.from({ length: 46 }, () => ({ x: random() * 1000, y: 70 + random() * 500, r: 1.4 + random() * 3.8 }));
+const rivulets = Array.from({ length: 6 }, (_, i) => {
+    let x = 70 + i * 165 + random() * 50;
+    const start = 40 + random() * 160;
+    let d = `M${x.toFixed(0)} ${start.toFixed(0)}`;
+    for (let y = start + 40; y <= 570; y += 40) {
+        const next = x + (random() - 0.5) * 16;
+        d += ` Q${(x + (random() - 0.5) * 10).toFixed(0)} ${(y - 20).toFixed(0)} ${next.toFixed(0)} ${y.toFixed(0)}`;
+        x = next;
+    }
+    return { d, duration: 20 + random() * 12, delay: -random() * 30, r: 3.6 + random() * 2 };
 });
 
 // Fireflies: wandering loops around a home spot, each glowing on its own beat
@@ -407,58 +427,127 @@ const wingDown = 'M-12 2 Q-6 4 0 0 Q6 4 12 2';
         </svg>
     </template>
 
-    <!-- Rainy window: lights blurred behind the glass, rain falling past, drops beading and sliding down -->
+    <!-- Rainy window: looking out through a paned window at a rainy street, water running down the glass -->
     <template x-if="$store.settings.zenBackground === 'rain'">
         <svg class="absolute inset-0 w-full h-full stroke-none" viewBox="0 0 1000 700" preserveAspectRatio="xMidYMid slice" x-init="still && $el.pauseAnimations()">
             <defs>
-                <linearGradient id="zb-rain-sky" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0" class="[stop-color:#c5cfdc] dark:[stop-color:#141c2b]" />
-                    <stop offset="1" class="[stop-color:#e5eaf1] dark:[stop-color:#0b111b]" />
+                <linearGradient id="zb-overcast" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" class="[stop-color:#a9b6c8] dark:[stop-color:#0f1828]" />
+                    <stop offset="1" class="[stop-color:#d8dfe8] dark:[stop-color:#1f2a3d]" />
                 </linearGradient>
-                <filter id="zb-bokeh" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="10" /></filter>
-                <radialGradient id="zb-bead" cx="0.4" cy="0.35" r="0.6">
-                    <stop offset="0" stop-color="#fff" stop-opacity="0.95" />
-                    <stop offset="0.6" stop-color="#fff" stop-opacity="0.3" />
-                    <stop offset="1" stop-color="#fff" stop-opacity="0.05" />
+                <filter id="zb-outside" x="-5%" y="-5%" width="110%" height="110%"><feGaussianBlur stdDeviation="5" /></filter>
+                <filter id="zb-lights" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="11" /></filter>
+                <!-- A drop acts as a small lens: bright at the rim, clear in the middle -->
+                <radialGradient id="zb-lens" cx="0.45" cy="0.4" r="0.6">
+                    <stop offset="0" stop-color="#fff" stop-opacity="0.08" />
+                    <stop offset="0.7" stop-color="#fff" stop-opacity="0.3" />
+                    <stop offset="0.95" stop-color="#fff" stop-opacity="0.8" />
+                    <stop offset="1" stop-color="#fff" stop-opacity="0" />
                 </radialGradient>
+                <linearGradient id="zb-fog" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0.55" stop-color="#fff" stop-opacity="0" />
+                    <stop offset="1" stop-color="#fff" class="[stop-opacity:0.45] dark:[stop-opacity:0.1]" />
+                </linearGradient>
             </defs>
 
-            <rect width="1000" height="700" fill="url(#zb-rain-sky)" />
-
-            <!-- Lights out of focus, brightening and dimming slowly -->
-            <g filter="url(#zb-bokeh)" class="opacity-90 dark:opacity-50">
-                {bokeh.map(light => (
+            <!-- Outside, out of focus: sky, rooftops, windows lit at night, the street -->
+            <rect width="1000" height="700" fill="url(#zb-overcast)" />
+            <g filter="url(#zb-outside)">
+                <path d={skyline} class="fill-[#8e9bb0] dark:fill-[#0a0f1a]" opacity="0.75" />
+                <g class="fill-[#fcd34d] opacity-0 dark:opacity-100">
+                    {litWindows.map(light => <rect x={light.x.toFixed(0)} y={light.y.toFixed(0)} width="7" height="10" opacity={light.opacity.toFixed(2)} />)}
+                </g>
+                <rect y="520" width="1000" height="180" class="fill-[#9ea9b8] dark:fill-[#0c111c]" />
+            </g>
+            <g filter="url(#zb-lights)" class="opacity-90 dark:opacity-75">
+                {streetLights.map(light => (
                     <circle cx={light.x.toFixed(0)} cy={light.y.toFixed(0)} r={light.r.toFixed(0)} class={light.tone}>
-                        <animate attributeName="opacity" values="0.45; 0.95; 0.45" dur={`${light.duration.toFixed(1)}s`} begin={`${light.delay.toFixed(1)}s`} repeatCount="indefinite" />
+                        <animate attributeName="opacity" values="0.5; 1; 0.5" dur={`${light.duration.toFixed(1)}s`} begin={`${light.delay.toFixed(1)}s`} repeatCount="indefinite" />
                     </circle>
                 ))}
             </g>
 
-            <!-- Rain beyond the glass -->
-            <g class="stroke-slate-500 dark:stroke-slate-300" stroke-width="1.2" stroke-linecap="round">
+            <!-- Rain falling past outside -->
+            <g class="stroke-slate-600 dark:stroke-slate-300" stroke-width="1.1" stroke-linecap="round">
                 {rainStreaks.map(streak => (
-                    <line x1={streak.x.toFixed(0)} y1="0" x2={(streak.x - streak.length * 0.15).toFixed(1)} y2={streak.length.toFixed(0)} opacity={streak.opacity.toFixed(2)}>
-                        <animateTransform attributeName="transform" type="translate" values="10 -80; -100 760" dur={`${streak.duration.toFixed(1)}s`} begin={`${streak.delay.toFixed(1)}s`} repeatCount="indefinite" />
+                    <line x1={streak.x.toFixed(0)} y1="0" x2={(streak.x - streak.length * 0.12).toFixed(1)} y2={streak.length.toFixed(0)} opacity={streak.opacity.toFixed(2)}>
+                        <animateTransform attributeName="transform" type="translate" values="10 -80; -80 760" dur={`${streak.duration.toFixed(1)}s`} begin={`${streak.delay.toFixed(1)}s`} repeatCount="indefinite" />
                     </line>
                 ))}
             </g>
 
-            <!-- A faint fog on the glass -->
-            <rect width="1000" height="700" class="fill-white/10 dark:fill-white/[0.03]" />
-
-            <!-- Beads of water on the glass -->
-            <g class="stroke-slate-600/20 dark:stroke-white/10" stroke-width="0.6">
-                {beads.map(bead => <circle cx={bead.x.toFixed(0)} cy={bead.y.toFixed(0)} r={bead.r.toFixed(1)} fill="url(#zb-bead)" opacity="0.75" />)}
-            </g>
-
-            <!-- Drops sliding down, leaving a short trail -->
-            {slides.map(drop => (
-                <g>
-                    <animateTransform attributeName="transform" type="translate" values={`0 ${drop.from.toFixed(0)}; 0 ${drop.hold.toFixed(0)}; 0 ${(drop.hold + 14).toFixed(0)}; 0 760`} keyTimes="0; 0.35; 0.55; 1" dur={`${drop.duration.toFixed(1)}s`} begin={`${drop.delay.toFixed(1)}s`} repeatCount="indefinite" />
-                    <line x1={drop.x.toFixed(0)} y1="-70" x2={drop.x.toFixed(0)} y2="0" class="stroke-white/40 dark:stroke-white/20" stroke-width={(drop.r * 0.7).toFixed(1)} stroke-linecap="round" />
-                    <ellipse cx={drop.x.toFixed(0)} cy="0" rx={drop.r.toFixed(1)} ry={(drop.r * 1.25).toFixed(1)} fill="url(#zb-bead)" class="stroke-slate-600/25 dark:stroke-white/15" stroke-width="0.6" />
+            <!-- The glass: condensation near the bottom, water trails, beads, drops running down -->
+            <rect width="1000" height="700" fill="url(#zb-fog)" />
+            {rivulets.map(trail => (
+                <g fill="none" stroke-linecap="round">
+                    <path d={trail.d} transform="translate(1 1.5)" class="stroke-slate-800/15 dark:stroke-black/30" stroke-width="2.4" />
+                    <path d={trail.d} class="stroke-white/55 dark:stroke-white/25" stroke-width="2.2" />
                 </g>
             ))}
+            {beads.map(bead => (
+                <g>
+                    <circle cx={(bead.x + bead.r * 0.15).toFixed(1)} cy={(bead.y + bead.r * 0.25).toFixed(1)} r={bead.r.toFixed(1)} class="fill-slate-800/15 dark:fill-black/35" />
+                    <circle cx={bead.x.toFixed(1)} cy={bead.y.toFixed(1)} r={bead.r.toFixed(1)} fill="url(#zb-lens)" />
+                    <circle cx={(bead.x - bead.r * 0.35).toFixed(1)} cy={(bead.y - bead.r * 0.4).toFixed(1)} r={(bead.r * 0.28).toFixed(1)} fill="#fff" opacity="0.85" />
+                </g>
+            ))}
+            {rivulets.map(trail => (
+                <g>
+                    <animateMotion path={trail.d} keyPoints="0; 0.32; 0.36; 1" keyTimes="0; 0.4; 0.62; 1" calcMode="linear" dur={`${trail.duration.toFixed(1)}s`} begin={`${trail.delay.toFixed(1)}s`} repeatCount="indefinite" />
+                    <ellipse cx="0.6" cy="1.2" rx={trail.r.toFixed(1)} ry={(trail.r * 1.2).toFixed(1)} class="fill-slate-800/20 dark:fill-black/40" />
+                    <ellipse rx={trail.r.toFixed(1)} ry={(trail.r * 1.2).toFixed(1)} fill="url(#zb-lens)" />
+                    <circle cx={(-trail.r * 0.35).toFixed(1)} cy={(-trail.r * 0.45).toFixed(1)} r="1.3" fill="#fff" opacity="0.9" />
+                </g>
+            ))}
+
+            <!-- The window frame: painted wood, three tall panes. No crossbar, since it would run behind the task card. -->
+            <g class="fill-[#f2ede4] dark:fill-[#2a2320]">
+                <rect width="36" height="700" />
+                <rect x="964" width="36" height="700" />
+                <rect width="1000" height="60" />
+                <rect x="324" width="18" height="580" />
+                <rect x="658" width="18" height="580" />
+            </g>
+            <!-- Shading along the inside edges of the frame -->
+            <g class="fill-black/10 dark:fill-black/40">
+                <rect x="36" y="60" width="4" height="520" />
+                <rect x="960" y="60" width="4" height="520" />
+                <rect x="36" y="60" width="928" height="4" />
+                <rect x="342" y="60" width="3" height="520" />
+                <rect x="676" y="60" width="3" height="520" />
+            </g>
+
+            <!-- The sill, with a mug of something warm and a small plant -->
+            <rect y="568" width="1000" height="12" class="fill-[#faf6ef] dark:fill-[#352c27]" />
+            <rect y="580" width="1000" height="120" class="fill-[#e9e0d1] dark:fill-[#221c19]" />
+            <rect y="580" width="1000" height="5" class="fill-black/10 dark:fill-black/40" />
+
+            <g transform="translate(140 0)">
+                <g fill="none" class="stroke-white/70 dark:stroke-white/25" stroke-width="3" stroke-linecap="round">
+                    {[[-8, 0], [7, -3.5]].map(([dx, delay]) => (
+                        <path d={`M${dx} 515 C${dx - 8} 500 ${dx + 8} 488 ${dx} 472`} opacity="0">
+                            <animate attributeName="opacity" values="0; 0.8; 0" dur="7s" begin={`${delay}s`} repeatCount="indefinite" />
+                            <animateTransform attributeName="transform" type="translate" values="0 0; 0 -22" dur="7s" begin={`${delay}s`} repeatCount="indefinite" />
+                        </path>
+                    ))}
+                </g>
+                <path d="M22 534 C40 534 40 556 22 556" fill="none" class="stroke-[#b9734a] dark:stroke-[#7a4a30]" stroke-width="6" />
+                <rect x="-24" y="524" width="48" height="46" rx="7" class="fill-[#c98458] dark:fill-[#8a5a3b]" />
+                <rect x="-24" y="524" width="48" height="6" rx="3" class="fill-white/25" />
+            </g>
+
+            <g transform="translate(870 0)">
+                <g>
+                    <animateTransform attributeName="transform" type="rotate" values="-2 0 530; 2 0 530; -2 0 530" dur="10s" repeatCount="indefinite" />
+                    <ellipse cx="-14" cy="500" rx="9" ry="24" transform="rotate(-28 -14 500)" class="fill-[#65a30d] dark:fill-[#3f6212]" />
+                    <ellipse cx="14" cy="498" rx="9" ry="25" transform="rotate(26 14 498)" class="fill-[#4d7c0f] dark:fill-[#365314]" />
+                    <ellipse cx="0" cy="490" rx="9" ry="28" class="fill-[#84cc16] dark:fill-[#4d7c0f]" />
+                    <ellipse cx="-26" cy="516" rx="7" ry="18" transform="rotate(-55 -26 516)" class="fill-[#4d7c0f] dark:fill-[#365314]" />
+                    <ellipse cx="26" cy="516" rx="7" ry="18" transform="rotate(55 26 516)" class="fill-[#65a30d] dark:fill-[#3f6212]" />
+                </g>
+                <path d="M-24 528 L24 528 L19 570 L-19 570 Z" class="fill-[#c2410c] dark:fill-[#7c2d12]" />
+                <rect x="-27" y="524" width="54" height="9" rx="2" class="fill-[#ea580c] dark:fill-[#9a3412]" />
+            </g>
         </svg>
     </template>
 
