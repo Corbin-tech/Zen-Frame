@@ -42,6 +42,14 @@ import data from "../data/site.json";
             </li>
           ))
         }
+        <li>
+          <button
+            @click="$dispatch('open-feedback')"
+            class="mr-0 sm:mr-4 p-4 sm:p-0 inline-flex items-center gap-1 text-teal-600 dark:text-teal-400 hover:underline hover:text-teal-700 dark:hover:text-teal-300 cursor-pointer"
+          >
+            Send feedback
+          </button>
+        </li>
       </ul>
     </div>
   </div>
