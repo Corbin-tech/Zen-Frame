@@ -135,7 +135,7 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
 
                 <div>
                     <p class={`${label} mb-2`}>Font</p>
-                    <div class="grid grid-cols-3 sm:grid-cols-5 gap-2" role="group" aria-label="Font">
+                    <div class="grid grid-cols-4 gap-2" role="group" aria-label="Font">
                         <template x-for="font in $store.settings.fonts" :key="font.id">
                             <button
                                 type="button"

@@ -81,6 +81,48 @@
 	--accent-900: 6 78 59;
 }
 
+/* Indigo */
+:root[data-accent="midnight"] {
+	--accent-50: 238 242 255;
+	--accent-100: 224 231 255;
+	--accent-200: 199 210 254;
+	--accent-300: 165 180 252;
+	--accent-400: 129 140 248;
+	--accent-500: 99 102 241;
+	--accent-600: 79 70 229;
+	--accent-700: 67 56 202;
+	--accent-800: 55 48 163;
+	--accent-900: 49 46 129;
+}
+
+/* Magenta */
+:root[data-accent="orchid"] {
+	--accent-50: 253 244 255;
+	--accent-100: 250 232 255;
+	--accent-200: 245 208 254;
+	--accent-300: 240 171 252;
+	--accent-400: 232 121 249;
+	--accent-500: 217 70 239;
+	--accent-600: 192 38 211;
+	--accent-700: 162 28 175;
+	--accent-800: 134 25 143;
+	--accent-900: 112 26 117;
+}
+
+/* Amber, a step darker than usual so white text on 600 buttons stays readable */
+:root[data-accent="honey"] {
+	--accent-50: 255 251 235;
+	--accent-100: 254 243 199;
+	--accent-200: 253 230 138;
+	--accent-300: 252 211 77;
+	--accent-400: 251 191 36;
+	--accent-500: 217 119 6;
+	--accent-600: 180 83 9;
+	--accent-700: 146 64 14;
+	--accent-800: 120 53 15;
+	--accent-900: 69 26 3;
+}
+
 /* Text size scales every rem-based size in the app */
 :root[data-text-size="sm"] { font-size: 15px; }
 :root[data-text-size="lg"] { font-size: 17.5px; }
@@ -91,6 +133,9 @@
 :root[data-font="rounded"] { font-family: ui-rounded, 'SF Pro Rounded', system-ui, sans-serif; }
 :root[data-font="serif"] { font-family: ui-serif, 'Iowan Old Style', Charter, Georgia, serif; }
 :root[data-font="mono"] { font-family: ui-monospace, 'SF Mono', Menlo, monospace; }
+:root[data-font="outfit"] { font-family: 'Outfit Variable', system-ui, sans-serif; }
+:root[data-font="lexend"] { font-family: 'Lexend Variable', system-ui, sans-serif; }
+:root[data-font="atkinson"] { font-family: 'Atkinson Hyperlegible Next Variable', system-ui, sans-serif; }
 
 /* Sidebar navigation (1280px and wider; xl in Tailwind). The page makes room for it. */
 :root { --sidebar-w: 14rem; }

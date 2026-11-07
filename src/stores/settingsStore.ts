@@ -12,7 +12,10 @@ export const ACCENTS = [
   { id: "lavender", label: "Lavender", swatch: "#7c3aed" },
   { id: "rose", label: "Rose", swatch: "#e11d48" },
   { id: "sunset", label: "Sunset", swatch: "#ea580c" },
-  { id: "forest", label: "Forest", swatch: "#059669" }
+  { id: "forest", label: "Forest", swatch: "#059669" },
+  { id: "midnight", label: "Midnight", swatch: "#4f46e5" },
+  { id: "orchid", label: "Orchid", swatch: "#c026d3" },
+  { id: "honey", label: "Honey", swatch: "#b45309" }
 ] as const;
 
 export const FONTS = [
@@ -20,7 +23,10 @@ export const FONTS = [
   { id: "system", label: "System", sample: "system-ui, sans-serif" },
   { id: "rounded", label: "Rounded", sample: "ui-rounded, 'SF Pro Rounded', system-ui, sans-serif" },
   { id: "serif", label: "Serif", sample: "ui-serif, 'Iowan Old Style', Charter, Georgia, serif" },
-  { id: "mono", label: "Mono", sample: "ui-monospace, 'SF Mono', Menlo, monospace" }
+  { id: "mono", label: "Mono", sample: "ui-monospace, 'SF Mono', Menlo, monospace" },
+  { id: "outfit", label: "Outfit", sample: "'Outfit Variable', system-ui, sans-serif" },
+  { id: "lexend", label: "Lexend", sample: "'Lexend Variable', system-ui, sans-serif" },
+  { id: "atkinson", label: "Atkinson", sample: "'Atkinson Hyperlegible Next Variable', system-ui, sans-serif" }
 ] as const;
 
 export const TEXT_SIZES = [
