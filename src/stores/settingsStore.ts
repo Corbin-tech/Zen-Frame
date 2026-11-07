@@ -89,8 +89,16 @@ export const ZEN_OPTIONS = [
   { key: "zenShowNext", label: "Up next", hint: "The two tasks after this one" },
   { key: "zenShowTimer", label: "Focus timer", hint: "Start a Pomodoro without leaving Zen mode" },
   { key: "zenShowProgress", label: "Progress bar", hint: "Tasks completed out of all tasks" },
-  { key: "showQuotes", label: "Calming quotes", hint: "A quote that changes each time you finish a task" },
-  { key: "zenAmbient", label: "Ambient background", hint: "Slow, soft colors behind the task" }
+  { key: "showQuotes", label: "Calming quotes", hint: "A quote that changes each time you finish a task" }
+] as const;
+
+// Moving scenes behind Zen mode, drawn in ZenBackdrop.astro. All are slow and still under reduced motion.
+export const ZEN_BACKGROUNDS = [
+  { id: "none", label: "None" },
+  { id: "glow", label: "Soft glow" },
+  { id: "koi", label: "Koi pond" },
+  { id: "swirly", label: "Swirly night" },
+  { id: "birds", label: "Birds" }
 ] as const;
 
 // Minutes before a scheduled block starts that its reminder fires
@@ -101,6 +109,7 @@ type Font = typeof FONTS[number]["id"];
 type TextSize = typeof TEXT_SIZES[number]["id"];
 type TimerStyle = typeof TIMER_STYLES[number]["id"];
 type NavLayout = typeof NAV_LAYOUTS[number]["id"];
+type ZenBackground = typeof ZEN_BACKGROUNDS[number]["id"];
 
 interface Settings {
   name: string;
@@ -115,7 +124,7 @@ interface Settings {
   zenShowNext: boolean;
   zenShowTimer: boolean;
   zenShowProgress: boolean;
-  zenAmbient: boolean;
+  zenBackground: ZenBackground;
   dashboardLayout: DashboardLayout;
   timerStyle: TimerStyle;
   alarmSound: AlarmSound;
@@ -141,7 +150,7 @@ const DEFAULTS: Settings = {
   zenShowNext: false,
   zenShowTimer: false,
   zenShowProgress: true,
-  zenAmbient: false,
+  zenBackground: "none",
   dashboardLayout: DEFAULT_DASHBOARD,
   timerStyle: "classic",
   alarmSound: "classic",
@@ -188,7 +197,8 @@ function loadSettings(): Settings {
     zenShowNext: flag(saved.zenShowNext, DEFAULTS.zenShowNext),
     zenShowTimer: flag(saved.zenShowTimer, DEFAULTS.zenShowTimer),
     zenShowProgress: flag(saved.zenShowProgress, DEFAULTS.zenShowProgress),
-    zenAmbient: flag(saved.zenAmbient, DEFAULTS.zenAmbient),
+    // Older saves had an on/off "zenAmbient" switch, which was the soft glow
+    zenBackground: pick(saved.zenBackground, ZEN_BACKGROUNDS, (saved as { zenAmbient?: boolean }).zenAmbient ? "glow" : DEFAULTS.zenBackground),
     dashboardLayout: cleanLayout(saved.dashboardLayout),
     timerStyle: pick(saved.timerStyle, TIMER_STYLES, DEFAULTS.timerStyle),
     alarmSound: pick(saved.alarmSound, ALARM_SOUNDS, DEFAULTS.alarmSound),
@@ -212,6 +222,7 @@ export function initSettingsStore() {
     timerStyles: TIMER_STYLES,
     dashboardWidgets: DASHBOARD_WIDGETS,
     zenOptions: ZEN_OPTIONS,
+    zenBackgrounds: ZEN_BACKGROUNDS,
     alarmSounds: ALARM_SOUNDS,
     blockLeads: BLOCK_LEADS,
     // The browser's answer to the notification prompt: "default", "granted", "denied", or "unsupported"

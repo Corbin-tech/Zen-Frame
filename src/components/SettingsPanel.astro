@@ -193,6 +193,21 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
                         </span>
                     </label>
                 </template>
+                <div>
+                    <p class={`${label} mb-2`}>Background</p>
+                    <div class={segmented} role="group" aria-label="Zen mode background">
+                        <template x-for="background in $store.settings.zenBackgrounds" :key="background.id">
+                            <button
+                                type="button"
+                                x-on:click="$store.settings.update({ zenBackground: background.id })"
+                                class={segment}
+                                x-bind:class={`$store.settings.zenBackground === background.id ? '${segmentOn}' : '${segmentOff}'`}
+                                x-bind:aria-pressed="$store.settings.zenBackground === background.id"
+                                x-text="background.label"
+                            ></button>
+                        </template>
+                    </div>
+                </div>
             </section>
 
             <!-- Notifications -->
