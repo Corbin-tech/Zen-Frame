@@ -55,7 +55,7 @@
             class="flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-md transition-opacity"
             x-bind:class="task.dueDate
                 ? $dates.dueClass(task.dueDate, task.completed)
-                : 'text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 sm:opacity-0 sm:group-hover/task:opacity-100 focus:opacity-100'"
+                : 'text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 sm:opacity-0 sm:group-hover/task:opacity-100 focus:opacity-100 [@media(hover:none)]:opacity-100'"
             x-bind:title="task.dueDate ? 'Due ' + $dates.formatDate(task.dueDate, { weekday: 'long', month: 'long', day: 'numeric' }) : 'Set a due date'"
             x-bind:aria-label="task.dueDate ? 'Due ' + $dates.dueLabel(task.dueDate) + '. Change due date' : 'Set a due date'"
         >

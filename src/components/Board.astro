@@ -156,7 +156,8 @@ const iconButton = 'p-1 rounded-md text-gray-400 hover:text-gray-700 hover:bg-gr
                             <span class="absolute left-0 top-3 bottom-3 w-1 rounded-r-full" x-bind:style="`background-color: ${$store.todos.clusterColor(task.parentId)};`"></span>
 
                             <div data-drag-handle class="cursor-grab active:cursor-grabbing p-3 pl-4">
-                                <div class="flex items-start gap-2.5">
+                                <!-- Touch screens always show the card buttons, so the title leaves room for them -->
+                                <div class="flex items-start gap-2.5 [@media(hover:none)]:pr-24">
                                     <!-- Done toggle -->
                                     <button
                                         type="button"

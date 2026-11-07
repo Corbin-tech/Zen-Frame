@@ -30,7 +30,7 @@ const checkbox = 'w-4 h-4 shrink-0 rounded border-gray-300 dark:border-slate-500
             <span x-text="editing ? 'Done' : 'Customize'"></span>
         </button>
         <form
-            class="flex flex-1 sm:flex-none items-center gap-2"
+            class="flex flex-1 min-w-0 sm:flex-none items-center gap-2"
             x-data="{ text: '' }"
             x-on:submit.prevent="if (text.trim()) { $store.todos.addTodo(text.trim()); text = '' }"
         >
@@ -40,7 +40,7 @@ const checkbox = 'w-4 h-4 shrink-0 rounded border-gray-300 dark:border-slate-500
                 type="text"
                 x-model="text"
                 placeholder="Add a task…"
-                class="flex-1 sm:w-64 rounded-lg border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-800 dark:text-white text-sm focus:border-teal-500 focus:ring-teal-500"
+                class="flex-1 min-w-0 sm:w-64 rounded-lg border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-800 dark:text-white text-sm focus:border-teal-500 focus:ring-teal-500"
             />
             <button type="submit" class="px-4 py-2 text-sm font-medium rounded-lg bg-teal-600 text-white hover:bg-teal-700 shadow-sm transition-colors">Add</button>
         </form>
