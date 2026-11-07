@@ -94,11 +94,13 @@ export const ZEN_OPTIONS = [
 
 // Moving scenes behind Zen mode, drawn in ZenBackdrop.astro. All are slow and still under reduced motion.
 export const ZEN_BACKGROUNDS = [
-  { id: "none", label: "None" },
-  { id: "glow", label: "Soft glow" },
-  { id: "koi", label: "Koi pond" },
-  { id: "swirly", label: "Swirly night" },
-  { id: "birds", label: "Birds" }
+  { id: "none", label: "None", hint: "Just the card" },
+  { id: "glow", label: "Soft glow", hint: "Drifting colored light" },
+  { id: "koi", label: "Koi pond", hint: "Koi under lily pads" },
+  { id: "swirly", label: "Swirly night", hint: "Spirals and stars" },
+  { id: "birds", label: "Birds", hint: "Flocks across the sky" },
+  { id: "rain", label: "Rainy window", hint: "Rain on the glass" },
+  { id: "fireflies", label: "Fireflies", hint: "A meadow at dusk" }
 ] as const;
 
 // Minutes before a scheduled block starts that its reminder fires
