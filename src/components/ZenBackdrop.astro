@@ -168,6 +168,44 @@ const fireflies = Array.from({ length: 26 }, () => {
 const grass = Array.from({ length: 90 }, (_, i) => ({ x: i * 11.5 + random() * 8, height: 30 + random() * 60, lean: -10 + random() * 20 }));
 const duskStars = Array.from({ length: 24 }, () => ({ x: random() * 1000, y: 70 + random() * 260, r: 0.6 + random() * 1.1 }));
 
+// Aurora: curtains of light whose edges ripple between two shapes, slowly
+const curtain = (base: number, height: number, amp: number, phase: number) => {
+    const points = Array.from({ length: 6 }, (_, i) => ({
+        x: -60 + i * 224,
+        top: base - height + Math.sin(i * 1.3 + phase) * amp,
+        bottom: base + Math.sin(i * 0.9 + phase + 1) * amp * 0.45
+    }));
+    const edge = (key: 'top' | 'bottom', list: typeof points) => list.slice(1).map((point, i) => {
+        const prev = list.at(i)!;
+        const pull = (point.x - prev.x) / 3;
+        return `C${(prev.x + pull).toFixed(0)} ${prev[key].toFixed(0)} ${(point.x - pull).toFixed(0)} ${point[key].toFixed(0)} ${point.x.toFixed(0)} ${point[key].toFixed(0)}`;
+    }).join(' ');
+    const reversed = [...points].reverse();
+    return `M${points[0].x} ${points[0].top.toFixed(0)} ${edge('top', points)} L${reversed[0].x} ${reversed[0].bottom.toFixed(0)} ${edge('bottom', reversed)} Z`;
+};
+const auroraBands = [
+    // High in the sky, so the lights show above the task card rather than behind it
+    { id: 'zb-band-1', gradient: 'zb-aurora-green', base: 235, height: 170, amp: 40, phase: 0, duration: 38, opacity: 0.95 },
+    { id: 'zb-band-2', gradient: 'zb-aurora-teal', base: 200, height: 135, amp: 32, phase: 2.1, duration: 46, opacity: 0.75 },
+    { id: 'zb-band-3', gradient: 'zb-aurora-violet', base: 165, height: 110, amp: 26, phase: 4, duration: 54, opacity: 0.6 }
+].map(band => ({ ...band, shapeA: curtain(band.base, band.height, band.amp, band.phase), shapeB: curtain(band.base, band.height, band.amp, band.phase + 1.3) }));
+
+// Sakura: petals drifting down and tumbling, past a flowering branch
+const petals = Array.from({ length: 26 }, () => {
+    const x = random() * 1100 - 150, drift = 180 + random() * 260;
+    return {
+        path: `M${x.toFixed(0)} -40 C${(x + drift * 0.3).toFixed(0)} 180 ${(x + drift * 0.6).toFixed(0)} 400 ${(x + drift).toFixed(0)} 760`,
+        duration: 18 + random() * 14,
+        delay: -random() * 32,
+        spin: 5 + random() * 6,
+        flip: 1.8 + random() * 1.8,
+        scale: 0.7 + random() * 0.7,
+        light: random() < 0.5
+    };
+});
+// The branch stays in the top-left corner, clear of the "Zen Mode" title
+const blossoms = [[60, 95, 1], [110, 112, 0.9], [150, 121, 1.1], [200, 141, 0.9], [245, 168, 1.1], [300, 192, 1], [345, 203, 0.8], [150, 86, 0.8], [205, 70, 1], [250, 72, 0.8], [272, 118, 1], [322, 108, 0.9], [95, 80, 0.7], [182, 129, 0.7]];
+
 const wingUp = 'M-12 0 Q-6 -7 0 0 Q6 -7 12 0';
 const wingDown = 'M-12 2 Q-6 4 0 0 Q6 4 12 2';
 ---
@@ -617,6 +655,154 @@ const wingDown = 'M-12 2 Q-6 4 0 0 Q6 4 12 2';
                         <animate attributeName="opacity" values="0.1; 1; 0.1" dur={`${fly.glow.toFixed(1)}s`} begin={`${fly.glowDelay.toFixed(1)}s`} repeatCount="indefinite" />
                         <circle r={(fly.r * 6).toFixed(1)} fill="url(#zb-firefly)" />
                         <circle r={fly.r.toFixed(1)} class="fill-[#f59e0b] dark:fill-[#f7ffb0]" />
+                    </g>
+                </g>
+            ))}
+        </svg>
+    </template>
+
+    <!-- Aurora: northern lights rippling over snowy mountains and a still lake that mirrors them -->
+    <template x-if="$store.settings.zenBackground === 'aurora'">
+        <svg class="absolute inset-0 w-full h-full stroke-none" viewBox="0 0 1000 700" preserveAspectRatio="xMidYMid slice" x-init="(still || paused) && $el.pauseAnimations()">
+            <defs>
+                <linearGradient id="zb-arctic" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" class="[stop-color:#c4dde8] dark:[stop-color:#030d1a]" />
+                    <stop offset="0.6" class="[stop-color:#e2eff0] dark:[stop-color:#0a2033]" />
+                    <stop offset="1" class="[stop-color:#f3eee4] dark:[stop-color:#0f2f45]" />
+                </linearGradient>
+                <linearGradient id="zb-aurora-green" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stop-color="#34d399" stop-opacity="0" />
+                    <stop offset="0.65" class="[stop-color:#14b8a6] dark:[stop-color:#34d399]" stop-opacity="0.6" />
+                    <stop offset="1" class="[stop-color:#2dd4bf] dark:[stop-color:#6ee7b7]" stop-opacity="0.95" />
+                </linearGradient>
+                <linearGradient id="zb-aurora-teal" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stop-color="#22d3ee" stop-opacity="0" />
+                    <stop offset="0.7" class="[stop-color:#06b6d4] dark:[stop-color:#22d3ee]" stop-opacity="0.55" />
+                    <stop offset="1" class="[stop-color:#22d3ee] dark:[stop-color:#67e8f9]" stop-opacity="0.85" />
+                </linearGradient>
+                <linearGradient id="zb-aurora-violet" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stop-color="#a78bfa" stop-opacity="0" />
+                    <stop offset="0.7" class="[stop-color:#8b5cf6] dark:[stop-color:#a78bfa]" stop-opacity="0.5" />
+                    <stop offset="1" class="[stop-color:#a78bfa] dark:[stop-color:#c084fc]" stop-opacity="0.75" />
+                </linearGradient>
+                <linearGradient id="zb-lake" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" class="[stop-color:#b7cfdc] dark:[stop-color:#071a28]" />
+                    <stop offset="1" class="[stop-color:#dfeaf0] dark:[stop-color:#03101b]" />
+                </linearGradient>
+                <filter id="zb-aurora-blur" x="-10%" y="-30%" width="120%" height="160%"><feGaussianBlur stdDeviation="8" /></filter>
+                <clipPath id="zb-lake-clip"><rect y="540" width="1000" height="160" /></clipPath>
+                <!-- Vertical rays, cut to the main curtain so they ripple with it -->
+                <pattern id="zb-rays" width="37" height="700" patternUnits="userSpaceOnUse">
+                    <rect width="3" height="700" fill="#fff" />
+                    <rect x="11" width="2" height="700" fill="#fff" opacity="0.6" />
+                    <rect x="19" width="4" height="700" fill="#fff" opacity="0.8" />
+                    <rect x="30" width="2" height="700" fill="#fff" opacity="0.5" />
+                </pattern>
+                <!-- The curtain's own gradient as a mask, so the rays fade toward the top as the light does -->
+                <mask id="zb-curtain-mask"><use href="#zb-band-1" /></mask>
+                <filter id="zb-ray-blur" x="-5%" y="-5%" width="110%" height="110%"><feGaussianBlur stdDeviation="1.6 6" /></filter>
+            </defs>
+
+            <rect width="1000" height="700" fill="url(#zb-arctic)" />
+            <g class="opacity-0 dark:opacity-100" fill="#fff">
+                {stars.slice(0, 45).map(star => (
+                    <circle cx={star.x.toFixed(1)} cy={(star.y * 0.75).toFixed(1)} r={(star.r * 0.8).toFixed(2)}>
+                        <animate attributeName="opacity" values="0.2; 0.9; 0.2" dur={`${(star.duration * 1.5).toFixed(1)}s`} begin={`${star.delay.toFixed(1)}s`} repeatCount="indefinite" />
+                    </circle>
+                ))}
+            </g>
+
+            <!-- The lights -->
+            <g filter="url(#zb-aurora-blur)" class="opacity-75 dark:opacity-100">
+                {auroraBands.map(band => (
+                    <path id={band.id} d={band.shapeA} fill={`url(#${band.gradient})`} opacity={band.opacity}>
+                        <animate attributeName="d" values={`${band.shapeA}; ${band.shapeB}; ${band.shapeA}`} dur={`${band.duration}s`} repeatCount="indefinite" />
+                        <animate attributeName="opacity" values={`${band.opacity}; ${band.opacity * 0.55}; ${band.opacity}`} dur={`${band.duration * 0.7}s`} repeatCount="indefinite" />
+                    </path>
+                ))}
+            </g>
+
+            <g filter="url(#zb-ray-blur)" class="opacity-30 dark:opacity-40"><rect width="1000" height="420" fill="url(#zb-rays)" mask="url(#zb-curtain-mask)" /></g>
+
+            <!-- Mountains, the far range paler, snow on the peaks -->
+            <path d="M0 470 L120 400 L220 430 L330 350 L430 420 L520 370 L620 410 L740 340 L860 400 L1000 380 L1000 560 L0 560 Z" class="fill-[#b9cad9] dark:fill-[#0d2132]" />
+            <path d="M0 520 L90 450 L150 476 L240 392 L320 456 L400 418 L480 470 L560 404 L640 458 L720 396 L800 452 L880 424 L1000 470 L1000 560 L0 560 Z" class="fill-[#93a9bf] dark:fill-[#07141e]" />
+            <g class="fill-white/90 dark:fill-slate-300/30">
+                <path d="M240 392 L222 410 L232 407 L240 414 L249 406 L258 410 Z" />
+                <path d="M560 404 L543 421 L552 418 L560 425 L568 417 L577 421 Z" />
+                <path d="M720 396 L702 414 L712 410 L720 418 L729 409 L738 414 Z" />
+                <path d="M330 350 L314 366 L323 363 L330 370 L338 362 L346 366 Z" opacity="0.7" />
+                <path d="M740 340 L723 356 L732 353 L740 360 L748 352 L757 356 Z" opacity="0.7" />
+            </g>
+
+            <!-- The lake, mirroring the lights -->
+            <rect y="540" width="1000" height="160" fill="url(#zb-lake)" />
+            <g clip-path="url(#zb-lake-clip)">
+                <g transform="translate(0 1080) scale(1 -1)" filter="url(#zb-aurora-blur)" class="opacity-25 dark:opacity-40">
+                    {auroraBands.map(band => <use href={`#${band.id}`} />)}
+                </g>
+                <g class="stroke-white/40 dark:stroke-teal-100/20" stroke-width="1.2">
+                    {[[120, 568, 220, 0], [520, 590, 300, -3], [300, 620, 180, -6], [700, 612, 240, -2]].map(([x, y, w, delay]) => (
+                        <line x1={x} y1={y} x2={x + w} y2={y}>
+                            <animate attributeName="opacity" values="0.1; 0.8; 0.1" dur="9s" begin={`${delay}s`} repeatCount="indefinite" />
+                        </line>
+                    ))}
+                </g>
+            </g>
+        </svg>
+    </template>
+
+    <!-- Sakura: cherry blossom petals drifting and tumbling down past a flowering branch -->
+    <template x-if="$store.settings.zenBackground === 'sakura'">
+        <svg class="absolute inset-0 w-full h-full stroke-none" viewBox="0 0 1000 700" preserveAspectRatio="xMidYMid slice" x-init="(still || paused) && $el.pauseAnimations()">
+            <defs>
+                <linearGradient id="zb-blossom-sky" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" class="[stop-color:#fde4ee] dark:[stop-color:#17122b]" />
+                    <stop offset="0.6" class="[stop-color:#fdf2f6] dark:[stop-color:#251a3d]" />
+                    <stop offset="1" class="[stop-color:#eef0fb] dark:[stop-color:#3a2547]" />
+                </linearGradient>
+                <radialGradient id="zb-blossom-glow">
+                    <stop offset="0" class="[stop-color:#fff7d6] dark:[stop-color:#f5f3ff]" stop-opacity="0.8" />
+                    <stop offset="1" class="[stop-color:#fff7d6] dark:[stop-color:#f5f3ff]" stop-opacity="0" />
+                </radialGradient>
+                <g id="zb-flower">
+                    {[0, 72, 144, 216, 288].map(angle => <ellipse cx="0" cy="-6" rx="4.4" ry="6.4" transform={`rotate(${angle})`} />)}
+                </g>
+            </defs>
+
+            <rect width="1000" height="700" fill="url(#zb-blossom-sky)" />
+            <circle cx="760" cy="210" r="140" fill="url(#zb-blossom-glow)" />
+            <circle cx="760" cy="210" r="48" class="fill-[#fff3cf] dark:fill-[#ede9fe]" opacity="0.75" />
+
+            <!-- Soft hills far off -->
+            <path d="M0 520 C180 470 360 500 520 480 S820 450 1000 490 L1000 700 L0 700 Z" class="fill-[#e9d5f0] dark:fill-[#2b1f45]" opacity="0.9" />
+            <path d="M0 570 C220 540 420 580 620 556 S880 540 1000 560 L1000 700 L0 700 Z" class="fill-[#dcc4ea] dark:fill-[#221838]" />
+
+            <!-- The branch, swaying a little from the top left -->
+            <g>
+                <animateTransform attributeName="transform" type="rotate" values="-0.8 -30 70; 0.8 -30 70; -0.8 -30 70" dur="14s" repeatCount="indefinite" />
+                <g fill="none" class="stroke-[#7a4a33] dark:stroke-[#3a2620]" stroke-linecap="round">
+                    <path d="M-30 70 C60 108 150 120 230 160 C280 185 320 200 360 205" stroke-width="12" />
+                    <path d="M120 112 C150 82 200 66 254 70" stroke-width="6" />
+                    <path d="M230 160 C252 124 290 104 340 110" stroke-width="5" />
+                </g>
+                {blossoms.map(([x, y, scale], i) => (
+                    <g transform={`translate(${x} ${y}) scale(${scale})`}>
+                        <use href="#zb-flower" class={i % 2 ? 'fill-[#f9a8d4] dark:fill-[#d68bb0]' : 'fill-[#fbcfe8] dark:fill-[#e9a8c6]'} />
+                        <circle r="2.4" class="fill-[#f472b6] dark:fill-[#c06090]" />
+                    </g>
+                ))}
+            </g>
+
+            <!-- Falling petals, each spinning and tumbling at its own pace -->
+            {petals.map(petal => (
+                <g>
+                    <animateMotion path={petal.path} dur={`${petal.duration.toFixed(1)}s`} begin={`${petal.delay.toFixed(1)}s`} repeatCount="indefinite" />
+                    <g transform={`scale(${petal.scale.toFixed(2)})`}>
+                        <path d="M0 -6 C4.5 -6 6.5 -1 0 6.5 C-6.5 -1 -4.5 -6 0 -6 Z" class={petal.light ? 'fill-[#fbcfe8] dark:fill-[#e9a8c6]' : 'fill-[#f9a8d4] dark:fill-[#d68bb0]'} opacity="0.9">
+                            <animateTransform attributeName="transform" type="rotate" values="0; 360" dur={`${petal.spin.toFixed(1)}s`} repeatCount="indefinite" />
+                            <animateTransform attributeName="transform" type="scale" values="1 1; 0.25 1; 1 1" dur={`${petal.flip.toFixed(1)}s`} repeatCount="indefinite" additive="sum" />
+                        </path>
                     </g>
                 </g>
             ))}

@@ -50,7 +50,9 @@ export const TIMER_STYLES = [
   { id: "cat", label: "Cat", hint: "Watches the seconds" },
   { id: "digital", label: "Digital", hint: "Seven-segment LCD" },
   { id: "nixie", label: "Nixie tube", hint: "Glowing neon digits" },
-  { id: "flip", label: "Flip", hint: "Split-flap cards" }
+  { id: "flip", label: "Flip", hint: "Split-flap cards" },
+  { id: "hourglass", label: "Hourglass", hint: "Sand runs through" },
+  { id: "bloom", label: "Bloom", hint: "A plant grows as you focus" }
 ] as const;
 
 // Dashboard widgets. "stats" is the row of key numbers across the top; the rest go in the
@@ -100,7 +102,9 @@ export const ZEN_BACKGROUNDS = [
   { id: "swirly", label: "Swirly night", hint: "Spirals and stars" },
   { id: "birds", label: "Birds", hint: "Flocks across the sky" },
   { id: "rain", label: "Rainy window", hint: "Rain on the glass" },
-  { id: "fireflies", label: "Fireflies", hint: "A meadow at dusk" }
+  { id: "fireflies", label: "Fireflies", hint: "A meadow at dusk" },
+  { id: "aurora", label: "Aurora", hint: "Northern lights over a lake" },
+  { id: "sakura", label: "Sakura", hint: "Cherry blossoms drifting" }
 ] as const;
 
 // Minutes before a scheduled block starts that its reminder fires
