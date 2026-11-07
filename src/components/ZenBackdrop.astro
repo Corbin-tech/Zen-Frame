@@ -25,9 +25,20 @@ const spiral = (cx: number, cy: number, radius: number, turns: number) => {
     }).join(' ');
 };
 const swirls = [
-    { cx: 300, cy: 240, radius: 170, turns: 2.6, duration: 180 },
-    { cx: 640, cy: 170, radius: 120, turns: 2.2, duration: 150 },
-    { cx: 850, cy: 330, radius: 95, turns: 2, duration: 130 }
+    { cx: 300, cy: 240, radius: 170, turns: 2.6, duration: 440 },
+    { cx: 640, cy: 170, radius: 120, turns: 2.2, duration: 380 },
+    { cx: 850, cy: 330, radius: 95, turns: 2, duration: 320 }
+];
+// Three strands per spiral: light-mode color first, then dark
+const strands = [
+    { turn: 0, width: 7, class: 'stroke-[#4338ca] [stroke-opacity:0.26] dark:stroke-[#93c5fd] dark:[stroke-opacity:0.45]' },
+    { turn: 120, width: 4, class: 'stroke-[#6d7fe6] [stroke-opacity:0.24] dark:stroke-[#bfdbfe] dark:[stroke-opacity:0.3]' },
+    { turn: 240, width: 3, class: 'stroke-[#d97706] [stroke-opacity:0.32] dark:stroke-[#fde68a] dark:[stroke-opacity:0.3]' }
+];
+const winds = [
+    { y: 300, width: 12, duration: 130, class: 'stroke-[#4f5fd1] [stroke-opacity:0.14] dark:stroke-[#93c5fd] dark:[stroke-opacity:0.22]' },
+    { y: 420, width: 6, duration: 160, class: 'stroke-[#d97706] [stroke-opacity:0.2] dark:stroke-[#fde68a] dark:[stroke-opacity:0.18]' },
+    { y: 520, width: 12, duration: 190, class: 'stroke-[#4f5fd1] [stroke-opacity:0.14] dark:stroke-[#93c5fd] dark:[stroke-opacity:0.22]' }
 ];
 
 // Koi pond: lily pads are circles with a wedge cut out
@@ -47,7 +58,16 @@ const koi = [
     { body: 'koi-ogon', path: 'M880 600 C640 640 420 420 260 300 S120 90 380 120 S820 380 880 600 Z', duration: 58, delay: -30, scale: 1.05, swim: 2.1 },
     { body: 'koi-showa', path: 'M500 650 C300 600 200 450 330 380 S620 420 640 560 S600 680 500 650 Z', duration: 36, delay: -12, scale: 0.85, swim: 1.6 }
 ];
-const ripples = [[260, 180, 0], [720, 560, -3], [520, 300, -6], [140, 620, -9]];
+// A drop lands, then three rings spread and fade; each spot rests before its next drop
+const RIPPLE_CYCLE = 16;
+const ripples = [
+    { x: 260, y: 190, delay: 0, size: 80 },
+    { x: 720, y: 560, delay: -5, size: 100 },
+    { x: 520, y: 330, delay: -10, size: 70 },
+    { x: 150, y: 600, delay: -13, size: 60 },
+    { x: 860, y: 300, delay: -8, size: 75 }
+];
+const rings = [0, 0.9, 1.8];
 
 // Birds: two loose flocks and a straggler
 const flock = [[0, 0, 1.6, 0], [-28, -13, 1.75, -0.3], [-28, 13, 1.5, -0.6], [-56, -24, 1.85, -0.2], [-56, 24, 1.65, -0.9], [-86, -6, 1.7, -0.5]];
@@ -146,15 +166,31 @@ const wingDown = 'M-12 2 Q-6 4 0 0 Q6 4 12 2';
                 </g>
             ))}
 
-            <!-- Ripples -->
-            <g fill="none" class="stroke-white/70 dark:stroke-cyan-100/40" stroke-width="1.5">
-                {ripples.map(([cx, cy, delay]) => (
-                    <circle cx={cx} cy={cy} r="0">
-                        <animate attributeName="r" values="0; 70" dur="12s" begin={`${delay}s`} repeatCount="indefinite" />
-                        <animate attributeName="opacity" values="0.8; 0" dur="12s" begin={`${delay}s`} repeatCount="indefinite" />
+            <!-- Ripples: rings flattened to the water's angle, thinning as they spread, with a faint shadow -->
+            {ripples.map(drop => (
+                <g fill="none">
+                    {rings.map(lag => (
+                        <Fragment>
+                            <ellipse cx={drop.x} cy={drop.y + 2.5} rx="0" ry="0" class="stroke-[#0f5f63]/25 dark:stroke-black/40">
+                                <animate attributeName="rx" values={`0; ${drop.size}; ${drop.size}`} keyTimes="0; 0.5; 1" calcMode="spline" keySplines="0.2 0.7 0.4 1; 0 0 1 1" dur={`${RIPPLE_CYCLE}s`} begin={`${drop.delay + lag}s`} repeatCount="indefinite" />
+                                <animate attributeName="ry" values={`0; ${drop.size * 0.42}; ${drop.size * 0.42}`} keyTimes="0; 0.5; 1" calcMode="spline" keySplines="0.2 0.7 0.4 1; 0 0 1 1" dur={`${RIPPLE_CYCLE}s`} begin={`${drop.delay + lag}s`} repeatCount="indefinite" />
+                                <animate attributeName="stroke-width" values="2.2; 0.3; 0.3" keyTimes="0; 0.5; 1" dur={`${RIPPLE_CYCLE}s`} begin={`${drop.delay + lag}s`} repeatCount="indefinite" />
+                                <animate attributeName="opacity" values="0.7; 0; 0" keyTimes="0; 0.5; 1" dur={`${RIPPLE_CYCLE}s`} begin={`${drop.delay + lag}s`} repeatCount="indefinite" />
+                            </ellipse>
+                            <ellipse cx={drop.x} cy={drop.y} rx="0" ry="0" class="stroke-white/90 dark:stroke-cyan-100/60">
+                                <animate attributeName="rx" values={`0; ${drop.size}; ${drop.size}`} keyTimes="0; 0.5; 1" calcMode="spline" keySplines="0.2 0.7 0.4 1; 0 0 1 1" dur={`${RIPPLE_CYCLE}s`} begin={`${drop.delay + lag}s`} repeatCount="indefinite" />
+                                <animate attributeName="ry" values={`0; ${drop.size * 0.42}; ${drop.size * 0.42}`} keyTimes="0; 0.5; 1" calcMode="spline" keySplines="0.2 0.7 0.4 1; 0 0 1 1" dur={`${RIPPLE_CYCLE}s`} begin={`${drop.delay + lag}s`} repeatCount="indefinite" />
+                                <animate attributeName="stroke-width" values="2.4; 0.4; 0.4" keyTimes="0; 0.5; 1" dur={`${RIPPLE_CYCLE}s`} begin={`${drop.delay + lag}s`} repeatCount="indefinite" />
+                                <animate attributeName="opacity" values="0.85; 0; 0" keyTimes="0; 0.5; 1" dur={`${RIPPLE_CYCLE}s`} begin={`${drop.delay + lag}s`} repeatCount="indefinite" />
+                            </ellipse>
+                        </Fragment>
+                    ))}
+                    <!-- The drop itself, a quick glint where it lands -->
+                    <circle cx={drop.x} cy={drop.y} r="0" class="fill-white/90 dark:fill-cyan-50/70">
+                        <animate attributeName="r" values="0; 3.5; 0; 0" keyTimes="0; 0.02; 0.07; 1" dur={`${RIPPLE_CYCLE}s`} begin={`${drop.delay}s`} repeatCount="indefinite" />
                     </circle>
-                ))}
-            </g>
+                </g>
+            ))}
 
             <!-- Lily pads and a lotus, swaying a little -->
             {pads.map(p => (
@@ -173,18 +209,18 @@ const wingDown = 'M-12 2 Q-6 4 0 0 Q6 4 12 2';
         </svg>
     </template>
 
-    <!-- Swirly night: a deep blue sky of turning spirals, twinkling stars, a crescent moon -->
+    <!-- Swirly night: turning spirals, twinkling stars, a crescent moon. A deep blue night in dark mode, a periwinkle dusk in light mode. -->
     <template x-if="$store.settings.zenBackground === 'swirly'">
         <svg class="absolute inset-0 w-full h-full stroke-none" viewBox="0 0 1000 700" preserveAspectRatio="xMidYMid slice" x-init="still && $el.pauseAnimations()">
             <defs>
                 <linearGradient id="zb-night" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0" stop-color="#0a1438" />
-                    <stop offset="0.55" stop-color="#1c2d6b" />
-                    <stop offset="1" stop-color="#2a3f86" />
+                    <stop offset="0" class="[stop-color:#aab6ef] dark:[stop-color:#0a1438]" />
+                    <stop offset="0.55" class="[stop-color:#cdd5fa] dark:[stop-color:#1c2d6b]" />
+                    <stop offset="1" class="[stop-color:#fbe4c6] dark:[stop-color:#2a3f86]" />
                 </linearGradient>
                 <radialGradient id="zb-glow">
-                    <stop offset="0" stop-color="#fde68a" stop-opacity="0.55" />
-                    <stop offset="1" stop-color="#fde68a" stop-opacity="0" />
+                    <stop offset="0" class="[stop-color:#fbbf24] dark:[stop-color:#fde68a]" stop-opacity="0.55" />
+                    <stop offset="1" class="[stop-color:#fbbf24] dark:[stop-color:#fde68a]" stop-opacity="0" />
                 </radialGradient>
                 <mask id="zb-crescent">
                     <circle cx="830" cy="175" r="42" fill="#fff" />
@@ -196,9 +232,9 @@ const wingDown = 'M-12 2 Q-6 4 0 0 Q6 4 12 2';
 
             <!-- Wind: long ribbons flowing across the sky -->
             <g fill="none" stroke-linecap="round">
-                {[300, 420, 520].map((y, i) => (
-                    <path d={`M-60 ${y} C150 ${y - 60} 350 ${y + 60} 550 ${y} S900 ${y - 60} 1060 ${y}`} stroke={i === 1 ? '#fde68a' : '#93c5fd'} stroke-opacity={i === 1 ? 0.18 : 0.22} stroke-width={i === 1 ? 6 : 12} stroke-dasharray="120 60">
-                        <animate attributeName="stroke-dashoffset" values="0; -540" dur={`${40 + i * 12}s`} repeatCount="indefinite" />
+                {winds.map(wind => (
+                    <path d={`M-60 ${wind.y} C150 ${wind.y - 60} 350 ${wind.y + 60} 550 ${wind.y} S900 ${wind.y - 60} 1060 ${wind.y}`} class={wind.class} stroke-width={wind.width} stroke-dasharray="120 60">
+                        <animate attributeName="stroke-dashoffset" values="0; -540" dur={`${wind.duration}s`} repeatCount="indefinite" />
                     </path>
                 ))}
             </g>
@@ -207,20 +243,20 @@ const wingDown = 'M-12 2 Q-6 4 0 0 Q6 4 12 2';
             {swirls.map(swirl => (
                 <g>
                     <animateTransform attributeName="transform" type="rotate" values={`0 ${swirl.cx} ${swirl.cy}; 360 ${swirl.cx} ${swirl.cy}`} dur={`${swirl.duration}s`} repeatCount="indefinite" />
-                    {[['#93c5fd', 0.45, 7, 0], ['#bfdbfe', 0.3, 4, 120], ['#fde68a', 0.3, 3, 240]].map(([color, opacity, width, turn]) => (
+                    {strands.map(strand => (
                         <path
                             d={spiral(swirl.cx, swirl.cy, swirl.radius, swirl.turns)}
-                            transform={`rotate(${turn} ${swirl.cx} ${swirl.cy})`}
-                            fill="none" stroke={color} stroke-opacity={opacity} stroke-width={width} stroke-linecap="round" stroke-dasharray="60 24"
+                            transform={`rotate(${strand.turn} ${swirl.cx} ${swirl.cy})`}
+                            fill="none" class={strand.class} stroke-width={strand.width} stroke-linecap="round" stroke-dasharray="60 24"
                         >
-                            <animate attributeName="stroke-dashoffset" values="0; -840" dur="34s" repeatCount="indefinite" />
+                            <animate attributeName="stroke-dashoffset" values="0; -840" dur="110s" repeatCount="indefinite" />
                         </path>
                     ))}
                 </g>
             ))}
 
             <!-- Stars -->
-            <g fill="#fef9c3">
+            <g class="fill-white dark:fill-[#fef9c3]">
                 {stars.map(star => (
                     <circle cx={star.x.toFixed(1)} cy={star.y.toFixed(1)} r={star.r.toFixed(2)}>
                         <animate attributeName="opacity" values="0.25; 1; 0.25" dur={`${star.duration.toFixed(1)}s`} begin={`${star.delay.toFixed(1)}s`} repeatCount="indefinite" />
@@ -232,7 +268,7 @@ const wingDown = 'M-12 2 Q-6 4 0 0 Q6 4 12 2';
                     <circle cx={x} cy={y} r="14" fill="url(#zb-glow)">
                         <animate attributeName="r" values="12; 18; 12" dur={`${5 + i}s`} repeatCount="indefinite" />
                     </circle>
-                    <circle cx={x} cy={y} r="3" fill="#fefce8" />
+                    <circle cx={x} cy={y} r="3" class="fill-white dark:fill-[#fefce8]" />
                 </g>
             ))}
 
@@ -240,11 +276,11 @@ const wingDown = 'M-12 2 Q-6 4 0 0 Q6 4 12 2';
             <circle cx="830" cy="175" r="95" fill="url(#zb-glow)">
                 <animate attributeName="r" values="88; 102; 88" dur="10s" repeatCount="indefinite" />
             </circle>
-            <circle cx="830" cy="175" r="42" fill="#fde68a" mask="url(#zb-crescent)" />
+            <circle cx="830" cy="175" r="42" class="fill-[#f6b93b] dark:fill-[#fde68a]" mask="url(#zb-crescent)" />
 
             <!-- Rolling hills -->
-            <path d="M0 550 C150 510 300 570 460 538 S760 490 1000 546 L1000 700 L0 700 Z" fill="#101b45" />
-            <path d="M0 592 C200 562 380 610 560 582 S860 558 1000 592 L1000 700 L0 700 Z" fill="#0a1230" />
+            <path d="M0 550 C150 510 300 570 460 538 S760 490 1000 546 L1000 700 L0 700 Z" class="fill-[#97a4ea] dark:fill-[#101b45]" />
+            <path d="M0 592 C200 562 380 610 560 582 S860 558 1000 592 L1000 700 L0 700 Z" class="fill-[#7a89dd] dark:fill-[#0a1230]" />
         </svg>
     </template>
 
