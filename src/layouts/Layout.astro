@@ -1,6 +1,11 @@
 ---
+import { createHash } from 'node:crypto';
 import Footer from '../components/footer.astro';
 import '@fontsource-variable/inter';
+// The browser downloads a font only when it's the one picked in Settings
+import '@fontsource-variable/outfit';
+import '@fontsource-variable/lexend';
+import '@fontsource-variable/atkinson-hyperlegible-next';
 import '../styles/preferences.css';
 
 interface Props {
@@ -8,33 +13,53 @@ interface Props {
 }
 
 const { title } = Astro.props;
+
+// Theme, accent, font, text size, and navigation from Settings, applied before the first paint.
+// It has to run inline and first, so the Content Security Policy below allows it by its hash.
+const preferenceScript = `(function() {
+	const root = document.documentElement;
+	try {
+		const savedTheme = localStorage.getItem('theme');
+		const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+		const initialTheme = savedTheme || (prefersDark ? 'dark' : 'light');
+		root.classList.toggle('dark', initialTheme === 'dark');
+		root.setAttribute('data-theme', initialTheme);
+
+		const settings = JSON.parse(localStorage.getItem('settings') || '{}');
+		if (settings.accent) root.dataset.accent = settings.accent;
+		if (settings.font) root.dataset.font = settings.font;
+		if (settings.textSize) root.dataset.textSize = settings.textSize;
+		if (settings.navLayout) root.dataset.nav = settings.navLayout;
+		root.dataset.sidebar = settings.sidebarCollapsed ? 'collapsed' : 'open';
+	} catch (e) {}
+})();`;
+
+// Only this site's own files may load. Everything else, including any injected script, is blocked.
+// Alpine evaluates its x- attributes as code, which needs 'unsafe-eval'; style attributes need
+// 'unsafe-inline' because Alpine writes them. Left out in dev, where Vite injects its own scripts.
+const contentSecurityPolicy = [
+	"default-src 'self'",
+	`script-src 'self' 'unsafe-eval' 'sha256-${createHash('sha256').update(preferenceScript).digest('base64')}'`,
+	"style-src 'self' 'unsafe-inline'",
+	"img-src 'self' data: blob:",
+	"font-src 'self' data:",
+	"media-src 'self' data: blob:",
+	"connect-src 'self'",
+	"object-src 'none'",
+	"base-uri 'self'",
+	"form-action 'self'",
+	"frame-src 'none'"
+].join('; ');
 ---
 
 <!doctype html>
 <html lang="en">
 	<head>
-		<script is:inline>
-			(function() {
-				const savedTheme = localStorage.getItem('theme');
-				const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-				const initialTheme = savedTheme || (prefersDark ? 'dark' : 'light');
-				
-				document.documentElement.classList.toggle('dark', initialTheme === 'dark');
-				document.documentElement.setAttribute('data-theme', initialTheme);
-
-				// Accent, font, and text size from Settings, applied before the first paint
-				try {
-					const settings = JSON.parse(localStorage.getItem('settings') || '{}');
-					if (settings.accent) document.documentElement.dataset.accent = settings.accent;
-					if (settings.font) document.documentElement.dataset.font = settings.font;
-					if (settings.textSize) document.documentElement.dataset.textSize = settings.textSize;
-					if (settings.navLayout) document.documentElement.dataset.nav = settings.navLayout;
-					document.documentElement.dataset.sidebar = settings.sidebarCollapsed ? 'collapsed' : 'open';
-				} catch (e) {}
-			})();
-		</script>
-		
 		<meta charset="UTF-8" />
+		{import.meta.env.PROD && <meta http-equiv="Content-Security-Policy" content={contentSecurityPolicy} />}
+		<meta name="referrer" content="strict-origin-when-cross-origin" />
+		<script is:inline set:html={preferenceScript}></script>
+
 		<meta name="viewport" content="width=device-width" />
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 		<meta name="generator" content={Astro.generator} />

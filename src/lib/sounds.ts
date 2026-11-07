@@ -1,5 +1,5 @@
-// Timer alarm sounds. "Classic" is a hosted recording; the rest are synthesized
-// with the Web Audio API, so they need no files and work offline.
+// Timer alarm sounds, all synthesized with the Web Audio API, so they need no files,
+// make no requests to other sites, and work offline.
 
 export const ALARM_SOUNDS = [
   { id: "classic", label: "Classic" },
@@ -11,8 +11,6 @@ export const ALARM_SOUNDS = [
 ] as const;
 
 export type AlarmSound = typeof ALARM_SOUNDS[number]["id"];
-
-const CLASSIC_URL = "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3";
 
 let context: AudioContext | null = null;
 
@@ -39,13 +37,6 @@ function note(ctx: AudioContext, output: AudioNode, frequency: number, start: nu
 export function playAlarmSound(sound: AlarmSound, volume = 0.7): void {
   if (sound === "none" || volume <= 0) return;
 
-  if (sound === "classic") {
-    const audio = new Audio(CLASSIC_URL);
-    audio.volume = volume;
-    audio.play().catch(error => console.log("Audio play failed:", error));
-    return;
-  }
-
   const ctx = audioContext();
   const output = ctx.createGain();
   output.gain.value = volume * 0.5;
@@ -53,6 +44,17 @@ export function playAlarmSound(sound: AlarmSound, volume = 0.7): void {
   const now = ctx.currentTime + 0.05;
 
   switch (sound) {
+    case "classic":
+      // A wind-up alarm clock: a small bell struck 14 times a second, in two bursts
+      [0, 1.6].forEach(offset => {
+        for (let strike = 0; strike < 16; strike++) {
+          const start = now + offset + strike / 14;
+          [[1975.5, 0.5], [2960, 0.22], [4186, 0.1]].forEach(([frequency, level]) =>
+            note(ctx, output, frequency, start, 0.09, "sine", level)
+          );
+        }
+      });
+      break;
     case "chime":
       // A rising C major arpeggio, played twice
       [0, 1.4].forEach(offset =>
