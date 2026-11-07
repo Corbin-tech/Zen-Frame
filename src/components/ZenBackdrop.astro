@@ -172,7 +172,21 @@ const wingUp = 'M-12 0 Q-6 -7 0 0 Q6 -7 12 0';
 const wingDown = 'M-12 2 Q-6 4 0 0 Q6 4 12 2';
 ---
 
-<div class="absolute inset-0 -z-10 pointer-events-none" aria-hidden="true" x-data="{ still: matchMedia('(prefers-reduced-motion: reduce)').matches }">
+<!-- Held still under reduced motion, and while Settings is open: its blurred backdrop over a moving scene redraws every frame and stutters -->
+<div
+    class="absolute inset-0 -z-10 pointer-events-none"
+    aria-hidden="true"
+    x-data="{
+        still: matchMedia('(prefers-reduced-motion: reduce)').matches,
+        paused: false,
+        hold(paused) {
+            this.paused = paused;
+            this.$el.querySelectorAll('svg').forEach(svg => this.still || paused ? svg.pauseAnimations() : svg.unpauseAnimations());
+        }
+    }"
+    x-bind:class="(still || paused) && 'zen-backdrop-held'"
+    x-on:settings-panel.window="hold($event.detail.open)"
+>
     <!-- Soft glow: three blurred lights drifting -->
     <template x-if="$store.settings.zenBackground === 'glow'">
         <div class="absolute inset-0">
@@ -184,7 +198,7 @@ const wingDown = 'M-12 2 Q-6 4 0 0 Q6 4 12 2';
 
     <!-- Koi pond: koi circling under lily pads, light through the water, the odd ripple -->
     <template x-if="$store.settings.zenBackground === 'koi'">
-        <svg class="absolute inset-0 w-full h-full stroke-none" viewBox="0 0 1000 700" preserveAspectRatio="xMidYMid slice" x-init="still && $el.pauseAnimations()">
+        <svg class="absolute inset-0 w-full h-full stroke-none" viewBox="0 0 1000 700" preserveAspectRatio="xMidYMid slice" x-init="(still || paused) && $el.pauseAnimations()">
             <defs>
                 <linearGradient id="zb-water" x1="0" y1="0" x2="0.4" y2="1">
                     <stop offset="0" class="[stop-color:#d5f1ec] dark:[stop-color:#0c3d48]" />
@@ -297,7 +311,7 @@ const wingDown = 'M-12 2 Q-6 4 0 0 Q6 4 12 2';
 
     <!-- Swirly night: turning spirals, twinkling stars, a crescent moon. A deep blue night in dark mode, a periwinkle dusk in light mode. -->
     <template x-if="$store.settings.zenBackground === 'swirly'">
-        <svg class="absolute inset-0 w-full h-full stroke-none" viewBox="0 0 1000 700" preserveAspectRatio="xMidYMid slice" x-init="still && $el.pauseAnimations()">
+        <svg class="absolute inset-0 w-full h-full stroke-none" viewBox="0 0 1000 700" preserveAspectRatio="xMidYMid slice" x-init="(still || paused) && $el.pauseAnimations()">
             <defs>
                 <linearGradient id="zb-night" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0" class="[stop-color:#aab6ef] dark:[stop-color:#0a1438]" />
@@ -372,7 +386,7 @@ const wingDown = 'M-12 2 Q-6 4 0 0 Q6 4 12 2';
 
     <!-- Birds: small flocks gliding across a soft sky, clouds drifting -->
     <template x-if="$store.settings.zenBackground === 'birds'">
-        <svg class="absolute inset-0 w-full h-full stroke-none" viewBox="0 0 1000 700" preserveAspectRatio="xMidYMid slice" x-init="still && $el.pauseAnimations()">
+        <svg class="absolute inset-0 w-full h-full stroke-none" viewBox="0 0 1000 700" preserveAspectRatio="xMidYMid slice" x-init="(still || paused) && $el.pauseAnimations()">
             <defs>
                 <linearGradient id="zb-sky" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0" class="[stop-color:#c7e2fb] dark:[stop-color:#0f172a]" />
@@ -429,7 +443,7 @@ const wingDown = 'M-12 2 Q-6 4 0 0 Q6 4 12 2';
 
     <!-- Rainy window: looking out through a paned window at a rainy street, water running down the glass -->
     <template x-if="$store.settings.zenBackground === 'rain'">
-        <svg class="absolute inset-0 w-full h-full stroke-none" viewBox="0 0 1000 700" preserveAspectRatio="xMidYMid slice" x-init="still && $el.pauseAnimations()">
+        <svg class="absolute inset-0 w-full h-full stroke-none" viewBox="0 0 1000 700" preserveAspectRatio="xMidYMid slice" x-init="(still || paused) && $el.pauseAnimations()">
             <defs>
                 <linearGradient id="zb-overcast" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0" class="[stop-color:#a9b6c8] dark:[stop-color:#0f1828]" />
@@ -553,7 +567,7 @@ const wingDown = 'M-12 2 Q-6 4 0 0 Q6 4 12 2';
 
     <!-- Fireflies: a meadow at dusk, fireflies wandering and glowing over swaying grass -->
     <template x-if="$store.settings.zenBackground === 'fireflies'">
-        <svg class="absolute inset-0 w-full h-full stroke-none" viewBox="0 0 1000 700" preserveAspectRatio="xMidYMid slice" x-init="still && $el.pauseAnimations()">
+        <svg class="absolute inset-0 w-full h-full stroke-none" viewBox="0 0 1000 700" preserveAspectRatio="xMidYMid slice" x-init="(still || paused) && $el.pauseAnimations()">
             <defs>
                 <linearGradient id="zb-dusk" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0" class="[stop-color:#f4c6a0] dark:[stop-color:#071521]" />
@@ -615,6 +629,7 @@ const wingDown = 'M-12 2 Q-6 4 0 0 Q6 4 12 2';
     .zen-orb { animation: zen-drift 14s ease-in-out infinite alternate; }
     .zen-orb-2 { animation-duration: 18s; animation-direction: alternate-reverse; }
     .zen-orb-3 { animation-duration: 22s; }
+    .zen-backdrop-held .zen-orb { animation-play-state: paused; }
     @keyframes zen-drift {
         0% { transform: translate(0, 0) scale(1); }
         50% { transform: translate(3rem, 2rem) scale(1.15); }

@@ -12,6 +12,7 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
 
 <div
     x-data="{ open: false }"
+    x-init="$watch('open', value => window.dispatchEvent(new CustomEvent('settings-panel', { detail: { open: value } })))"
     x-on:open-settings.window="open = true; $nextTick(() => $refs.close.focus())"
     x-on:keydown.escape.window="open = false"
 >
