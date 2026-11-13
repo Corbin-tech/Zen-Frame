@@ -1,6 +1,10 @@
 ---
 import BarChart from './BarChart.astro';
-import Wrapped from './Wrapped.astro';
+import Recap from './Recap.astro';
+import data from '../data/site.json';
+
+// The monthly recap's name on screen
+const recapName = data.recapName;
 
 const panel = 'rounded-2xl bg-white/80 dark:bg-slate-800/70 backdrop-blur-sm shadow-sm ring-1 ring-black/5 dark:ring-white/10';
 const panelTitle = 'text-base font-semibold text-gray-900 dark:text-white';
@@ -31,60 +35,60 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
         </div>
     </header>
 
-    <!-- Wrapped banner: shown until the chosen month's story has been watched to the end -->
-    <section x-show="!wrappedSeen" class="relative overflow-hidden isolate rounded-2xl p-5 sm:p-6 text-white shadow-lg shadow-teal-900/20 ring-1 ring-white/10 bg-gradient-to-br from-teal-600 via-indigo-700 to-fuchsia-800">
+    <!-- Monthly recap banner: shown until the chosen month's story has been watched to the end -->
+    <section x-show="!recapSeen" class="relative overflow-hidden isolate rounded-2xl p-5 sm:p-6 text-white shadow-lg shadow-teal-900/20 ring-1 ring-white/10 bg-gradient-to-br from-teal-600 via-indigo-700 to-fuchsia-800">
         <span class="absolute -z-10 -top-16 -right-10 w-56 h-56 rounded-full bg-fuchsia-400/30 blur-3xl" aria-hidden="true"></span>
         <span class="absolute -z-10 -bottom-20 -left-10 w-56 h-56 rounded-full bg-teal-300/30 blur-3xl" aria-hidden="true"></span>
         <div class="flex flex-wrap items-center justify-between gap-4">
             <div>
-                <p class="text-xs font-semibold uppercase tracking-wider text-white/70">Monthly Wrapped</p>
-                <p class="mt-1 text-2xl font-bold tracking-tight" x-text="`Your ${wrappedMonthName} in review`"></p>
-                <p class="mt-1 text-sm text-white/80" x-text="wrappedTeaser"></p>
+                <p class="text-xs font-semibold uppercase tracking-wider text-white/70">Monthly {recapName}</p>
+                <p class="mt-1 text-2xl font-bold tracking-tight" x-text="`Your ${recapMonthName} in review`"></p>
+                <p class="mt-1 text-sm text-white/80" x-text="recapTeaser"></p>
             </div>
             <div class="flex flex-wrap items-center gap-2">
-                <label for="wrapped-month" class="sr-only">Month</label>
+                <label for="recap-month" class="sr-only">Month</label>
                 <select
-                    id="wrapped-month"
-                    x-model="wrappedMonth"
+                    id="recap-month"
+                    x-model="recapMonth"
                     class="rounded-lg border-0 bg-white/15 text-white text-sm py-2 focus:ring-2 focus:ring-white/60 [&>option]:text-gray-900"
                 >
                     <template x-for="month in months" :key="month.id">
-                        <option x-bind:value="month.id" x-text="month.label" x-bind:selected="month.id === wrappedMonth"></option>
+                        <option x-bind:value="month.id" x-text="month.label" x-bind:selected="month.id === recapMonth"></option>
                     </template>
                 </select>
                 <button
                     type="button"
-                    x-on:click="$dispatch('open-wrapped', { month: wrappedMonth })"
+                    x-on:click="$dispatch('open-recap', { month: recapMonth })"
                     class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-white text-indigo-800 text-sm font-semibold shadow-sm hover:bg-indigo-50 transition-colors"
                 >
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></svg>
-                    Play Wrapped
+                    Play {recapName}
                 </button>
             </div>
         </div>
     </section>
 
     <!-- Once watched, the banner shrinks to one row. Picking a month that hasn't been watched brings it back. -->
-    <section x-show="wrappedSeen" x-cloak class={`${panel} flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5`}>
+    <section x-show="recapSeen" x-cloak class={`${panel} flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5`}>
         <span class="grid place-items-center w-8 h-8 shrink-0 rounded-lg text-white bg-gradient-to-br from-teal-600 via-indigo-700 to-fuchsia-800" aria-hidden="true">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></svg>
         </span>
         <p class="flex-1 min-w-0 text-sm">
-            <span class="font-semibold text-gray-900 dark:text-white" x-text="`${wrappedMonthName} Wrapped`"></span>
-            <span class="ml-1 text-gray-500 dark:text-gray-400" x-text="`· Watched${wrappedCounts ? ` · ${wrappedCounts}` : ''}`"></span>
+            <span class="font-semibold text-gray-900 dark:text-white" x-text={`\`\${recapMonthName} ${recapName}\``}></span>
+            <span class="ml-1 text-gray-500 dark:text-gray-400" x-text="`· Watched${recapCounts ? ` · ${recapCounts}` : ''}`"></span>
         </p>
         <select
-            x-model="wrappedMonth"
+            x-model="recapMonth"
             aria-label="Month"
             class="rounded-lg border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-800 dark:text-white text-sm py-1.5 focus:border-teal-500 focus:ring-teal-500"
         >
             <template x-for="month in months" :key="month.id">
-                <option x-bind:value="month.id" x-text="month.label" x-bind:selected="month.id === wrappedMonth"></option>
+                <option x-bind:value="month.id" x-text="month.label" x-bind:selected="month.id === recapMonth"></option>
             </template>
         </select>
         <button
             type="button"
-            x-on:click="$dispatch('open-wrapped', { month: wrappedMonth })"
+            x-on:click="$dispatch('open-recap', { month: recapMonth })"
             class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-slate-700 dark:text-gray-200 dark:hover:bg-slate-600 transition-colors"
         >
             <svg class="w-4 h-4" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" stroke="none" d="M8 5.14v13.72a1 1 0 001.5.86l11-6.86a1 1 0 000-1.72l-11-6.86A1 1 0 008 5.14z" /></svg>
@@ -204,7 +208,7 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
         </section>
     </div>
 
-    <Wrapped />
+    <Recap />
 </div>
 
 <script>
@@ -268,11 +272,11 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
         window.Alpine.data('insights', () => ({
             ranges: RANGES,
             range: localStorage.getItem('insightsRange') || '30d',
-            wrappedMonth: monthOf(dates.toDateKey()),
+            recapMonth: monthOf(dates.toDateKey()),
             months: [],
             view: { tiles: [], heatmap: [], heatmapActiveDays: 0, taskBars: [], focusBars: [], weekdayBars: [], hourBars: [], clusters: [], summary: { tasks: 0 }, bucketLabel: '', rhythm: '' },
-            wrappedTeaser: '',
-            wrappedCounts: '',
+            recapTeaser: '',
+            recapCounts: '',
 
             setRange(id) {
                 this.range = id;
@@ -283,13 +287,13 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
                 return this.range === '12m' ? 'the last 12 months' : `the last ${RANGES.find(range => range.id === this.range).days} days`;
             },
 
-            get wrappedMonthName() {
-                return formatMonth(this.wrappedMonth, { month: 'long' });
+            get recapMonthName() {
+                return formatMonth(this.recapMonth, { month: 'long' });
             },
 
             // Saved in Settings once the month's story has been watched to the end
-            get wrappedSeen() {
-                return this.$store.settings.recapSeenMonths.includes(this.wrappedMonth);
+            get recapSeen() {
+                return this.$store.settings.recapSeenMonths.includes(this.recapMonth);
             },
 
             levelClass(level) {
@@ -391,10 +395,10 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
                     id: month,
                     label: month === monthOf(today) ? `${formatMonth(month)} (so far)` : formatMonth(month)
                 }));
-                const month = summarize(completions, sessions, monthRange(this.wrappedMonth));
-                this.wrappedCounts = month.tasks || month.focusMinutes ? `${plural(month.tasks, 'task')} and ${dates.formatDuration(month.focusMinutes)} of focus` : '';
-                this.wrappedTeaser = this.wrappedCounts
-                    ? `${this.wrappedCounts}. Tap play for the full story.`
+                const month = summarize(completions, sessions, monthRange(this.recapMonth));
+                this.recapCounts = month.tasks || month.focusMinutes ? `${plural(month.tasks, 'task')} and ${dates.formatDuration(month.focusMinutes)} of focus` : '';
+                this.recapTeaser = this.recapCounts
+                    ? `${this.recapCounts}. Tap play for the full story.`
                     : 'Nothing logged this month yet. Finish a task or a focus session to start the story.';
             }
         }));

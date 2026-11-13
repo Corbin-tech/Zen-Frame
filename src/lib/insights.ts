@@ -1,6 +1,6 @@
 import { addDays, daysBetween, fromDateKey, toDateKey } from "./dates";
 
-// Stats for the Insights tab and the monthly Wrapped. Everything is computed from three saved
+// Stats for the Insights tab and the monthly recap. Everything is computed from three saved
 // lists: finished tasks (the todo store's history), focus sessions, and weekly check-ins.
 
 export interface Completion {

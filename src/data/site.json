@@ -3,6 +3,7 @@
     "siteName": "Zen Frame",
     "siteDescription": "A simple to do list application with a Zen Mode and pomodoro timer.",
     "feedbackEmail": "",
+    "recapName": "Stillpoint",
     "pages": [
         {
             "title": "Dashboard",

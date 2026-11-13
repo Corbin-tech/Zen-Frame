@@ -1,12 +1,16 @@
 ---
-// Monthly Wrapped: a full-screen story of one month, opened with the "open-wrapped" window event
+// The monthly recap: a full-screen story of one month, opened with the "open-recap" window event
 // ({ month: "YYYY-MM" }). Slides advance on their own; tap the right side or press → for the next,
 // the left side or ← for the previous, and hold to pause. Esc closes it.
+// Its name on screen is recapName in src/data/site.json.
+import data from '../data/site.json';
+
+const name = data.recapName;
 ---
 
 <div
-    x-data="wrapped"
-    x-on:open-wrapped.window="open($event.detail.month)"
+    x-data="recap"
+    x-on:open-recap.window="open($event.detail.month)"
     x-on:keydown.window="onKey($event)"
 >
     <div
@@ -16,7 +20,7 @@
         class="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-0 sm:p-6"
         role="dialog"
         aria-modal="true"
-        x-bind:aria-label="`${monthName} Wrapped`"
+        x-bind:aria-label={`\`\${monthName} ${name}\``}
     >
         <div
             x-ref="story"
@@ -28,8 +32,8 @@
             x-on:pointerleave="holding = false"
         >
             <!-- Moving glows -->
-            <span class="wrapped-orb absolute -top-24 -left-20 w-72 h-72 rounded-full bg-white/20 blur-3xl" aria-hidden="true"></span>
-            <span class="wrapped-orb wrapped-orb-slow absolute -bottom-28 -right-16 w-80 h-80 rounded-full bg-black/20 blur-3xl" aria-hidden="true"></span>
+            <span class="recap-orb absolute -top-24 -left-20 w-72 h-72 rounded-full bg-white/20 blur-3xl" aria-hidden="true"></span>
+            <span class="recap-orb recap-orb-slow absolute -bottom-28 -right-16 w-80 h-80 rounded-full bg-black/20 blur-3xl" aria-hidden="true"></span>
 
             <!-- Progress, one segment per slide -->
             <div class="absolute top-0 inset-x-0 z-20 flex gap-1 px-3 pt-3">
@@ -46,7 +50,7 @@
                         <svg x-show="!paused" class="w-4 h-4" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" stroke="none" d="M7 5h3v14H7zM14 5h3v14h-3z" /></svg>
                         <svg x-show="paused" class="w-4 h-4" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" stroke="none" d="M8 5.14v13.72a1 1 0 001.5.86l11-6.86a1 1 0 000-1.72l-11-6.86A1 1 0 008 5.14z" /></svg>
                     </button>
-                    <button type="button" x-ref="close" x-on:click.stop="close()" x-on:pointerdown.stop class="p-2 rounded-full hover:bg-white/15" aria-label="Close Wrapped">
+                    <button type="button" x-ref="close" x-on:click.stop="close()" x-on:pointerdown.stop class="p-2 rounded-full hover:bg-white/15" aria-label={`Close ${name}`}>
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
                 </div>
@@ -104,6 +108,7 @@
 <script>
     import { dates } from '../lib/dates';
     import { averageEnergy, formatMonth, monthRange, partOfDay, percentChange, previousMonth, summarize } from '../lib/insights';
+    import site from '../data/site.json';
 
     const SLIDE_MS = 6500;
     const THEMES = [
@@ -131,7 +136,7 @@
         const slides = [];
 
         slides.push({
-            eyebrow: 'Your month, wrapped',
+            eyebrow: `Your monthly ${site.recapName}`,
             value: name,
             label: isCurrent ? 'So far, here’s how it’s going.' : 'Here’s how it went.',
             note: 'Tap to skip ahead, hold to pause.'
@@ -228,7 +233,7 @@
 
         slides.push({
             eyebrow: `${name} at a glance`,
-            value: 'That’s a wrap',
+            value: 'That’s your month',
             label: '',
             grid: [
                 { value: String(stats.tasks), label: 'tasks finished' },
@@ -251,7 +256,7 @@
     }
 
     document.addEventListener('alpine:init', () => {
-        window.Alpine.data('wrapped', () => ({
+        window.Alpine.data('recap', () => ({
             isOpen: false,
             month: '',
             slides: [],
@@ -353,9 +358,9 @@
 </script>
 
 <style>
-    .wrapped-orb { animation: wrapped-drift 8s ease-in-out infinite alternate; }
-    .wrapped-orb-slow { animation-duration: 11s; }
-    @keyframes wrapped-drift {
+    .recap-orb { animation: recap-drift 8s ease-in-out infinite alternate; }
+    .recap-orb-slow { animation-duration: 11s; }
+    @keyframes recap-drift {
         to { transform: translate(3rem, 2.5rem) scale(1.2); }
     }
 </style>
