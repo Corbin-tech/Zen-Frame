@@ -31,8 +31,8 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
         </div>
     </header>
 
-    <!-- Wrapped banner -->
-    <section class="relative overflow-hidden isolate rounded-2xl p-5 sm:p-6 text-white shadow-lg shadow-teal-900/20 ring-1 ring-white/10 bg-gradient-to-br from-teal-600 via-indigo-700 to-fuchsia-800">
+    <!-- Wrapped banner: shown until the chosen month's story has been watched to the end -->
+    <section x-show="!wrappedSeen" class="relative overflow-hidden isolate rounded-2xl p-5 sm:p-6 text-white shadow-lg shadow-teal-900/20 ring-1 ring-white/10 bg-gradient-to-br from-teal-600 via-indigo-700 to-fuchsia-800">
         <span class="absolute -z-10 -top-16 -right-10 w-56 h-56 rounded-full bg-fuchsia-400/30 blur-3xl" aria-hidden="true"></span>
         <span class="absolute -z-10 -bottom-20 -left-10 w-56 h-56 rounded-full bg-teal-300/30 blur-3xl" aria-hidden="true"></span>
         <div class="flex flex-wrap items-center justify-between gap-4">
@@ -62,6 +62,34 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
                 </button>
             </div>
         </div>
+    </section>
+
+    <!-- Once watched, the banner shrinks to one row. Picking a month that hasn't been watched brings it back. -->
+    <section x-show="wrappedSeen" x-cloak class={`${panel} flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5`}>
+        <span class="grid place-items-center w-8 h-8 shrink-0 rounded-lg text-white bg-gradient-to-br from-teal-600 via-indigo-700 to-fuchsia-800" aria-hidden="true">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></svg>
+        </span>
+        <p class="flex-1 min-w-0 text-sm">
+            <span class="font-semibold text-gray-900 dark:text-white" x-text="`${wrappedMonthName} Wrapped`"></span>
+            <span class="ml-1 text-gray-500 dark:text-gray-400" x-text="`· Watched${wrappedCounts ? ` · ${wrappedCounts}` : ''}`"></span>
+        </p>
+        <select
+            x-model="wrappedMonth"
+            aria-label="Month"
+            class="rounded-lg border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-800 dark:text-white text-sm py-1.5 focus:border-teal-500 focus:ring-teal-500"
+        >
+            <template x-for="month in months" :key="month.id">
+                <option x-bind:value="month.id" x-text="month.label" x-bind:selected="month.id === wrappedMonth"></option>
+            </template>
+        </select>
+        <button
+            type="button"
+            x-on:click="$dispatch('open-wrapped', { month: wrappedMonth })"
+            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-slate-700 dark:text-gray-200 dark:hover:bg-slate-600 transition-colors"
+        >
+            <svg class="w-4 h-4" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" stroke="none" d="M8 5.14v13.72a1 1 0 001.5.86l11-6.86a1 1 0 000-1.72l-11-6.86A1 1 0 008 5.14z" /></svg>
+            Replay
+        </button>
     </section>
 
     <!-- Key numbers -->
@@ -244,6 +272,7 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
             months: [],
             view: { tiles: [], heatmap: [], heatmapActiveDays: 0, taskBars: [], focusBars: [], weekdayBars: [], hourBars: [], clusters: [], summary: { tasks: 0 }, bucketLabel: '', rhythm: '' },
             wrappedTeaser: '',
+            wrappedCounts: '',
 
             setRange(id) {
                 this.range = id;
@@ -256,6 +285,11 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
 
             get wrappedMonthName() {
                 return formatMonth(this.wrappedMonth, { month: 'long' });
+            },
+
+            // Saved in Settings once the month's story has been watched to the end
+            get wrappedSeen() {
+                return this.$store.settings.recapSeenMonths.includes(this.wrappedMonth);
             },
 
             levelClass(level) {
@@ -358,8 +392,9 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
                     label: month === monthOf(today) ? `${formatMonth(month)} (so far)` : formatMonth(month)
                 }));
                 const month = summarize(completions, sessions, monthRange(this.wrappedMonth));
-                this.wrappedTeaser = month.tasks || month.focusMinutes
-                    ? `${plural(month.tasks, 'task')} and ${dates.formatDuration(month.focusMinutes)} of focus. Tap play for the full story.`
+                this.wrappedCounts = month.tasks || month.focusMinutes ? `${plural(month.tasks, 'task')} and ${dates.formatDuration(month.focusMinutes)} of focus` : '';
+                this.wrappedTeaser = this.wrappedCounts
+                    ? `${this.wrappedCounts}. Tap play for the full story.`
                     : 'Nothing logged this month yet. Finish a task or a focus session to start the story.';
             }
         }));

@@ -107,6 +107,9 @@ export const ZEN_BACKGROUNDS = [
   { id: "sakura", label: "Sakura", hint: "Cherry blossoms drifting" }
 ] as const;
 
+// How many months of "seen" monthly stories to remember
+const SEEN_MONTHS_KEPT = 24;
+
 // Minutes before a scheduled block starts that its reminder fires
 export const BLOCK_LEADS = [0, 5, 10, 15, 30];
 
@@ -141,6 +144,7 @@ interface Settings {
   notifyBlockLead: number; // One of BLOCK_LEADS
   notifyDue: boolean; // Daily summary of tasks due today and overdue
   notifyDueTime: string; // "HH:MM"
+  recapSeenMonths: string[]; // Months ("YYYY-MM") whose monthly story was watched to the end
 }
 
 const DEFAULTS: Settings = {
@@ -166,7 +170,8 @@ const DEFAULTS: Settings = {
   notifyBlocks: true,
   notifyBlockLead: 5,
   notifyDue: true,
-  notifyDueTime: "09:00"
+  notifyDueTime: "09:00",
+  recapSeenMonths: []
 };
 
 // Known widgets in the right zone, each placed once
@@ -181,6 +186,12 @@ function cleanLayout(saved: unknown): DashboardLayout {
   });
   const layout = saved as Partial<DashboardLayout>;
   return { top: keep(layout.top, "top"), main: keep(layout.main, "column"), side: keep(layout.side, "column") };
+}
+
+// Valid months, oldest first, the newest ones only. A missing or broken list gives none.
+function cleanMonths(saved: unknown): string[] {
+  const months = (Array.isArray(saved) ? saved : []).filter(month => typeof month === "string" && /^\d{4}-\d{2}$/.test(month));
+  return [...new Set<string>(months)].sort().slice(-SEEN_MONTHS_KEPT);
 }
 
 // Keeps only known values, so an old or edited save can't break the page
@@ -214,7 +225,8 @@ function loadSettings(): Settings {
     notifyBlocks: flag(saved.notifyBlocks, DEFAULTS.notifyBlocks),
     notifyBlockLead: BLOCK_LEADS.includes(saved.notifyBlockLead as number) ? saved.notifyBlockLead as number : DEFAULTS.notifyBlockLead,
     notifyDue: flag(saved.notifyDue, DEFAULTS.notifyDue),
-    notifyDueTime: typeof saved.notifyDueTime === "string" && /^\d{2}:\d{2}$/.test(saved.notifyDueTime) ? saved.notifyDueTime : DEFAULTS.notifyDueTime
+    notifyDueTime: typeof saved.notifyDueTime === "string" && /^\d{2}:\d{2}$/.test(saved.notifyDueTime) ? saved.notifyDueTime : DEFAULTS.notifyDueTime,
+    recapSeenMonths: cleanMonths(saved.recapSeenMonths)
   };
 }
 
@@ -252,11 +264,18 @@ export function initSettingsStore() {
     },
 
     reset(): void {
-      this.update({ ...DEFAULTS, dashboardLayout: structuredClone(DEFAULT_DASHBOARD), name: this.name, notifyEnabled: this.notifyEnabled });
+      // Resets preferences. The name, the reminder switch, and which monthly stories were watched are kept.
+      this.update({ ...DEFAULTS, dashboardLayout: structuredClone(DEFAULT_DASHBOARD), name: this.name, notifyEnabled: this.notifyEnabled, recapSeenMonths: this.recapSeenMonths });
     },
 
     setDashboardLayout(layout: DashboardLayout): void {
       this.update({ dashboardLayout: cleanLayout(layout) });
+    },
+
+    // A month's story was watched to the end, so its entry on Insights can shrink
+    markRecapSeen(month: string): void {
+      if (this.recapSeenMonths.includes(month)) return;
+      this.update({ recapSeenMonths: cleanMonths([...this.recapSeenMonths, month]) });
     },
 
     resetDashboardLayout(): void {

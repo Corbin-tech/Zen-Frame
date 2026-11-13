@@ -143,7 +143,8 @@
                 value: '0',
                 label: 'tasks or focus sessions logged',
                 note: 'Finish a task or a Pomodoro and this story fills itself in.',
-                final: true
+                final: true,
+                empty: true
             });
             return slides.map((slide, i) => ({ ...slide, theme: THEMES[i % THEMES.length] }));
         }
@@ -316,6 +317,9 @@
                 if (this.index < this.slides.length - 1) {
                     this.index++;
                     this.progress = 0;
+                    // Reaching the last slide counts as seen, and the entry on Insights shrinks.
+                    // A month with nothing in it doesn't count: there was no story yet.
+                    if (this.slide.final && !this.slide.empty) this.$store.settings.markRecapSeen(this.month);
                 } else {
                     this.progress = 1;
                 }
