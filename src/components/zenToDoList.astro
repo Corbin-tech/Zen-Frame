@@ -1,7 +1,3 @@
----
-import ZenBackdrop from './ZenBackdrop.astro';
----
-
 <script>
     document.addEventListener('alpine:init', () => {
         Alpine.data('zenTodoList', () => ({
@@ -100,15 +96,14 @@ import ZenBackdrop from './ZenBackdrop.astro';
     }
 </style>
 
-<!-- Zen Mode Component -->
+<!-- Zen Mode Component. With a background chosen, the scene behind it (ZenBackdrop, placed in
+     tabs.astro so it also runs behind the quote) is the card, so this one drops its own surface. -->
 <div
     x-data="zenTodoList"
     x-cloak
-    class="relative isolate overflow-hidden w-full max-w-4xl mx-auto rounded-2xl bg-white/80 dark:bg-slate-800/70 backdrop-blur-sm shadow-sm ring-1 ring-black/5 dark:ring-white/10 p-6"
+    class="relative isolate overflow-hidden w-full max-w-4xl mx-auto rounded-2xl p-6"
+    x-bind:class="$store.settings.zenBackground === 'none' && 'bg-white/80 dark:bg-slate-800/70 backdrop-blur-sm shadow-sm ring-1 ring-black/5 dark:ring-white/10'"
 >
-    <!-- Moving background, picked in Settings -->
-    <ZenBackdrop />
-
     <!-- Zen mode's options live in Settings. This opens the panel at its Zen mode section. -->
     <button
         type="button"
