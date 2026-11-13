@@ -304,7 +304,8 @@ const prompts = [
                 const start = this.week;
                 const end = dates.addDays(start, 7);
                 const inWeek = iso => { if (!iso) return false; const day = dates.toDateKey(new Date(iso)); return day >= start && day < end; };
-                const done = this.$store.todos.items.filter(item => !item.isCluster && item.completed && inWeek(item.completedAt)).length;
+                // From the history, so clearing completed tasks doesn't lower a past week's count
+                const done = this.$store.todos.history.filter(record => inWeek(record.at)).length;
                 const minutes = focusMinutes(this.$store.pomoState.sessions ?? [], start, end);
                 const goalsDone = this.$store.goals.goals.filter(goal => goal.done).length;
                 return [
@@ -322,7 +323,7 @@ const prompts = [
             },
 
             progressOf(goal) {
-                return this.$store.goals.goalProgress(goal, this.$store.todos.items);
+                return this.$store.goals.goalProgress(goal, goal.clusterId ? this.$store.todos.clusterProgress(goal.clusterId) : null);
             },
 
             colorOf(goal) {
@@ -330,8 +331,8 @@ const prompts = [
             },
 
             clusterDetail(goal) {
-                const tasks = this.$store.todos.items.filter(item => item.parentId === goal.clusterId);
-                return `${this.$store.todos.clusterName(goal.clusterId)} · ${tasks.filter(task => task.completed).length}/${tasks.length} tasks`;
+                const { done, total } = this.$store.todos.clusterProgress(goal.clusterId);
+                return `${this.$store.todos.clusterName(goal.clusterId)} · ${done}/${total} tasks`;
             },
 
             addGoal() {

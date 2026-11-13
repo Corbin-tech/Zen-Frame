@@ -206,6 +206,20 @@ function createTodosStore() {
       return clusterId ? this.find(clusterId)?.todo ?? "" : "";
     },
 
+    // A cluster's progress. Finished tasks that were cleared from the list still count, from
+    // the history, so "Delete completed" never moves a progress bar.
+    clusterProgress(clusterId: string): { done: number; total: number } {
+      const tasks = this.items.filter(item => !item.isCluster && item.parentId === clusterId);
+      const listed = new Set(this.items.map(item => item.id));
+      const cleared = new Set(this.history
+        .filter(record => record.clusterId === clusterId && !listed.has(record.taskId))
+        .map(record => record.taskId));
+      return {
+        done: tasks.filter(task => task.completed).length + cleared.size,
+        total: tasks.length + cleared.size
+      };
+    },
+
     // Clusters made before colors existed get a color from their position
     clusterColorKey(clusterId: string | null): string {
       const cluster = clusterId ? this.find(clusterId) : undefined;

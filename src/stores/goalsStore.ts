@@ -76,13 +76,12 @@ export function initGoalsStore() {
       this.save();
     },
 
-    // Percent complete: from the linked cluster's tasks when there is one
-    goalProgress(goal: Goal, tasks: { parentId: string | null; completed: boolean; isCluster: boolean }[]): number {
+    // Percent complete: from the linked cluster's progress when there is one
+    // (the todo store's clusterProgress, which still counts cleared tasks)
+    goalProgress(goal: Goal, cluster: { done: number; total: number } | null): number {
       if (goal.done) return 100;
-      if (!goal.clusterId) return goal.progress;
-      const clusterTasks = tasks.filter(task => !task.isCluster && task.parentId === goal.clusterId);
-      if (!clusterTasks.length) return 0;
-      return Math.round(clusterTasks.filter(task => task.completed).length / clusterTasks.length * 100);
+      if (!goal.clusterId || !cluster) return goal.progress;
+      return cluster.total ? Math.round(cluster.done / cluster.total * 100) : 0;
     },
 
     checkInFor(week: string): CheckIn {
