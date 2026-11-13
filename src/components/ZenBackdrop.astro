@@ -168,12 +168,14 @@ const fireflies = Array.from({ length: 26 }, () => {
 const grass = Array.from({ length: 90 }, (_, i) => ({ x: i * 11.5 + random() * 8, height: 30 + random() * 60, lean: -10 + random() * 20 }));
 const duskStars = Array.from({ length: 24 }, () => ({ x: random() * 1000, y: 70 + random() * 260, r: 0.6 + random() * 1.1 }));
 
-// Aurora: curtains of light whose edges ripple between two shapes, slowly
+// Aurora: curtains of light. Each one steps through four quarter-phases of the same wave and back
+// to the first, so the ripple travels sideways without a seam. The bright hems sit high, in the
+// strip of sky above the task card.
 const curtain = (base: number, height: number, amp: number, phase: number) => {
-    const points = Array.from({ length: 6 }, (_, i) => ({
-        x: -60 + i * 224,
-        top: base - height + Math.sin(i * 1.3 + phase) * amp,
-        bottom: base + Math.sin(i * 0.9 + phase + 1) * amp * 0.45
+    const points = Array.from({ length: 9 }, (_, i) => ({
+        x: -60 + i * 140,
+        top: base - height + Math.sin(i * 0.8 + phase) * amp * 0.6,
+        bottom: base + Math.sin(i * 0.55 + phase + 1) * amp
     }));
     const edge = (key: 'top' | 'bottom', list: typeof points) => list.slice(1).map((point, i) => {
         const prev = list.at(i)!;
@@ -184,11 +186,13 @@ const curtain = (base: number, height: number, amp: number, phase: number) => {
     return `M${points[0].x} ${points[0].top.toFixed(0)} ${edge('top', points)} L${reversed[0].x} ${reversed[0].bottom.toFixed(0)} ${edge('bottom', reversed)} Z`;
 };
 const auroraBands = [
-    // High in the sky, so the lights show above the task card rather than behind it
-    { id: 'zb-band-1', gradient: 'zb-aurora-green', base: 235, height: 170, amp: 40, phase: 0, duration: 38, opacity: 0.95 },
-    { id: 'zb-band-2', gradient: 'zb-aurora-teal', base: 200, height: 135, amp: 32, phase: 2.1, duration: 46, opacity: 0.75 },
-    { id: 'zb-band-3', gradient: 'zb-aurora-violet', base: 165, height: 110, amp: 26, phase: 4, duration: 54, opacity: 0.6 }
-].map(band => ({ ...band, shapeA: curtain(band.base, band.height, band.amp, band.phase), shapeB: curtain(band.base, band.height, band.amp, band.phase + 1.3) }));
+    { id: 'zb-band-1', gradient: 'zb-aurora-green', base: 150, height: 190, amp: 30, phase: 0, duration: 30, opacity: 1 },
+    { id: 'zb-band-2', gradient: 'zb-aurora-teal', base: 122, height: 160, amp: 24, phase: 2.1, duration: 38, opacity: 0.8 },
+    { id: 'zb-band-3', gradient: 'zb-aurora-violet', base: 96, height: 140, amp: 20, phase: 4, duration: 46, opacity: 0.65 }
+].map(band => {
+    const shapes = [0, 1, 2, 3, 4].map(step => curtain(band.base, band.height, band.amp, band.phase + step * Math.PI / 2));
+    return { ...band, shape: shapes[0], shapes: shapes.join('; ') };
+});
 
 // Sakura: petals drifting down and tumbling, past a flowering branch
 const petals = Array.from({ length: 26 }, () => {
@@ -672,18 +676,18 @@ const wingDown = 'M-12 2 Q-6 4 0 0 Q6 4 12 2';
                 </linearGradient>
                 <linearGradient id="zb-aurora-green" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0" stop-color="#34d399" stop-opacity="0" />
-                    <stop offset="0.65" class="[stop-color:#14b8a6] dark:[stop-color:#34d399]" stop-opacity="0.6" />
-                    <stop offset="1" class="[stop-color:#2dd4bf] dark:[stop-color:#6ee7b7]" stop-opacity="0.95" />
+                    <stop offset="0.65" class="[stop-color:#059669] dark:[stop-color:#34d399]" stop-opacity="0.6" />
+                    <stop offset="1" class="[stop-color:#10b981] dark:[stop-color:#6ee7b7]" stop-opacity="0.95" />
                 </linearGradient>
                 <linearGradient id="zb-aurora-teal" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0" stop-color="#22d3ee" stop-opacity="0" />
-                    <stop offset="0.7" class="[stop-color:#06b6d4] dark:[stop-color:#22d3ee]" stop-opacity="0.55" />
-                    <stop offset="1" class="[stop-color:#22d3ee] dark:[stop-color:#67e8f9]" stop-opacity="0.85" />
+                    <stop offset="0.7" class="[stop-color:#0891b2] dark:[stop-color:#22d3ee]" stop-opacity="0.55" />
+                    <stop offset="1" class="[stop-color:#06b6d4] dark:[stop-color:#67e8f9]" stop-opacity="0.85" />
                 </linearGradient>
                 <linearGradient id="zb-aurora-violet" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0" stop-color="#a78bfa" stop-opacity="0" />
-                    <stop offset="0.7" class="[stop-color:#8b5cf6] dark:[stop-color:#a78bfa]" stop-opacity="0.5" />
-                    <stop offset="1" class="[stop-color:#a78bfa] dark:[stop-color:#c084fc]" stop-opacity="0.75" />
+                    <stop offset="0.7" class="[stop-color:#7c3aed] dark:[stop-color:#a78bfa]" stop-opacity="0.5" />
+                    <stop offset="1" class="[stop-color:#8b5cf6] dark:[stop-color:#c084fc]" stop-opacity="0.75" />
                 </linearGradient>
                 <linearGradient id="zb-lake" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0" class="[stop-color:#b7cfdc] dark:[stop-color:#071a28]" />
@@ -713,16 +717,21 @@ const wingDown = 'M-12 2 Q-6 4 0 0 Q6 4 12 2';
             </g>
 
             <!-- The lights -->
-            <g filter="url(#zb-aurora-blur)" class="opacity-75 dark:opacity-100">
+            <g filter="url(#zb-aurora-blur)">
                 {auroraBands.map(band => (
-                    <path id={band.id} d={band.shapeA} fill={`url(#${band.gradient})`} opacity={band.opacity}>
-                        <animate attributeName="d" values={`${band.shapeA}; ${band.shapeB}; ${band.shapeA}`} dur={`${band.duration}s`} repeatCount="indefinite" />
-                        <animate attributeName="opacity" values={`${band.opacity}; ${band.opacity * 0.55}; ${band.opacity}`} dur={`${band.duration * 0.7}s`} repeatCount="indefinite" />
+                    <path id={band.id} d={band.shape} fill={`url(#${band.gradient})`} opacity={band.opacity}>
+                        <animate attributeName="d" values={band.shapes} dur={`${band.duration}s`} repeatCount="indefinite" />
+                        <animate attributeName="opacity" values={`${band.opacity}; ${(band.opacity * 0.6).toFixed(2)}; ${band.opacity}`} dur={`${(band.duration * 0.45).toFixed(1)}s`} repeatCount="indefinite" />
                     </path>
                 ))}
             </g>
 
-            <g filter="url(#zb-ray-blur)" class="opacity-30 dark:opacity-40"><rect width="1000" height="420" fill="url(#zb-rays)" mask="url(#zb-curtain-mask)" /></g>
+            <!-- The rays drift sideways by one pattern width, so the loop has no seam -->
+            <g filter="url(#zb-ray-blur)" mask="url(#zb-curtain-mask)" class="opacity-40 dark:opacity-50">
+                <rect x="-37" width="1074" height="420" fill="url(#zb-rays)">
+                    <animateTransform attributeName="transform" type="translate" values="0 0; 37 0" dur="16s" repeatCount="indefinite" />
+                </rect>
+            </g>
 
             <!-- Mountains, the far range paler, snow on the peaks -->
             <path d="M0 470 L120 400 L220 430 L330 350 L430 420 L520 370 L620 410 L740 340 L860 400 L1000 380 L1000 560 L0 560 Z" class="fill-[#b9cad9] dark:fill-[#0d2132]" />
@@ -738,7 +747,8 @@ const wingDown = 'M-12 2 Q-6 4 0 0 Q6 4 12 2';
             <!-- The lake, mirroring the lights -->
             <rect y="540" width="1000" height="160" fill="url(#zb-lake)" />
             <g clip-path="url(#zb-lake-clip)">
-                <g transform="translate(0 1080) scale(1 -1)" filter="url(#zb-aurora-blur)" class="opacity-25 dark:opacity-40">
+                <!-- Flipped so the bright hems land near the far shore -->
+                <g transform="translate(0 760) scale(1 -1)" filter="url(#zb-aurora-blur)" class="opacity-30 dark:opacity-45">
                     {auroraBands.map(band => <use href={`#${band.id}`} />)}
                 </g>
                 <g class="stroke-white/40 dark:stroke-teal-100/20" stroke-width="1.2">
