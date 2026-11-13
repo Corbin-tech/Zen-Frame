@@ -305,7 +305,7 @@ const prompts = [
                 const end = dates.addDays(start, 7);
                 const inWeek = iso => { if (!iso) return false; const day = dates.toDateKey(new Date(iso)); return day >= start && day < end; };
                 // From the history, so clearing completed tasks doesn't lower a past week's count
-                const done = this.$store.todos.history.filter(record => inWeek(record.at)).length;
+                const done = this.$store.todos.completions.filter(record => inWeek(record.at)).length;
                 const minutes = focusMinutes(this.$store.pomoState.sessions ?? [], start, end);
                 const goalsDone = this.$store.goals.goals.filter(goal => goal.done).length;
                 return [

@@ -25,6 +25,7 @@ export interface CompletionRecord {
   clusterName: string; // Kept in case the cluster is deleted later
   dueDate: string | null;
   at: string; // ISO time it was completed
+  blockId?: string; // Set when this is one ticked day of a repeating block, not a finished task
 }
 
 const HISTORY_LIMIT = 5000;
@@ -78,6 +79,15 @@ function createTodosStore() {
       return this.items.some(item => item.completed);
     },
 
+    // What statistics count: finished tasks, plus one entry for each ticked day of a repeating
+    // block. A routine ticked on a day its task was also finished counts once.
+    get completions(): CompletionRecord[] {
+      if (!this.history.some(record => record.blockId)) return this.history;
+      const dayKey = (record: CompletionRecord) => `${record.taskId}|${toDateKey(new Date(record.at))}`;
+      const finished = new Set(this.history.filter(record => !record.blockId).map(dayKey));
+      return this.history.filter(record => !record.blockId || !finished.has(dayKey(record)));
+    },
+
     get openTasks(): Todo[] {
       return this.items.filter(item => !item.isCluster && !item.completed);
     },
@@ -102,6 +112,7 @@ function createTodosStore() {
       this.planning = { ...DEFAULT_PLANNING, ...loadJson<Partial<Planning>>("planning", {}) };
       this.history = loadJson<CompletionRecord[]>("history", []);
       this.recordExistingCompletions();
+      this.recordExistingTicks();
       // Last: it may save, and saving writes every list, so all of them must be loaded first
       this.giveClustersDistinctColors();
     },
@@ -122,6 +133,35 @@ function createTodosStore() {
       this.history = [...this.history, ...missing.map(task => this.completionRecord(task, task.completedAt!))]
         .sort((a, b) => a.at.localeCompare(b.at));
       localStorage.setItem("history", JSON.stringify(this.history));
+    },
+
+    // Days ticked on repeating blocks before ticks were kept in the history
+    recordExistingTicks(): void {
+      const recorded = new Set(this.history
+        .filter(record => record.blockId)
+        .map(record => `${record.blockId}|${toDateKey(new Date(record.at))}`));
+      const missing: CompletionRecord[] = [];
+      for (const item of this.scheduledItems) {
+        for (const day of item.repeat?.doneDates ?? []) {
+          if (typeof day !== "string" || recorded.has(`${item.id}|${day}`)) continue;
+          const record = this.tickRecord(item, day);
+          if (record) missing.push(record);
+        }
+      }
+      if (!missing.length) return;
+      this.history = [...this.history, ...missing].sort((a, b) => a.at.localeCompare(b.at)).slice(-HISTORY_LIMIT);
+      localStorage.setItem("history", JSON.stringify(this.history));
+    },
+
+    // One ticked day of a repeating block. Today's tick is timed now; another day's is timed
+    // at the block's start, so it counts on the day it was for. A class meeting (a cluster
+    // block) is not a to-do, so it has no record.
+    tickRecord(item: ScheduledItem, dateKey: string): CompletionRecord | null {
+      const task = this.find(item.taskId);
+      if (!task || task.isCluster) return null;
+      const time = dateKey === toDateKey() ? new Date() : fromDateKey(dateKey);
+      if (dateKey !== toDateKey()) time.setMinutes(item.startTimeMinutes);
+      return { ...this.completionRecord(task, time.toISOString()), dueDate: null, blockId: item.id };
     },
 
     completionRecord(task: Todo, at: string): CompletionRecord {
@@ -212,7 +252,7 @@ function createTodosStore() {
       const tasks = this.items.filter(item => !item.isCluster && item.parentId === clusterId);
       const listed = new Set(this.items.map(item => item.id));
       const cleared = new Set(this.history
-        .filter(record => record.clusterId === clusterId && !listed.has(record.taskId))
+        .filter(record => !record.blockId && record.clusterId === clusterId && !listed.has(record.taskId))
         .map(record => record.taskId));
       return {
         done: tasks.filter(task => task.completed).length + cleared.size,
@@ -259,7 +299,8 @@ function createTodosStore() {
         .sort((a, b) => a.startTimeMinutes - b.startTimeMinutes);
     },
 
-    // A repeating block is checked off one day at a time, so its other days stay open
+    // A repeating block is checked off one day at a time, so its other days stay open.
+    // Its task is never marked completed by a tick.
     isBlockDone(item: ScheduledItem, dateKey: string): boolean {
       return item.repeat ? item.repeat.doneDates.includes(dateKey) : Boolean(this.find(item.taskId)?.completed);
     },
@@ -270,7 +311,14 @@ function createTodosStore() {
         return;
       }
       const { doneDates } = item.repeat;
-      item.repeat.doneDates = doneDates.includes(dateKey) ? doneDates.filter(day => day !== dateKey) : [...doneDates, dateKey];
+      const wasDone = doneDates.includes(dateKey);
+      item.repeat.doneDates = wasDone ? doneDates.filter(day => day !== dateKey) : [...doneDates, dateKey];
+
+      // Each ticked day is one history entry, so routines count in Insights and streaks.
+      // Unticking takes that day's entry out again.
+      const record = wasDone ? null : this.tickRecord(item, dateKey);
+      this.history = this.history.filter(entry => !(entry.blockId === item.id && toDateKey(new Date(entry.at)) === dateKey));
+      if (record) this.history = [...this.history, record].sort((a, b) => a.at.localeCompare(b.at)).slice(-HISTORY_LIMIT);
       this.saveTodos();
     },
 

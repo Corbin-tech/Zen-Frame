@@ -10,6 +10,7 @@ export interface Completion {
   clusterName: string;
   dueDate: string | null;
   at: string;
+  blockId?: string; // One ticked day of a repeating block
 }
 
 export interface FocusSession {

@@ -214,7 +214,7 @@ const checkbox = 'w-4 h-4 shrink-0 rounded border-gray-300 dark:border-slate-500
 
             // From the history, so clearing completed tasks doesn't erase the counts
             get completedToday() {
-                return this.$store.todos.history.filter(record => dayOf(record.at) === this.todayKey).length;
+                return this.$store.todos.completions.filter(record => dayOf(record.at) === this.todayKey).length;
             },
 
             // Overdue first, then the next 14 days
@@ -233,7 +233,9 @@ const checkbox = 'w-4 h-4 shrink-0 rounded border-gray-300 dark:border-slate-500
             // From the history too: a finished task stays listed after it's cleared from the task list
             get recentlyCompleted() {
                 const todos = this.$store.todos;
-                return [...todos.history]
+                // Finished tasks only: a ticked day of a routine isn't listed here
+                return todos.history
+                    .filter(record => !record.blockId)
                     .sort((a, b) => b.at.localeCompare(a.at))
                     .slice(0, 5)
                     .map(record => ({
@@ -454,7 +456,7 @@ const checkbox = 'w-4 h-4 shrink-0 rounded border-gray-300 dark:border-slate-500
             },
 
             get streak() {
-                const active = activeDays(this.$store.todos.history, this.$store.pomoState.sessions);
+                const active = activeDays(this.$store.todos.completions, this.$store.pomoState.sessions);
                 const { current, longest } = streaks(active, this.todayKey);
                 const days = Array.from({ length: 14 }, (_, i) => {
                     const date = dates.addDays(this.todayKey, i - 13);
@@ -467,7 +469,7 @@ const checkbox = 'w-4 h-4 shrink-0 rounded border-gray-300 dark:border-slate-500
 
             get weekActivity() {
                 const counts = {};
-                this.$store.todos.history.forEach(record => {
+                this.$store.todos.completions.forEach(record => {
                     const day = dayOf(record.at);
                     counts[day] = (counts[day] ?? 0) + 1;
                 });

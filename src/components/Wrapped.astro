@@ -281,7 +281,7 @@
                 const todos = this.$store.todos;
                 this.month = month;
                 this.slides = buildSlides(month, {
-                    completions: todos.history,
+                    completions: todos.completions,
                     sessions: this.$store.pomoState.sessions,
                     checkIns: Object.values(this.$store.goals.checkIns),
                     clusterName: entry => (entry.clusterId && todos.find(entry.clusterId)?.todo) || entry.name,
