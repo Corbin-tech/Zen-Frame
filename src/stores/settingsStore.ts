@@ -84,7 +84,7 @@ const DEFAULT_DASHBOARD: DashboardLayout = {
   side: ["upnext", "deadlines", "recent"]
 };
 
-// Zen mode extras, each a switch in Zen mode's Customize menu and in Settings
+// Zen mode extras, each a switch under Settings > Zen mode
 export const ZEN_OPTIONS = [
   { key: "zenShowCluster", label: "Cluster and position", hint: "Which cluster the task is in, and where" },
   { key: "zenShowDue", label: "Due date", hint: "When the task is due" },
