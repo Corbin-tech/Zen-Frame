@@ -182,7 +182,7 @@ const checkbox = 'w-4 h-4 shrink-0 rounded border-gray-300 dark:border-slate-500
             <div class="flex mt-1.5" aria-hidden="true">
                 <template x-for="day in weekActivity" :key="day.date">
                     <span
-                        class="flex-1 text-center text-[11px]"
+                        class="flex-1 text-center text-xs"
                         x-bind:class="day.isToday ? 'font-semibold text-gray-900 dark:text-white' : 'text-gray-400 dark:text-gray-500'"
                         x-text="day.label"
                     ></span>
@@ -392,7 +392,7 @@ const checkbox = 'w-4 h-4 shrink-0 rounded border-gray-300 dark:border-slate-500
                         x-bind:class="[day.active ? 'bg-teal-500 dark:bg-teal-400' : 'bg-gray-100 dark:bg-slate-700/60', day.isToday ? 'ring-2 ring-offset-1 ring-teal-500/50 ring-offset-white dark:ring-offset-slate-800' : '']"
                         x-bind:title="`${$dates.formatDate(day.date, { weekday: 'short', month: 'short', day: 'numeric' })}: ${day.active ? 'active' : 'no activity'}`"
                     ></span>
-                    <span class="text-[10px] text-gray-400 dark:text-gray-500" x-text="day.label"></span>
+                    <span class="text-xs text-gray-400 dark:text-gray-500" x-text="day.label"></span>
                 </li>
             </template>
         </ol>

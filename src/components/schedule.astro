@@ -27,14 +27,14 @@ const iconButton = 'p-2 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gr
     x-on:pointercancel.window="drag = null"
     x-on:keydown.escape.window="showModal && closeModal()"
 >
-    <div class="grid gap-6 lg:grid-cols-[17rem_minmax(0,1fr)] items-start">
+    <div class="grid gap-6 lg:grid-cols-[18rem_minmax(0,1fr)] items-start">
 
         <!-- Sidebar -->
         <aside class="order-2 lg:order-1 min-w-0 space-y-6">
             <!-- Month calendar -->
-            <section class={`${panel} p-4`}>
+            <section class={`${panel} p-5`}>
                 <div class="flex items-center justify-between mb-3">
-                    <h3 class="text-sm font-semibold text-gray-900 dark:text-white" x-text="viewMonthLabel"></h3>
+                    <h3 class="text-base font-semibold text-gray-900 dark:text-white" x-text="viewMonthLabel"></h3>
                     <div class="flex items-center">
                         <button type="button" class={iconButton} x-on:click="shiftMonth(-1)" aria-label="Previous month">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
@@ -45,7 +45,7 @@ const iconButton = 'p-2 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gr
                     </div>
                 </div>
 
-                <div class="grid grid-cols-7 text-center text-[11px] font-medium text-gray-400 dark:text-gray-500 mb-1">
+                <div class="grid grid-cols-7 text-center text-xs font-medium text-gray-400 dark:text-gray-500 mb-1">
                     {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((weekDay) => <div class="py-1">{weekDay}</div>)}
                 </div>
 
@@ -74,7 +74,7 @@ const iconButton = 'p-2 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gr
                     </template>
                 </div>
 
-                <div class="flex items-center gap-4 mt-3 text-[11px] text-gray-500 dark:text-gray-400">
+                <div class="flex items-center gap-4 mt-3 text-xs text-gray-500 dark:text-gray-400">
                     <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-teal-500"></span>Planned</span>
                     <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>Due</span>
                 </div>
@@ -83,9 +83,9 @@ const iconButton = 'p-2 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gr
             <AutoPlanPanel panel={panel} />
 
             <!-- Tasks without a block on this day -->
-            <section class={`${panel} p-4`}>
+            <section class={`${panel} p-5`}>
                 <div class="flex items-baseline justify-between">
-                    <h3 class="text-sm font-semibold text-gray-900 dark:text-white">To schedule</h3>
+                    <h3 class="text-base font-semibold text-gray-900 dark:text-white">To schedule</h3>
                     <span class="text-xs font-medium tabular-nums text-gray-400" x-text="unscheduledTasks.length"></span>
                 </div>
                 <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 mb-3">Drag a task onto the timeline, or press + to pick a time.</p>
@@ -99,7 +99,7 @@ const iconButton = 'p-2 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gr
                             <span class="w-2 h-2 rounded-full shrink-0" x-bind:style="`background-color: ${$store.todos.clusterColor(task.parentId)};`"></span>
                             <div class="flex-1 min-w-0">
                                 <p class="truncate text-sm text-gray-700 dark:text-gray-200" x-text="task.todo" x-bind:title="task.todo"></p>
-                                <p x-show="task.parentId || task.dueDate" class="flex items-center gap-1.5 text-[11px] text-gray-500 dark:text-gray-400">
+                                <p x-show="task.parentId || task.dueDate" class="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
                                     <span class="truncate" x-text="$store.todos.clusterName(task.parentId)"></span>
                                     <span
                                         x-show="task.dueDate"
@@ -163,7 +163,7 @@ const iconButton = 'p-2 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gr
                     <div class="relative w-16 shrink-0" style={`height: ${timelineHeight}px;`} aria-hidden="true">
                         {hours.map((hour) => (
                             <span
-                                class="absolute right-3 -translate-y-1/2 text-[11px] font-medium text-gray-400 dark:text-gray-500"
+                                class="absolute right-3 -translate-y-1/2 text-xs font-medium text-gray-400 dark:text-gray-500"
                                 style={`top: ${(hour - START_HOUR) * HOUR_HEIGHT}px;`}
                             >{formatTime(hour * 60).replace(':00', '')}</span>
                         ))}

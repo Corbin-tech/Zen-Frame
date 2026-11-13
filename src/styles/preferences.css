@@ -139,7 +139,7 @@
 
 /* Sidebar navigation (1280px and wider; xl in Tailwind). The page makes room for it. */
 :root { --sidebar-w: 14rem; }
-:root[data-sidebar="collapsed"] { --sidebar-w: 4.25rem; }
+:root[data-sidebar="collapsed"] { --sidebar-w: 4rem; }
 @media (min-width: 1280px) {
 	:root[data-nav="side"] body { padding-left: calc(var(--sidebar-w) + 0.75rem); }
 }

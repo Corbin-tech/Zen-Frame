@@ -78,7 +78,7 @@ const tabs = [
                 <span class="grid place-items-center w-8 h-8 shrink-0 rounded-xl bg-gradient-to-br from-teal-400 to-teal-700 shadow-md shadow-teal-700/25 ring-1 ring-white/20">
                     <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.25" d="M4 8V5a1 1 0 011-1h3M16 4h3a1 1 0 011 1v3M20 16v3a1 1 0 01-1 1h-3M8 20H5a1 1 0 01-1-1v-3M9 12h6" /></svg>
                 </span>
-                <span x-show="!collapsed" class="text-[15px] font-semibold tracking-tight text-gray-900 dark:text-white truncate">Zen Frame</span>
+                <span x-show="!collapsed" class="text-base font-semibold tracking-tight text-gray-900 dark:text-white truncate">Zen Frame</span>
             </button>
             <button
                 type="button"
@@ -116,7 +116,7 @@ const tabs = [
                             aria-label={tab.label}
                             title={tab.label}
                         >
-                            <svg class="w-[18px] h-[18px] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                            <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={tab.icon} />
                             </svg>
                             <span x-show="!collapsed" class="truncate">{tab.label}</span>
@@ -175,7 +175,7 @@ const tabs = [
                 <span class="grid place-items-center w-8 h-8 rounded-xl bg-gradient-to-br from-teal-400 to-teal-700 shadow-md shadow-teal-700/25 ring-1 ring-white/20">
                     <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.25" d="M4 8V5a1 1 0 011-1h3M16 4h3a1 1 0 011 1v3M20 16v3a1 1 0 01-1 1h-3M8 20H5a1 1 0 01-1-1v-3M9 12h6" /></svg>
                 </span>
-                <span class="hidden xl:block text-[15px] font-semibold tracking-tight text-gray-900 dark:text-white">Zen Frame</span>
+                <span class="hidden xl:block text-base font-semibold tracking-tight text-gray-900 dark:text-white">Zen Frame</span>
             </button>
 
             <!-- Tabs: a pill slides under the active one -->
