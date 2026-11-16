@@ -452,7 +452,8 @@ const checkbox = 'w-4 h-4 shrink-0 rounded border-gray-300 dark:border-slate-500
 
             // The same quote all day, a different one tomorrow
             get quoteOfDay() {
-                return QUOTES[dates.daysBetween('2026-01-01', this.todayKey) % QUOTES.length] ?? QUOTES[0];
+                const index = ((dates.daysBetween('2026-01-01', this.todayKey) % QUOTES.length) + QUOTES.length) % QUOTES.length;
+                return QUOTES[index] ?? QUOTES[0];
             },
 
             get streak() {

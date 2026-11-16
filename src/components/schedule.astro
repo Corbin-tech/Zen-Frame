@@ -217,7 +217,7 @@ const iconButton = 'p-2 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gr
                         <!-- Scheduled blocks -->
                         <template x-for="block in blocks" :key="block.id">
                             <div
-                                class="absolute z-10 rounded-lg pl-2.5 pr-2 py-1 overflow-hidden cursor-grab active:cursor-grabbing shadow-sm hover:shadow-md touch-none transition-shadow"
+                                class="absolute z-10 rounded-lg pl-2.5 pr-2 py-1 overflow-hidden cursor-grab active:cursor-grabbing shadow-sm hover:shadow-md touch-pan-y transition-shadow"
                                 x-bind:class="{ 'opacity-60': block.completed, 'z-30 shadow-lg ring-2 ring-teal-500': drag && drag.itemId === block.id && drag.moved }"
                                 x-bind:style="block.style"
                                 x-on:pointerdown.stop="startMove($event, block)"
@@ -246,7 +246,7 @@ const iconButton = 'p-2 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gr
                                     </div>
                                 </div>
                                 <!-- Bottom edge resizes the block -->
-                                <div class="absolute inset-x-0 bottom-0 h-2 cursor-ns-resize" x-on:pointerdown.stop="startResize($event, block)"></div>
+                                <div class="absolute inset-x-0 bottom-0 h-2 cursor-ns-resize touch-none" x-on:pointerdown.stop="startResize($event, block)"></div>
                             </div>
                         </template>
                     </div>
@@ -769,7 +769,7 @@ const iconButton = 'p-2 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gr
 
             startMove(event, block) {
                 if (event.button !== 0) return;
-                event.preventDefault();
+                if (event.pointerType === 'mouse') event.preventDefault();
                 this.drag = {
                     mode: 'move',
                     itemId: block.id,
@@ -896,9 +896,20 @@ const iconButton = 'p-2 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gr
             get conflicts() {
                 const start = this.startMinutes;
                 const end = start + this.duration;
-                return this.itemsForDay
-                    .filter(item => item.id !== this.editingItemId && item.startTimeMinutes < end && item.endTimeMinutes > start)
-                    .map(item => `${this.$store.todos.find(item.taskId)?.todo ?? 'a block'} (${this.formatRange(item.startTimeMinutes, item.endTimeMinutes)})`);
+                const overlapsTime = (item) => item.id !== this.editingItemId && item.startTimeMinutes < end && item.endTimeMinutes > start;
+                const candidates = this.repeats && this.repeatDays.length
+                    ? this.$store.todos.scheduledItems.filter(item => {
+                        if (!overlapsTime(item)) return false;
+                        if (item.repeat) {
+                            const sharesDay = item.repeat.weekdays.some(day => this.repeatDays.includes(day));
+                            const rangesOverlap = (!this.repeatUntil || item.date <= this.repeatUntil) && (!item.repeat.until || this.repeatStart <= item.repeat.until);
+                            return sharesDay && rangesOverlap;
+                        }
+                        const inWindow = item.date >= this.repeatStart && (!this.repeatUntil || item.date <= this.repeatUntil);
+                        return inWindow && this.repeatDays.includes(dates.fromDateKey(item.date).getDay());
+                    })
+                    : this.itemsForDay.filter(overlapsTime);
+                return candidates.map(item => `${this.$store.todos.find(item.taskId)?.todo ?? 'a block'} (${this.formatRange(item.startTimeMinutes, item.endTimeMinutes)})`);
             },
 
             get canSave() {

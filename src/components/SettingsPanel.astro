@@ -416,6 +416,34 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
                     />
                 </div>
             </section>
+
+            <!-- Data & backup -->
+            <section class={section} x-data="backupPanel">
+                <h3 class={sectionTitle}>Data &amp; backup</h3>
+                <p class="text-xs text-gray-500 dark:text-gray-400">
+                    Your tasks, schedule, goals, notes, and settings are stored locally in this browser. Export a backup to keep a copy or move to another device.
+                </p>
+                <div class="flex flex-wrap gap-2">
+                    <button
+                        type="button"
+                        x-on:click="download()"
+                        class="px-3 py-2 text-sm font-medium rounded-lg bg-gray-100 text-gray-800 hover:bg-gray-200 dark:bg-slate-800 dark:text-gray-200 dark:hover:bg-slate-700 transition-colors"
+                    >Export backup</button>
+                    <button
+                        type="button"
+                        x-on:click="$refs.file.click()"
+                        class="px-3 py-2 text-sm font-medium rounded-lg ring-1 ring-black/10 text-gray-700 hover:bg-gray-50 dark:ring-white/10 dark:text-gray-200 dark:hover:bg-slate-800 transition-colors"
+                    >Import backup</button>
+                    <input
+                        type="file"
+                        x-ref="file"
+                        accept="application/json,.json"
+                        class="sr-only"
+                        x-on:change="restore($event)"
+                    />
+                </div>
+                <p x-show="error" x-cloak class="text-xs text-red-600 dark:text-red-400" x-text="error"></p>
+            </section>
         </div>
 
         <footer class="flex items-center justify-between gap-4 px-6 py-4 border-t border-black/5 dark:border-white/10">
@@ -432,3 +460,46 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
         </footer>
     </aside>
 </div>
+
+<script>
+    import { exportBackup, importBackup } from '../lib/storage';
+    import { toDateKey } from '../lib/dates';
+
+    document.addEventListener('alpine:init', () => {
+        window.Alpine.data('backupPanel', () => ({
+            error: '',
+
+            download() {
+                this.error = '';
+                const blob = new Blob([exportBackup()], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `zen-frame-backup-${toDateKey()}.json`;
+                link.click();
+                URL.revokeObjectURL(url);
+            },
+
+            async restore(event) {
+                this.error = '';
+                const input = event.target;
+                const file = input.files?.[0];
+                input.value = '';
+                if (!file) return;
+                if (!confirm('Replace your current tasks, schedule, goals, and settings with this backup?')) return;
+
+                try {
+                    const text = await file.text();
+                    const result = importBackup(text);
+                    if (!result.ok) {
+                        this.error = result.error || 'Could not restore backup.';
+                        return;
+                    }
+                    window.location.reload();
+                } catch {
+                    this.error = 'Could not read the selected file.';
+                }
+            }
+        }));
+    });
+</script>

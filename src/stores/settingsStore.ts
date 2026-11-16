@@ -1,6 +1,6 @@
 import { ALARM_SOUNDS, playAlarmSound, type AlarmSound } from "../lib/sounds";
 import { permission, requestPermission } from "../lib/notifications";
-import { loadJson } from "../lib/storage";
+import { loadJson, saveJson } from "../lib/storage";
 
 // Preferences, saved under "settings" in localStorage. The inline script in
 // Layout.astro applies accent, font, and text size before the page paints;
@@ -282,9 +282,9 @@ export function initSettingsStore() {
       this.setDashboardLayout(structuredClone(DEFAULT_DASHBOARD));
     },
 
-    save(): void {
+    save(this: Settings): void {
       const saved = Object.fromEntries(Object.keys(DEFAULTS).map(key => [key, this[key as keyof Settings]]));
-      localStorage.setItem("settings", JSON.stringify(saved));
+      saveJson("settings", saved);
     },
 
     // Turning reminders on asks the browser for permission (it must follow a click).
@@ -303,8 +303,8 @@ export function initSettingsStore() {
       root.dataset.sidebar = this.sidebarCollapsed ? "collapsed" : "open";
     },
 
-    playAlarm(sound: AlarmSound = this.alarmSound): void {
-      playAlarmSound(sound, this.alarmVolume);
+    playAlarm(sound?: AlarmSound): void {
+      playAlarmSound(sound ?? this.alarmSound, this.alarmVolume);
     }
   };
 }

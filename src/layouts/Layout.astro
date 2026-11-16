@@ -8,6 +8,7 @@ import '@fontsource-variable/outfit';
 import '@fontsource-variable/lexend';
 import '@fontsource-variable/atkinson-hyperlegible-next';
 import '../styles/preferences.css';
+import siteData from '../data/site.json';
 
 interface Props {
 	title: string;
@@ -62,6 +63,10 @@ const contentSecurityPolicy = [
 		<script is:inline set:html={preferenceScript}></script>
 
 		<meta name="viewport" content="width=device-width" />
+		<meta name="description" content={siteData.siteDescription} />
+		<meta property="og:title" content={title} />
+		<meta property="og:description" content={siteData.siteDescription} />
+		<meta property="og:type" content="website" />
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 		<meta name="generator" content={Astro.generator} />
 		<title>{title}</title>
@@ -72,6 +77,7 @@ const contentSecurityPolicy = [
 			import { initStores } from '../stores/todoStore';
 			import { initSettingsStore } from '../stores/settingsStore';
 			import { initGoalsStore } from '../stores/goalsStore';
+			import { initPomoStore } from '../stores/pomoStore';
 			import { notify, startReminders } from '../lib/notifications';
 			import { registerTaskDragDrop } from '../scripts/taskDragDrop.js';
 			import { dates } from '../lib/dates';
@@ -83,6 +89,7 @@ const contentSecurityPolicy = [
 				window.Alpine.store('theme', initThemeStore());
 				window.Alpine.store('settings', initSettingsStore());
 				window.Alpine.store('goals', initGoalsStore());
+				window.Alpine.store('pomoState', initPomoStore());
 				initStores();
 				registerTaskDragDrop(window.Alpine);
 				// $dates in templates: date and time helpers from src/lib/dates.ts

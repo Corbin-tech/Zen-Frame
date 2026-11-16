@@ -1,5 +1,5 @@
 import { addDays, formatTime, minutesNow, toDateKey } from "./dates";
-import { loadJson } from "./storage";
+import { loadJson, saveJson } from "./storage";
 
 // Reminders while Zen Frame is open in a tab: a browser notification when allowed,
 // and an in-app toast either way. There is no server, so nothing fires once the tab is closed.
@@ -33,7 +33,7 @@ export function notify(Alpine: Alpine, kind: NotificationKind, title: string, bo
 
   window.dispatchEvent(new CustomEvent("app-toast", { detail: { title, body } }));
   if (permission() === "granted") {
-    new Notification(title, { body, icon: "/favicon.svg", tag: `${kind}-${title}` });
+    new Notification(title, { body, icon: "/favicon.svg", tag: `${kind}-${title}-${body}` });
   }
 }
 
@@ -46,7 +46,7 @@ function markSent(key: string, today: string): void {
   const yesterday = addDays(today, -1);
   const sent = Object.fromEntries(Object.entries(loadSent()).filter(([, day]) => day >= yesterday));
   sent[key] = today;
-  localStorage.setItem(SENT_KEY, JSON.stringify(sent));
+  saveJson(SENT_KEY, sent);
 }
 
 function checkReminders(Alpine: Alpine): void {

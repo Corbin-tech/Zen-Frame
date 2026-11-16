@@ -1,5 +1,5 @@
 import { addDays, fromDateKey, toDateKey } from "../lib/dates";
-import { loadJson } from "../lib/storage";
+import { loadJson, saveJson } from "../lib/storage";
 
 // Goals, weekly check-ins, and notes. Saved in localStorage under "goals", "checkIns", and "notes".
 
@@ -51,9 +51,9 @@ export function initGoalsStore() {
     },
 
     save(): void {
-      localStorage.setItem("goals", JSON.stringify(this.goals));
-      localStorage.setItem("checkIns", JSON.stringify(this.checkIns));
-      localStorage.setItem("notes", JSON.stringify(this.notes));
+      saveJson("goals", this.goals);
+      saveJson("checkIns", this.checkIns);
+      saveJson("notes", this.notes);
     },
 
     addGoal(title: string, fields: Partial<Goal> = {}): string {

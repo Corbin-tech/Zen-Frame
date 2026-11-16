@@ -1,6 +1,6 @@
 import { toDateKey, fromDateKey, addDays, minutesNow } from "../lib/dates";
 import { planTasks, type AvailabilityWindow } from "../lib/autoPlan";
-import { loadJson } from "../lib/storage";
+import { loadJson, saveJson } from "../lib/storage";
 
 export interface Todo {
   id: string;
@@ -118,11 +118,11 @@ function createTodosStore() {
     },
 
     saveTodos(): void {
-      localStorage.setItem("todos", JSON.stringify(this.items));
-      localStorage.setItem("skippedClusters", JSON.stringify(this.skippedClusters));
-      localStorage.setItem("scheduledItems", JSON.stringify(this.scheduledItems));
-      localStorage.setItem("planning", JSON.stringify(this.planning));
-      localStorage.setItem("history", JSON.stringify(this.history));
+      saveJson("todos", this.items);
+      saveJson("skippedClusters", this.skippedClusters);
+      saveJson("scheduledItems", this.scheduledItems);
+      saveJson("planning", this.planning);
+      saveJson("history", this.history);
     },
 
     // Completed tasks from before the history existed, so their stats aren't lost
@@ -132,7 +132,7 @@ function createTodosStore() {
       if (!missing.length) return;
       this.history = [...this.history, ...missing.map(task => this.completionRecord(task, task.completedAt!))]
         .sort((a, b) => a.at.localeCompare(b.at));
-      localStorage.setItem("history", JSON.stringify(this.history));
+      saveJson("history", this.history);
     },
 
     // Days ticked on repeating blocks before ticks were kept in the history
@@ -150,7 +150,7 @@ function createTodosStore() {
       }
       if (!missing.length) return;
       this.history = [...this.history, ...missing].sort((a, b) => a.at.localeCompare(b.at)).slice(-HISTORY_LIMIT);
-      localStorage.setItem("history", JSON.stringify(this.history));
+      saveJson("history", this.history);
     },
 
     // One ticked day of a repeating block. Today's tick is timed now; another day's is timed
@@ -439,6 +439,7 @@ function createTodosStore() {
       const items = [...this.items];
       const i = items.findIndex(item => item.id === firstId);
       const j = items.findIndex(item => item.id === secondId);
+      if (i === -1 || j === -1) return;
       [items[i], items[j]] = [items[j], items[i]];
       this.items = items;
       this.saveTodos();

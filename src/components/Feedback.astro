@@ -130,6 +130,8 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
 </div>
 
 <script>
+    import { loadJson, saveJson } from '../lib/storage';
+
     const KINDS = [
         { id: 'idea', label: 'Idea', prompt: 'What would make Zen Frame better?' },
         { id: 'bug', label: 'Bug', prompt: 'What went wrong, and what did you expect?' },
@@ -190,10 +192,8 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
                     this.includeDetails ? `--\n${this.details()}` : ''
                 ].filter(Boolean).join('\n\n');
 
-                try {
-                    const log = JSON.parse(localStorage.getItem(LOG_KEY) || '[]');
-                    localStorage.setItem(LOG_KEY, JSON.stringify([...log, { subject, body, at: new Date().toISOString() }].slice(-20)));
-                } catch (e) {}
+                const log = loadJson(LOG_KEY, []);
+                saveJson(LOG_KEY, [...log, { subject, body, at: new Date().toISOString() }].slice(-20));
 
                 if (this.email) {
                     window.location.href = `mailto:${this.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;

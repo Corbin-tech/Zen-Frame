@@ -6,7 +6,7 @@
     "noImplicitAny": false,
     "strictNullChecks": false,
     "module": "ESNext",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "types": ["alpinejs"]
