@@ -37,11 +37,12 @@ const preferenceScript = `(function() {
 })();`;
 
 // Only this site's own files may load. Everything else, including any injected script, is blocked.
-// Alpine evaluates its x- attributes as code, which needs 'unsafe-eval'; style attributes need
+// The bundled Alpine is its CSP build (@alpinejs/csp, aliased in astro.config.mjs), which evaluates
+// x- attributes without eval, so script-src needs no 'unsafe-eval'; style attributes still need
 // 'unsafe-inline' because Alpine writes them. Left out in dev, where Vite injects its own scripts.
 const contentSecurityPolicy = [
 	"default-src 'self'",
-	`script-src 'self' 'unsafe-eval' 'sha256-${createHash('sha256').update(preferenceScript).digest('base64')}'`,
+	`script-src 'self' 'sha256-${createHash('sha256').update(preferenceScript).digest('base64')}'`,
 	"style-src 'self' 'unsafe-inline'",
 	"img-src 'self' data: blob:",
 	"font-src 'self' data:",

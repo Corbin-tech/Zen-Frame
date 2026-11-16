@@ -10,19 +10,20 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@alpinejs/csp": "3.17.5",
     "@astrojs/alpinejs": "^1.0.0",
     "@atlaskit/pragmatic-drag-and-drop": "^1.5.0",
     "@fontsource-variable/atkinson-hyperlegible-next": "^5.3.0",
     "@fontsource-variable/inter": "^5.3.0",
     "@fontsource-variable/lexend": "^5.3.0",
     "@fontsource-variable/outfit": "^5.3.0",
-    "alpinejs": "^3.14.7",
+    "alpinejs": "3.17.5",
     "astro": "^7.4.7",
     "js-confetti": "^0.12.0",
     "tailwindcss": "^3.4.16"
   },
   "devDependencies": {
-    "@types/alpinejs": "^3.13.11",
+    "@types/alpinejs": "^3.17.0",
     "autoprefixer": "^10.6.2",
     "flowbite": "^2.5.2",
     "typescript": "^7.0.2"

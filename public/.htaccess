@@ -1,0 +1,12 @@
+# Security headers for Apache shared hosting (Namecheap and similar), which reads this file
+# instead of _headers. The main Content Security Policy stays in the <meta> tag in
+# src/layouts/Layout.astro; a <meta> CSP can't set frame-ancestors, so that one is here too.
+# HSTS only takes effect when the site is served over HTTPS.
+<IfModule mod_headers.c>
+  Header always set Content-Security-Policy "frame-ancestors 'none'"
+  Header always set X-Frame-Options "DENY"
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+  Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+</IfModule>

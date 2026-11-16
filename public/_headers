@@ -1,7 +1,8 @@
 # Security headers for hosts that read this file (Netlify, Cloudflare Pages).
-# The page itself carries the main Content Security Policy in a <meta> tag (Layout.astro);
-# these are the protections a <meta> tag can't set. Allow the microphone (microphone=(self))
-# when voice input ships.
+# Apache shared hosting (Namecheap and similar) ignores this file and reads public/.htaccess
+# instead, which sets the same headers. The page itself carries the main Content Security
+# Policy in a <meta> tag (Layout.astro); these are the protections a <meta> tag can't set.
+# Allow the microphone (microphone=(self)) when voice input ships.
 /*
   Content-Security-Policy: frame-ancestors 'none'
   X-Frame-Options: DENY

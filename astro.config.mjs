@@ -12,6 +12,11 @@ export default defineConfig({
     format: 'file'
   },
   vite: {
+    resolve: {
+      alias: [
+        { find: /^alpinejs$/, replacement: '@alpinejs/csp' }
+      ]
+    },
     build: {
       // Keep every bundled script in its own file. The Content Security Policy in Layout.astro
       // allows scripts from this site only, so none may be inlined into the page.
