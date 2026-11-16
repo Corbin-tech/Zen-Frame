@@ -1,0 +1,205 @@
+---
+// Auto-plan, in the Schedule sidebar: the hours you're free to work, and buttons that
+// place open tasks into them. Rendered inside the schedule component, so it can read
+// `selectedDate` from it.
+import { START_HOUR, END_HOUR, SLOT_MINUTES } from '../lib/timeline';
+import { formatTime } from '../lib/dates';
+
+interface Props {
+    panel: string;
+}
+const { panel } = Astro.props;
+
+const times = [];
+for (let minutes = START_HOUR * 60; minutes <= END_HOUR * 60; minutes += SLOT_MINUTES) {
+    times.push({ value: minutes, label: formatTime(minutes) });
+}
+const weekdays = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+const weekdayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const select = 'rounded-lg border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-700 dark:text-white text-xs py-1 pl-2 pr-7 focus:border-teal-500 focus:ring-teal-500';
+---
+
+<section x-data="autoPlan" class={`${panel} p-5`}>
+    <div class="flex items-center justify-between">
+        <h3 class="text-base font-semibold text-gray-900 dark:text-white">Auto-plan</h3>
+        <button
+            type="button"
+            x-on:click="editing = !editing"
+            class="text-xs font-medium text-teal-700 dark:text-teal-400 hover:text-teal-800 dark:hover:text-teal-300"
+            x-text="editing ? 'Done' : (windows.length ? 'Edit hours' : 'Set hours')"
+            x-bind:aria-expanded="editing"
+        ></button>
+    </div>
+    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+        Set when you're free to work, then let Zen Frame fill those hours with your open tasks, most urgent first.
+    </p>
+
+    <!-- Availability summary -->
+    <ul x-show="!editing && windows.length" class="mt-3 space-y-1">
+        <template x-for="hours in windows" :key="hours.id">
+            <li class="flex items-center justify-between gap-2 text-xs rounded-lg px-2.5 py-1.5 bg-teal-50/70 dark:bg-teal-900/20 text-gray-700 dark:text-gray-200">
+                <span class="font-medium" x-text="dayList(hours.weekdays)"></span>
+                <span class="tabular-nums text-gray-500 dark:text-gray-400" x-text="`${$dates.formatTime(hours.start)} – ${$dates.formatTime(hours.end)}`"></span>
+            </li>
+        </template>
+    </ul>
+
+    <!-- Availability editor -->
+    <div x-show="editing" x-cloak class="mt-3 space-y-3">
+        <template x-for="hours in windows" :key="hours.id">
+            <div class="rounded-xl p-2.5 ring-1 ring-black/5 dark:ring-white/10 bg-gray-50 dark:bg-slate-700/40 space-y-2">
+                <div class="flex gap-1" role="group" aria-label="Days">
+                    {weekdays.map((letter, day) => (
+                        <button
+                            type="button"
+                            x-on:click={`toggleDay(hours, ${day})`}
+                            class="w-7 h-7 rounded-full text-xs font-semibold transition-colors"
+                            x-bind:class={`hours.weekdays.includes(${day}) ? 'bg-teal-600 text-white' : 'bg-white text-gray-500 ring-1 ring-black/10 hover:bg-gray-100 dark:bg-slate-800 dark:text-gray-400 dark:ring-white/10'`}
+                            x-bind:aria-pressed={`hours.weekdays.includes(${day})`}
+                            aria-label={weekdayNames[day]}
+                        >{letter}</button>
+                    ))}
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <select class={select} aria-label="From" x-on:change="setTime(hours, 'start', $event.target.value)">
+                        {times.slice(0, -1).map((time) => (
+                            <option value={time.value} x-bind:selected={`hours.start === ${time.value}`}>{time.label}</option>
+                        ))}
+                    </select>
+                    <span class="text-xs text-gray-400">to</span>
+                    <select class={select} aria-label="To" x-on:change="setTime(hours, 'end', $event.target.value)">
+                        {times.slice(1).map((time) => (
+                            <option value={time.value} x-bind:selected={`hours.end === ${time.value}`}>{time.label}</option>
+                        ))}
+                    </select>
+                    <button
+                        type="button"
+                        x-on:click="removeWindow(hours.id)"
+                        class="ml-auto p-1 rounded-md text-gray-400 hover:text-red-500"
+                        aria-label="Remove these hours"
+                    >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                </div>
+                <p x-show="hours.end <= hours.start" class="text-xs text-red-600 dark:text-red-400">The end must be after the start.</p>
+            </div>
+        </template>
+
+        <button
+            type="button"
+            x-on:click="addWindow()"
+            class="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl border-2 border-dashed border-gray-200 dark:border-slate-600 text-xs font-medium text-gray-500 hover:text-gray-800 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+        >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+            Add hours
+        </button>
+
+        <div class="grid grid-cols-2 gap-2">
+            <label class="block text-xs text-gray-500 dark:text-gray-400">
+                Time per task
+                <select class={`${select} mt-1 w-full`} x-on:change="$store.todos.updatePlanning({ duration: Number($event.target.value) })">
+                    {[15, 30, 45, 60, 90, 120].map((minutes) => (
+                        <option value={minutes} x-bind:selected={`$store.todos.planning.duration === ${minutes}`}>{minutes < 60 ? `${minutes} min` : `${minutes / 60} hr`}</option>
+                    ))}
+                </select>
+            </label>
+            <label class="block text-xs text-gray-500 dark:text-gray-400">
+                Break after
+                <select class={`${select} mt-1 w-full`} x-on:change="$store.todos.updatePlanning({ gap: Number($event.target.value) })">
+                    {[0, 5, 10, 15, 30].map((minutes) => (
+                        <option value={minutes} x-bind:selected={`$store.todos.planning.gap === ${minutes}`}>{minutes ? `${minutes} min` : 'None'}</option>
+                    ))}
+                </select>
+            </label>
+        </div>
+    </div>
+
+    <!-- Plan -->
+    <div class="mt-3 grid grid-cols-2 gap-2">
+        <button
+            type="button"
+            x-on:click="plan(1)"
+            x-bind:disabled="!windows.length"
+            class="px-3 py-2 text-xs font-semibold rounded-lg bg-teal-600 text-white hover:bg-teal-700 shadow-sm disabled:opacity-40 disabled:pointer-events-none transition-colors"
+        >Plan this day</button>
+        <button
+            type="button"
+            x-on:click="plan(7)"
+            x-bind:disabled="!windows.length"
+            class="px-3 py-2 text-xs font-semibold rounded-lg ring-1 ring-teal-600/40 text-teal-700 hover:bg-teal-50 dark:text-teal-300 dark:hover:bg-teal-900/30 disabled:opacity-40 disabled:pointer-events-none transition-colors"
+        >Plan 7 days</button>
+    </div>
+    <div x-show="result" x-cloak class="mt-2 flex items-center justify-between gap-2 text-xs text-gray-600 dark:text-gray-300">
+        <span x-text="result"></span>
+        <button x-show="lastPlan.length" type="button" x-on:click="undo()" class="font-semibold text-teal-700 dark:text-teal-400 hover:underline">Undo</button>
+    </div>
+</section>
+
+<script>
+    import { formatWeekdays } from '../lib/dates';
+
+    const DEFAULT_WINDOW = { weekdays: [1, 2, 3, 4, 5], start: 18 * 60, end: 21 * 60 };
+
+    document.addEventListener('alpine:init', () => {
+        window.Alpine.data('autoPlan', () => ({
+            editing: false,
+            result: '',
+            lastPlan: [],
+
+            init() {
+                // Open the editor straight away the first time, when there are no hours yet
+                this.editing = !this.windows.length;
+            },
+
+            get windows() {
+                return this.$store.todos.planning.availability;
+            },
+
+            dayList(weekdays) {
+                const sorted = [...weekdays].sort((a, b) => a - b);
+                if (sorted.join() === '1,2,3,4,5') return 'Weekdays';
+                if (sorted.join() === '0,6') return 'Weekends';
+                if (sorted.length === 7) return 'Every day';
+                return formatWeekdays(sorted);
+            },
+
+            saveWindows(windows) {
+                this.$store.todos.updatePlanning({ availability: windows });
+            },
+
+            addWindow() {
+                this.saveWindows([...this.windows, { id: crypto.randomUUID(), ...DEFAULT_WINDOW, weekdays: [...DEFAULT_WINDOW.weekdays] }]);
+            },
+
+            removeWindow(id) {
+                this.saveWindows(this.windows.filter(hours => hours.id !== id));
+            },
+
+            toggleDay(target, day) {
+                this.saveWindows(this.windows.map(hours => hours.id !== target.id ? hours : {
+                    ...hours,
+                    weekdays: hours.weekdays.includes(day) ? hours.weekdays.filter(d => d !== day) : [...hours.weekdays, day]
+                }));
+            },
+
+            setTime(target, field, value) {
+                this.saveWindows(this.windows.map(hours => hours.id === target.id ? { ...hours, [field]: Number(value) } : hours));
+            },
+
+            // Plans from the day shown on the timeline (or today, if that's in the past)
+            plan(dayCount) {
+                this.lastPlan = this.$store.todos.autoPlan(this.selectedDate, dayCount);
+                const days = new Set(this.$store.todos.scheduledItems.filter(item => this.lastPlan.includes(item.id)).map(item => item.date)).size;
+                this.result = this.lastPlan.length
+                    ? `Planned ${this.lastPlan.length} ${this.lastPlan.length === 1 ? 'task' : 'tasks'}${dayCount > 1 ? ` over ${days} ${days === 1 ? 'day' : 'days'}` : ''}.`
+                    : 'Nothing to plan: no free time left, or every open task already has a block.';
+            },
+
+            undo() {
+                this.$store.todos.removeScheduledItems(this.lastPlan);
+                this.result = `Removed ${this.lastPlan.length} planned ${this.lastPlan.length === 1 ? 'block' : 'blocks'}.`;
+                this.lastPlan = [];
+            }
+        }));
+    });
+</script>

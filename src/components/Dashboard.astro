@@ -1,0 +1,498 @@
+---
+import DashboardWidget from './DashboardWidget.astro';
+
+// Widgets that can sit in the main or side column (see DASHBOARD_WIDGETS in settingsStore.ts)
+const COLUMN_WIDGETS = ['plan', 'clusters', 'completed', 'upnext', 'deadlines', 'recent', 'focus', 'goals', 'notes', 'quote', 'streak'];
+const toolButton = 'p-1 rounded-full text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-slate-700 disabled:opacity-30 disabled:pointer-events-none transition-colors';
+const panel = 'rounded-2xl bg-white/80 dark:bg-slate-800/70 backdrop-blur-sm shadow-sm ring-1 ring-black/5 dark:ring-white/10';
+const panelTitle = 'text-base font-semibold text-gray-900 dark:text-white';
+const linkButton = 'text-sm font-medium text-teal-700 dark:text-teal-400 hover:text-teal-800 dark:hover:text-teal-300 transition-colors';
+const checkbox = 'w-4 h-4 shrink-0 rounded border-gray-300 dark:border-slate-500 text-teal-600 focus:ring-teal-500 dark:bg-slate-700 cursor-pointer';
+---
+
+<div x-data="dashboard" class="space-y-6">
+    <!-- Header -->
+    <header class="flex flex-wrap items-end justify-between gap-4">
+        <div>
+            <p class="text-sm font-medium text-teal-700 dark:text-teal-400" x-text="$dates.formatDate(todayKey, { weekday: 'long', month: 'long', day: 'numeric' })"></p>
+            <h1 class="text-3xl sm:text-4xl font-bold tracking-tight bg-gradient-to-r from-gray-900 via-gray-800 to-teal-700 dark:from-white dark:via-gray-100 dark:to-teal-300 bg-clip-text text-transparent pb-1" x-text="greeting"></h1>
+            <p class="mt-1 text-gray-500 dark:text-gray-400" x-text="headline"></p>
+        </div>
+        <button
+            type="button"
+            x-on:click="editing = !editing"
+            class="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg ring-1 transition-colors"
+            x-bind:class="editing ? 'bg-teal-600 text-white ring-teal-600 hover:bg-teal-700' : 'bg-white text-gray-700 ring-black/10 hover:bg-gray-50 dark:bg-slate-800 dark:text-gray-200 dark:ring-white/10 dark:hover:bg-slate-700'"
+            x-bind:aria-pressed="editing"
+        >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h10M4 18h7m9-3l-3 3-3-3m3 3v-7" /></svg>
+            <span x-text="editing ? 'Done' : 'Customize'"></span>
+        </button>
+    </header>
+
+    <!-- Customize mode -->
+    <div x-show="editing" x-cloak x-transition.opacity class="flex flex-wrap items-center justify-between gap-3 rounded-2xl px-4 py-3 bg-teal-50 text-teal-900 ring-1 ring-teal-600/20 dark:bg-teal-900/30 dark:text-teal-100 dark:ring-teal-400/20">
+        <p class="text-sm">Move, hide, or add widgets. Changes save as you go.</p>
+        <div class="flex gap-2">
+            <button type="button" x-on:click="if (confirm('Put the dashboard back to its original widgets?')) $store.settings.resetDashboardLayout()" class="px-3 py-1.5 text-sm font-medium rounded-lg text-teal-800 hover:bg-teal-100 dark:text-teal-200 dark:hover:bg-teal-900/50">Reset layout</button>
+            <button type="button" x-on:click="editing = false" class="px-3 py-1.5 text-sm font-semibold rounded-lg bg-teal-600 text-white hover:bg-teal-700">Done</button>
+        </div>
+    </div>
+
+    <!-- Key numbers -->
+    <div class="relative" x-show="layout.top.includes('stats')">
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <template x-for="tile in tiles" :key="tile.label">
+                <button
+                    type="button"
+                    x-on:click="$dispatch('change-tab', { tab: tile.tab })"
+                    class={`${panel} group p-4 text-left hover:shadow-md hover:-translate-y-0.5 transition-all`}
+                    x-bind:aria-label="`${tile.label}: ${tile.value}. ${tile.detail}. Open ${tile.tabLabel}.`"
+                >
+                    <div class="flex items-center justify-between">
+                        <p class="text-sm font-medium text-gray-500 dark:text-gray-400" x-text="tile.label"></p>
+                        <span class="p-1.5 rounded-lg bg-gradient-to-br from-teal-50 to-teal-100 text-teal-700 ring-1 ring-teal-600/10 dark:from-teal-900/50 dark:to-teal-800/30 dark:text-teal-300 dark:ring-teal-300/10 group-hover:scale-110 transition-transform">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" x-bind:d="tile.icon" /></svg>
+                        </span>
+                    </div>
+                    <p class="mt-2 text-3xl font-semibold tracking-tight tabular-nums text-gray-900 dark:text-white" x-text="tile.value"></p>
+                    <p class="mt-1 flex items-center gap-1 text-xs truncate" x-bind:class="tile.alert ? 'text-red-600 dark:text-red-400 font-medium' : 'text-gray-500 dark:text-gray-400'">
+                        <svg x-show="tile.alert" class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /></svg>
+                        <span class="truncate" x-text="tile.detail"></span>
+                    </p>
+                </button>
+            </template>
+        </div>
+        <div x-show="editing" class="absolute inset-0 z-10 rounded-2xl bg-white/30 dark:bg-slate-900/30 outline-2 outline-dashed outline-offset-4 outline-teal-500/60"></div>
+        <div x-show="editing" class="absolute -top-3 right-3 z-20 flex items-center gap-0.5 pl-3 pr-1 py-0.5 rounded-full bg-white dark:bg-slate-800 shadow-md ring-1 ring-black/10 dark:ring-white/10">
+            <span class="mr-1 text-xs font-semibold text-gray-700 dark:text-gray-200">Key numbers</span>
+            <button type="button" class={`${toolButton} hover:!text-red-600`} x-on:click="hideWidget('stats')" aria-label="Hide Key numbers" title="Hide">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- Columns: widgets in the order saved in Settings -->
+    <div class="grid gap-6 lg:grid-cols-3 items-start">
+        <div class="lg:col-span-2 min-w-0 space-y-6">
+            <template x-for="id in layout.main" :key="id">
+            <div class="relative">
+                {COLUMN_WIDGETS.map(widget => <template x-if={`id === '${widget}'`}><DashboardWidget id={widget} /></template>)}
+                <!-- In customize mode a cover blocks clicks, and a toolbar edits the widget -->
+                <div x-show="editing" class="absolute inset-0 z-10 rounded-2xl bg-white/30 dark:bg-slate-900/30 outline-2 outline-dashed outline-offset-4 outline-teal-500/60 cursor-default"></div>
+                <div x-show="editing" class="absolute -top-3 right-3 z-20 flex items-center gap-0.5 pl-3 pr-1 py-0.5 rounded-full bg-white dark:bg-slate-800 shadow-md ring-1 ring-black/10 dark:ring-white/10">
+                    <span class="mr-1 text-xs font-semibold text-gray-700 dark:text-gray-200" x-text="widgetLabel(id)"></span>
+                    <button type="button" class={toolButton} x-on:click="moveWidget(id, -1)" x-bind:disabled="!canMove(id, -1)" x-bind:aria-label="`Move ${widgetLabel(id)} up`" title="Move up">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 15l7-7 7 7" /></svg>
+                    </button>
+                    <button type="button" class={toolButton} x-on:click="moveWidget(id, 1)" x-bind:disabled="!canMove(id, 1)" x-bind:aria-label="`Move ${widgetLabel(id)} down`" title="Move down">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7" /></svg>
+                    </button>
+                    <button type="button" class={`${toolButton} hidden lg:block`} x-on:click="switchColumn(id)" x-bind:aria-label="`Move ${widgetLabel(id)} to the side column`" x-bind:title="'Move to the side column'">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
+                    </button>
+                    <button type="button" class={`${toolButton} hover:!text-red-600`} x-on:click="hideWidget(id)" x-bind:aria-label="`Hide ${widgetLabel(id)}`" title="Hide">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                </div>
+            </div>
+            </template>
+            <p x-show="editing && !layout.main.length" class="rounded-2xl border-2 border-dashed border-gray-200 dark:border-slate-700 px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">This column is empty. Add a widget below.</p>
+        </div>
+        <div class="min-w-0 space-y-6">
+            <template x-for="id in layout.side" :key="id">
+            <div class="relative">
+                {COLUMN_WIDGETS.map(widget => <template x-if={`id === '${widget}'`}><DashboardWidget id={widget} /></template>)}
+                <!-- In customize mode a cover blocks clicks, and a toolbar edits the widget -->
+                <div x-show="editing" class="absolute inset-0 z-10 rounded-2xl bg-white/30 dark:bg-slate-900/30 outline-2 outline-dashed outline-offset-4 outline-teal-500/60 cursor-default"></div>
+                <div x-show="editing" class="absolute -top-3 right-3 z-20 flex items-center gap-0.5 pl-3 pr-1 py-0.5 rounded-full bg-white dark:bg-slate-800 shadow-md ring-1 ring-black/10 dark:ring-white/10">
+                    <span class="mr-1 text-xs font-semibold text-gray-700 dark:text-gray-200" x-text="widgetLabel(id)"></span>
+                    <button type="button" class={toolButton} x-on:click="moveWidget(id, -1)" x-bind:disabled="!canMove(id, -1)" x-bind:aria-label="`Move ${widgetLabel(id)} up`" title="Move up">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 15l7-7 7 7" /></svg>
+                    </button>
+                    <button type="button" class={toolButton} x-on:click="moveWidget(id, 1)" x-bind:disabled="!canMove(id, 1)" x-bind:aria-label="`Move ${widgetLabel(id)} down`" title="Move down">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7" /></svg>
+                    </button>
+                    <button type="button" class={`${toolButton} hidden lg:block`} x-on:click="switchColumn(id)" x-bind:aria-label="`Move ${widgetLabel(id)} to the main column`" x-bind:title="'Move to the main column'">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
+                    </button>
+                    <button type="button" class={`${toolButton} hover:!text-red-600`} x-on:click="hideWidget(id)" x-bind:aria-label="`Hide ${widgetLabel(id)}`" title="Hide">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                </div>
+            </div>
+            </template>
+            <p x-show="editing && !layout.side.length" class="rounded-2xl border-2 border-dashed border-gray-200 dark:border-slate-700 px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">This column is empty. Add a widget below.</p>
+        </div>
+    </div>
+
+    <!-- Widgets that aren't on the dashboard, shown while customizing -->
+    <section x-show="editing" x-cloak class="rounded-2xl p-5 bg-white/80 dark:bg-slate-800/70 ring-1 ring-black/5 dark:ring-white/10">
+        <h2 class="text-base font-semibold text-gray-900 dark:text-white">Add widgets</h2>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mb-4" x-text="hiddenWidgets.length ? 'Pick where each one goes.' : 'Every widget is on your dashboard.'"></p>
+        <ul class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <template x-for="widget in hiddenWidgets" :key="widget.id">
+                <li class="flex flex-col rounded-xl p-4 bg-gray-50 dark:bg-slate-700/40 ring-1 ring-black/5 dark:ring-white/5">
+                    <p class="text-sm font-semibold text-gray-900 dark:text-white" x-text="widget.label"></p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 flex-1" x-text="widget.hint"></p>
+                    <div class="mt-3 flex gap-2">
+                        <template x-if="widget.zone === 'top'">
+                            <button type="button" x-on:click="addWidget(widget.id, 'top')" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-teal-600 text-white hover:bg-teal-700">Add to top</button>
+                        </template>
+                        <template x-if="widget.zone === 'column'">
+                            <div class="flex gap-2">
+                                <button type="button" x-on:click="addWidget(widget.id, 'main')" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-teal-600 text-white hover:bg-teal-700">Add to main</button>
+                                <button type="button" x-on:click="addWidget(widget.id, 'side')" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-white text-gray-700 ring-1 ring-black/10 hover:bg-gray-100 dark:bg-slate-800 dark:text-gray-200 dark:ring-white/10 dark:hover:bg-slate-700">Add to side</button>
+                            </div>
+                        </template>
+                    </div>
+                </li>
+            </template>
+        </ul>
+    </section>
+</div>
+
+<script>
+    import { dates } from '../lib/dates';
+    import { QUOTES } from '../lib/quotes';
+    import { activeDays, streaks } from '../lib/insights';
+    import { DASHBOARD_WIDGETS } from '../stores/settingsStore';
+
+    const ICONS = {
+        tasks: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2',
+        done: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
+        calendar: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z',
+        focus: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z'
+    };
+
+    // Local day of an ISO timestamp
+    const dayOf = (iso) => dates.toDateKey(new Date(iso));
+
+    document.addEventListener('alpine:init', () => {
+        window.Alpine.data('dashboard', () => ({
+            now: new Date(),
+            hoveredDay: null,
+            editing: false,
+
+            init() {
+                setInterval(() => { this.now = new Date(); }, 60 * 1000);
+            },
+
+            get todayKey() {
+                return dates.toDateKey(this.now);
+            },
+
+            // "Good Afternoon, Corbin" once a name is set in Settings
+            get greeting() {
+                const hour = this.now.getHours();
+                const greeting = hour < 12 ? 'Good Morning' : hour < 18 ? 'Good Afternoon' : 'Good Evening';
+                const name = this.$store.settings.firstName;
+                return name ? `${greeting}, ${name}` : greeting;
+            },
+
+            get headline() {
+                const parts = [];
+                if (this.overdue.length) parts.push(`${this.overdue.length} overdue`);
+                const dueSoon = this.$store.todos.openTasks.filter(task => {
+                    if (!task.dueDate) return false;
+                    const days = dates.daysBetween(this.todayKey, task.dueDate);
+                    return days >= 0 && days < 7;
+                }).length;
+                if (dueSoon) parts.push(`${dueSoon} due this week`);
+                if (this.plannedMinutes) parts.push(`${dates.formatDuration(this.plannedMinutes)} planned today`);
+                if (!parts.length) {
+                    return this.$store.todos.openTasks.length ? 'No deadlines pressing. A good day to get ahead.' : 'A clear slate. Press New to add a task.';
+                }
+                return `You have ${parts.join(', ')}.`;
+            },
+
+            // --- Tasks ---
+
+            get overdue() {
+                return this.$store.todos.openTasks.filter(task => task.dueDate && task.dueDate < this.todayKey);
+            },
+
+            // From the history, so clearing completed tasks doesn't erase the counts
+            get completedToday() {
+                return this.$store.todos.completions.filter(record => dayOf(record.at) === this.todayKey).length;
+            },
+
+            // Overdue first, then the next 14 days
+            get deadlines() {
+                const horizon = dates.addDays(this.todayKey, 14);
+                return this.$store.todos.openTasks
+                    .filter(task => task.dueDate && task.dueDate <= horizon)
+                    .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
+                    .slice(0, 8);
+            },
+
+            get nextTask() {
+                return this.$store.todos.nextTask;
+            },
+
+            // From the history too: a finished task stays listed after it's cleared from the task list
+            get recentlyCompleted() {
+                const todos = this.$store.todos;
+                // Finished tasks only: a ticked day of a routine isn't listed here
+                return todos.history
+                    .filter(record => !record.blockId)
+                    .sort((a, b) => b.at.localeCompare(a.at))
+                    .slice(0, 5)
+                    .map(record => ({
+                        id: `${record.taskId}|${record.at}`,
+                        todo: todos.find(record.taskId)?.todo || record.title || 'Untitled task',
+                        completedAt: record.at
+                    }));
+            },
+
+            timeAgo(iso) {
+                const minutes = Math.round((this.now.getTime() - new Date(iso).getTime()) / 60000);
+                if (minutes < 1) return 'Just now';
+                if (minutes < 60) return `${minutes}m ago`;
+                if (dayOf(iso) === this.todayKey) return `${Math.floor(minutes / 60)}h ago`;
+                const days = dates.daysBetween(dayOf(iso), this.todayKey);
+                return days === 1 ? 'Yesterday' : `${days} days ago`;
+            },
+
+            // --- Schedule ---
+
+            get todayBlocks() {
+                const nowMinutes = dates.minutesNow(this.now);
+                return this.$store.todos.scheduledItemsOn(this.todayKey).map(item => {
+                    const task = this.$store.todos.find(item.taskId);
+                    const isCluster = Boolean(task?.isCluster);
+                    const start = item.startTimeMinutes;
+                    const end = item.endTimeMinutes;
+                    const status = nowMinutes >= end ? 'past' : nowMinutes >= start ? 'now' : 'later';
+                    return {
+                        id: item.id,
+                        item,
+                        start,
+                        end,
+                        status,
+                        progress: status === 'now' ? Math.round((nowMinutes - start) / (end - start) * 100) : 0,
+                        title: task?.todo || 'Deleted task',
+                        isCluster,
+                        completed: this.$store.todos.isBlockDone(item, this.todayKey),
+                        detail: isCluster
+                            ? (item.repeat ? `Repeats ${dates.formatWeekdays(item.repeat.weekdays)}` : 'Cluster')
+                            : this.$store.todos.clusterName(task?.parentId ?? null) || 'No cluster',
+                        color: this.$store.todos.clusterColor(this.$store.todos.clusterOf(task))
+                    };
+                });
+            },
+
+            get plannedMinutes() {
+                return this.todayBlocks.reduce((sum, block) => sum + block.end - block.start, 0);
+            },
+
+            get planSummary() {
+                const blocks = this.todayBlocks;
+                if (!blocks.length) return 'No blocks yet';
+                const done = blocks.filter(block => block.completed).length;
+                return `${blocks.length} ${blocks.length === 1 ? 'block' : 'blocks'} · ${dates.formatDuration(this.plannedMinutes)} · ${done} done`;
+            },
+
+            // --- Focus sessions (Pomodoro) ---
+
+            get focusMinutesToday() {
+                return this.$store.pomoState.sessions
+                    .filter(session => dayOf(session.completedAt) === this.todayKey)
+                    .reduce((sum, session) => sum + session.minutes, 0);
+            },
+
+            get focusSessionsThisWeek() {
+                const weekStart = dates.addDays(this.todayKey, -6);
+                return this.$store.pomoState.sessions.filter(session => dayOf(session.completedAt) >= weekStart).length;
+            },
+
+            // --- Summary tiles ---
+
+            get tiles() {
+                const open = this.$store.todos.openTasks.length;
+                const dueToday = this.$store.todos.openTasks.filter(task => task.dueDate === this.todayKey).length;
+                const nextBlock = this.todayBlocks.find(block => block.status !== 'past' && !block.completed);
+                const sessions = this.focusSessionsThisWeek;
+
+                return [
+                    {
+                        label: 'Open tasks',
+                        value: open,
+                        detail: this.overdue.length ? `${this.overdue.length} overdue` : dueToday ? `${dueToday} due today` : 'Nothing overdue',
+                        alert: this.overdue.length > 0,
+                        icon: ICONS.tasks,
+                        tab: 'taskmanager',
+                        tabLabel: 'Task Manager'
+                    },
+                    {
+                        label: 'Done today',
+                        value: this.completedToday,
+                        detail: `${this.weekTotal} in the last 7 days`,
+                        icon: ICONS.done,
+                        tab: 'taskmanager',
+                        tabLabel: 'Task Manager'
+                    },
+                    {
+                        label: 'Planned today',
+                        value: dates.formatDuration(this.plannedMinutes),
+                        detail: nextBlock
+                            ? `${nextBlock.status === 'now' ? 'Now' : 'Next'}: ${nextBlock.title}${nextBlock.status === 'now' ? '' : ` at ${dates.formatTime(nextBlock.start)}`}`
+                            : this.todayBlocks.length ? 'All blocks finished' : 'No blocks yet',
+                        icon: ICONS.calendar,
+                        tab: 'schedule',
+                        tabLabel: 'Schedule'
+                    },
+                    {
+                        label: 'Focus today',
+                        value: dates.formatDuration(this.focusMinutesToday),
+                        detail: `${sessions} ${sessions === 1 ? 'session' : 'sessions'} in the last 7 days`,
+                        icon: ICONS.focus,
+                        tab: 'pomodoro',
+                        tabLabel: 'Pomodoro'
+                    }
+                ];
+            },
+
+            // --- Clusters ---
+
+            get clusterProgress() {
+                return this.$store.todos.clusters.map(cluster => {
+                    const tasks = this.$store.todos.items.filter(item => item.parentId === cluster.id);
+                    // Counts finished tasks that were cleared since, so clearing doesn't reset the bar
+                    const { done, total } = this.$store.todos.clusterProgress(cluster.id);
+                    const nextDue = tasks
+                        .filter(task => !task.completed && task.dueDate)
+                        .map(task => task.dueDate)
+                        .sort()[0] ?? null;
+                    return {
+                        id: cluster.id,
+                        name: cluster.todo,
+                        color: this.$store.todos.clusterColor(cluster.id),
+                        total,
+                        done,
+                        open: total - done,
+                        percent: total ? Math.round(done / total * 100) : 0,
+                        nextDue
+                    };
+                });
+            },
+
+            // --- Layout (Customize) ---
+
+            get layout() {
+                return this.$store.settings.dashboardLayout;
+            },
+
+            widgetLabel(id) {
+                return DASHBOARD_WIDGETS.find(widget => widget.id === id)?.label ?? id;
+            },
+
+            get hiddenWidgets() {
+                const { top, main, side } = this.layout;
+                return DASHBOARD_WIDGETS.filter(widget => ![...top, ...main, ...side].includes(widget.id));
+            },
+
+            columnOf(id) {
+                return this.layout.main.includes(id) ? 'main' : 'side';
+            },
+
+            // A plain copy to change and save
+            copyLayout() {
+                return JSON.parse(JSON.stringify(this.layout));
+            },
+
+            canMove(id, direction) {
+                const list = this.layout[this.columnOf(id)];
+                const index = list.indexOf(id) + direction;
+                return index >= 0 && index < list.length;
+            },
+
+            moveWidget(id, direction) {
+                if (!this.canMove(id, direction)) return;
+                const layout = this.copyLayout();
+                const list = layout[this.columnOf(id)];
+                const index = list.indexOf(id);
+                [list[index], list[index + direction]] = [list[index + direction], list[index]];
+                this.$store.settings.setDashboardLayout(layout);
+            },
+
+            // To the top of the other column, where it's easy to see
+            switchColumn(id) {
+                const layout = this.copyLayout();
+                const from = this.columnOf(id);
+                const to = from === 'main' ? 'side' : 'main';
+                layout[from] = layout[from].filter(item => item !== id);
+                layout[to] = [id, ...layout[to]];
+                this.$store.settings.setDashboardLayout(layout);
+            },
+
+            hideWidget(id) {
+                const layout = this.copyLayout();
+                for (const zone of ['top', 'main', 'side']) layout[zone] = layout[zone].filter(item => item !== id);
+                this.$store.settings.setDashboardLayout(layout);
+            },
+
+            addWidget(id, zone) {
+                const layout = this.copyLayout();
+                layout[zone] = zone === 'top' ? [id] : [...layout[zone], id];
+                this.$store.settings.setDashboardLayout(layout);
+            },
+
+            // --- Extra widgets ---
+
+            get openGoals() {
+                const goals = this.$store.goals;
+                return goals.goals.filter(goal => !goal.done).slice(0, 4).map(goal => ({
+                    id: goal.id,
+                    title: goal.title,
+                    targetDate: goal.targetDate,
+                    percent: goals.goalProgress(goal, goal.clusterId ? this.$store.todos.clusterProgress(goal.clusterId) : null)
+                }));
+            },
+
+            // The same quote all day, a different one tomorrow
+            get quoteOfDay() {
+                const index = ((dates.daysBetween('2026-01-01', this.todayKey) % QUOTES.length) + QUOTES.length) % QUOTES.length;
+                return QUOTES[index] ?? QUOTES[0];
+            },
+
+            get streak() {
+                const active = activeDays(this.$store.todos.completions, this.$store.pomoState.sessions);
+                const { current, longest } = streaks(active, this.todayKey);
+                const days = Array.from({ length: 14 }, (_, i) => {
+                    const date = dates.addDays(this.todayKey, i - 13);
+                    return { date, active: active.has(date), isToday: date === this.todayKey, label: dates.formatDate(date, { weekday: 'narrow' }) };
+                });
+                return { current, longest, days };
+            },
+
+            // --- Last 7 days ---
+
+            get weekActivity() {
+                const counts = {};
+                this.$store.todos.completions.forEach(record => {
+                    const day = dayOf(record.at);
+                    counts[day] = (counts[day] ?? 0) + 1;
+                });
+                return Array.from({ length: 7 }, (_, i) => {
+                    const date = dates.addDays(this.todayKey, i - 6);
+                    return {
+                        index: i,
+                        date,
+                        label: dates.formatDate(date, { weekday: 'short' }),
+                        count: counts[date] ?? 0,
+                        isToday: date === this.todayKey
+                    };
+                });
+            },
+
+            get weekTotal() {
+                return this.weekActivity.reduce((sum, day) => sum + day.count, 0);
+            },
+
+            get weekMax() {
+                return Math.max(...this.weekActivity.map(day => day.count));
+            }
+        }));
+    });
+</script>

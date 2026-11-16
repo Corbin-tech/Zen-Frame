@@ -1,86 +1,12 @@
----
----
-
 <script>
-    import JSConfetti from 'js-confetti';
-</script>
-
-<script is:inline>
-    // Initialize JSConfetti when the DOM is ready
-    let jsConfetti;
-    document.addEventListener('DOMContentLoaded', () => {
-        try {
-            jsConfetti = new JSConfetti();
-            console.log('JSConfetti initialized successfully');
-        } catch (error) {
-            console.error('Error initializing JSConfetti:', error);
-        }
-    });
-    
-    // Register the Alpine component
     document.addEventListener('alpine:init', () => {
-        if (!window.Alpine) {
-            console.warn('Alpine.js not initialized yet');
-            return;
-        }
-        
         Alpine.data('zenTodoList', () => ({
-            init() {
-                this.currentTodoCache = null;
-                this.statsCache = null;
-                
-                this.$watch('$store.todos.items', () => {
-                    this.currentTodoCache = null;
-                    this.statsCache = null;
-                });
-                
-                // Listen for zen mode task/cluster skip events
-                document.addEventListener('zen-task-skipped', () => {
-                    this.currentTodoCache = null;
-                });
-                
-                document.addEventListener('zen-cluster-skipped', () => {
-                    this.currentTodoCache = null;
-                });
+            get tasks() {
+                return this.$store.todos.items.filter(item => !item.isCluster);
             },
 
-            currentTodoCache: null,
-            statsCache: null,
-
             get currentTodo() {
-                if (this.currentTodoCache !== null) return this.currentTodoCache;
-                
-                const todos = this.$store.todos.items;
-                if (!todos || !todos.length) return null;
-                
-                // Filter out clusters and only consider actual tasks
-                const tasks = todos.filter(task => !task.isCluster);
-                
-                // Get all incomplete tasks and filter out tasks from skipped clusters
-                const skippedClusters = this.$store.todos.skippedClusters || [];
-                const incompleteTasks = tasks.filter(task => {
-                    // Skip tasks from clusters that have been explicitly skipped
-                    const isInSkippedCluster = task.parentId && skippedClusters.includes(task.parentId);
-                    
-                    return !task.completed && !isInSkippedCluster;
-                });
-                
-                if (incompleteTasks.length === 0) {
-                    // If there are no more tasks outside skipped clusters,
-                    // reset the skipped clusters and retry
-                    if (skippedClusters.length > 0) {
-                        this.$store.todos.skippedClusters = [];
-                        // Clear the cache to force recalculation on next access
-                        return null;
-                    }
-                    return null; // No tasks at all
-                }
-                
-                // Simply use the first incomplete task that's not in a skipped cluster
-                // This respects the visual ordering of tasks in the task list
-                this.currentTodoCache = incompleteTasks[0];
-                
-                return this.currentTodoCache;
+                return this.$store.todos.nextTask;
             },
 
             get hasCurrentTodo() {
@@ -88,115 +14,77 @@
             },
 
             get hasTasks() {
-                const todos = this.$store.todos.items;
-                // Only count non-cluster items as tasks
-                return Boolean(todos && todos.filter(task => !task.isCluster).length > 0);
-            },
-            
-            // Get the name of the cluster a task belongs to
-            getClusterName(taskId) {
-                const task = this.$store.todos.items.find(t => t.id === taskId);
-                if (!task || !task.parentId) return null;
-                
-                const clusterIndex = this.$store.todos.items.findIndex(t => t.id === task.parentId);
-                const cluster = this.$store.todos.items[clusterIndex];
-                return cluster ? cluster.todo : null;
-            },
-            
-            // Calculate completion statistics for a specific cluster
-            getClusterStats(clusterId, currentTaskId) {
-                const todos = this.$store.todos.items;
-                if (!todos || !todos.length) return { position: 1, total: 0 };
-                
-                // Get all tasks in the cluster
-                const tasksInCluster = todos.filter(task => task.parentId === clusterId && !task.isCluster);
-                const total = tasksInCluster.length;
-                
-                // Find the position of the current task
-                if (currentTaskId) {
-                    // Sort tasks naturally as they would appear in the UI
-                    // This assumes tasks have some natural ordering in the store
-                    const taskIds = tasksInCluster.map(t => t.id);
-                    const position = taskIds.indexOf(currentTaskId) + 1; // Add 1 for 1-based indexing
-                    return { position: position > 0 ? position : 1, total };
-                }
-                
-                return { position: 1, total };
+                return this.tasks.length > 0;
             },
 
             get isAllTasksComplete() {
                 return this.hasTasks && !this.currentTodo;
             },
 
-            getCompletionStats() {
-                if (this.statsCache) return this.statsCache;
-                
-                const todos = this.$store.todos.items;
-                if (!todos || !todos.length) {
-                    this.statsCache = { completed: 0, total: 0, percentage: 0 };
-                } else {
-                    // Only consider non-cluster items for stats
-                    const tasks = todos.filter(task => !task.isCluster);
-                    const total = tasks.length;
-                    const completed = tasks.reduce((count, todo) => 
-                        todo.completed ? count + 1 : count, 0);
-                    this.statsCache = {
-                        completed,
-                        total,
-                        percentage: total > 0 ? Math.round((completed / total) * 100) : 0
-                    };
-                }
-                
-                return this.statsCache;
+            get currentClusterName() {
+                const parentId = this.currentTodo?.parentId;
+                return parentId ? this.$store.todos.find(parentId)?.todo ?? null : null;
+            },
+
+            // "position/total" of the current task within its cluster
+            get currentClusterProgress() {
+                const parentId = this.currentTodo?.parentId;
+                if (!parentId) return '';
+                const clusterTasks = this.tasks.filter(task => task.parentId === parentId);
+                const position = clusterTasks.findIndex(task => task.id === this.currentTodo.id) + 1;
+                return `${position}/${clusterTasks.length}`;
+            },
+
+            // The two tasks after this one, in the order Zen mode will show them
+            get upcoming() {
+                const todos = this.$store.todos;
+                const current = this.currentTodo;
+                return [...todos.openTasks]
+                    .sort((a, b) => Number(Boolean(b.startedAt)) - Number(Boolean(a.startedAt)))
+                    .filter(task => task.id !== current?.id && (!task.parentId || !todos.skippedClusters.includes(task.parentId)))
+                    .slice(0, 2);
+            },
+
+            get completedCount() {
+                return this.tasks.filter(task => task.completed).length;
             },
 
             get taskCompletionLabel() {
-                const stats = this.getCompletionStats();
-                return `Completed: ${stats.completed}/${stats.total}`;
+                return `Completed: ${this.completedCount}/${this.tasks.length}`;
             },
 
             get completionPercentage() {
-                return this.getCompletionStats().percentage;
+                return this.hasTasks ? Math.round((this.completedCount / this.tasks.length) * 100) : 0;
             },
 
             completeCurrentTodo() {
-                if (!this.currentTodo) return;
-                
-                const todos = this.$store.todos.items;
-                // Only consider non-cluster items when checking if this is the last task
-                const nonClusterTodos = todos.filter(todo => !todo.isCluster);
-                const isLastTask = !nonClusterTodos.some(todo => 
-                    !todo.completed && todo.id !== this.currentTodo.id);
-                
-                this.$store.todos.toggleTodo(this.currentTodo.id);
-                this.currentTodoCache = null;
-                this.statsCache = null;
+                const current = this.currentTodo;
+                if (!current) return;
+
+                const isLastTask = !this.tasks.some(task => !task.completed && task.id !== current.id);
+                this.$store.todos.toggleTodo(current.id);
 
                 if (isLastTask) {
                     const isDarkMode = document.documentElement.classList.contains('dark');
-                    
-                    // First confetti burst
-                    jsConfetti.addConfetti({
+                    window.jsConfetti.addConfetti({
                         confettiColors: isDarkMode 
                             ? ['#0d9488', '#14b8a6', '#2dd4bf', '#99f6e4', '#FFFFFF']
                             : ['#0d9488', '#14b8a6', '#2dd4bf', '#FFFFFF', '#F3F4F6'],
-                        confettiNumber: 200,
-                        initialVelocityX: 5,
-                        initialVelocityY: 12
+                        confettiNumber: 200
                     });
                 }
             },
             
             skipTask() {
-                if (!this.currentTodo || !this.currentTodo.parentId) return;
-                this.$store.todos.skipTaskToEndOfCluster(this.currentTodo.id);
-                this.currentTodoCache = null;
+                if (this.currentTodo?.parentId) {
+                    this.$store.todos.skipTaskToEndOfCluster(this.currentTodo.id);
+                }
             },
             
             skipCluster() {
-                if (!this.currentTodo || !this.currentTodo.parentId) return;
-                this.$store.todos.skipCurrentCluster();
-                this.currentTodoCache = null;
+                if (this.currentTodo?.parentId) {
+                    this.$store.todos.skipCluster(this.currentTodo.parentId);
+                }
             }
         }));
     });
@@ -206,25 +94,29 @@
     .progress-bar {
         transition: width 0.5s ease-in-out;
     }
-    
-    .task-enter {
-        opacity: 0;
-        transform: scale(0.95);
-    }
-    
-    .task-enter-active { 
-        opacity: 1; 
-        transform: scale(1); 
-    }
 </style>
 
+<!-- Zen Mode Component. With a background chosen, the scene behind it (ZenBackdrop, placed in
+     tabs.astro so it also runs behind the quote) is the card, so this one drops its own surface. -->
 <div
     x-data="zenTodoList"
-    x-init="init(); $watch('$store.todos.items', () => {})"
     x-cloak
-    class="w-full max-w-3xl mx-auto bg-white dark:bg-slate-800 rounded-xl shadow-sm p-6"
+    class="relative isolate overflow-hidden w-full max-w-4xl mx-auto rounded-2xl p-6"
+    x-bind:class="$store.settings.zenBackground === 'none' && 'bg-white/80 dark:bg-slate-800/70 backdrop-blur-sm shadow-sm ring-1 ring-black/5 dark:ring-white/10'"
 >
-    <h1 class="text-4xl font-bold text-center mb-8 text-gray-800 dark:text-white">Zen Mode</h1>
+    <!-- Zen mode's options live in Settings. This opens the panel at its Zen mode section. -->
+    <button
+        type="button"
+        x-on:click="$dispatch('open-settings', { section: 'zen' })"
+        class="absolute top-4 right-4 z-20 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-900/5 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-white/10 transition-colors"
+        aria-label="Zen mode settings"
+        title="Zen mode settings"
+    >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" /></svg>
+        <span class="hidden sm:inline">Customize</span>
+    </button>
+
+    <h1 class="text-3xl sm:text-4xl font-bold tracking-tight text-center mb-8 text-gray-900 dark:text-white">Zen Mode</h1>
 
     <div class="flex flex-col items-center justify-center">
         <!-- Current Todo Display -->
@@ -238,8 +130,8 @@
             x-transition:leave-end="opacity-0 scale-95"
             class="w-full"
         >
-            <div class="flex flex-col items-center space-y-6 p-8 bg-gray-50 dark:bg-slate-700 rounded-lg shadow-inner">
-                <template x-if="hasCurrentTodo && hasTasks">
+            <div class="flex flex-col items-center space-y-6 p-8 rounded-lg shadow-inner transition-colors" x-bind:class="$store.settings.zenBackground !== 'none' ? 'bg-white/60 dark:bg-slate-900/50 backdrop-blur-sm' : 'bg-gray-50 dark:bg-slate-700'">
+                <template x-if="hasCurrentTodo">
                     <div 
                         class="flex flex-col items-center space-y-6"
                         x-transition:enter="transition ease-out duration-200 delay-150"
@@ -248,26 +140,27 @@
                     >
                         <!-- Show cluster if the task belongs to one -->
                         <div 
-                            x-show="getClusterName(currentTodo?.id)" 
+                            x-show="currentClusterName && $store.settings.zenShowCluster" 
                             class="text-sm px-3 py-1 bg-teal-100 dark:bg-teal-900/30 text-teal-800 dark:text-teal-300 rounded-full flex items-center gap-2"
                         >
-                            <span x-text="getClusterName(currentTodo?.id)"></span>
-                            <!-- Display task completion stats for this cluster -->
-                            <template x-if="currentTodo && currentTodo.parentId">
-                                <span 
-                                    class="text-xs px-1.5 py-0.5 bg-white dark:bg-slate-800 text-teal-700 dark:text-teal-400 rounded-full whitespace-nowrap"
-                                    x-text="(() => {
-                                        const stats = getClusterStats(currentTodo.parentId, currentTodo.id);
-                                        return `${stats.position}/${stats.total}`;
-                                    })()"
-                                ></span>
-                            </template>
+                            <span x-text="currentClusterName"></span>
+                            <!-- Position of this task within its cluster -->
+                            <span 
+                                class="text-xs px-1.5 py-0.5 bg-white dark:bg-slate-800 text-teal-700 dark:text-teal-400 rounded-full whitespace-nowrap"
+                                x-text="currentClusterProgress"
+                            ></span>
                         </div>
                         
                         <p 
                             class="text-2xl text-center text-gray-800 dark:text-gray-200" 
                             x-text="currentTodo?.todo"
                         ></p>
+                        <span
+                            x-show="currentTodo?.dueDate && $store.settings.zenShowDue"
+                            class="-mt-3 text-xs font-medium px-2 py-0.5 rounded-md"
+                            x-bind:class="currentTodo?.dueDate ? $dates.dueClass(currentTodo.dueDate) : ''"
+                            x-text="currentTodo?.dueDate ? $dates.dueText(currentTodo.dueDate).replace(/^d/, 'D') : ''"
+                        ></span>
                         <button 
                             @click="completeCurrentTodo"
                             aria-label="Mark current task as complete"
@@ -289,7 +182,7 @@
 
         <!-- Task Management Buttons -->
         <div 
-            x-show="hasCurrentTodo && hasTasks" 
+            x-show="hasCurrentTodo" 
             x-transition:enter="transition ease-out duration-300 delay-100"
             x-transition:enter-start="opacity-0 scale-95"
             x-transition:enter-end="opacity-100 scale-100"
@@ -297,7 +190,7 @@
         >
             <button 
                 @click="skipTask"
-                x-show="currentTodo && currentTodo.parentId"
+                x-show="currentTodo?.parentId"
                 aria-label="Skip this task for now"
                 class="px-4 py-2 bg-white dark:bg-slate-700 text-teal-600 dark:text-teal-400 border border-teal-300 dark:border-teal-800 rounded-lg hover:bg-teal-50 dark:hover:bg-teal-900/30 transition-colors focus:ring-2 focus:ring-teal-200 dark:focus:ring-teal-900 flex items-center gap-2 text-sm"
             >
@@ -309,7 +202,7 @@
             
             <button 
                 @click="skipCluster"
-                x-show="currentTodo && currentTodo.parentId"
+                x-show="currentTodo?.parentId"
                 aria-label="Skip entire cluster"
                 class="px-4 py-2 bg-white dark:bg-slate-700 text-teal-600 dark:text-teal-400 border border-teal-300 dark:border-teal-800 rounded-lg hover:bg-teal-50 dark:hover:bg-teal-900/30 transition-colors focus:ring-2 focus:ring-teal-200 dark:focus:ring-teal-900 flex items-center gap-2 text-sm"
             >
@@ -320,9 +213,39 @@
             </button>
         </div>
 
+        <!-- Focus timer -->
+        <div x-show="$store.settings.zenShowTimer && hasCurrentTodo" x-cloak class="mt-6 flex items-center gap-3 px-4 py-2 rounded-full bg-white/70 dark:bg-slate-700/60 ring-1 ring-black/5 dark:ring-white/10">
+            <span class="relative flex w-2 h-2" aria-hidden="true">
+                <span x-show="$store.pomoState.isRunning" class="absolute inline-flex w-full h-full rounded-full bg-teal-400 opacity-75 animate-ping"></span>
+                <span class="relative inline-flex w-2 h-2 rounded-full" x-bind:class="$store.pomoState.isRunning ? 'bg-teal-500' : 'bg-gray-400'"></span>
+            </span>
+            <span class="text-lg font-semibold tabular-nums text-gray-900 dark:text-white" x-text="`${$store.pomoState.digits.slice(0, 2)}:${$store.pomoState.digits.slice(2)}`"></span>
+            <span class="text-sm text-gray-500 dark:text-gray-400" x-text="$store.pomoState.currentPresetName"></span>
+            <button
+                type="button"
+                x-on:click="$store.pomoState.isRunning ? $store.pomoState.pauseTimer() : $store.pomoState.startFocus()"
+                class="ml-1 px-3 py-1 text-sm font-semibold rounded-full bg-teal-600 text-white hover:bg-teal-700 transition-colors"
+                x-text="$store.pomoState.isRunning ? 'Pause' : 'Focus'"
+            ></button>
+        </div>
+
+        <!-- Up next -->
+        <div x-show="$store.settings.zenShowNext && upcoming.length" x-cloak class="w-full mt-6">
+            <p class="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">Up next</p>
+            <ol class="space-y-2">
+                <template x-for="task in upcoming" :key="task.id">
+                    <li class="flex items-center gap-3 rounded-lg px-3 py-2 bg-white/60 dark:bg-slate-700/40 ring-1 ring-black/5 dark:ring-white/5 text-sm text-gray-600 dark:text-gray-300">
+                        <span class="w-1.5 h-1.5 rounded-full shrink-0" x-bind:style="`background-color: ${$store.todos.clusterColor(task.parentId)};`"></span>
+                        <span class="min-w-0 truncate" x-text="task.todo"></span>
+                        <span x-show="task.parentId" class="ml-auto shrink-0 text-xs text-gray-400 dark:text-gray-500" x-text="$store.todos.clusterName(task.parentId)"></span>
+                    </li>
+                </template>
+            </ol>
+        </div>
+
         <!-- All Tasks Complete Message -->
         <div 
-            x-show="isAllTasksComplete && hasTasks" 
+            x-show="isAllTasksComplete" 
             x-transition:enter="transition ease-out duration-300"
             x-transition:enter-start="opacity-0 scale-95"
             x-transition:enter-end="opacity-100 scale-100"
@@ -333,7 +256,7 @@
         </div>
 
         <!-- Progress Bar -->
-        <div class="w-full mt-8" x-show="hasTasks">
+        <div class="w-full mt-8" x-show="hasTasks && $store.settings.zenShowProgress">
             <div class="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-2">
                 <span x-text="taskCompletionLabel"></span>
                 <span x-text="completionPercentage + '%'"></span>
@@ -346,4 +269,5 @@
             </div>
         </div>
     </div>
+
 </div>

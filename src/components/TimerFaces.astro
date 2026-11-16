@@ -1,0 +1,731 @@
+---
+// The Pomodoro timer's optional faces, chosen under Settings > Timer. The classic ring
+// stays in pomoTimer.astro. Every face reads $store.pomoState and draws only the time;
+// the controls below the face are shared. Only the chosen face is rendered (x-if).
+
+// Alpine's x-for can't run inside SVG, so repeated shapes are generated here at build time.
+const minutes = Array.from({ length: 60 }, (_, m) => m);
+const dialTick = (cx: number, cy: number, m: number) => {
+    const angle = m * Math.PI / 30;
+    const inner = m % 5 ? 45.5 : 42;
+    return {
+        x1: cx + Math.sin(angle) * inner, y1: cy - Math.cos(angle) * inner,
+        x2: cx + Math.sin(angle) * 48, y2: cy - Math.cos(angle) * 48,
+        major: m % 5 === 0
+    };
+};
+const dialNumerals = (cx: number, cy: number) => Array.from({ length: 12 }, (_, i) => {
+    const angle = (i + 1) * Math.PI / 6;
+    return { n: i + 1, x: cx + Math.sin(angle) * 34, y: cy - Math.cos(angle) * 34 };
+});
+
+// Chess clock: focus on the left, break on the right
+const CHESS_CY = 122;
+const chessSides = [
+    { cx: 92, isBreak: false, label: 'FOCUS' },
+    { cx: 228, isBreak: true, label: 'BREAK' }
+];
+const woodGrain = [
+    'M0 86 C80 80 170 96 320 84', 'M0 112 C90 104 200 120 320 108', 'M0 150 C100 160 210 140 320 154',
+    'M0 178 C70 172 180 188 320 176', 'M0 204 C110 198 220 212 320 202'
+];
+
+// Seven-segment digits, 48 x 88 each
+const SEG_W = 48, SEG_H = 88, HALF = 5, GAP = 1.5;
+const horizontal = (y: number) => {
+    const x0 = HALF + GAP, x1 = SEG_W - HALF - GAP;
+    return `${x0},${y} ${x0 + HALF},${y - HALF} ${x1 - HALF},${y - HALF} ${x1},${y} ${x1 - HALF},${y + HALF} ${x0 + HALF},${y + HALF}`;
+};
+const vertical = (x: number, y0: number, y1: number) =>
+    `${x},${y0} ${x + HALF},${y0 + HALF} ${x + HALF},${y1 - HALF} ${x},${y1} ${x - HALF},${y1 - HALF} ${x - HALF},${y0 + HALF}`;
+const segments = {
+    a: horizontal(HALF),
+    b: vertical(SEG_W - HALF, HALF + GAP, SEG_H / 2 - GAP),
+    c: vertical(SEG_W - HALF, SEG_H / 2 + GAP, SEG_H - HALF - GAP),
+    d: horizontal(SEG_H - HALF),
+    e: vertical(HALF, SEG_H / 2 + GAP, SEG_H - HALF - GAP),
+    f: vertical(HALF, HALF + GAP, SEG_H / 2 - GAP),
+    g: horizontal(SEG_H / 2)
+};
+const digitX = [35, 97, 175, 237];
+const progressBlocks = Array.from({ length: 24 }, (_, i) => ({ i, x: 35 + i * (250 + 3) / 24 }));
+
+// Nixie tubes, 62 wide
+const tubeX = [18, 90, 188, 260];
+const numerals = Array.from({ length: 10 }, (_, n) => n);
+---
+
+<div class="w-full flex flex-col items-center mb-8" x-show="$store.settings.timerStyle !== 'classic'">
+    <p class="sr-only" role="timer" x-text="`${Math.floor($store.pomoState.timeLeft / 60)} minutes ${$store.pomoState.timeLeft % 60} seconds left`"></p>
+
+    <!-- Chess clock. Hitting the raised button hands over to the other phase. -->
+    <template x-if="$store.settings.timerStyle === 'chess'">
+        <div
+            class="w-full max-w-[22rem]"
+            x-data="{
+                secs(isBreak) {
+                    const pomo = this.$store.pomoState;
+                    return pomo.isBreak === isBreak ? pomo.timeLeft : pomo.phaseTime(isBreak);
+                },
+                clock(seconds) {
+                    return `${Math.floor(seconds / 60).toString().padStart(2, '0')}:${(seconds % 60).toString().padStart(2, '0')}`;
+                },
+                handOver() {
+                    const pomo = this.$store.pomoState;
+                    const wasRunning = pomo.isRunning;
+                    pomo.toggleBreak();
+                    if (wasRunning) pomo.startTimer();
+                }
+            }"
+        >
+            <svg viewBox="0 0 320 236" class="w-full h-auto" aria-hidden="true">
+                <defs>
+                    <linearGradient id="tf-wood" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0" stop-color="#9a6237" />
+                        <stop offset="0.5" stop-color="#7a4520" />
+                        <stop offset="1" stop-color="#4e2a12" />
+                    </linearGradient>
+                    <linearGradient id="tf-brass" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0" stop-color="#fbeab0" />
+                        <stop offset="0.45" stop-color="#d4ad55" />
+                        <stop offset="1" stop-color="#8f6a22" />
+                    </linearGradient>
+                    <linearGradient id="tf-bezel" x1="0" y1="0" x2="1" y2="1">
+                        <stop offset="0" stop-color="#fff1c4" />
+                        <stop offset="0.5" stop-color="#c79a3e" />
+                        <stop offset="1" stop-color="#7d5a1b" />
+                    </linearGradient>
+                    <radialGradient id="tf-dial" cx="0.45" cy="0.4" r="0.65">
+                        <stop offset="0" stop-color="#fffdf7" />
+                        <stop offset="0.8" stop-color="#f4ecd9" />
+                        <stop offset="1" stop-color="#e2d5b8" />
+                    </radialGradient>
+                    <linearGradient id="tf-chrome" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0" stop-color="#9ca3af" />
+                        <stop offset="0.35" stop-color="#f3f4f6" />
+                        <stop offset="1" stop-color="#6b7280" />
+                    </linearGradient>
+                    <linearGradient id="tf-cap" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0" stop-color="#4b5563" />
+                        <stop offset="1" stop-color="#111827" />
+                    </linearGradient>
+                    <filter id="tf-soft" x="-10%" y="-50%" width="120%" height="200%"><feGaussianBlur stdDeviation="4" /></filter>
+                    <filter id="tf-chess-glow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="3.5" /></filter>
+                    <clipPath id="tf-case-clip">
+                        <path d="M44 64 H276 Q290 64 292 78 L311 206 Q313 220 299 220 H21 Q7 220 9 206 L28 78 Q30 64 44 64 Z" />
+                    </clipPath>
+                </defs>
+
+                <ellipse cx="160" cy="226" rx="150" ry="6" fill="#000" opacity="0.3" filter="url(#tf-soft)" />
+
+                {chessSides.map(side => (
+                    <g
+                        x-data={`{ isBreak: ${side.isBreak} }`}
+                        class="tf-plunger"
+                        x-bind:class="$store.pomoState.isBreak === isBreak ? 'cursor-pointer' : 'tf-plunger-down'"
+                        x-on:click="$store.pomoState.isBreak === isBreak && handOver()"
+                    >
+                        <rect x={side.cx - 6} y="32" width="12" height="34" fill="url(#tf-chrome)" />
+                        <rect x={side.cx - 32} y="18" width="64" height="16" rx="8" fill="url(#tf-cap)" />
+                        <rect x={side.cx - 26} y="20.5" width="40" height="3" rx="1.5" fill="#fff" opacity="0.22" />
+                    </g>
+                ))}
+                {chessSides.map(side => <rect x={side.cx - 12} y="60" width="24" height="6" rx="2" fill="#1f130a" />)}
+
+                <!-- Lacquered case, wider at the base like a real chess clock -->
+                <path d="M44 64 H276 Q290 64 292 78 L311 206 Q313 220 299 220 H21 Q7 220 9 206 L28 78 Q30 64 44 64 Z" fill="url(#tf-wood)" />
+                <g clip-path="url(#tf-case-clip)" fill="none" stroke="#2e1606" stroke-width="1.2" opacity="0.22">
+                    {woodGrain.map(d => <path d={d} />)}
+                </g>
+                <path d="M44 65.5 H276 Q288 65.5 290.5 78" fill="none" stroke="#fff" stroke-opacity="0.3" stroke-width="1.5" />
+                <path d="M10 207 Q8 219 21 219 H299 Q312 219 310 207" fill="none" stroke="#000" stroke-opacity="0.35" stroke-width="2" />
+
+                <!-- Running lamp between the dials -->
+                <circle cx="160" cy={CHESS_CY} r="5" fill="#1c1009" />
+                <circle cx="160" cy={CHESS_CY} r="3.5" fill="currentColor" class="text-teal-400" filter="url(#tf-chess-glow)" x-show="$store.pomoState.isRunning" />
+                <circle cx="160" cy={CHESS_CY} r="3" fill="currentColor" x-bind:class="$store.pomoState.isRunning ? 'text-teal-300' : 'text-stone-600'" />
+
+                {chessSides.map(side => (
+                    <g x-data={`{ isBreak: ${side.isBreak}, get active() { return this.$store.pomoState.isBreak === this.isBreak } }`}>
+                        <circle cx={side.cx} cy={CHESS_CY} r="60" fill="#000" opacity="0.28" />
+                        <circle
+                            cx={side.cx} cy={CHESS_CY} r="56" fill="none" stroke="currentColor" stroke-width="5"
+                            class="text-teal-400 transition-opacity duration-500" filter="url(#tf-chess-glow)"
+                            x-bind:opacity="active && $store.pomoState.isRunning ? 0.9 : 0"
+                        />
+                        <circle cx={side.cx} cy={CHESS_CY} r="52" fill="url(#tf-dial)" stroke="url(#tf-bezel)" stroke-width="6" />
+                        <circle cx={side.cx} cy={CHESS_CY} r="48.5" fill="none" stroke="#000" stroke-opacity="0.15" stroke-width="1" />
+                        {minutes.map(m => {
+                            const tick = dialTick(side.cx, CHESS_CY, m);
+                            return <line x1={tick.x1} y1={tick.y1} x2={tick.x2} y2={tick.y2} stroke="#2f2a23" stroke-width={tick.major ? 2 : 0.7} stroke-linecap="round" />;
+                        })}
+                        <g font-size="9.5" font-family="ui-serif, Georgia, serif" font-weight="600" fill="#3a332a" text-anchor="middle" dominant-baseline="central">
+                            {dialNumerals(side.cx, CHESS_CY).map(numeral => <text x={numeral.x} y={numeral.y}>{numeral.n}</text>)}
+                        </g>
+                        <!-- The flag rises as the minute hand nears twelve -->
+                        <path
+                            d={`M${side.cx + 2} ${CHESS_CY - 46} l12 -3.5 l-4 8.5 z`}
+                            fill="#dc2626" stroke="#7f1d1d" stroke-width="0.6"
+                            x-bind:transform={`secs(isBreak) <= 180 ? 'rotate(-35 ${side.cx + 2} ${CHESS_CY - 46})' : ''`}
+                        />
+                        <path
+                            d={`M${side.cx - 2.6} ${CHESS_CY + 9} L${side.cx - 1.4} ${CHESS_CY - 34} L${side.cx} ${CHESS_CY - 40} L${side.cx + 1.4} ${CHESS_CY - 34} L${side.cx + 2.6} ${CHESS_CY + 9} Z`}
+                            fill="#1c1917"
+                            x-bind:transform={`\`rotate(\${360 - secs(isBreak) / 10} ${side.cx} ${CHESS_CY})\``}
+                        />
+                        <g x-bind:transform={`\`rotate(\${360 - (secs(isBreak) % 60) * 6} ${side.cx} ${CHESS_CY})\``}>
+                            <line x1={side.cx} y1={CHESS_CY + 12} x2={side.cx} y2={CHESS_CY - 45} stroke="#c81e1e" stroke-width="1.1" stroke-linecap="round" />
+                            <circle cx={side.cx} cy={CHESS_CY + 10} r="2.4" fill="#c81e1e" />
+                        </g>
+                        <circle cx={side.cx} cy={CHESS_CY} r="4.2" fill="url(#tf-bezel)" />
+                        <circle cx={side.cx} cy={CHESS_CY} r="1.4" fill="#3b2a10" />
+                        <!-- Glass reflection -->
+                        <path d={`M${side.cx - 38} ${CHESS_CY - 16} A42 42 0 0 1 ${side.cx + 14} ${CHESS_CY - 40}`} fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round" opacity="0.35" />
+
+                        <!-- Brass name plate with the time left -->
+                        <rect x={side.cx - 46} y="188" width="92" height="22" rx="4" fill="url(#tf-brass)" stroke="#6b4f19" stroke-width="0.8" x-bind:opacity="active ? 1 : 0.75" />
+                        <text x={side.cx - 39} y="202" font-size="7.5" font-weight="700" letter-spacing="1.5" fill="#5c4414">{side.label}</text>
+                        <text
+                            x={side.cx + 39} y="203.5" text-anchor="end" font-size="12.5" font-family="ui-monospace, monospace" font-weight="700" fill="#2b1d07"
+                            x-text="clock(secs(isBreak))"
+                        ></text>
+                    </g>
+                ))}
+            </svg>
+        </div>
+    </template>
+
+    <!-- Apple kitchen timer: the top half turns so the minutes left sit over the pointer -->
+    <template x-if="$store.settings.timerStyle === 'apple'">
+        <div
+            class="w-full max-w-[18rem]"
+            x-data="{
+                mark(m) {
+                    const angle = (m - this.$store.pomoState.timeLeft / 60) * Math.PI / 30;
+                    const depth = Math.cos(angle);
+                    return {
+                        transform: `translate(${150 + 104 * Math.sin(angle)} ${180 - 14 * (1 - depth)}) scale(${Math.max(depth, 0)} 1)`,
+                        opacity: depth > 0.1 ? depth : 0
+                    };
+                }
+            }"
+        >
+            <svg viewBox="0 0 300 300" class="w-full h-auto" aria-hidden="true">
+                <defs>
+                    <radialGradient id="tf-apple" cx="0.38" cy="0.32" r="0.75">
+                        <stop offset="0" stop-color="#f87171" />
+                        <stop offset="0.55" stop-color="#dc2626" />
+                        <stop offset="1" stop-color="#991b1b" />
+                    </radialGradient>
+                </defs>
+                <ellipse cx="150" cy="286" rx="92" ry="8" fill="#000" opacity="0.12" />
+                <path d="M150 92 C128 72 60 70 46 140 C34 205 82 278 122 278 C136 278 142 270 150 270 C158 270 164 278 178 278 C218 278 266 205 254 140 C240 70 172 72 150 92 Z" fill="url(#tf-apple)" />
+                <path d="M150 94 C150 76 152 62 160 50" fill="none" stroke="#713f12" stroke-width="7" stroke-linecap="round" />
+                <path d="M156 70 C170 46 200 44 214 52 C200 74 176 80 156 70 Z" fill="#16a34a" />
+                <path d="M158 69 C176 60 192 56 210 53" fill="none" stroke="#14532d" stroke-width="1.5" opacity="0.6" />
+                <ellipse cx="100" cy="122" rx="20" ry="30" transform="rotate(25 100 122)" fill="#fff" opacity="0.22" />
+
+                <!-- Seam between the turning top and the fixed bottom -->
+                <path d="M44 176 Q150 212 256 176" fill="none" stroke="#7f1d1d" stroke-width="2.5" opacity="0.7" />
+                <path d="M44 179 Q150 215 256 179" fill="none" stroke="#fff" stroke-width="1" opacity="0.15" />
+
+                {minutes.map(m => (
+                    <g x-bind:transform={`mark(${m}).transform`} x-bind:opacity={`mark(${m}).opacity`}>
+                        <line x1="0" y1={m % 5 ? 2 : -2} x2="0" y2="8" stroke="#fff7ed" stroke-width={m % 5 ? 1.2 : 2.4} />
+                        {m % 5 === 0 && <text y="-6" text-anchor="middle" font-size="15" font-weight="800" fill="#fff7ed">{m}</text>}
+                    </g>
+                ))}
+
+                <path d="M142 214 L150 201 L158 214 Z" fill="#fff7ed" />
+            </svg>
+            <p class="-mt-2 text-center text-2xl font-mono font-bold text-gray-800 dark:text-white" x-text="`${$store.pomoState.digits.slice(0, 2)}:${$store.pomoState.digits.slice(2)}`"></p>
+        </div>
+    </template>
+
+    <!-- Cat: a calico. Eyes follow the seconds and the tail swings while the timer runs; it naps when paused. -->
+    <template x-if="$store.settings.timerStyle === 'cat'">
+        <div class="w-full max-w-[18rem]" x-data="{ get awake() { return this.$store.pomoState.isRunning } }">
+            <svg viewBox="0 0 300 300" class="tf-cat w-full h-auto" aria-hidden="true">
+                <defs>
+                    <!-- Copies of the body and head outlines, so the patches can't spill past them.
+                         If the body path or head circle below changes, change these to match. -->
+                    <clipPath id="tf-cat-body-clip"><path d="M100 172 C68 205 60 285 94 292 L206 292 C240 285 232 205 200 172 Z" /></clipPath>
+                    <clipPath id="tf-cat-head-clip"><circle cx="150" cy="110" r="70" /></clipPath>
+                </defs>
+
+                <!-- Tail: white with a black band and an orange tip. Every layer is in the swinging group. -->
+                <g class="tf-tail" x-bind:class="awake && 'tf-tail-swing'" fill="none" stroke-linecap="round">
+                    <path d="M200 272 C258 272 282 232 264 194 C256 178 266 164 278 172" class="tf-cat-line-edge" stroke-width="22" />
+                    <path d="M200 272 C258 272 282 232 264 194 C256 178 266 164 278 172" class="tf-cat-line-base" stroke-width="18" />
+                    <path d="M200 272 C258 272 282 232 264 194 C256 178 266 164 278 172" class="tf-cat-line-black" stroke-width="18" stroke-linecap="butt" pathLength="100" stroke-dasharray="12 88" stroke-dashoffset="-48" />
+                    <path d="M200 272 C258 272 282 232 264 194 C256 178 266 164 278 172" class="tf-cat-line-orange" stroke-width="18" pathLength="100" stroke-dasharray="28 72" stroke-dashoffset="-72" />
+                </g>
+
+                <!-- Body: an orange patch on the shoulder, a black one on the hip -->
+                <path d="M100 172 C68 205 60 285 94 292 L206 292 C240 285 232 205 200 172 Z" class="tf-cat-base" />
+                <g clip-path="url(#tf-cat-body-clip)">
+                    <ellipse cx="84" cy="212" rx="34" ry="36" class="tf-cat-orange" />
+                    <ellipse cx="226" cy="262" rx="30" ry="34" class="tf-cat-black" />
+                </g>
+                <ellipse cx="150" cy="180" rx="52" ry="9" fill="#78716c" stroke="none" opacity="0.25" />
+
+                <!-- Belly clock -->
+                <circle cx="150" cy="240" r="44" fill="#fff4e4" />
+                <circle cx="150" cy="240" r="48" fill="none" stroke="#fde3c2" stroke-width="5" />
+                <circle
+                    cx="150" cy="240" r="48" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"
+                    class="text-teal-500" transform="rotate(-90 150 240)"
+                    stroke-dasharray="301.6" x-bind:stroke-dashoffset="301.6 - 301.6 * $store.pomoState.percentComplete / 100"
+                />
+                <text x="150" y="249" text-anchor="middle" font-size="25" font-weight="800" font-family="ui-monospace, monospace" fill="#7c2d12"
+                    x-text="`${$store.pomoState.digits.slice(0, 2)}:${$store.pomoState.digits.slice(2)}`"></text>
+
+                <ellipse cx="118" cy="291" rx="22" ry="9" class="tf-cat-base" />
+                <ellipse cx="182" cy="291" rx="22" ry="9" class="tf-cat-base" />
+                <path d="M111 287 v6 M125 287 v6 M175 287 v6 M189 287 v6" stroke="#a8a29e" stroke-width="1.5" stroke-linecap="round" />
+
+                <!-- Head: orange over the left ear and eye, black over the right, a white blaze between -->
+                <path d="M90 76 L86 20 L134 50 Z" class="tf-cat-orange" />
+                <path d="M210 76 L214 20 L166 50 Z" class="tf-cat-black" />
+                <path d="M96 64 L94 32 L122 50 Z M204 64 L206 32 L178 50 Z" fill="#f9a8b4" stroke="none" />
+                <circle cx="150" cy="110" r="70" class="tf-cat-base" />
+                <g clip-path="url(#tf-cat-head-clip)">
+                    <path d="M146 30 C148 62 145 92 142 106 C138 118 128 121 120 119 C108 116 94 108 76 96 L60 90 L60 30 Z" class="tf-cat-orange" />
+                    <path d="M162 30 C158 60 157 92 158 106 C162 118 172 121 180 119 C192 116 206 110 226 100 L240 96 L240 30 Z" class="tf-cat-black" />
+                </g>
+                <path d="M114 54 l5 12 M129 46 l3 14" class="tf-cat-stripe" fill="none" stroke-width="5" stroke-linecap="round" />
+                <ellipse cx="136" cy="134" rx="18" ry="13" fill="#fff4e4" stroke="none" />
+                <ellipse cx="164" cy="134" rx="18" ry="13" fill="#fff4e4" stroke="none" />
+                <path d="M143 122 h14 l-7 8 z" class="tf-cat-nose" stroke-width="3" stroke-linejoin="round" />
+                <path d="M141 138 Q145.5 144 150 138 Q154.5 144 159 138" fill="none" stroke="#7c2d12" stroke-width="2" stroke-linecap="round" />
+                <path d="M120 130 L78 122 M120 137 L76 140 M180 130 L222 122 M180 137 L224 140" stroke="#7c2d12" stroke-width="1.3" stroke-linecap="round" opacity="0.6" />
+                <circle cx="112" cy="124" r="7" fill="#f9a8b4" stroke="none" opacity="0.5" />
+                <circle cx="188" cy="124" r="7" fill="#f9a8b4" stroke="none" opacity="0.5" />
+
+                <g x-show="awake">
+                    <ellipse cx="122" cy="98" rx="15" ry="17" fill="#ecfccb" stroke="#7c2d12" stroke-width="2" />
+                    <ellipse cx="178" cy="98" rx="15" ry="17" fill="#ecfccb" stroke="#7c2d12" stroke-width="2" />
+                    <g class="tf-pupils" x-bind:style="`transform: translateX(${$store.pomoState.timeLeft % 2 ? 6 : -6}px)`">
+                        <ellipse cx="122" cy="99" rx="5" ry="12" fill="#1c1917" />
+                        <ellipse cx="178" cy="99" rx="5" ry="12" fill="#1c1917" />
+                        <circle cx="124" cy="93" r="2" fill="#fff" />
+                        <circle cx="180" cy="93" r="2" fill="#fff" />
+                    </g>
+                </g>
+                <g x-show="!awake">
+                    <path d="M107 100 Q122 111 137 100" fill="none" stroke="#7c2d12" stroke-width="3" stroke-linecap="round" />
+                    <!-- The right eye is on the black patch, so its closed line is light -->
+                    <path d="M163 100 Q178 111 193 100" fill="none" stroke="#f1ede4" stroke-width="3" stroke-linecap="round" />
+                    <text x="214" y="56" font-size="16" font-weight="700" fill="currentColor" class="tf-zzz text-gray-400 dark:text-gray-500">z</text>
+                    <text x="230" y="38" font-size="21" font-weight="700" fill="currentColor" class="tf-zzz text-gray-400 dark:text-gray-500" style="animation-delay: 1s">z</text>
+                </g>
+            </svg>
+        </div>
+    </template>
+
+    <!-- Digital: a seven-segment display in the accent color -->
+    <template x-if="$store.settings.timerStyle === 'digital'">
+        <div
+            class="w-full max-w-[22rem]"
+            x-data="{
+                segmentsFor: ['abcdef', 'bc', 'abdeg', 'abcdg', 'bcfg', 'acdfg', 'acdefg', 'abc', 'abcdefg', 'abcdfg'],
+                lit(i, segment) {
+                    return this.segmentsFor[this.$store.pomoState.digits[i]].includes(segment);
+                }
+            }"
+        >
+            <svg viewBox="0 0 320 170" class="w-full h-auto" aria-hidden="true">
+                <defs>
+                    <filter id="tf-led-glow" x="-20%" y="-20%" width="140%" height="140%">
+                        <feGaussianBlur stdDeviation="2.5" result="blur" />
+                        <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+                    </filter>
+                </defs>
+                <rect width="320" height="170" rx="22" fill="#1e293b" />
+                <rect x="12" y="12" width="296" height="146" rx="12" fill="#04080a" />
+
+                <g class="text-teal-400" fill="currentColor" font-size="9" font-weight="700" letter-spacing="1.5" font-family="ui-monospace, monospace">
+                    <text x="35" y="31" x-bind:opacity="$store.pomoState.isBreak ? 0.15 : 1">FOCUS</text>
+                    <text x="85" y="31" x-bind:opacity="$store.pomoState.isBreak ? 1 : 0.15">BREAK</text>
+                    <text x="285" y="31" text-anchor="end" x-text="$store.pomoState.isRunning ? '▶ RUN' : '❚❚ PAUSE'"></text>
+                </g>
+
+                <g class="text-teal-400" fill="currentColor" filter="url(#tf-led-glow)">
+                    {digitX.map((x, i) => (
+                        <g transform={`translate(${x + 5} 42) skewX(-6)`}>
+                            {Object.entries(segments).map(([name, points]) => (
+                                <polygon points={points} x-bind:opacity={`lit(${i}, '${name}') ? 1 : 0.07`} />
+                            ))}
+                        </g>
+                    ))}
+                    <g x-bind:opacity="!$store.pomoState.isRunning || $store.pomoState.timeLeft % 2 ? 1 : 0.15">
+                        <circle cx="163" cy="70" r="5" />
+                        <circle cx="160" cy="102" r="5" />
+                    </g>
+                    {progressBlocks.map(block => (
+                        <rect x={block.x} y="140" width="7.5" height="5" rx="1" x-bind:opacity={`$store.pomoState.percentComplete / 100 * 24 > ${block.i} ? 1 : 0.1`} />
+                    ))}
+                </g>
+            </svg>
+        </div>
+    </template>
+
+    <!-- Nixie tubes: neon digits glowing in glass, with every unlit cathode faintly visible -->
+    <template x-if="$store.settings.timerStyle === 'nixie'">
+        <div class="w-full max-w-[22rem]">
+            <svg viewBox="0 0 340 236" class="w-full h-auto" aria-hidden="true">
+                <defs>
+                    <filter id="tf-neon" x="-50%" y="-50%" width="200%" height="200%">
+                        <feGaussianBlur in="SourceGraphic" stdDeviation="1.6" result="near" />
+                        <feGaussianBlur in="SourceGraphic" stdDeviation="5" result="far" />
+                        <feMerge><feMergeNode in="far" /><feMergeNode in="near" /><feMergeNode in="SourceGraphic" /></feMerge>
+                    </filter>
+                    <filter id="tf-neon-wide" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="9" /></filter>
+                    <filter id="tf-nixie-soft" x="-50%" y="-100%" width="200%" height="300%"><feGaussianBlur stdDeviation="5" /></filter>
+                    <linearGradient id="tf-glass" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0" stop-color="#fff" stop-opacity="0.2" />
+                        <stop offset="0.12" stop-color="#fff" stop-opacity="0.05" />
+                        <stop offset="0.5" stop-color="#fff" stop-opacity="0.01" />
+                        <stop offset="0.88" stop-color="#fff" stop-opacity="0.04" />
+                        <stop offset="1" stop-color="#fff" stop-opacity="0.18" />
+                    </linearGradient>
+                    <linearGradient id="tf-glass-edge" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0" stop-color="#fff" stop-opacity="0.45" />
+                        <stop offset="1" stop-color="#fff" stop-opacity="0.12" />
+                    </linearGradient>
+                    <radialGradient id="tf-tube-glow" cx="0.5" cy="0.55" r="0.55">
+                        <stop offset="0" stop-color="#ff7a1a" stop-opacity="0.28" />
+                        <stop offset="1" stop-color="#ff7a1a" stop-opacity="0" />
+                    </radialGradient>
+                    <radialGradient id="tf-getter" cx="0.5" cy="0.3" r="0.7">
+                        <stop offset="0" stop-color="#e5e7eb" stop-opacity="0.55" />
+                        <stop offset="1" stop-color="#6b7280" stop-opacity="0.05" />
+                    </radialGradient>
+                    <linearGradient id="tf-socket" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0" stop-color="#2a2520" />
+                        <stop offset="1" stop-color="#0c0a08" />
+                    </linearGradient>
+                    <linearGradient id="tf-walnut" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0" stop-color="#7a4b2a" />
+                        <stop offset="1" stop-color="#3b2314" />
+                    </linearGradient>
+                    <radialGradient id="tf-backdrop" cx="0.5" cy="0.45" r="0.7">
+                        <stop offset="0" stop-color="#241812" />
+                        <stop offset="1" stop-color="#0a0706" />
+                    </radialGradient>
+                    <pattern id="tf-mesh" width="5" height="8.66" patternUnits="userSpaceOnUse">
+                        <path d="M0 0 L2.5 1.44 L2.5 4.33 L0 5.77 M5 0 L2.5 1.44 M2.5 4.33 L5 5.77 M0 5.77 L0 8.66 M5 5.77 L5 8.66" fill="none" stroke="#c9a77c" stroke-width="0.35" />
+                    </pattern>
+                </defs>
+                <rect width="340" height="236" rx="22" fill="url(#tf-backdrop)" />
+
+                <!-- Walnut base with a brass trim -->
+                <rect x="10" y="186" width="320" height="38" rx="9" fill="url(#tf-walnut)" />
+                <rect x="10" y="186" width="320" height="2.5" fill="#d4ad55" opacity="0.8" />
+                <rect x="10" y="221" width="320" height="3" rx="1.5" fill="#000" opacity="0.3" />
+                {tubeX.map(x => <ellipse cx={x + 31} cy="190" rx="34" ry="6" fill="#ff7a1a" opacity="0.35" filter="url(#tf-nixie-soft)" />)}
+
+                {tubeX.map((x, i) => (
+                    <g>
+                        <!-- Warm light filling the glass -->
+                        <path d={`M${x} 58 A31 31 0 0 1 ${x + 62} 58 V172 H${x} Z`} fill="url(#tf-tube-glow)" />
+                        <g font-size="80" font-weight="200" text-anchor="middle" font-family="ui-sans-serif, system-ui, sans-serif">
+                            {numerals.map(n => <text x={x + 31} y="141" fill="#a08c76" opacity="0.2">{n}</text>)}
+                            <g class="tf-nixie-lit">
+                                <text x={x + 31} y="141" fill="none" stroke="#ff5a00" stroke-width="6" opacity="0.8" filter="url(#tf-neon-wide)" x-text={`$store.pomoState.digits[${i}]`}></text>
+                                <text x={x + 31} y="141" fill="#ffb15e" stroke="#ff8a2a" stroke-width="1" filter="url(#tf-neon)" x-text={`$store.pomoState.digits[${i}]`}></text>
+                                <text x={x + 31} y="141" fill="#fff3df" x-text={`$store.pomoState.digits[${i}]`}></text>
+                            </g>
+                        </g>
+                        <!-- Anode mesh, glass, getter spot and exhaust tip -->
+                        <path d={`M${x + 3} 60 A28 28 0 0 1 ${x + 59} 60 V168 H${x + 3} Z`} fill="url(#tf-mesh)" opacity="0.3" />
+                        <ellipse cx={x + 31} cy="38" rx="18" ry="8" fill="url(#tf-getter)" />
+                        <path d={`M${x + 27} 28 Q${x + 27} 20 ${x + 31} 19 Q${x + 35} 20 ${x + 35} 28 Z`} fill="#fff" opacity="0.18" />
+                        <path d={`M${x} 58 A31 31 0 0 1 ${x + 62} 58 V172 H${x} Z`} fill="url(#tf-glass)" stroke="url(#tf-glass-edge)" stroke-width="1.2" />
+                        <path d={`M${x + 7} 160 V60 A24 24 0 0 1 ${x + 18} 39`} fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" opacity="0.2" />
+                        <path d={`M${x + 55} 70 V150`} stroke="#fff" stroke-width="1.5" stroke-linecap="round" opacity="0.1" />
+                        <!-- Bakelite socket -->
+                        <rect x={x - 2} y="168" width="66" height="20" rx="5" fill="url(#tf-socket)" />
+                        <rect x={x - 2} y="168" width="66" height="2" rx="1" fill="#fff" opacity="0.12" />
+                    </g>
+                ))}
+
+                <!-- Colon: two small neon bulbs -->
+                {[94, 134].map(cy => (
+                    <g>
+                        <rect x="163" y={cy - 9} width="14" height="18" rx="7" fill="url(#tf-glass)" stroke="url(#tf-glass-edge)" stroke-width="0.8" />
+                        <circle cx="170" cy={cy} r="3.4" fill="#4a3a2c" />
+                    </g>
+                ))}
+                <g fill="#ffb066" filter="url(#tf-neon)" x-bind:opacity="!$store.pomoState.isRunning || $store.pomoState.timeLeft % 2 ? 1 : 0.1">
+                    <circle cx="170" cy="94" r="3.4" />
+                    <circle cx="170" cy="134" r="3.4" />
+                </g>
+
+                <g font-size="8" font-weight="700" letter-spacing="2.5" text-anchor="middle" font-family="ui-monospace, monospace">
+                    <text x="85" y="211" fill="#f0d9b5" x-bind:opacity="$store.pomoState.isBreak ? 0.3 : 0.95">FOCUS</text>
+                    <text x="255" y="211" fill="#f0d9b5" x-bind:opacity="$store.pomoState.isBreak ? 0.95 : 0.3">BREAK</text>
+                    <circle cx="57" cy="208" r="2.2" fill="#ff8a2a" filter="url(#tf-neon)" x-show="!$store.pomoState.isBreak" />
+                    <circle cx="227" cy="208" r="2.2" fill="#ff8a2a" filter="url(#tf-neon)" x-show="$store.pomoState.isBreak" />
+                </g>
+            </svg>
+        </div>
+    </template>
+
+    <!-- Flip clock: split-flap cards for minutes and seconds -->
+    <template x-if="$store.settings.timerStyle === 'flip'">
+        <div class="flex items-start gap-3" aria-hidden="true">
+            <div class="flex flex-col items-center gap-2">
+                <div class="tf-flip-card" x-data="flipCard" x-effect="flipTo($store.pomoState.digits.slice(0, 2))">
+                    <div class="tf-flip-half tf-flip-top"><span x-text="current"></span></div>
+                    <div class="tf-flip-half tf-flip-bottom"><span x-text="flipping ? previous : current"></span></div>
+                    <div class="tf-flip-half tf-flip-top tf-flap tf-flap-top"><span x-text="previous"></span></div>
+                    <div class="tf-flip-half tf-flip-bottom tf-flap tf-flap-bottom"><span x-text="current"></span></div>
+                </div>
+                <span class="text-xs font-semibold tracking-widest text-gray-500 dark:text-gray-400">MIN</span>
+            </div>
+            <div class="flex flex-col items-center gap-2">
+                <div class="tf-flip-card" x-data="flipCard" x-effect="flipTo($store.pomoState.digits.slice(2))">
+                    <div class="tf-flip-half tf-flip-top"><span x-text="current"></span></div>
+                    <div class="tf-flip-half tf-flip-bottom"><span x-text="flipping ? previous : current"></span></div>
+                    <div class="tf-flip-half tf-flip-top tf-flap tf-flap-top"><span x-text="previous"></span></div>
+                    <div class="tf-flip-half tf-flip-bottom tf-flap tf-flap-bottom"><span x-text="current"></span></div>
+                </div>
+                <span class="text-xs font-semibold tracking-widest text-gray-500 dark:text-gray-400">SEC</span>
+            </div>
+        </div>
+    </template>
+
+    <!-- Hourglass: the top bulb drains as time runs out, the pile below grows, a thin stream falls while running -->
+    <template x-if="$store.settings.timerStyle === 'hourglass'">
+        <div
+            class="w-full max-w-[15rem]"
+            x-data="{
+                get left() { const pomo = this.$store.pomoState; return pomo.totalTime ? pomo.timeLeft / pomo.totalTime : 1; },
+                get pile() { return (1 - this.left) * 100; }
+            }"
+        >
+            <svg viewBox="0 0 240 300" class="w-full h-auto stroke-none" aria-hidden="true">
+                <defs>
+                    <linearGradient id="tf-sand" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0" stop-color="#f4cf87" />
+                        <stop offset="1" stop-color="#d8983b" />
+                    </linearGradient>
+                    <linearGradient id="tf-hg-wood" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0" stop-color="#9a6237" />
+                        <stop offset="1" stop-color="#5b3519" />
+                    </linearGradient>
+                    <clipPath id="tf-hg-top"><path d="M60 40 H180 C180 95 132 120 124 150 H116 C108 120 60 95 60 40 Z" /></clipPath>
+                    <clipPath id="tf-hg-bottom"><path d="M116 150 H124 C132 180 180 205 180 260 H60 C60 205 108 180 116 150 Z" /></clipPath>
+                </defs>
+                <ellipse cx="120" cy="288" rx="90" ry="7" fill="#000" opacity="0.12" />
+
+                <!-- Sand left in the top bulb, its surface dipping toward the neck -->
+                <g clip-path="url(#tf-hg-top)">
+                    <path fill="url(#tf-sand)" x-bind:d="`M60 ${150 - left * 104} Q120 ${158 - left * 104} 180 ${150 - left * 104} V150 H60 Z`" />
+                </g>
+                <!-- The pile below -->
+                <g clip-path="url(#tf-hg-bottom)">
+                    <path fill="url(#tf-sand)" x-bind:d="`M60 258 L60 ${258 - pile * 0.5} Q120 ${258 - pile * 1.1} 180 ${258 - pile * 0.5} L180 258 Z`" />
+                </g>
+                <line
+                    x1="120" y1="148" x2="120" x-bind:y2="258 - pile * 1.05"
+                    stroke="#e0a64c" stroke-width="2" stroke-dasharray="3 3" class="tf-sand-stream"
+                    x-show="$store.pomoState.isRunning && left > 0"
+                />
+
+                <!-- Glass, with a highlight down the left side -->
+                <path d="M60 40 H180 C180 95 132 120 124 150 C132 180 180 205 180 260 H60 C60 205 108 180 116 150 C108 120 60 95 60 40 Z" fill="#fff" fill-opacity="0.08" stroke="#cbd5e1" stroke-opacity="0.7" stroke-width="2" />
+                <path d="M72 52 C74 90 98 112 110 140 M110 160 C98 188 74 210 72 248" fill="none" stroke="#fff" stroke-opacity="0.5" stroke-width="3" stroke-linecap="round" />
+
+                <!-- Frame: two caps and two posts -->
+                <rect x="40" y="22" width="160" height="18" rx="6" fill="url(#tf-hg-wood)" />
+                <rect x="40" y="260" width="160" height="18" rx="6" fill="url(#tf-hg-wood)" />
+                <rect x="46" y="40" width="8" height="220" rx="3" fill="url(#tf-hg-wood)" />
+                <rect x="186" y="40" width="8" height="220" rx="3" fill="url(#tf-hg-wood)" />
+                <rect x="44" y="25" width="152" height="3" rx="1.5" fill="#fff" opacity="0.2" />
+            </svg>
+            <p class="-mt-1 text-center text-2xl font-mono font-bold text-gray-800 dark:text-white" x-text="`${$store.pomoState.digits.slice(0, 2)}:${$store.pomoState.digits.slice(2)}`"></p>
+        </div>
+    </template>
+
+    <!-- Bloom: a seedling grows with the session, leaves unfurling along the way, a flower opening at the end.
+         During a break it stands in full bloom. -->
+    <template x-if="$store.settings.timerStyle === 'bloom'">
+        <div
+            class="w-full max-w-[16rem]"
+            x-data="{
+                get grown() { const pomo = this.$store.pomoState; return pomo.isBreak ? 1 : pomo.percentComplete / 100; }
+            }"
+        >
+            <svg viewBox="0 0 260 300" class="w-full h-auto stroke-none" aria-hidden="true">
+                <circle cx="130" cy="160" r="118" fill="currentColor" class="text-teal-500/10 dark:text-teal-400/10" />
+
+                <g class="tf-plant" x-bind:class="$store.pomoState.isRunning && 'tf-plant-sway'">
+                    <path
+                        d="M130 232 C126 205 136 180 130 152 C124 124 134 104 130 84"
+                        pathLength="100" stroke-dasharray="100" x-bind:stroke-dashoffset="100 - grown * 100"
+                        fill="none" stroke="#4d7c0f" stroke-width="5" stroke-linecap="round" class="tf-stem"
+                    />
+                    <!-- Leaves along the stem, each unfurling once the stem passes it -->
+                    <g transform="translate(128 210) rotate(-155)"><g class="tf-leaf" x-bind:class="grown >= 0.22 && 'tf-grown'"><ellipse cx="17" cy="0" rx="17" ry="7" fill="#65a30d" /><path d="M2 0 H30" stroke="#4d7c0f" stroke-width="1.2" /></g></g>
+                    <g transform="translate(133 181) rotate(-25)"><g class="tf-leaf" x-bind:class="grown >= 0.42 && 'tf-grown'"><ellipse cx="18" cy="0" rx="18" ry="7.5" fill="#84cc16" /><path d="M2 0 H32" stroke="#4d7c0f" stroke-width="1.2" /></g></g>
+                    <g transform="translate(130 152) rotate(-150)"><g class="tf-leaf" x-bind:class="grown >= 0.6 && 'tf-grown'"><ellipse cx="15" cy="0" rx="15" ry="6.5" fill="#65a30d" /><path d="M2 0 H27" stroke="#4d7c0f" stroke-width="1.2" /></g></g>
+                    <g transform="translate(127 124) rotate(-30)"><g class="tf-leaf" x-bind:class="grown >= 0.76 && 'tf-grown'"><ellipse cx="13" cy="0" rx="13" ry="5.5" fill="#84cc16" /><path d="M2 0 H23" stroke="#4d7c0f" stroke-width="1.2" /></g></g>
+                    <!-- Bud, then the flower -->
+                    <g class="tf-bloom" x-bind:class="grown >= 0.88 && grown < 0.98 && 'tf-grown'">
+                        <ellipse cx="130" cy="80" rx="8" ry="12" fill="#65a30d" />
+                        <path d="M125 74 Q130 64 135 74" fill="#f472b6" />
+                    </g>
+                    <g class="tf-bloom" x-bind:class="grown >= 0.98 && 'tf-grown'">
+                        <ellipse cx="130" cy="64" rx="9" ry="17" fill="#f472b6" />
+                        <ellipse cx="130" cy="64" rx="9" ry="17" fill="#f9a8d4" transform="rotate(60 130 81)" />
+                        <ellipse cx="130" cy="64" rx="9" ry="17" fill="#f472b6" transform="rotate(120 130 81)" />
+                        <ellipse cx="130" cy="64" rx="9" ry="17" fill="#f9a8d4" transform="rotate(180 130 81)" />
+                        <ellipse cx="130" cy="64" rx="9" ry="17" fill="#f472b6" transform="rotate(240 130 81)" />
+                        <ellipse cx="130" cy="64" rx="9" ry="17" fill="#f9a8d4" transform="rotate(300 130 81)" />
+                        <circle cx="130" cy="81" r="8" fill="#fde047" />
+                    </g>
+                </g>
+
+                <!-- Pot -->
+                <ellipse cx="130" cy="232" rx="40" ry="6" fill="#4a2f1d" />
+                <path d="M92 236 H168 L159 286 H101 Z" fill="#c2410c" />
+                <rect x="84" y="224" width="92" height="14" rx="4" fill="#ea580c" />
+                <rect x="88" y="226" width="84" height="3" rx="1.5" fill="#fff" opacity="0.25" />
+            </svg>
+            <p class="-mt-1 text-center text-2xl font-mono font-bold text-gray-800 dark:text-white" x-text="`${$store.pomoState.digits.slice(0, 2)}:${$store.pomoState.digits.slice(2)}`"></p>
+        </div>
+    </template>
+
+    <div class="mt-3 text-md font-medium text-gray-600 dark:text-gray-300" x-text="$store.pomoState.currentPresetName"></div>
+</div>
+
+<style is:global>
+    /* Chess clock buttons: the running side's button is up */
+    .tf-plunger { transition: transform 0.2s ease; }
+    .tf-plunger-down { transform: translateY(14px); }
+
+    /* Cat: calico coat colors, light then dark */
+    .tf-cat {
+        --cat-base: #ffffff;
+        --cat-edge: #d6d3d1;
+        --cat-orange: #f59e0b;
+        --cat-stripe: #d97706;
+        --cat-black: #1f2937;
+        --cat-black-edge: #1f2937;
+        --cat-nose: #f9a8d4;
+    }
+    .dark .tf-cat {
+        --cat-base: #f1ede4;
+        --cat-edge: #cfc9bd;
+        --cat-orange: #fbbf24;
+        --cat-stripe: #f59e0b;
+        --cat-black: #111827;
+        --cat-black-edge: #374151;
+        --cat-nose: #f472b6;
+    }
+    .tf-cat-base { fill: var(--cat-base); stroke: var(--cat-edge); stroke-width: 2; }
+    .tf-cat-orange { fill: var(--cat-orange); stroke: none; }
+    .tf-cat-black { fill: var(--cat-black); stroke: var(--cat-black-edge); stroke-width: 1.5; }
+    .tf-cat-nose { fill: var(--cat-nose); stroke: var(--cat-nose); }
+    .tf-cat-stripe { stroke: var(--cat-stripe); }
+    .tf-cat-line-edge { stroke: var(--cat-edge); }
+    .tf-cat-line-base { stroke: var(--cat-base); }
+    .tf-cat-line-orange { stroke: var(--cat-orange); }
+    .tf-cat-line-black { stroke: var(--cat-black); }
+    .tf-tail { transform-box: view-box; transform-origin: 200px 272px; }
+    .tf-tail-swing { animation: tf-tail 2s ease-in-out infinite; }
+    @keyframes tf-tail {
+        0%, 100% { transform: rotate(-9deg); }
+        50% { transform: rotate(9deg); }
+    }
+    .tf-pupils { transition: transform 0.35s ease-in-out; }
+    .tf-zzz { animation: tf-zzz 2s ease-in-out infinite; }
+    @keyframes tf-zzz {
+        0%, 100% { opacity: 0.2; transform: translateY(4px); }
+        50% { opacity: 1; transform: translateY(-2px); }
+    }
+
+    /* Nixie: a slight flicker in the neon */
+    .tf-nixie-lit { animation: tf-flicker 4s steps(1) infinite; }
+    @keyframes tf-flicker {
+        0%, 100% { opacity: 1; }
+        47% { opacity: 0.92; }
+        48% { opacity: 1; }
+    }
+
+    /* Flip clock. The card is two halves; on a change the top flap falls, then the bottom flap lands. */
+    .tf-flip-card {
+        --w: min(8.5rem, 36vw);
+        position: relative;
+        width: var(--w);
+        height: calc(var(--w) * 1.1);
+        perspective: 500px;
+        font: 700 calc(var(--w) * 0.66) / 1 ui-sans-serif, system-ui, sans-serif;
+        font-variant-numeric: tabular-nums;
+        color: #f4f4f5;
+        border-radius: 0.75rem;
+        box-shadow: 0 10px 20px -8px rgb(0 0 0 / 0.45);
+    }
+    .tf-flip-half {
+        position: absolute;
+        left: 0;
+        right: 0;
+        height: 50%;
+        overflow: hidden;
+        backface-visibility: hidden;
+    }
+    .tf-flip-half span {
+        display: block;
+        height: calc(var(--w) * 1.1);
+        line-height: calc(var(--w) * 1.1);
+        text-align: center;
+    }
+    .tf-flip-top {
+        top: 0;
+        background: #2b2f36;
+        border-radius: 0.75rem 0.75rem 0 0;
+        border-bottom: 1px solid #0f1115;
+        transform-origin: bottom;
+    }
+    .tf-flip-bottom {
+        bottom: 0;
+        background: #24272d;
+        border-radius: 0 0 0.75rem 0.75rem;
+        transform-origin: top;
+    }
+    .tf-flip-bottom span { transform: translateY(-50%); }
+    .tf-flap { display: none; }
+    .tf-flipping .tf-flap { display: block; }
+    .tf-flap-top { z-index: 2; animation: tf-flap-top 0.3s ease-in forwards; }
+    .tf-flap-bottom { z-index: 2; transform: rotateX(90deg); animation: tf-flap-bottom 0.3s ease-out 0.3s forwards; }
+    @keyframes tf-flap-top { to { transform: rotateX(-90deg); } }
+    @keyframes tf-flap-bottom { to { transform: rotateX(0deg); } }
+
+    /* Hourglass: the falling stream of sand */
+    .tf-sand-stream { animation: tf-stream 0.5s linear infinite; }
+    @keyframes tf-stream { to { stroke-dashoffset: -6; } }
+
+    /* Bloom: the stem grows smoothly, leaves and petals spring open, the plant sways while running */
+    .tf-stem { transition: stroke-dashoffset 1s linear; }
+    .tf-leaf, .tf-bloom {
+        transform: scale(0);
+        transform-box: fill-box;
+        transition: transform 0.9s cubic-bezier(0.34, 1.4, 0.64, 1);
+    }
+    .tf-leaf { transform-origin: left center; }
+    .tf-bloom { transform-origin: center; }
+    .tf-grown { transform: scale(1); }
+    .tf-plant { transform-box: view-box; transform-origin: 130px 232px; }
+    .tf-plant-sway { animation: tf-plant-sway 6s ease-in-out infinite; }
+    @keyframes tf-plant-sway {
+        0%, 100% { transform: rotate(-1.5deg); }
+        50% { transform: rotate(1.5deg); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .tf-tail-swing, .tf-zzz, .tf-nixie-lit, .tf-flap-top, .tf-flap-bottom, .tf-sand-stream, .tf-plant-sway { animation: none; }
+        .tf-flipping .tf-flap { display: none; }
+    }
+</style>

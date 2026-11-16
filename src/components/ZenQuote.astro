@@ -1,0 +1,95 @@
+---
+// A calming quote under Zen mode. It changes whenever a task is completed,
+// anywhere in the app. Turn it off in Settings.
+// With a Zen background chosen, the scene runs behind the quote, which sits on a frosted
+// panel strong enough to keep the text readable over every scene in light and dark mode.
+---
+
+<section
+    x-data="zenQuote"
+    x-show="$store.settings.showQuotes"
+    x-cloak
+    class="relative overflow-hidden isolate px-6 py-8 sm:px-10 sm:py-10 text-center"
+    x-bind:class="$store.settings.zenBackground === 'none'
+        ? 'w-full max-w-4xl mx-auto mt-6 rounded-2xl bg-white/80 dark:bg-slate-800/70 backdrop-blur-sm shadow-sm ring-1 ring-black/5 dark:ring-white/10'
+        : 'mx-6 mb-6 rounded-lg bg-white/80 dark:bg-slate-900/75 backdrop-blur-md shadow-inner'"
+    aria-label="Quote"
+>
+    <!-- Soft accent glow -->
+    <span class="absolute -z-10 left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 w-72 h-40 rounded-full bg-teal-400/15 blur-3xl" aria-hidden="true"></span>
+
+    <svg class="mx-auto w-8 h-8 text-teal-500/60 dark:text-teal-400/50" viewBox="0 0 24 24" aria-hidden="true">
+        <path stroke="none" fill="currentColor" d="M9.6 6C6.5 7.3 4.5 10 4.5 13.4V18h5.7v-5.7H7.3c.1-2 1.3-3.6 3.2-4.5L9.6 6zm9.4 0c-3.1 1.3-5.1 4-5.1 7.4V18h5.7v-5.7h-2.9c.1-2 1.3-3.6 3.2-4.5L19 6z" />
+    </svg>
+
+    <!-- Fades with opacity only, so the card (and the footer below it) never loses its height mid-swap -->
+    <figure
+        x-ref="figure"
+        x-bind:class="visible ? 'opacity-100 translate-y-0 duration-500 ease-out' : 'opacity-0 translate-y-2 duration-200 ease-in'"
+        class="mt-4 transition-[opacity,transform,height]"
+        aria-live="polite"
+    >
+        <blockquote class="text-xl sm:text-2xl font-medium leading-relaxed tracking-tight text-gray-800 dark:text-gray-100 text-balance" x-text="quote.text"></blockquote>
+        <figcaption x-show="quote.author" class="mt-3 text-sm font-medium text-teal-700 dark:text-teal-400" x-text="quote.author ? `— ${quote.author}` : ''"></figcaption>
+    </figure>
+
+    <button
+        type="button"
+        x-on:click="next()"
+        class="mt-6 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-900/5 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-white/5 transition-colors"
+    >
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+        Another quote
+    </button>
+</section>
+
+<script>
+    import { QUOTES } from '../lib/quotes';
+
+    const INDEX_KEY = 'quoteIndex';
+
+    document.addEventListener('alpine:init', () => {
+        window.Alpine.data('zenQuote', () => ({
+            index: Number(localStorage.getItem(INDEX_KEY)) % QUOTES.length || 0,
+            visible: true,
+
+            init() {
+                // A new quote each time the number of completed tasks goes up
+                this.$watch('completedCount', (count, previous) => {
+                    if (count > previous) this.next();
+                });
+            },
+
+            get completedCount() {
+                return this.$store.todos.items.filter(item => item.completed).length;
+            },
+
+            get quote() {
+                return QUOTES[this.index];
+            },
+
+            // Fade out, swap to a different random quote, ease to its height, fade back in
+            next() {
+                let index = this.index;
+                while (index === this.index) index = Math.floor(Math.random() * QUOTES.length);
+                this.visible = false;
+                setTimeout(() => {
+                    const figure = this.$refs.figure;
+                    const from = figure.offsetHeight;
+                    this.index = index;
+                    localStorage.setItem(INDEX_KEY, String(index));
+                    this.$nextTick(() => {
+                        const to = figure.offsetHeight;
+                        if (to !== from && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                            figure.style.height = `${from}px`;
+                            figure.offsetHeight; // Commit the old height so the change animates
+                            figure.style.height = `${to}px`;
+                            setTimeout(() => { figure.style.height = ''; }, 500);
+                        }
+                        this.visible = true;
+                    });
+                }, 220);
+            }
+        }));
+    });
+</script>

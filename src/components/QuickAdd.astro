@@ -1,0 +1,246 @@
+---
+// Quick add: a window for creating a task or cluster from any tab, opened with the
+// top bar's New button, the N key, or the "open-quick-add" window event
+// (detail: { mode: 'task' | 'cluster', text?, parentId? }).
+// New items are scrolled into view and highlighted when they are on screen.
+const field = 'block w-full rounded-lg border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 dark:text-white text-sm focus:border-teal-500 focus:ring-teal-500';
+const fieldLabel = 'block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1';
+---
+
+<div x-data="quickAdd" x-on:open-quick-add.window="show($event.detail)" x-on:keydown.window="shortcut($event)">
+    <!-- Backdrop -->
+    <div
+        x-show="open"
+        x-cloak
+        x-transition.opacity.duration.150ms
+        x-on:click="open = false"
+        class="fixed inset-0 z-50 bg-slate-900/30 backdrop-blur-sm"
+        aria-hidden="true"
+    ></div>
+
+    <!-- Window -->
+    <div
+        x-show="open"
+        x-cloak
+        x-transition:enter="transition ease-out duration-200"
+        x-transition:enter-start="opacity-0 scale-95 -translate-y-2"
+        x-transition:enter-end="opacity-100 scale-100 translate-y-0"
+        x-transition:leave="transition ease-in duration-100"
+        x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0"
+        x-on:keydown.escape.stop="open = false"
+        class="fixed z-50 left-1/2 top-[12vh] -translate-x-1/2 w-[calc(100%-2rem)] max-w-lg rounded-2xl bg-white dark:bg-slate-900 shadow-2xl ring-1 ring-black/5 dark:ring-white/10"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="quick-add-title"
+    >
+        <form x-on:submit.prevent="create()" class="p-5 space-y-4">
+            <div class="flex items-center justify-between gap-3">
+                <h2 id="quick-add-title" class="text-base font-semibold text-gray-900 dark:text-white" x-text="mode === 'task' ? 'New task' : 'New cluster'"></h2>
+                <div class="inline-flex p-1 rounded-xl bg-gray-900/[0.04] dark:bg-white/[0.06] ring-1 ring-black/5 dark:ring-white/10" role="group" aria-label="What to add">
+                    <template x-for="option in [{ id: 'task', label: 'Task' }, { id: 'cluster', label: 'Cluster' }]" :key="option.id">
+                        <button
+                            type="button"
+                            x-on:click="mode = option.id; $nextTick(() => $refs.name.focus())"
+                            class="px-3 py-1 rounded-lg text-sm font-medium transition-all"
+                            x-bind:class="mode === option.id
+                                ? 'bg-white text-gray-900 shadow-sm ring-1 ring-black/5 dark:bg-white/[0.14] dark:text-white dark:ring-white/10'
+                                : 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200'"
+                            x-bind:aria-pressed="mode === option.id"
+                            x-text="option.label"
+                        ></button>
+                    </template>
+                </div>
+            </div>
+
+            <div>
+                <label for="quick-add-name" class="sr-only" x-text="mode === 'task' ? 'Task name' : 'Cluster name'"></label>
+                <input
+                    id="quick-add-name"
+                    name="quick-add-name"
+                    type="text"
+                    x-ref="name"
+                    x-model="name"
+                    autocomplete="off"
+                    x-bind:placeholder="mode === 'task' ? 'What needs doing?' : 'Name the cluster, for example a class'"
+                    class="block w-full px-0 text-lg font-medium bg-transparent border-none focus:ring-0 text-gray-900 dark:text-white placeholder-gray-400"
+                />
+            </div>
+
+            <!-- Task details -->
+            <div x-show="mode === 'task'" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                    <label for="quick-add-cluster" class={fieldLabel}>Cluster</label>
+                    <select id="quick-add-cluster" name="quick-add-cluster" x-model="parentId" class={field}>
+                        <option value="">No cluster</option>
+                        <template x-for="cluster in $store.todos.clusters" :key="cluster.id">
+                            <option x-bind:value="cluster.id" x-text="cluster.todo" x-bind:selected="cluster.id === parentId"></option>
+                        </template>
+                    </select>
+                </div>
+                <div>
+                    <label for="quick-add-due" class={fieldLabel}>Due date</label>
+                    <input id="quick-add-due" name="quick-add-due" type="date" x-model="dueDate" class={field} />
+                </div>
+                <label class="sm:col-span-2 flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+                    <input type="checkbox" name="quick-add-start" x-model="startNow" class="w-4 h-4 rounded border-gray-300 dark:border-slate-500 text-teal-600 focus:ring-teal-500 dark:bg-slate-700" />
+                    Start it now (puts it in the board's In progress column)
+                </label>
+            </div>
+
+            <!-- Cluster color -->
+            <div x-show="mode === 'cluster'">
+                <p class={fieldLabel}>Color</p>
+                <div class="flex flex-wrap gap-2" role="group" aria-label="Cluster color">
+                    <template x-for="swatch in $store.todos.palette" :key="swatch">
+                        <button
+                            type="button"
+                            x-on:click="color = swatch"
+                            class="w-7 h-7 rounded-full ring-offset-2 ring-offset-white dark:ring-offset-slate-900 hover:scale-110 transition-transform"
+                            x-bind:class="[
+                                color === swatch ? 'ring-2 ring-gray-500 dark:ring-gray-300' : '',
+                                $store.todos.colorTaken(swatch, '') ? 'opacity-35' : ''
+                            ]"
+                            x-bind:style="`background-color: var(--c-${swatch});`"
+                            x-bind:aria-label="$store.todos.colorTaken(swatch, '') ? `${swatch}, already used` : swatch"
+                            x-bind:aria-pressed="color === swatch"
+                        ></button>
+                    </template>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-between gap-3 pt-1">
+                <p class="hidden sm:block text-xs text-gray-400 dark:text-gray-500">
+                    <kbd class="px-1.5 py-0.5 rounded border border-gray-200 dark:border-slate-700 font-sans">Enter</kbd> to add,
+                    <kbd class="px-1.5 py-0.5 rounded border border-gray-200 dark:border-slate-700 font-sans">Esc</kbd> to close
+                </p>
+                <div class="flex gap-2 ml-auto">
+                    <button type="button" x-on:click="open = false" class="px-3 py-2 text-sm font-medium rounded-lg text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-slate-800">Cancel</button>
+                    <button
+                        type="submit"
+                        x-bind:disabled="!name.trim() && mode === 'task'"
+                        class="px-4 py-2 text-sm font-medium rounded-lg bg-teal-600 text-white hover:bg-teal-700 shadow-sm disabled:opacity-50 disabled:pointer-events-none"
+                        x-text="mode === 'task' ? 'Add task' : 'Add cluster'"
+                    ></button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Confirmation -->
+    <div
+        x-show="toast"
+        x-cloak
+        x-transition.opacity.duration.200ms
+        class="fixed z-50 bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 pl-4 pr-2 py-2 rounded-full bg-gray-900 text-white dark:bg-white dark:text-slate-900 shadow-lg text-sm"
+        role="status"
+    >
+        <svg class="w-4 h-4 text-teal-400 dark:text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" /></svg>
+        <span x-text="toast"></span>
+        <button type="button" x-on:click="reveal(lastId, true)" class="ml-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-white/15 hover:bg-white/25 dark:bg-slate-900/10 dark:hover:bg-slate-900/20">Show</button>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('alpine:init', () => {
+        window.Alpine.data('quickAdd', () => ({
+            open: false,
+            mode: 'task',
+            name: '',
+            parentId: '',
+            dueDate: '',
+            startNow: false,
+            color: '',
+            toast: '',
+            lastId: null,
+            toastTimer: null,
+
+            show(detail = {}) {
+                this.mode = detail.mode === 'cluster' ? 'cluster' : 'task';
+                this.name = detail.text ?? '';
+                this.parentId = detail.parentId ?? '';
+                this.dueDate = '';
+                this.startNow = false;
+                this.color = this.$store.todos.nextClusterColor();
+                this.open = true;
+                this.$nextTick(() => this.$refs.name.focus());
+            },
+
+            // N opens the window, unless the user is typing somewhere
+            shortcut(event) {
+                if (this.open || event.key.toLowerCase() !== 'n' || event.metaKey || event.ctrlKey || event.altKey) return;
+                if (event.target.closest('input, textarea, select, [contenteditable]')) return;
+                event.preventDefault();
+                this.show();
+            },
+
+            create() {
+                const name = this.name.trim();
+                const todos = this.$store.todos;
+                let id;
+                if (this.mode === 'cluster') {
+                    id = todos.createCluster(name);
+                    todos.setClusterColor(id, this.color);
+                } else {
+                    if (!name) return;
+                    id = todos.addTodo(name, {
+                        parentId: this.parentId || null,
+                        dueDate: this.dueDate || null,
+                        ...(this.startNow ? { startedAt: new Date().toISOString() } : {})
+                    });
+                }
+                this.open = false;
+                this.lastId = id;
+                const where = this.mode === 'task' && this.parentId ? ` to ${todos.clusterName(this.parentId)}` : '';
+                // The new row renders on the next tick
+                this.$nextTick(() => {
+                    if (!this.reveal(id)) this.notify(`Added “${todos.find(id).todo}”${where}`);
+                });
+            },
+
+            // Scrolls the new item into view and highlights it. Returns false when it isn't on screen.
+            // With goThere, switches to the Task Manager first.
+            reveal(id, goThere = false) {
+                if (!id) return false;
+                if (goThere) {
+                    this.toast = '';
+                    this.$dispatch('change-tab', { tab: 'taskmanager' });
+                }
+                const find = () => document.getElementById(`item-${id}`);
+                const highlight = (element) => {
+                    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    element.classList.remove('just-added');
+                    void element.offsetWidth;
+                    element.classList.add('just-added');
+                    // A new cluster is ready to rename straight away
+                    if (this.$store.todos.find(id)?.isCluster) element.querySelector('input[name="cluster-name"]')?.select();
+                };
+                const element = find();
+                if (element?.offsetParent) {
+                    highlight(element);
+                    return true;
+                }
+                if (goThere) setTimeout(() => { const later = find(); if (later) highlight(later); }, 350);
+                return false;
+            },
+
+            notify(message) {
+                this.toast = message;
+                clearTimeout(this.toastTimer);
+                this.toastTimer = setTimeout(() => { this.toast = ''; }, 4000);
+            }
+        }));
+    });
+</script>
+
+<style is:global>
+    /* A task or cluster that was just added glows briefly */
+    .just-added {
+        animation: just-added 1.6s ease-out;
+    }
+
+    @keyframes just-added {
+        0%, 30% { box-shadow: 0 0 0 3px rgb(var(--accent-400) / 0.6); }
+        100% { box-shadow: 0 0 0 3px rgb(var(--accent-400) / 0); }
+    }
+</style>

@@ -1,0 +1,214 @@
+---
+// Send feedback: a short form that opens the person's email app with the message filled in,
+// addressed to feedbackEmail in src/data/site.json. Open it with the "open-feedback" window event.
+// While feedbackEmail is empty, the form copies the message instead so nothing is lost.
+import data from '../data/site.json';
+
+const segmented = 'inline-flex flex-wrap p-1 rounded-xl bg-gray-900/[0.04] dark:bg-white/[0.06] ring-1 ring-black/5 dark:ring-white/10';
+const segment = 'px-3 py-1.5 rounded-lg text-sm font-medium transition-all';
+const segmentOn = 'bg-white text-gray-900 shadow-sm ring-1 ring-black/5 dark:bg-white/[0.14] dark:text-white dark:ring-white/10';
+const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200';
+---
+
+<div
+    x-data="feedback"
+    data-email={data.feedbackEmail}
+    x-on:open-feedback.window="open()"
+    x-on:keydown.escape.window="isOpen && close()"
+>
+    <div x-show="isOpen" x-cloak x-transition.opacity.duration.200ms class="fixed inset-0 z-[55] bg-slate-900/40 backdrop-blur-sm" x-on:click="close()" aria-hidden="true"></div>
+
+    <div
+        x-show="isOpen"
+        x-cloak
+        x-transition:enter="transition ease-out duration-200"
+        x-transition:enter-start="opacity-0 translate-y-3 scale-[0.98]"
+        x-transition:enter-end="opacity-100 translate-y-0 scale-100"
+        class="fixed z-[56] inset-x-3 bottom-3 sm:inset-x-auto sm:bottom-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:w-[28rem] max-h-[calc(100vh-1.5rem)] overflow-y-auto rounded-2xl bg-white dark:bg-slate-900 shadow-2xl ring-1 ring-black/5 dark:ring-white/10"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="feedback-title"
+    >
+        <!-- Form -->
+        <form x-show="!sent" x-on:submit.prevent="submit()" class="p-6 space-y-5">
+            <div class="flex items-start justify-between gap-4">
+                <div>
+                    <h2 id="feedback-title" class="text-lg font-semibold text-gray-900 dark:text-white">Send feedback</h2>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Ideas, bugs, and kind words all help shape Zen Frame.</p>
+                </div>
+                <button type="button" x-ref="close" x-on:click="close()" class="p-2 -m-2 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:hover:text-gray-200 dark:hover:bg-slate-800" aria-label="Close feedback">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+
+            <div>
+                <p class="block text-sm font-medium text-gray-900 dark:text-white mb-2">What kind of feedback?</p>
+                <div class={segmented} role="group" aria-label="Kind of feedback">
+                    <template x-for="option in kinds" :key="option.id">
+                        <button
+                            type="button"
+                            x-on:click="kind = option.id"
+                            class={segment}
+                            x-bind:class={`kind === option.id ? '${segmentOn}' : '${segmentOff}'`}
+                            x-bind:aria-pressed="kind === option.id"
+                            x-text="option.label"
+                        ></button>
+                    </template>
+                </div>
+            </div>
+
+            <div>
+                <p class="block text-sm font-medium text-gray-900 dark:text-white mb-2">How's Zen Frame working for you?</p>
+                <div class="flex gap-1.5" role="radiogroup" aria-label="Rating from 1 to 5">
+                    <template x-for="n in [1, 2, 3, 4, 5]" :key="n">
+                        <button
+                            type="button"
+                            role="radio"
+                            x-on:click="rating = rating === n ? 0 : n"
+                            x-bind:aria-checked="rating === n"
+                            x-bind:aria-label="`${n} out of 5, ${ratingWords[n]}`"
+                            x-bind:title="ratingWords[n]"
+                            class="p-1 rounded-md transition-transform hover:scale-110"
+                        >
+                            <svg class="w-7 h-7 transition-colors" viewBox="0 0 24 24" aria-hidden="true" x-bind:class="n <= rating ? 'text-amber-400' : 'text-gray-300 dark:text-slate-600'">
+                                <path fill="currentColor" stroke="none" d="M11.48 3.5a.56.56 0 011.04 0l2.13 5.11a.56.56 0 00.47.35l5.52.44c.5.04.7.66.32.99l-4.2 3.6a.56.56 0 00-.18.56l1.28 5.39a.56.56 0 01-.84.61l-4.72-2.89a.56.56 0 00-.59 0L6.98 20.54a.56.56 0 01-.84-.61l1.29-5.39a.56.56 0 00-.18-.56l-4.2-3.6a.56.56 0 01.32-.99l5.52-.44a.56.56 0 00.47-.35L11.48 3.5z" />
+                            </svg>
+                        </button>
+                    </template>
+                    <span class="self-center ml-2 text-sm text-gray-500 dark:text-gray-400" x-text="ratingWords[rating]"></span>
+                </div>
+            </div>
+
+            <div>
+                <label for="feedback-message" class="block text-sm font-medium text-gray-900 dark:text-white mb-2" x-text="kinds.find(option => option.id === kind).prompt"></label>
+                <textarea
+                    id="feedback-message"
+                    x-ref="message"
+                    x-model="message"
+                    rows="5"
+                    required
+                    maxlength="4000"
+                    class="block w-full rounded-lg border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 dark:text-white text-sm focus:border-teal-500 focus:ring-teal-500"
+                ></textarea>
+            </div>
+
+            <label class="flex items-start gap-3 cursor-pointer">
+                <input type="checkbox" x-model="includeDetails" class="mt-0.5 w-4 h-4 rounded border-gray-300 dark:border-slate-500 text-teal-600 focus:ring-teal-500 dark:bg-slate-700" />
+                <span>
+                    <span class="block text-sm font-medium text-gray-900 dark:text-white">Include app details</span>
+                    <span class="block text-xs text-gray-500 dark:text-gray-400">Browser, screen size, and the open tab. Never your tasks or notes.</span>
+                </span>
+            </label>
+
+            <p x-show="!email" class="text-xs rounded-lg px-3 py-2 bg-amber-50 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200">
+                No feedback address is set up yet, so this copies your message to paste wherever you like.
+            </p>
+
+            <div class="flex justify-end gap-2">
+                <button type="button" x-on:click="close()" class="px-4 py-2 text-sm font-medium rounded-lg text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-slate-800">Cancel</button>
+                <button
+                    type="submit"
+                    x-bind:disabled="!message.trim()"
+                    class="px-4 py-2 text-sm font-semibold rounded-lg bg-teal-600 text-white hover:bg-teal-700 shadow-sm disabled:opacity-40 disabled:pointer-events-none transition-colors"
+                    x-text="email ? 'Open in email' : 'Copy feedback'"
+                ></button>
+            </div>
+        </form>
+
+        <!-- Done -->
+        <div x-show="sent" class="p-8 text-center">
+            <span class="mx-auto grid place-items-center w-12 h-12 rounded-full bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" /></svg>
+            </span>
+            <h2 class="mt-4 text-lg font-semibold text-gray-900 dark:text-white">Thank you</h2>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400" x-text="email
+                ? 'Your email app should open with the message ready. Press send there to deliver it.'
+                : 'Your feedback is copied. Paste it into an email or message.'"></p>
+            <button type="button" x-on:click="close()" class="mt-6 px-4 py-2 text-sm font-semibold rounded-lg bg-teal-600 text-white hover:bg-teal-700">Done</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    import { loadJson, saveJson } from '../lib/storage';
+
+    const KINDS = [
+        { id: 'idea', label: 'Idea', prompt: 'What would make Zen Frame better?' },
+        { id: 'bug', label: 'Bug', prompt: 'What went wrong, and what did you expect?' },
+        { id: 'praise', label: 'Praise', prompt: 'What do you like?' },
+        { id: 'other', label: 'Other', prompt: 'What’s on your mind?' }
+    ];
+    const RATING_WORDS = ['', 'Not working for me', 'Needs work', 'It’s okay', 'Pretty good', 'Love it'];
+    // Sent feedback, kept on this device so it isn't lost if the email never goes out
+    const LOG_KEY = 'feedbackLog';
+
+    document.addEventListener('alpine:init', () => {
+        window.Alpine.data('feedback', () => ({
+            kinds: KINDS,
+            ratingWords: RATING_WORDS,
+            email: '',
+            isOpen: false,
+            sent: false,
+            kind: 'idea',
+            rating: 0,
+            message: '',
+            includeDetails: true,
+            returnFocus: null,
+
+            init() {
+                this.email = (this.$el.dataset.email || '').trim();
+            },
+
+            open() {
+                this.sent = false;
+                this.returnFocus = document.activeElement;
+                this.isOpen = true;
+                // After the open transition has made the field visible
+                setTimeout(() => this.$refs.message.focus(), 60);
+            },
+
+            close() {
+                this.isOpen = false;
+                this.returnFocus?.focus?.();
+            },
+
+            details() {
+                return [
+                    `Tab: ${localStorage.getItem('activeTab') || 'dashboard'}`,
+                    `Screen: ${window.innerWidth}×${window.innerHeight}`,
+                    `Theme: ${this.$store.theme.current}`,
+                    `Browser: ${navigator.userAgent}`
+                ].join('\n');
+            },
+
+            async submit() {
+                const message = this.message.trim();
+                if (!message) return;
+                const kindLabel = KINDS.find(option => option.id === this.kind).label;
+                const subject = `Zen Frame feedback: ${kindLabel}${this.rating ? ` (${this.rating}/5)` : ''}`;
+                const body = [
+                    message,
+                    this.rating ? `Rating: ${this.rating}/5, ${RATING_WORDS[this.rating]}` : '',
+                    this.includeDetails ? `--\n${this.details()}` : ''
+                ].filter(Boolean).join('\n\n');
+
+                const log = loadJson(LOG_KEY, []);
+                saveJson(LOG_KEY, [...log, { subject, body, at: new Date().toISOString() }].slice(-20));
+
+                if (this.email) {
+                    window.location.href = `mailto:${this.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+                } else {
+                    try {
+                        await navigator.clipboard.writeText(`${subject}\n\n${body}`);
+                    } catch (e) {
+                        window.dispatchEvent(new CustomEvent('app-toast', { detail: { title: 'Couldn’t copy', body: 'Your browser blocked the clipboard.' } }));
+                        return;
+                    }
+                }
+                this.sent = true;
+                this.message = '';
+                this.rating = 0;
+            }
+        }));
+    });
+</script>

@@ -1,0 +1,834 @@
+---
+// Moving scenes behind Zen mode, picked in Settings (zenBackground in settingsStore.ts).
+// Each is an SVG that fills the card and animates with SMIL, slowly enough not to pull focus.
+// Under reduced motion the scenes are drawn but paused. Only the chosen one is rendered (x-if).
+
+// A fixed seed, so the stars and swirls sit in the same places on every build
+let seed = 7;
+const random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+
+// Swirly night: stars, and spirals that turn slowly
+const stars = Array.from({ length: 70 }, () => ({
+    x: random() * 1000,
+    y: random() * 520,
+    r: 0.8 + random() * 1.6,
+    duration: 2.5 + random() * 4,
+    delay: -random() * 6
+}));
+const brightStars = [[140, 90], [470, 70], [700, 260], [930, 420], [60, 330], [380, 440], [560, 360], [250, 520]];
+const spiral = (cx: number, cy: number, radius: number, turns: number) => {
+    const steps = 140;
+    return Array.from({ length: steps + 1 }, (_, i) => {
+        const t = i / steps;
+        const angle = t * turns * Math.PI * 2;
+        return `${i ? 'L' : 'M'}${(cx + Math.cos(angle) * radius * t).toFixed(1)} ${(cy + Math.sin(angle) * radius * t).toFixed(1)}`;
+    }).join(' ');
+};
+const swirls = [
+    { cx: 300, cy: 240, radius: 170, turns: 2.6, duration: 440 },
+    { cx: 640, cy: 170, radius: 120, turns: 2.2, duration: 380 },
+    { cx: 850, cy: 330, radius: 95, turns: 2, duration: 320 }
+];
+// Three strands per spiral: light-mode color first, then dark
+const strands = [
+    { turn: 0, width: 7, class: 'stroke-[#4338ca] [stroke-opacity:0.26] dark:stroke-[#93c5fd] dark:[stroke-opacity:0.45]' },
+    { turn: 120, width: 4, class: 'stroke-[#6d7fe6] [stroke-opacity:0.24] dark:stroke-[#bfdbfe] dark:[stroke-opacity:0.3]' },
+    { turn: 240, width: 3, class: 'stroke-[#d97706] [stroke-opacity:0.32] dark:stroke-[#fde68a] dark:[stroke-opacity:0.3]' }
+];
+const winds = [
+    { y: 300, width: 12, duration: 130, class: 'stroke-[#4f5fd1] [stroke-opacity:0.14] dark:stroke-[#93c5fd] dark:[stroke-opacity:0.22]' },
+    { y: 420, width: 6, duration: 160, class: 'stroke-[#d97706] [stroke-opacity:0.2] dark:stroke-[#fde68a] dark:[stroke-opacity:0.18]' },
+    { y: 520, width: 12, duration: 190, class: 'stroke-[#4f5fd1] [stroke-opacity:0.14] dark:stroke-[#93c5fd] dark:[stroke-opacity:0.22]' }
+];
+
+// Koi pond: lily pads are circles with a wedge cut out
+const pad = (cx: number, cy: number, r: number, cut: number) => {
+    const a = cut, b = cut + 0.45;
+    return `M${cx} ${cy} L${(cx + Math.cos(a) * r).toFixed(1)} ${(cy + Math.sin(a) * r).toFixed(1)} A${r} ${r} 0 1 0 ${(cx + Math.cos(b) * r).toFixed(1)} ${(cy + Math.sin(b) * r).toFixed(1)} Z`;
+};
+const pads = [
+    { cx: 90, cy: 110, r: 62, cut: 0.6 },
+    { cx: 170, cy: 60, r: 38, cut: 2.2 },
+    { cx: 905, cy: 600, r: 70, cut: 3.6 },
+    { cx: 820, cy: 655, r: 40, cut: 5.1 },
+    { cx: 940, cy: 150, r: 34, cut: 1.4 }
+];
+const koi = [
+    { body: 'koi-kohaku', path: 'M120 520 C300 380 520 620 760 470 S980 200 700 160 S300 260 120 520 Z', duration: 46, delay: -8, scale: 1.25, swim: 1.8 },
+    { body: 'koi-ogon', path: 'M880 600 C640 640 420 420 260 300 S120 90 380 120 S820 380 880 600 Z', duration: 58, delay: -30, scale: 1.05, swim: 2.1 },
+    { body: 'koi-showa', path: 'M500 650 C300 600 200 450 330 380 S620 420 640 560 S600 680 500 650 Z', duration: 36, delay: -12, scale: 0.85, swim: 1.6 }
+];
+// A drop lands and its rings spread and fade, then the spot rests until its next drop.
+// Each kind of drop differs: how many rings, how far apart, how wide, how flat, how often.
+const RIPPLE_KINDS = {
+    triple: { size: 100, rings: 3, gap: 1.1, flat: 0.42, cycle: 38, width: 2.4 },
+    double: { size: 78, rings: 2, gap: 1.5, flat: 0.45, cycle: 33, width: 2.2 },
+    wide: { size: 125, rings: 1, gap: 0, flat: 0.36, cycle: 44, width: 2 },
+    cluster: { size: 62, rings: 4, gap: 0.6, flat: 0.5, cycle: 32, width: 1.8 },
+    drizzle: { size: 26, rings: 2, gap: 0.5, flat: 0.48, cycle: 21, width: 1.4 }
+};
+const rippleSpots: { x: number; y: number; delay: number; kind: keyof typeof RIPPLE_KINDS }[] = [
+    { x: 260, y: 190, delay: 0, kind: 'triple' },
+    { x: 720, y: 560, delay: -9, kind: 'wide' },
+    { x: 520, y: 330, delay: -19, kind: 'double' },
+    { x: 150, y: 600, delay: -25, kind: 'cluster' },
+    { x: 860, y: 300, delay: -4, kind: 'double' },
+    { x: 400, y: 560, delay: -5, kind: 'drizzle' },
+    { x: 640, y: 120, delay: -12, kind: 'drizzle' },
+    { x: 340, y: 90, delay: -17, kind: 'drizzle' },
+    { x: 960, y: 470, delay: -2, kind: 'drizzle' }
+];
+// Rings take about 20% longer to spread than before; small drops spread a little faster
+const ripples = rippleSpots.map(spot => {
+    const kind = RIPPLE_KINDS[spot.kind];
+    const grow = 9.6 * (0.7 + 0.3 * kind.size / 80);
+    return {
+        ...spot,
+        ...kind,
+        grow,
+        keyTimes: `0; ${(grow / kind.cycle).toFixed(3)}; 1`,
+        lags: Array.from({ length: kind.rings }, (_, i) => i * kind.gap)
+    };
+});
+
+// Birds: two loose flocks and a straggler
+const flock = [[0, 0, 1.6, 0], [-28, -13, 1.75, -0.3], [-28, 13, 1.5, -0.6], [-56, -24, 1.85, -0.2], [-56, 24, 1.65, -0.9], [-86, -6, 1.7, -0.5]];
+const flocks = [
+    { path: 'M-150 250 C250 210 600 300 1150 220', duration: 75, delay: -20, scale: 1 },
+    { path: 'M-150 150 C300 120 700 190 1150 130', duration: 100, delay: -70, scale: 0.65 },
+    { path: 'M-150 340 C350 320 650 360 1150 310', duration: 120, delay: -45, scale: 0.5 }
+];
+const clouds = [
+    { y: 120, scale: 1.2, duration: 220, delay: -60 },
+    { y: 200, scale: 0.8, duration: 260, delay: -170 },
+    { y: 80, scale: 0.6, duration: 300, delay: -20 },
+    { y: 260, scale: 1, duration: 240, delay: -120 }
+];
+// Rainy window: a street blurred behind the glass, water running down it, a sill inside
+const rainStreaks = Array.from({ length: 30 }, () => ({
+    x: random() * 1060 - 30,
+    length: 16 + random() * 22,
+    duration: 4.2 + random() * 2.6,
+    delay: -random() * 6,
+    opacity: 0.08 + random() * 0.12
+}));
+const STREET_LIGHTS = [
+    'fill-[#fde68a] dark:fill-[#fbbf24]',
+    'fill-[#fecaca] dark:fill-[#fb7185]',
+    'fill-[#e0f2fe] dark:fill-[#fef3c7]',
+    'fill-[#fed7aa] dark:fill-[#f97316]'
+];
+const streetLights = Array.from({ length: 14 }, (_, i) => ({
+    x: 30 + i * 70 + random() * 30,
+    y: 430 + random() * 90,
+    r: 10 + random() * 24,
+    tone: STREET_LIGHTS.at(i % STREET_LIGHTS.length),
+    duration: 7 + random() * 9,
+    delay: -random() * 9
+}));
+// Rooftops across the street, and the windows lit in them at night
+const buildings: { x: number; width: number; top: number }[] = [];
+for (let x = -20; x < 1020;) {
+    const width = 50 + random() * 70;
+    buildings.push({ x, width, top: 250 + random() * 140 });
+    x += width;
+}
+const skyline = `M-20 540 ${buildings.map(b => `L${b.x.toFixed(0)} ${b.top.toFixed(0)} L${(b.x + b.width).toFixed(0)} ${b.top.toFixed(0)}`).join(' ')} L1020 540 Z`;
+const litWindows = buildings.flatMap(b => Array.from({ length: 3 }, () => ({
+    x: b.x + 8 + random() * (b.width - 22),
+    y: b.top + 14 + random() * (500 - b.top - 30),
+    opacity: 0.35 + random() * 0.5
+})));
+// Water on the glass: beads, and trails that drops run down, stopping where the glass holds them
+const beads = Array.from({ length: 46 }, () => ({ x: random() * 1000, y: 70 + random() * 500, r: 1.4 + random() * 3.8 }));
+const rivulets = Array.from({ length: 6 }, (_, i) => {
+    let x = 70 + i * 165 + random() * 50;
+    const start = 40 + random() * 160;
+    let d = `M${x.toFixed(0)} ${start.toFixed(0)}`;
+    for (let y = start + 40; y <= 570; y += 40) {
+        const next = x + (random() - 0.5) * 16;
+        d += ` Q${(x + (random() - 0.5) * 10).toFixed(0)} ${(y - 20).toFixed(0)} ${next.toFixed(0)} ${y.toFixed(0)}`;
+        x = next;
+    }
+    return { d, duration: 20 + random() * 12, delay: -random() * 30, r: 3.6 + random() * 2 };
+});
+
+// Fireflies: wandering loops around a home spot, each glowing on its own beat
+const fireflies = Array.from({ length: 26 }, () => {
+    const x = 60 + random() * 880, y = 200 + random() * 340, dx = 30 + random() * 50, dy = 20 + random() * 40;
+    return {
+        path: `M${x.toFixed(0)} ${y.toFixed(0)} C${(x + dx).toFixed(0)} ${(y - dy).toFixed(0)} ${(x + dx * 1.6).toFixed(0)} ${(y + dy).toFixed(0)} ${x.toFixed(0)} ${(y + dy * 0.6).toFixed(0)} S${(x - dx * 1.4).toFixed(0)} ${(y - dy * 0.8).toFixed(0)} ${x.toFixed(0)} ${y.toFixed(0)} Z`,
+        duration: 16 + random() * 14,
+        delay: -random() * 20,
+        glow: 2.5 + random() * 3,
+        glowDelay: -random() * 5,
+        r: 1.6 + random() * 1.4
+    };
+});
+const grass = Array.from({ length: 90 }, (_, i) => ({ x: i * 11.5 + random() * 8, height: 30 + random() * 60, lean: -10 + random() * 20 }));
+const duskStars = Array.from({ length: 24 }, () => ({ x: random() * 1000, y: 70 + random() * 260, r: 0.6 + random() * 1.1 }));
+
+// Aurora: curtains of light. Each one steps through four quarter-phases of the same wave and back
+// to the first, so the ripple travels sideways without a seam. The bright hems sit high, in the
+// strip of sky above the task card.
+const curtain = (base: number, height: number, amp: number, phase: number) => {
+    const points = Array.from({ length: 9 }, (_, i) => ({
+        x: -60 + i * 140,
+        top: base - height + Math.sin(i * 0.8 + phase) * amp * 0.6,
+        bottom: base + Math.sin(i * 0.55 + phase + 1) * amp
+    }));
+    const edge = (key: 'top' | 'bottom', list: typeof points) => list.slice(1).map((point, i) => {
+        const prev = list.at(i)!;
+        const pull = (point.x - prev.x) / 3;
+        return `C${(prev.x + pull).toFixed(0)} ${prev[key].toFixed(0)} ${(point.x - pull).toFixed(0)} ${point[key].toFixed(0)} ${point.x.toFixed(0)} ${point[key].toFixed(0)}`;
+    }).join(' ');
+    const reversed = [...points].reverse();
+    return `M${points[0].x} ${points[0].top.toFixed(0)} ${edge('top', points)} L${reversed[0].x} ${reversed[0].bottom.toFixed(0)} ${edge('bottom', reversed)} Z`;
+};
+const auroraBands = [
+    { id: 'zb-band-1', gradient: 'zb-aurora-green', base: 150, height: 190, amp: 30, phase: 0, duration: 30, opacity: 1 },
+    { id: 'zb-band-2', gradient: 'zb-aurora-teal', base: 122, height: 160, amp: 24, phase: 2.1, duration: 38, opacity: 0.8 },
+    { id: 'zb-band-3', gradient: 'zb-aurora-violet', base: 96, height: 140, amp: 20, phase: 4, duration: 46, opacity: 0.65 }
+].map(band => {
+    const shapes = [0, 1, 2, 3, 4].map(step => curtain(band.base, band.height, band.amp, band.phase + step * Math.PI / 2));
+    return { ...band, shape: shapes[0], shapes: shapes.join('; ') };
+});
+
+// Sakura: petals drifting down and tumbling, past a flowering branch
+const petals = Array.from({ length: 26 }, () => {
+    const x = random() * 1100 - 150, drift = 180 + random() * 260;
+    return {
+        path: `M${x.toFixed(0)} -40 C${(x + drift * 0.3).toFixed(0)} 180 ${(x + drift * 0.6).toFixed(0)} 400 ${(x + drift).toFixed(0)} 760`,
+        duration: 18 + random() * 14,
+        delay: -random() * 32,
+        spin: 5 + random() * 6,
+        flip: 1.8 + random() * 1.8,
+        scale: 0.7 + random() * 0.7,
+        light: random() < 0.5
+    };
+});
+// The branch stays in the top-left corner, clear of the "Zen Mode" title
+const blossoms = [[60, 95, 1], [110, 112, 0.9], [150, 121, 1.1], [200, 141, 0.9], [245, 168, 1.1], [300, 192, 1], [345, 203, 0.8], [150, 86, 0.8], [205, 70, 1], [250, 72, 0.8], [272, 118, 1], [322, 108, 0.9], [95, 80, 0.7], [182, 129, 0.7]];
+
+const wingUp = 'M-12 0 Q-6 -7 0 0 Q6 -7 12 0';
+const wingDown = 'M-12 2 Q-6 4 0 0 Q6 4 12 2';
+---
+
+<!-- Held still under reduced motion, and while Settings is open: its blurred backdrop over a moving scene redraws every frame and stutters -->
+<div
+    class="absolute inset-0 -z-10 pointer-events-none"
+    aria-hidden="true"
+    x-data="{
+        still: matchMedia('(prefers-reduced-motion: reduce)').matches,
+        paused: false,
+        hold(paused) {
+            this.paused = paused;
+            this.$el.querySelectorAll('svg').forEach(svg => this.still || paused ? svg.pauseAnimations() : svg.unpauseAnimations());
+        }
+    }"
+    x-bind:class="(still || paused) && 'zen-backdrop-held'"
+    x-on:settings-panel.window="hold($event.detail.open)"
+>
+    <!-- Soft glow: three blurred lights drifting -->
+    <template x-if="$store.settings.zenBackground === 'glow'">
+        <div class="absolute inset-0">
+            <span class="zen-orb absolute -top-24 -left-16 w-80 h-80 rounded-full bg-teal-400/25 blur-3xl"></span>
+            <span class="zen-orb zen-orb-2 absolute -bottom-28 -right-10 w-96 h-96 rounded-full bg-indigo-400/20 blur-3xl"></span>
+            <span class="zen-orb zen-orb-3 absolute top-1/3 left-1/2 w-64 h-64 rounded-full bg-fuchsia-400/10 blur-3xl"></span>
+        </div>
+    </template>
+
+    <!-- Koi pond: koi circling under lily pads, light through the water, the odd ripple -->
+    <template x-if="$store.settings.zenBackground === 'koi'">
+        <svg class="absolute inset-0 w-full h-full stroke-none" viewBox="0 0 1000 700" preserveAspectRatio="xMidYMid slice" x-init="(still || paused) && $el.pauseAnimations()">
+            <defs>
+                <linearGradient id="zb-water" x1="0" y1="0" x2="0.4" y2="1">
+                    <stop offset="0" class="[stop-color:#d5f1ec] dark:[stop-color:#0c3d48]" />
+                    <stop offset="1" class="[stop-color:#a8dcd5] dark:[stop-color:#05252e]" />
+                </linearGradient>
+                <radialGradient id="zb-caustic">
+                    <stop offset="0" stop-color="#fff" stop-opacity="0.45" />
+                    <stop offset="1" stop-color="#fff" stop-opacity="0" />
+                </radialGradient>
+                <filter id="zb-soft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6" /></filter>
+                <clipPath id="zb-koi-clip"><path d="M32 0 C26 -11 4 -13 -16 -7 C-24 -5 -30 -3 -34 0 C-30 3 -24 5 -16 7 C4 13 26 11 32 0 Z" /></clipPath>
+                <g id="koi-fins">
+                    <path d="M-32 0 L-50 -12 C-45 -4 -45 4 -50 12 Z" fill-opacity="0.85" />
+                    <ellipse cx="8" cy="-12" rx="8" ry="3" transform="rotate(-35 8 -12)" fill-opacity="0.7" />
+                    <ellipse cx="8" cy="12" rx="8" ry="3" transform="rotate(35 8 12)" fill-opacity="0.7" />
+                </g>
+                <g id="koi-kohaku">
+                    <use href="#koi-fins" fill="#fff7ed" />
+                    <path d="M32 0 C26 -11 4 -13 -16 -7 C-24 -5 -30 -3 -34 0 C-30 3 -24 5 -16 7 C4 13 26 11 32 0 Z" fill="#fffaf3" />
+                    <g clip-path="url(#zb-koi-clip)" fill="#e2401c">
+                        <ellipse cx="20" cy="-3" rx="10" ry="8" />
+                        <ellipse cx="-6" cy="4" rx="12" ry="7" />
+                    </g>
+                </g>
+                <g id="koi-ogon">
+                    <use href="#koi-fins" fill="#fb923c" />
+                    <path d="M32 0 C26 -11 4 -13 -16 -7 C-24 -5 -30 -3 -34 0 C-30 3 -24 5 -16 7 C4 13 26 11 32 0 Z" fill="#f97316" />
+                    <g clip-path="url(#zb-koi-clip)" fill="#fff7ed"><ellipse cx="-14" cy="-6" rx="10" ry="5" /></g>
+                </g>
+                <g id="koi-showa">
+                    <use href="#koi-fins" fill="#1f2937" />
+                    <path d="M32 0 C26 -11 4 -13 -16 -7 C-24 -5 -30 -3 -34 0 C-30 3 -24 5 -16 7 C4 13 26 11 32 0 Z" fill="#fffaf3" />
+                    <g clip-path="url(#zb-koi-clip)">
+                        <ellipse cx="14" cy="2" rx="12" ry="8" fill="#e2401c" />
+                        <ellipse cx="-10" cy="-5" rx="10" ry="6" fill="#1f2937" />
+                    </g>
+                </g>
+            </defs>
+
+            <rect width="1000" height="700" fill="url(#zb-water)" />
+
+            <!-- Light moving through the water -->
+            <g opacity="0.6">
+                <ellipse cx="250" cy="200" rx="220" ry="120" fill="url(#zb-caustic)">
+                    <animateTransform attributeName="transform" type="translate" values="0 0; 80 40; 0 0" dur="24s" repeatCount="indefinite" />
+                </ellipse>
+                <ellipse cx="700" cy="420" rx="260" ry="140" fill="url(#zb-caustic)">
+                    <animateTransform attributeName="transform" type="translate" values="0 0; -90 -30; 0 0" dur="30s" repeatCount="indefinite" />
+                </ellipse>
+                <ellipse cx="480" cy="620" rx="200" ry="90" fill="url(#zb-caustic)">
+                    <animateTransform attributeName="transform" type="translate" values="0 0; 60 -40; 0 0" dur="27s" repeatCount="indefinite" />
+                </ellipse>
+            </g>
+
+            <!-- Koi, each with a soft shadow on the pond floor -->
+            {koi.map(fish => (
+                <g>
+                    <animateMotion path={fish.path} dur={`${fish.duration}s`} begin={`${fish.delay}s`} rotate="auto" repeatCount="indefinite" />
+                    <g transform={`scale(${fish.scale})`}>
+                        <ellipse cx="4" cy="14" rx="34" ry="9" fill="#000" opacity="0.14" filter="url(#zb-soft)" />
+                        <use href={`#${fish.body}`}>
+                            <animateTransform attributeName="transform" type="skewY" values="-5; 5; -5" dur={`${fish.swim}s`} repeatCount="indefinite" />
+                        </use>
+                    </g>
+                </g>
+            ))}
+
+            <!-- Ripples: rings flattened to the water's angle, thinning as they spread, with a faint shadow -->
+            {ripples.map(drop => (
+                <g fill="none">
+                    {drop.lags.map(lag => (
+                        <Fragment>
+                            <ellipse cx={drop.x} cy={drop.y + 2.5} rx="0" ry="0" class="stroke-[#0f5f63]/25 dark:stroke-black/40">
+                                <animate attributeName="rx" values={`0; ${drop.size}; ${drop.size}`} keyTimes={drop.keyTimes} calcMode="spline" keySplines="0.2 0.7 0.4 1; 0 0 1 1" dur={`${drop.cycle}s`} begin={`${drop.delay + lag}s`} repeatCount="indefinite" />
+                                <animate attributeName="ry" values={`0; ${drop.size * drop.flat}; ${drop.size * drop.flat}`} keyTimes={drop.keyTimes} calcMode="spline" keySplines="0.2 0.7 0.4 1; 0 0 1 1" dur={`${drop.cycle}s`} begin={`${drop.delay + lag}s`} repeatCount="indefinite" />
+                                <animate attributeName="stroke-width" values={`${drop.width - 0.2}; 0.3; 0.3`} keyTimes={drop.keyTimes} dur={`${drop.cycle}s`} begin={`${drop.delay + lag}s`} repeatCount="indefinite" />
+                                <animate attributeName="opacity" values="0.7; 0; 0" keyTimes={drop.keyTimes} dur={`${drop.cycle}s`} begin={`${drop.delay + lag}s`} repeatCount="indefinite" />
+                            </ellipse>
+                            <ellipse cx={drop.x} cy={drop.y} rx="0" ry="0" class="stroke-white/90 dark:stroke-cyan-100/60">
+                                <animate attributeName="rx" values={`0; ${drop.size}; ${drop.size}`} keyTimes={drop.keyTimes} calcMode="spline" keySplines="0.2 0.7 0.4 1; 0 0 1 1" dur={`${drop.cycle}s`} begin={`${drop.delay + lag}s`} repeatCount="indefinite" />
+                                <animate attributeName="ry" values={`0; ${drop.size * drop.flat}; ${drop.size * drop.flat}`} keyTimes={drop.keyTimes} calcMode="spline" keySplines="0.2 0.7 0.4 1; 0 0 1 1" dur={`${drop.cycle}s`} begin={`${drop.delay + lag}s`} repeatCount="indefinite" />
+                                <animate attributeName="stroke-width" values={`${drop.width}; 0.4; 0.4`} keyTimes={drop.keyTimes} dur={`${drop.cycle}s`} begin={`${drop.delay + lag}s`} repeatCount="indefinite" />
+                                <animate attributeName="opacity" values="0.85; 0; 0" keyTimes={drop.keyTimes} dur={`${drop.cycle}s`} begin={`${drop.delay + lag}s`} repeatCount="indefinite" />
+                            </ellipse>
+                        </Fragment>
+                    ))}
+                    <!-- The drop itself, a quick glint where it lands -->
+                    <circle cx={drop.x} cy={drop.y} r="0" class="fill-white/90 dark:fill-cyan-50/70">
+                        <animate attributeName="r" values={`0; ${drop.size > 40 ? 3.5 : 2}; 0; 0`} keyTimes="0; 0.02; 0.07; 1" dur={`${drop.cycle}s`} begin={`${drop.delay}s`} repeatCount="indefinite" />
+                    </circle>
+                </g>
+            ))}
+
+            <!-- Lily pads and a lotus, swaying a little -->
+            {pads.map(p => (
+                <g>
+                    <animateTransform attributeName="transform" type="rotate" values={`-3 ${p.cx} ${p.cy}; 3 ${p.cx} ${p.cy}; -3 ${p.cx} ${p.cy}`} dur={`${18 + p.r / 5}s`} repeatCount="indefinite" />
+                    <ellipse cx={p.cx + 5} cy={p.cy + 8} rx={p.r} ry={p.r * 0.9} fill="#000" opacity="0.12" filter="url(#zb-soft)" />
+                    <path d={pad(p.cx, p.cy, p.r, p.cut)} class="fill-[#6fbf73] dark:fill-[#2c6b3c]" />
+                    <path d={`M${p.cx} ${p.cy} L${p.cx - p.r * 0.6} ${p.cy - p.r * 0.3} M${p.cx} ${p.cy} L${p.cx + p.r * 0.2} ${p.cy + p.r * 0.65} M${p.cx} ${p.cy} L${p.cx - p.r * 0.3} ${p.cy + p.r * 0.55}`} class="stroke-[#4e9e57] dark:stroke-[#245a32]" stroke-width="1.2" />
+                </g>
+            ))}
+            <g transform="translate(110 112)">
+                {[0, 60, 120, 180, 240, 300].map(angle => <ellipse cx="0" cy="-13" rx="7" ry="14" transform={`rotate(${angle})`} class="fill-[#f9a8d4] dark:fill-[#be6a9b]" opacity="0.95" />)}
+                {[30, 90, 150, 210, 270, 330].map(angle => <ellipse cx="0" cy="-9" rx="5" ry="10" transform={`rotate(${angle})`} class="fill-[#fbcfe8] dark:fill-[#d58bb5]" />)}
+                <circle r="5" fill="#fde047" />
+            </g>
+        </svg>
+    </template>
+
+    <!-- Swirly night: turning spirals, twinkling stars, a crescent moon. A deep blue night in dark mode, a periwinkle dusk in light mode. -->
+    <template x-if="$store.settings.zenBackground === 'swirly'">
+        <svg class="absolute inset-0 w-full h-full stroke-none" viewBox="0 0 1000 700" preserveAspectRatio="xMidYMid slice" x-init="(still || paused) && $el.pauseAnimations()">
+            <defs>
+                <linearGradient id="zb-night" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" class="[stop-color:#aab6ef] dark:[stop-color:#0a1438]" />
+                    <stop offset="0.55" class="[stop-color:#cdd5fa] dark:[stop-color:#1c2d6b]" />
+                    <stop offset="1" class="[stop-color:#fbe4c6] dark:[stop-color:#2a3f86]" />
+                </linearGradient>
+                <radialGradient id="zb-glow">
+                    <stop offset="0" class="[stop-color:#fbbf24] dark:[stop-color:#fde68a]" stop-opacity="0.55" />
+                    <stop offset="1" class="[stop-color:#fbbf24] dark:[stop-color:#fde68a]" stop-opacity="0" />
+                </radialGradient>
+                <mask id="zb-crescent">
+                    <circle cx="830" cy="175" r="42" fill="#fff" />
+                    <circle cx="850" cy="163" r="36" fill="#000" />
+                </mask>
+            </defs>
+
+            <rect width="1000" height="700" fill="url(#zb-night)" />
+
+            <!-- Wind: long ribbons flowing across the sky -->
+            <g fill="none" stroke-linecap="round">
+                {winds.map(wind => (
+                    <path d={`M-60 ${wind.y} C150 ${wind.y - 60} 350 ${wind.y + 60} 550 ${wind.y} S900 ${wind.y - 60} 1060 ${wind.y}`} class={wind.class} stroke-width={wind.width} stroke-dasharray="120 60">
+                        <animate attributeName="stroke-dashoffset" values="0; -540" dur={`${wind.duration}s`} repeatCount="indefinite" />
+                    </path>
+                ))}
+            </g>
+
+            <!-- Spirals, each three strands turning slowly -->
+            {swirls.map(swirl => (
+                <g>
+                    <animateTransform attributeName="transform" type="rotate" values={`0 ${swirl.cx} ${swirl.cy}; 360 ${swirl.cx} ${swirl.cy}`} dur={`${swirl.duration}s`} repeatCount="indefinite" />
+                    {strands.map(strand => (
+                        <path
+                            d={spiral(swirl.cx, swirl.cy, swirl.radius, swirl.turns)}
+                            transform={`rotate(${strand.turn} ${swirl.cx} ${swirl.cy})`}
+                            fill="none" class={strand.class} stroke-width={strand.width} stroke-linecap="round" stroke-dasharray="60 24"
+                        >
+                            <animate attributeName="stroke-dashoffset" values="0; -840" dur="110s" repeatCount="indefinite" />
+                        </path>
+                    ))}
+                </g>
+            ))}
+
+            <!-- Stars -->
+            <g class="fill-white dark:fill-[#fef9c3]">
+                {stars.map(star => (
+                    <circle cx={star.x.toFixed(1)} cy={star.y.toFixed(1)} r={star.r.toFixed(2)}>
+                        <animate attributeName="opacity" values="0.25; 1; 0.25" dur={`${star.duration.toFixed(1)}s`} begin={`${star.delay.toFixed(1)}s`} repeatCount="indefinite" />
+                    </circle>
+                ))}
+            </g>
+            {brightStars.map(([x, y], i) => (
+                <g>
+                    <circle cx={x} cy={y} r="14" fill="url(#zb-glow)">
+                        <animate attributeName="r" values="12; 18; 12" dur={`${5 + i}s`} repeatCount="indefinite" />
+                    </circle>
+                    <circle cx={x} cy={y} r="3" class="fill-white dark:fill-[#fefce8]" />
+                </g>
+            ))}
+
+            <!-- Moon, low enough to survive the crop on wide cards -->
+            <circle cx="830" cy="175" r="95" fill="url(#zb-glow)">
+                <animate attributeName="r" values="88; 102; 88" dur="10s" repeatCount="indefinite" />
+            </circle>
+            <circle cx="830" cy="175" r="42" class="fill-[#f6b93b] dark:fill-[#fde68a]" mask="url(#zb-crescent)" />
+
+            <!-- Rolling hills -->
+            <path d="M0 550 C150 510 300 570 460 538 S760 490 1000 546 L1000 700 L0 700 Z" class="fill-[#97a4ea] dark:fill-[#101b45]" />
+            <path d="M0 592 C200 562 380 610 560 582 S860 558 1000 592 L1000 700 L0 700 Z" class="fill-[#7a89dd] dark:fill-[#0a1230]" />
+        </svg>
+    </template>
+
+    <!-- Birds: small flocks gliding across a soft sky, clouds drifting -->
+    <template x-if="$store.settings.zenBackground === 'birds'">
+        <svg class="absolute inset-0 w-full h-full stroke-none" viewBox="0 0 1000 700" preserveAspectRatio="xMidYMid slice" x-init="(still || paused) && $el.pauseAnimations()">
+            <defs>
+                <linearGradient id="zb-sky" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" class="[stop-color:#c7e2fb] dark:[stop-color:#0f172a]" />
+                    <stop offset="0.6" class="[stop-color:#e6f3fd] dark:[stop-color:#2e2a5e]" />
+                    <stop offset="1" class="[stop-color:#fde8d6] dark:[stop-color:#5b3558]" />
+                </linearGradient>
+                <radialGradient id="zb-sun">
+                    <stop offset="0" class="[stop-color:#fde68a] dark:[stop-color:#e2e8f0]" stop-opacity="0.7" />
+                    <stop offset="1" class="[stop-color:#fde68a] dark:[stop-color:#e2e8f0]" stop-opacity="0" />
+                </radialGradient>
+                <filter id="zb-cloud" x="-20%" y="-50%" width="140%" height="200%"><feGaussianBlur stdDeviation="4" /></filter>
+                <g id="zb-cloud-shape">
+                    <ellipse cx="0" cy="0" rx="90" ry="22" />
+                    <ellipse cx="-30" cy="-14" rx="40" ry="24" />
+                    <ellipse cx="22" cy="-18" rx="48" ry="28" />
+                </g>
+            </defs>
+
+            <rect width="1000" height="700" fill="url(#zb-sky)" />
+            <circle cx="780" cy="490" r="160" fill="url(#zb-sun)" />
+            <circle cx="780" cy="490" r="52" class="fill-[#fde68a] dark:fill-[#e2e8f0]" opacity="0.55" />
+
+            <!-- Clouds -->
+            <g class="fill-white dark:fill-slate-400" opacity="0.75" filter="url(#zb-cloud)">
+                {clouds.map(cloud => (
+                    <g>
+                        <animateTransform attributeName="transform" type="translate" values={`-260 ${cloud.y}; 1260 ${cloud.y}`} dur={`${cloud.duration}s`} begin={`${cloud.delay}s`} repeatCount="indefinite" />
+                        <use href="#zb-cloud-shape" transform={`scale(${cloud.scale})`} class="dark:opacity-30" />
+                    </g>
+                ))}
+            </g>
+
+            <!-- Distant hills -->
+            <path d="M0 560 C180 520 340 570 520 545 S820 520 1000 550 L1000 700 L0 700 Z" class="fill-[#c4d3f5] dark:fill-[#231f4a]" opacity="0.8" />
+            <path d="M0 600 C220 570 420 615 620 592 S880 580 1000 600 L1000 700 L0 700 Z" class="fill-[#aebfe9] dark:fill-[#1a173a]" opacity="0.9" />
+
+            <!-- Flocks: each bird flaps at its own pace -->
+            <g fill="none" class="stroke-slate-600 dark:stroke-slate-300" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" opacity="0.6">
+                {flocks.map(group => (
+                    <g>
+                        <animateMotion path={group.path} dur={`${group.duration}s`} begin={`${group.delay}s`} repeatCount="indefinite" />
+                        <g transform={`scale(${group.scale})`}>
+                            {flock.map(([x, y, flap, delay]) => (
+                                <path d={wingUp} transform={`translate(${x} ${y})`}>
+                                    <animate attributeName="d" values={`${wingUp}; ${wingDown}; ${wingUp}`} dur={`${flap}s`} begin={`${delay}s`} repeatCount="indefinite" />
+                                </path>
+                            ))}
+                        </g>
+                    </g>
+                ))}
+            </g>
+        </svg>
+    </template>
+
+    <!-- Rainy window: looking out through a paned window at a rainy street, water running down the glass -->
+    <template x-if="$store.settings.zenBackground === 'rain'">
+        <svg class="absolute inset-0 w-full h-full stroke-none" viewBox="0 0 1000 700" preserveAspectRatio="xMidYMid slice" x-init="(still || paused) && $el.pauseAnimations()">
+            <defs>
+                <linearGradient id="zb-overcast" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" class="[stop-color:#a9b6c8] dark:[stop-color:#0f1828]" />
+                    <stop offset="1" class="[stop-color:#d8dfe8] dark:[stop-color:#1f2a3d]" />
+                </linearGradient>
+                <filter id="zb-outside" x="-5%" y="-5%" width="110%" height="110%"><feGaussianBlur stdDeviation="5" /></filter>
+                <filter id="zb-lights" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="11" /></filter>
+                <!-- A drop acts as a small lens: bright at the rim, clear in the middle -->
+                <radialGradient id="zb-lens" cx="0.45" cy="0.4" r="0.6">
+                    <stop offset="0" stop-color="#fff" stop-opacity="0.08" />
+                    <stop offset="0.7" stop-color="#fff" stop-opacity="0.3" />
+                    <stop offset="0.95" stop-color="#fff" stop-opacity="0.8" />
+                    <stop offset="1" stop-color="#fff" stop-opacity="0" />
+                </radialGradient>
+                <linearGradient id="zb-fog" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0.55" stop-color="#fff" stop-opacity="0" />
+                    <stop offset="1" stop-color="#fff" class="[stop-opacity:0.45] dark:[stop-opacity:0.1]" />
+                </linearGradient>
+            </defs>
+
+            <!-- Outside, out of focus: sky, rooftops, windows lit at night, the street -->
+            <rect width="1000" height="700" fill="url(#zb-overcast)" />
+            <g filter="url(#zb-outside)">
+                <path d={skyline} class="fill-[#8e9bb0] dark:fill-[#0a0f1a]" opacity="0.75" />
+                <g class="fill-[#fcd34d] opacity-0 dark:opacity-100">
+                    {litWindows.map(light => <rect x={light.x.toFixed(0)} y={light.y.toFixed(0)} width="7" height="10" opacity={light.opacity.toFixed(2)} />)}
+                </g>
+                <rect y="520" width="1000" height="180" class="fill-[#9ea9b8] dark:fill-[#0c111c]" />
+            </g>
+            <g filter="url(#zb-lights)" class="opacity-90 dark:opacity-75">
+                {streetLights.map(light => (
+                    <circle cx={light.x.toFixed(0)} cy={light.y.toFixed(0)} r={light.r.toFixed(0)} class={light.tone}>
+                        <animate attributeName="opacity" values="0.5; 1; 0.5" dur={`${light.duration.toFixed(1)}s`} begin={`${light.delay.toFixed(1)}s`} repeatCount="indefinite" />
+                    </circle>
+                ))}
+            </g>
+
+            <!-- Rain falling past outside -->
+            <g class="stroke-slate-600 dark:stroke-slate-300" stroke-width="1.1" stroke-linecap="round">
+                {rainStreaks.map(streak => (
+                    <line x1={streak.x.toFixed(0)} y1="0" x2={(streak.x - streak.length * 0.12).toFixed(1)} y2={streak.length.toFixed(0)} opacity={streak.opacity.toFixed(2)}>
+                        <animateTransform attributeName="transform" type="translate" values="10 -80; -80 760" dur={`${streak.duration.toFixed(1)}s`} begin={`${streak.delay.toFixed(1)}s`} repeatCount="indefinite" />
+                    </line>
+                ))}
+            </g>
+
+            <!-- The glass: condensation near the bottom, water trails, beads, drops running down -->
+            <rect width="1000" height="700" fill="url(#zb-fog)" />
+            {rivulets.map(trail => (
+                <g fill="none" stroke-linecap="round">
+                    <path d={trail.d} transform="translate(1 1.5)" class="stroke-slate-800/15 dark:stroke-black/30" stroke-width="2.4" />
+                    <path d={trail.d} class="stroke-white/55 dark:stroke-white/25" stroke-width="2.2" />
+                </g>
+            ))}
+            {beads.map(bead => (
+                <g>
+                    <circle cx={(bead.x + bead.r * 0.15).toFixed(1)} cy={(bead.y + bead.r * 0.25).toFixed(1)} r={bead.r.toFixed(1)} class="fill-slate-800/15 dark:fill-black/35" />
+                    <circle cx={bead.x.toFixed(1)} cy={bead.y.toFixed(1)} r={bead.r.toFixed(1)} fill="url(#zb-lens)" />
+                    <circle cx={(bead.x - bead.r * 0.35).toFixed(1)} cy={(bead.y - bead.r * 0.4).toFixed(1)} r={(bead.r * 0.28).toFixed(1)} fill="#fff" opacity="0.85" />
+                </g>
+            ))}
+            {rivulets.map(trail => (
+                <g>
+                    <animateMotion path={trail.d} keyPoints="0; 0.32; 0.36; 1" keyTimes="0; 0.4; 0.62; 1" calcMode="linear" dur={`${trail.duration.toFixed(1)}s`} begin={`${trail.delay.toFixed(1)}s`} repeatCount="indefinite" />
+                    <ellipse cx="0.6" cy="1.2" rx={trail.r.toFixed(1)} ry={(trail.r * 1.2).toFixed(1)} class="fill-slate-800/20 dark:fill-black/40" />
+                    <ellipse rx={trail.r.toFixed(1)} ry={(trail.r * 1.2).toFixed(1)} fill="url(#zb-lens)" />
+                    <circle cx={(-trail.r * 0.35).toFixed(1)} cy={(-trail.r * 0.45).toFixed(1)} r="1.3" fill="#fff" opacity="0.9" />
+                </g>
+            ))}
+
+            <!-- The window frame: painted wood, three tall panes. No crossbar, since it would run behind the task card. -->
+            <g class="fill-[#f2ede4] dark:fill-[#2a2320]">
+                <rect width="36" height="700" />
+                <rect x="964" width="36" height="700" />
+                <rect width="1000" height="60" />
+                <rect x="324" width="18" height="580" />
+                <rect x="658" width="18" height="580" />
+            </g>
+            <!-- Shading along the inside edges of the frame -->
+            <g class="fill-black/10 dark:fill-black/40">
+                <rect x="36" y="60" width="4" height="520" />
+                <rect x="960" y="60" width="4" height="520" />
+                <rect x="36" y="60" width="928" height="4" />
+                <rect x="342" y="60" width="3" height="520" />
+                <rect x="676" y="60" width="3" height="520" />
+            </g>
+
+            <!-- The sill, with a mug of something warm and a small plant -->
+            <rect y="568" width="1000" height="12" class="fill-[#faf6ef] dark:fill-[#352c27]" />
+            <rect y="580" width="1000" height="120" class="fill-[#e9e0d1] dark:fill-[#221c19]" />
+            <rect y="580" width="1000" height="5" class="fill-black/10 dark:fill-black/40" />
+
+            <g transform="translate(140 0)">
+                <g fill="none" class="stroke-white/70 dark:stroke-white/25" stroke-width="3" stroke-linecap="round">
+                    {[[-8, 0], [7, -3.5]].map(([dx, delay]) => (
+                        <path d={`M${dx} 515 C${dx - 8} 500 ${dx + 8} 488 ${dx} 472`} opacity="0">
+                            <animate attributeName="opacity" values="0; 0.8; 0" dur="7s" begin={`${delay}s`} repeatCount="indefinite" />
+                            <animateTransform attributeName="transform" type="translate" values="0 0; 0 -22" dur="7s" begin={`${delay}s`} repeatCount="indefinite" />
+                        </path>
+                    ))}
+                </g>
+                <path d="M22 534 C40 534 40 556 22 556" fill="none" class="stroke-[#b9734a] dark:stroke-[#7a4a30]" stroke-width="6" />
+                <rect x="-24" y="524" width="48" height="46" rx="7" class="fill-[#c98458] dark:fill-[#8a5a3b]" />
+                <rect x="-24" y="524" width="48" height="6" rx="3" class="fill-white/25" />
+            </g>
+
+            <g transform="translate(870 0)">
+                <g>
+                    <animateTransform attributeName="transform" type="rotate" values="-2 0 530; 2 0 530; -2 0 530" dur="10s" repeatCount="indefinite" />
+                    <ellipse cx="-14" cy="500" rx="9" ry="24" transform="rotate(-28 -14 500)" class="fill-[#65a30d] dark:fill-[#3f6212]" />
+                    <ellipse cx="14" cy="498" rx="9" ry="25" transform="rotate(26 14 498)" class="fill-[#4d7c0f] dark:fill-[#365314]" />
+                    <ellipse cx="0" cy="490" rx="9" ry="28" class="fill-[#84cc16] dark:fill-[#4d7c0f]" />
+                    <ellipse cx="-26" cy="516" rx="7" ry="18" transform="rotate(-55 -26 516)" class="fill-[#4d7c0f] dark:fill-[#365314]" />
+                    <ellipse cx="26" cy="516" rx="7" ry="18" transform="rotate(55 26 516)" class="fill-[#65a30d] dark:fill-[#3f6212]" />
+                </g>
+                <path d="M-24 528 L24 528 L19 570 L-19 570 Z" class="fill-[#c2410c] dark:fill-[#7c2d12]" />
+                <rect x="-27" y="524" width="54" height="9" rx="2" class="fill-[#ea580c] dark:fill-[#9a3412]" />
+            </g>
+        </svg>
+    </template>
+
+    <!-- Fireflies: a meadow at dusk, fireflies wandering and glowing over swaying grass -->
+    <template x-if="$store.settings.zenBackground === 'fireflies'">
+        <svg class="absolute inset-0 w-full h-full stroke-none" viewBox="0 0 1000 700" preserveAspectRatio="xMidYMid slice" x-init="(still || paused) && $el.pauseAnimations()">
+            <defs>
+                <linearGradient id="zb-dusk" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" class="[stop-color:#f4c6a0] dark:[stop-color:#071521]" />
+                    <stop offset="0.55" class="[stop-color:#fbe2c6] dark:[stop-color:#0e2433]" />
+                    <stop offset="1" class="[stop-color:#eef0d8] dark:[stop-color:#163631]" />
+                </linearGradient>
+                <radialGradient id="zb-firefly">
+                    <stop offset="0" class="[stop-color:#f59e0b] dark:[stop-color:#e9ff8a]" stop-opacity="0.8" />
+                    <stop offset="1" class="[stop-color:#f59e0b] dark:[stop-color:#e9ff8a]" stop-opacity="0" />
+                </radialGradient>
+                <radialGradient id="zb-dusk-sun">
+                    <stop offset="0" stop-color="#fcd34d" stop-opacity="0.7" />
+                    <stop offset="1" stop-color="#fcd34d" stop-opacity="0" />
+                </radialGradient>
+            </defs>
+
+            <rect width="1000" height="700" fill="url(#zb-dusk)" />
+
+            <!-- A low sun in light mode, early stars in dark mode -->
+            <g class="dark:opacity-0">
+                <circle cx="220" cy="440" r="150" fill="url(#zb-dusk-sun)" />
+                <circle cx="220" cy="440" r="48" fill="#fcd34d" opacity="0.6" />
+            </g>
+            <g class="opacity-0 dark:opacity-100" fill="#fff">
+                {duskStars.map(star => <circle cx={star.x.toFixed(0)} cy={star.y.toFixed(0)} r={star.r.toFixed(1)} opacity="0.7" />)}
+            </g>
+
+            <!-- Tree line and meadow -->
+            <path d="M0 470 Q40 430 80 455 Q120 410 170 450 Q220 420 260 452 Q310 400 360 448 Q420 425 470 455 Q520 405 580 450 Q640 420 690 455 Q750 410 800 450 Q860 425 900 455 Q950 415 1000 450 L1000 700 L0 700 Z" class="fill-[#c9cfa3] dark:fill-[#0b1d22]" />
+            <path d="M0 530 C200 500 420 545 620 520 S880 505 1000 525 L1000 700 L0 700 Z" class="fill-[#adc08a] dark:fill-[#0c2520]" />
+
+            <!-- Grass, swaying a little -->
+            <!-- Drawn from the ground line (y 640) up, so the skew bends the blades instead of sliding them -->
+            <g transform="translate(0 640)" fill="none" class="stroke-[#8ea56b] dark:stroke-[#14402f]" stroke-width="2" stroke-linecap="round">
+                <g>
+                    <animateTransform attributeName="transform" type="skewX" values="0; 6; 0; -5; 0" dur="11s" repeatCount="indefinite" />
+                    {grass.map(blade => <path d={`M${blade.x.toFixed(0)} 0 Q${(blade.x + blade.lean / 2).toFixed(0)} ${(-blade.height / 2).toFixed(0)} ${(blade.x + blade.lean).toFixed(0)} ${(-blade.height).toFixed(0)}`} />)}
+                </g>
+            </g>
+            <rect y="638" width="1000" height="62" class="fill-[#9bb27a] dark:fill-[#0a1f1a]" />
+
+            <!-- Fireflies -->
+            {fireflies.map(fly => (
+                <g>
+                    <animateMotion path={fly.path} dur={`${fly.duration.toFixed(1)}s`} begin={`${fly.delay.toFixed(1)}s`} repeatCount="indefinite" />
+                    <g>
+                        <animate attributeName="opacity" values="0.1; 1; 0.1" dur={`${fly.glow.toFixed(1)}s`} begin={`${fly.glowDelay.toFixed(1)}s`} repeatCount="indefinite" />
+                        <circle r={(fly.r * 6).toFixed(1)} fill="url(#zb-firefly)" />
+                        <circle r={fly.r.toFixed(1)} class="fill-[#f59e0b] dark:fill-[#f7ffb0]" />
+                    </g>
+                </g>
+            ))}
+        </svg>
+    </template>
+
+    <!-- Aurora: northern lights rippling over snowy mountains and a still lake that mirrors them -->
+    <template x-if="$store.settings.zenBackground === 'aurora'">
+        <svg class="absolute inset-0 w-full h-full stroke-none" viewBox="0 0 1000 700" preserveAspectRatio="xMidYMid slice" x-init="(still || paused) && $el.pauseAnimations()">
+            <defs>
+                <linearGradient id="zb-arctic" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" class="[stop-color:#c4dde8] dark:[stop-color:#030d1a]" />
+                    <stop offset="0.6" class="[stop-color:#e2eff0] dark:[stop-color:#0a2033]" />
+                    <stop offset="1" class="[stop-color:#f3eee4] dark:[stop-color:#0f2f45]" />
+                </linearGradient>
+                <linearGradient id="zb-aurora-green" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stop-color="#34d399" stop-opacity="0" />
+                    <stop offset="0.65" class="[stop-color:#059669] dark:[stop-color:#34d399]" stop-opacity="0.6" />
+                    <stop offset="1" class="[stop-color:#10b981] dark:[stop-color:#6ee7b7]" stop-opacity="0.95" />
+                </linearGradient>
+                <linearGradient id="zb-aurora-teal" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stop-color="#22d3ee" stop-opacity="0" />
+                    <stop offset="0.7" class="[stop-color:#0891b2] dark:[stop-color:#22d3ee]" stop-opacity="0.55" />
+                    <stop offset="1" class="[stop-color:#06b6d4] dark:[stop-color:#67e8f9]" stop-opacity="0.85" />
+                </linearGradient>
+                <linearGradient id="zb-aurora-violet" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stop-color="#a78bfa" stop-opacity="0" />
+                    <stop offset="0.7" class="[stop-color:#7c3aed] dark:[stop-color:#a78bfa]" stop-opacity="0.5" />
+                    <stop offset="1" class="[stop-color:#8b5cf6] dark:[stop-color:#c084fc]" stop-opacity="0.75" />
+                </linearGradient>
+                <linearGradient id="zb-lake" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" class="[stop-color:#b7cfdc] dark:[stop-color:#071a28]" />
+                    <stop offset="1" class="[stop-color:#dfeaf0] dark:[stop-color:#03101b]" />
+                </linearGradient>
+                <filter id="zb-aurora-blur" x="-10%" y="-30%" width="120%" height="160%"><feGaussianBlur stdDeviation="8" /></filter>
+                <clipPath id="zb-lake-clip"><rect y="540" width="1000" height="160" /></clipPath>
+                <!-- Vertical rays, cut to the main curtain so they ripple with it -->
+                <pattern id="zb-rays" width="37" height="700" patternUnits="userSpaceOnUse">
+                    <rect width="3" height="700" fill="#fff" />
+                    <rect x="11" width="2" height="700" fill="#fff" opacity="0.6" />
+                    <rect x="19" width="4" height="700" fill="#fff" opacity="0.8" />
+                    <rect x="30" width="2" height="700" fill="#fff" opacity="0.5" />
+                </pattern>
+                <!-- The curtain's own gradient as a mask, so the rays fade toward the top as the light does -->
+                <mask id="zb-curtain-mask"><use href="#zb-band-1" /></mask>
+                <filter id="zb-ray-blur" x="-5%" y="-5%" width="110%" height="110%"><feGaussianBlur stdDeviation="1.6 6" /></filter>
+            </defs>
+
+            <rect width="1000" height="700" fill="url(#zb-arctic)" />
+            <g class="opacity-0 dark:opacity-100" fill="#fff">
+                {stars.slice(0, 45).map(star => (
+                    <circle cx={star.x.toFixed(1)} cy={(star.y * 0.75).toFixed(1)} r={(star.r * 0.8).toFixed(2)}>
+                        <animate attributeName="opacity" values="0.2; 0.9; 0.2" dur={`${(star.duration * 1.5).toFixed(1)}s`} begin={`${star.delay.toFixed(1)}s`} repeatCount="indefinite" />
+                    </circle>
+                ))}
+            </g>
+
+            <!-- The lights -->
+            <g filter="url(#zb-aurora-blur)">
+                {auroraBands.map(band => (
+                    <path id={band.id} d={band.shape} fill={`url(#${band.gradient})`} opacity={band.opacity}>
+                        <animate attributeName="d" values={band.shapes} dur={`${band.duration}s`} repeatCount="indefinite" />
+                        <animate attributeName="opacity" values={`${band.opacity}; ${(band.opacity * 0.6).toFixed(2)}; ${band.opacity}`} dur={`${(band.duration * 0.45).toFixed(1)}s`} repeatCount="indefinite" />
+                    </path>
+                ))}
+            </g>
+
+            <!-- The rays drift sideways by one pattern width, so the loop has no seam -->
+            <g filter="url(#zb-ray-blur)" mask="url(#zb-curtain-mask)" class="opacity-40 dark:opacity-50">
+                <rect x="-37" width="1074" height="420" fill="url(#zb-rays)">
+                    <animateTransform attributeName="transform" type="translate" values="0 0; 37 0" dur="16s" repeatCount="indefinite" />
+                </rect>
+            </g>
+
+            <!-- Mountains, the far range paler, snow on the peaks -->
+            <path d="M0 470 L120 400 L220 430 L330 350 L430 420 L520 370 L620 410 L740 340 L860 400 L1000 380 L1000 560 L0 560 Z" class="fill-[#b9cad9] dark:fill-[#0d2132]" />
+            <path d="M0 520 L90 450 L150 476 L240 392 L320 456 L400 418 L480 470 L560 404 L640 458 L720 396 L800 452 L880 424 L1000 470 L1000 560 L0 560 Z" class="fill-[#93a9bf] dark:fill-[#07141e]" />
+            <g class="fill-white/90 dark:fill-slate-300/30">
+                <path d="M240 392 L222 410 L232 407 L240 414 L249 406 L258 410 Z" />
+                <path d="M560 404 L543 421 L552 418 L560 425 L568 417 L577 421 Z" />
+                <path d="M720 396 L702 414 L712 410 L720 418 L729 409 L738 414 Z" />
+                <path d="M330 350 L314 366 L323 363 L330 370 L338 362 L346 366 Z" opacity="0.7" />
+                <path d="M740 340 L723 356 L732 353 L740 360 L748 352 L757 356 Z" opacity="0.7" />
+            </g>
+
+            <!-- The lake, mirroring the lights -->
+            <rect y="540" width="1000" height="160" fill="url(#zb-lake)" />
+            <g clip-path="url(#zb-lake-clip)">
+                <!-- Flipped so the bright hems land near the far shore -->
+                <g transform="translate(0 760) scale(1 -1)" filter="url(#zb-aurora-blur)" class="opacity-30 dark:opacity-45">
+                    {auroraBands.map(band => <use href={`#${band.id}`} />)}
+                </g>
+                <g class="stroke-white/40 dark:stroke-teal-100/20" stroke-width="1.2">
+                    {[[120, 568, 220, 0], [520, 590, 300, -3], [300, 620, 180, -6], [700, 612, 240, -2]].map(([x, y, w, delay]) => (
+                        <line x1={x} y1={y} x2={x + w} y2={y}>
+                            <animate attributeName="opacity" values="0.1; 0.8; 0.1" dur="9s" begin={`${delay}s`} repeatCount="indefinite" />
+                        </line>
+                    ))}
+                </g>
+            </g>
+        </svg>
+    </template>
+
+    <!-- Sakura: cherry blossom petals drifting and tumbling down past a flowering branch -->
+    <template x-if="$store.settings.zenBackground === 'sakura'">
+        <svg class="absolute inset-0 w-full h-full stroke-none" viewBox="0 0 1000 700" preserveAspectRatio="xMidYMid slice" x-init="(still || paused) && $el.pauseAnimations()">
+            <defs>
+                <linearGradient id="zb-blossom-sky" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" class="[stop-color:#fde4ee] dark:[stop-color:#17122b]" />
+                    <stop offset="0.6" class="[stop-color:#fdf2f6] dark:[stop-color:#251a3d]" />
+                    <stop offset="1" class="[stop-color:#eef0fb] dark:[stop-color:#3a2547]" />
+                </linearGradient>
+                <radialGradient id="zb-blossom-glow">
+                    <stop offset="0" class="[stop-color:#fff7d6] dark:[stop-color:#f5f3ff]" stop-opacity="0.8" />
+                    <stop offset="1" class="[stop-color:#fff7d6] dark:[stop-color:#f5f3ff]" stop-opacity="0" />
+                </radialGradient>
+                <g id="zb-flower">
+                    {[0, 72, 144, 216, 288].map(angle => <ellipse cx="0" cy="-6" rx="4.4" ry="6.4" transform={`rotate(${angle})`} />)}
+                </g>
+            </defs>
+
+            <rect width="1000" height="700" fill="url(#zb-blossom-sky)" />
+            <circle cx="760" cy="210" r="140" fill="url(#zb-blossom-glow)" />
+            <circle cx="760" cy="210" r="48" class="fill-[#fff3cf] dark:fill-[#ede9fe]" opacity="0.75" />
+
+            <!-- Soft hills far off -->
+            <path d="M0 520 C180 470 360 500 520 480 S820 450 1000 490 L1000 700 L0 700 Z" class="fill-[#e9d5f0] dark:fill-[#2b1f45]" opacity="0.9" />
+            <path d="M0 570 C220 540 420 580 620 556 S880 540 1000 560 L1000 700 L0 700 Z" class="fill-[#dcc4ea] dark:fill-[#221838]" />
+
+            <!-- The branch, swaying a little from the top left -->
+            <g>
+                <animateTransform attributeName="transform" type="rotate" values="-0.8 -30 70; 0.8 -30 70; -0.8 -30 70" dur="14s" repeatCount="indefinite" />
+                <g fill="none" class="stroke-[#7a4a33] dark:stroke-[#3a2620]" stroke-linecap="round">
+                    <path d="M-30 70 C60 108 150 120 230 160 C280 185 320 200 360 205" stroke-width="12" />
+                    <path d="M120 112 C150 82 200 66 254 70" stroke-width="6" />
+                    <path d="M230 160 C252 124 290 104 340 110" stroke-width="5" />
+                </g>
+                {blossoms.map(([x, y, scale], i) => (
+                    <g transform={`translate(${x} ${y}) scale(${scale})`}>
+                        <use href="#zb-flower" class={i % 2 ? 'fill-[#f9a8d4] dark:fill-[#d68bb0]' : 'fill-[#fbcfe8] dark:fill-[#e9a8c6]'} />
+                        <circle r="2.4" class="fill-[#f472b6] dark:fill-[#c06090]" />
+                    </g>
+                ))}
+            </g>
+
+            <!-- Falling petals, each spinning and tumbling at its own pace -->
+            {petals.map(petal => (
+                <g>
+                    <animateMotion path={petal.path} dur={`${petal.duration.toFixed(1)}s`} begin={`${petal.delay.toFixed(1)}s`} repeatCount="indefinite" />
+                    <g transform={`scale(${petal.scale.toFixed(2)})`}>
+                        <path d="M0 -6 C4.5 -6 6.5 -1 0 6.5 C-6.5 -1 -4.5 -6 0 -6 Z" class={petal.light ? 'fill-[#fbcfe8] dark:fill-[#e9a8c6]' : 'fill-[#f9a8d4] dark:fill-[#d68bb0]'} opacity="0.9">
+                            <animateTransform attributeName="transform" type="rotate" values="0; 360" dur={`${petal.spin.toFixed(1)}s`} repeatCount="indefinite" />
+                            <animateTransform attributeName="transform" type="scale" values="1 1; 0.25 1; 1 1" dur={`${petal.flip.toFixed(1)}s`} repeatCount="indefinite" additive="sum" />
+                        </path>
+                    </g>
+                </g>
+            ))}
+        </svg>
+    </template>
+</div>
+
+<style is:global>
+    /* Soft glow: three lights drifting slowly */
+    .zen-orb { animation: zen-drift 14s ease-in-out infinite alternate; }
+    .zen-orb-2 { animation-duration: 18s; animation-direction: alternate-reverse; }
+    .zen-orb-3 { animation-duration: 22s; }
+    .zen-backdrop-held .zen-orb { animation-play-state: paused; }
+    @keyframes zen-drift {
+        0% { transform: translate(0, 0) scale(1); }
+        50% { transform: translate(3rem, 2rem) scale(1.15); }
+        100% { transform: translate(-2rem, 3rem) scale(0.95); }
+    }
+</style>

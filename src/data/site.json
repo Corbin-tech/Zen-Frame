@@ -2,22 +2,40 @@
     "owner": "Corbin Johnson",
     "siteName": "Zen Frame",
     "siteDescription": "A simple to do list application with a Zen Mode and pomodoro timer.",
+    "feedbackEmail": "",
+    "recapName": "Stillpoint",
     "pages": [
-      {
-        "title": "Task Manager",
-        "href": "#taskmanager"
-      },
-      {
-        "title": "Schedule",
-        "href": "#schedule"
-      },
-      {
-        "title": "Pomodoro",
-        "href": "#pomodoro"
-      },
-      {
-        "title": "Zen Mode",
-        "href": "#zenmode"
-      }
+        {
+            "title": "Dashboard",
+            "href": "#dashboard"
+        },
+        {
+            "title": "Task Manager",
+            "href": "#taskmanager"
+        },
+        {
+            "title": "Board",
+            "href": "#board"
+        },
+        {
+            "title": "Schedule",
+            "href": "#schedule"
+        },
+        {
+            "title": "Goals",
+            "href": "#goals"
+        },
+        {
+            "title": "Insights",
+            "href": "#insights"
+        },
+        {
+            "title": "Pomodoro",
+            "href": "#pomodoro"
+        },
+        {
+            "title": "Zen Mode",
+            "href": "#zenmode"
+        }
     ]
 }

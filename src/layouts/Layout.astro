@@ -1,32 +1,72 @@
 ---
+import { createHash } from 'node:crypto';
 import Footer from '../components/footer.astro';
-import DarkModeToggle from '../components/darkModeToggle.astro';
+import '../styles/tailwind.css';
+import '@fontsource-variable/inter';
+// The browser downloads a font only when it's the one picked in Settings
+import '@fontsource-variable/outfit';
+import '@fontsource-variable/lexend';
+import '@fontsource-variable/atkinson-hyperlegible-next';
+import '../styles/preferences.css';
+import siteData from '../data/site.json';
 
 interface Props {
 	title: string;
 }
 
 const { title } = Astro.props;
+
+// Theme, accent, font, text size, and navigation from Settings, applied before the first paint.
+// It has to run inline and first, so the Content Security Policy below allows it by its hash.
+const preferenceScript = `(function() {
+	const root = document.documentElement;
+	try {
+		const savedTheme = localStorage.getItem('theme');
+		const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+		const initialTheme = savedTheme || (prefersDark ? 'dark' : 'light');
+		root.classList.toggle('dark', initialTheme === 'dark');
+		root.setAttribute('data-theme', initialTheme);
+
+		const settings = JSON.parse(localStorage.getItem('settings') || '{}');
+		if (settings.accent) root.dataset.accent = settings.accent;
+		if (settings.font) root.dataset.font = settings.font;
+		if (settings.textSize) root.dataset.textSize = settings.textSize;
+		if (settings.navLayout) root.dataset.nav = settings.navLayout;
+		root.dataset.sidebar = settings.sidebarCollapsed ? 'collapsed' : 'open';
+	} catch (e) {}
+})();`;
+
+// Only this site's own files may load. Everything else, including any injected script, is blocked.
+// Alpine evaluates its x- attributes as code, which needs 'unsafe-eval'; style attributes need
+// 'unsafe-inline' because Alpine writes them. Left out in dev, where Vite injects its own scripts.
+const contentSecurityPolicy = [
+	"default-src 'self'",
+	`script-src 'self' 'unsafe-eval' 'sha256-${createHash('sha256').update(preferenceScript).digest('base64')}'`,
+	"style-src 'self' 'unsafe-inline'",
+	"img-src 'self' data: blob:",
+	"font-src 'self' data:",
+	"media-src 'self' data: blob:",
+	"connect-src 'self'",
+	"object-src 'none'",
+	"base-uri 'self'",
+	"form-action 'self'",
+	"frame-src 'none'"
+].join('; ');
 ---
 
 <!doctype html>
 <html lang="en">
 	<head>
-		<script is:inline>
-			(function() {
-				const savedTheme = localStorage.getItem('theme');
-				const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-				const initialTheme = savedTheme || (prefersDark ? 'dark' : 'light');
-				
-				document.documentElement.classList.toggle('dark', initialTheme === 'dark');
-				document.documentElement.setAttribute('data-theme', initialTheme);
-				
-				window.initialTheme = initialTheme;
-			})();
-		</script>
-		
 		<meta charset="UTF-8" />
+		{import.meta.env.PROD && <meta http-equiv="Content-Security-Policy" content={contentSecurityPolicy} />}
+		<meta name="referrer" content="strict-origin-when-cross-origin" />
+		<script is:inline set:html={preferenceScript}></script>
+
 		<meta name="viewport" content="width=device-width" />
+		<meta name="description" content={siteData.siteDescription} />
+		<meta property="og:title" content={title} />
+		<meta property="og:description" content={siteData.siteDescription} />
+		<meta property="og:type" content="website" />
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 		<meta name="generator" content={Astro.generator} />
 		<title>{title}</title>
@@ -35,34 +75,40 @@ const { title } = Astro.props;
 		<script>
 			import { initThemeStore } from '../stores/themeStore';
 			import { initStores } from '../stores/todoStore';
-			import '../scripts/dragDropInit.js';
+			import { initSettingsStore } from '../stores/settingsStore';
+			import { initGoalsStore } from '../stores/goalsStore';
+			import { initPomoStore } from '../stores/pomoStore';
+			import { notify, startReminders } from '../lib/notifications';
+			import { registerTaskDragDrop } from '../scripts/taskDragDrop.js';
+			import { dates } from '../lib/dates';
+			import JSConfetti from 'js-confetti';
+
+			window.jsConfetti = new JSConfetti();
 
 			document.addEventListener('alpine:init', () => {
-				// Initialize theme store and register it with Alpine
-				const themeStore = initThemeStore();
-				window.Alpine.store('theme', themeStore);
-				
-				// Initialize other stores
+				window.Alpine.store('theme', initThemeStore());
+				window.Alpine.store('settings', initSettingsStore());
+				window.Alpine.store('goals', initGoalsStore());
+				window.Alpine.store('pomoState', initPomoStore());
 				initStores();
+				registerTaskDragDrop(window.Alpine);
+				// $dates in templates: date and time helpers from src/lib/dates.ts
+				window.Alpine.magic('dates', () => dates);
+			});
+
+			// Block and due-date reminders, once every store is ready
+			document.addEventListener('alpine:initialized', () => {
+				window.notify = (kind, title, body) => notify(window.Alpine, kind, title, body);
+				startReminders(window.Alpine);
 			});
 		</script>
 		
-		<!-- Additional dependencies -->
-		<script defer src="https://cdn.jsdelivr.net/npm/js-confetti@0.12.0/dist/js-confetti.browser.min.js"></script>
-        <script defer src="https://cdnjs.cloudflare.com/ajax/libs/flowbite/2.2.1/flowbite.min.js"></script>
-		
 		<style is:global>
-			/* Base state: no transitions */
-			* {
-				transition: none !important;
+			[x-cloak] {
+				display: none !important;
 			}
-			
-			/* Theme loaded class to enable transitions after initial load */
-			.theme-loaded * {
-				transition: color 150ms ease-out !important;
-			}
-			
-			/* Active transition state */
+
+			/* While the theme switches, every color changes together at the same speed */
 			.theme-transition,
 			.theme-transition * {
 				transition: background-color 150ms ease-out, 
@@ -76,32 +122,36 @@ const { title } = Astro.props;
 				stroke: currentColor;
 				fill: none;
 			}
-			
-			/* Special handling for timer digits */
-			.transition-[color] {
-				transition-property: color !important;
-				transition-duration: 150ms !important;
-			}
 		</style>
 		
 		<style is:global>
 			:root {
-				--accent: 136, 58, 234;
-				--accent-light: 224, 204, 250;
-				--accent-dark: 49, 10, 101;
-				--accent-gradient: linear-gradient(
-					45deg,
-					rgb(var(--accent)),
-					rgb(var(--accent-light)) 30%,
-					white 60%
-				);
 				--bg-color: rgb(245 245 244);
 				--card-bg: rgb(255, 255, 255);
 				--cluster-bg: rgb(255, 255, 255);
 				--task-bg: rgb(255, 255, 255);
-				--border-color: rgb(229, 231, 235);
-				--teal-primary: #0d9488;
-				--teal-light: #5eead4;
+				--teal-primary: rgb(var(--accent-600));
+
+				/* Ambient page glow and the frosted header */
+				--glow-1: rgb(var(--accent-400) / 0.16);
+				--glow-2: rgb(99 102 241 / 0.10);
+				--grid-dot: rgb(15 23 42 / 0.07);
+				--glass: rgb(245 245 244 / 0.72);
+
+				/* Cluster colors (see CLUSTER_COLORS in todoStore.ts) */
+				--c-teal: #14b8a6;
+				--c-indigo: #6366f1;
+				--c-amber: #f59e0b;
+				--c-sky: #0ea5e9;
+				--c-rose: #f43f5e;
+				--c-violet: #8b5cf6;
+				--c-emerald: #10b981;
+				--c-orange: #f97316;
+				--c-pink: #ec4899;
+				--c-lime: #84cc16;
+				--c-cyan: #06b6d4;
+				--c-fuchsia: #d946ef;
+				--c-none: #94a3b8;
 			}
 			
 			:root.dark {
@@ -109,20 +159,88 @@ const { title } = Astro.props;
 				--card-bg: rgb(30, 41, 59);
 				--cluster-bg: rgb(51, 65, 85);
 				--task-bg: rgb(30, 41, 59);
-				--border-color: rgb(71, 85, 105);
-				--teal-primary: #14b8a6;
-				--teal-light: #2dd4bf;
+				--teal-primary: rgb(var(--accent-500));
+
+				--glow-1: rgb(var(--accent-500) / 0.16);
+				--glow-2: rgb(99 102 241 / 0.14);
+				--grid-dot: rgb(255 255 255 / 0.05);
+				--glass: rgb(15 23 42 / 0.7);
+
+				/* Darker steps keep the cluster colors in a readable band on dark surfaces */
+				--c-teal: #0d9488;
+				--c-amber: #d97706;
+				--c-sky: #0284c7;
+				--c-emerald: #059669;
+				--c-orange: #ea580c;
+				--c-pink: #db2777;
+				--c-lime: #65a30d;
+				--c-cyan: #0891b2;
+				--c-fuchsia: #c026d3;
+				--c-none: #64748b;
 			}
 
 			html, body {
 				min-height: 100vh;
 				margin: 0;
 				padding: 0;
+			}
+
+			/* Only the root paints the page color, so the glows on body::before show above it */
+			html {
 				background-color: var(--bg-color);
 			}
 			
 			html {
-				font-family: system-ui, sans-serif;
+				font-family: 'Inter Variable', system-ui, sans-serif;
+				font-feature-settings: 'cv11', 'ss01';
+				-webkit-font-smoothing: antialiased;
+				-moz-osx-font-smoothing: grayscale;
+			}
+
+			/* Soft color glows and a fading dot grid behind everything */
+			body::before {
+				content: '';
+				position: fixed;
+				inset: 0;
+				z-index: -1;
+				pointer-events: none;
+				background:
+					radial-gradient(40rem 28rem at 8% -6%, var(--glow-1), transparent 70%),
+					radial-gradient(36rem 26rem at 96% 4%, var(--glow-2), transparent 70%);
+			}
+			body::after {
+				content: '';
+				position: fixed;
+				inset: 0;
+				z-index: -1;
+				pointer-events: none;
+				background-image: radial-gradient(var(--grid-dot) 1px, transparent 1px);
+				background-size: 22px 22px;
+				mask-image: linear-gradient(to bottom, black, transparent 60%);
+				-webkit-mask-image: linear-gradient(to bottom, black, transparent 60%);
+			}
+
+			::selection {
+				background-color: rgb(var(--accent-400) / 0.3);
+			}
+
+			:focus-visible {
+				outline: 2px solid var(--teal-primary);
+				outline-offset: 2px;
+			}
+
+			* {
+				scrollbar-width: thin;
+				scrollbar-color: rgb(148 163 184 / 0.5) transparent;
+			}
+
+			@media (prefers-reduced-motion: reduce) {
+				*, *::before, *::after {
+					animation-duration: 0.01ms !important;
+					animation-iteration-count: 1 !important;
+					transition-duration: 0.01ms !important;
+					scroll-behavior: auto !important;
+				}
 			}
 			code {
 				font-family:
@@ -136,32 +254,12 @@ const { title } = Astro.props;
 					monospace;
 			}
 		</style>
-
-		<style is:global>
-			.force-repaint {
-				transform: translateZ(0);
-			}
-		</style>
-
-		<script>
-			// Enable transitions after initial render
-			document.addEventListener('DOMContentLoaded', () => {
-				document.documentElement.classList.add('theme-loaded');
-			});
-		</script>
-		
-		<script
-		type="module" src="/src/components/taskManager.js">
-	</script>
 	</head>
 	<body>
 		<div class="min-h-screen flex flex-col">
 			<!-- Content Wrapper -->
 			<div class="flex-1">
-				<main class="p-6">
-					<div class="flex justify-end mb-4">
-						<DarkModeToggle />
-					</div>
+				<main class="px-3 pb-8 sm:px-6">
 					<slot />
 				</main>
 			</div>

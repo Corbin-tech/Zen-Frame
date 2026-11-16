@@ -3,19 +3,19 @@
  * Footer Component
  * - Displays copyright information
  * - Shows site navigation links
- * - Adapts to screen size
+ * - Two centered rows at every width, lined up with the page content (max-w-6xl)
  * 
  * Uses site.json for configuration
  */
 import data from "../data/site.json";
 ---
 
-<footer class="w-full bg-white dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700 mt-auto transition-colors">
+<footer class="w-full px-3 sm:px-6 bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm border-t border-black/5 dark:border-white/5 mt-auto transition-colors">
   <div 
     x-data 
-    class="w-full p-4 md:flex md:items-center md:justify-between mx-auto max-w-7xl px-4 sm:px-6 lg:px-8"
+    class="w-full max-w-6xl mx-auto py-4 flex flex-col items-center gap-y-2"
   >
-    <span class="text-sm text-gray-700 dark:text-gray-300 flex items-center justify-center gap-4 transition-colors">
+    <span class="text-sm whitespace-nowrap text-gray-700 dark:text-gray-300 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 transition-colors">
       <span>&copy; {new Date().getFullYear()}</span>
       <span class="hover:text-primary dark:hover:text-primary-300">
         {data.siteName}
@@ -28,20 +28,28 @@ import data from "../data/site.json";
         </svg>
       </a>
     </span>
-    <div class="text-center sm:text-left">
-      <ul class="justify-center flex flex-wrap mt-3 text-sm font-medium text-gray-700 dark:text-gray-300 sm:mt-0">
+    <div>
+      <ul class="flex flex-wrap justify-center gap-x-4 gap-y-1 text-sm font-medium text-gray-700 dark:text-gray-300">
         {
           data.pages.map((page) => (
             <li>
               <button
                 @click={`$dispatch('change-tab', { tab: '${page.href.substring(1)}' })`}
-                class="mr-0 sm:mr-4 p-4 sm:p-0 hover:underline hover:text-gray-900 dark:hover:text-gray-100 cursor-pointer"
+                class="px-2 py-2 sm:p-0 hover:underline hover:text-gray-900 dark:hover:text-gray-100 cursor-pointer"
               >
                 {page.title}
               </button>
             </li>
           ))
         }
+        <li>
+          <button
+            @click="$dispatch('open-feedback')"
+            class="px-2 py-2 sm:p-0 inline-flex items-center gap-1 text-teal-600 dark:text-teal-400 hover:underline hover:text-teal-700 dark:hover:text-teal-300 cursor-pointer"
+          >
+            Send feedback
+          </button>
+        </li>
       </ul>
     </div>
   </div>

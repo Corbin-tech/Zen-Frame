@@ -1,0 +1,123 @@
+// Reads and writes JSON in localStorage safely, and handles full-app backup/restore.
+
+const BACKUP_KEYS = [
+  "todos",
+  "skippedClusters",
+  "scheduledItems",
+  "planning",
+  "history",
+  "goals",
+  "checkIns",
+  "notes",
+  "pomoState",
+  "pomoSessions",
+  "settings",
+  "theme",
+  "activeTab"
+] as const;
+
+type BackupKey = typeof BACKUP_KEYS[number];
+
+const ARRAY_KEYS = new Set<BackupKey>([
+  "todos",
+  "skippedClusters",
+  "scheduledItems",
+  "history",
+  "goals",
+  "notes",
+  "pomoSessions"
+]);
+
+const OBJECT_KEYS = new Set<BackupKey>(["planning", "checkIns", "pomoState", "settings"]);
+const STRING_KEYS = new Set<BackupKey>(["theme", "activeTab"]);
+
+export function loadJson<T>(key: string, fallback: T): T {
+  try {
+    const saved = localStorage.getItem(key);
+    return saved ? JSON.parse(saved) : fallback;
+  } catch {
+    console.error(`Could not read "${key}" from storage; starting empty.`);
+    return fallback;
+  }
+}
+
+export function saveJson(key: string, value: unknown): boolean {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+    return true;
+  } catch (error) {
+    console.error(`Could not save "${key}" to storage:`, error);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("app-toast", {
+        detail: { title: "Storage full", body: "Your browser could not save recent changes." }
+      }));
+    }
+    return false;
+  }
+}
+
+export function exportBackup(): string {
+  const data: Record<string, unknown> = {};
+  for (const key of BACKUP_KEYS) {
+    const raw = localStorage.getItem(key);
+    if (raw === null) continue;
+    if (STRING_KEYS.has(key)) {
+      data[key] = raw;
+    } else {
+      try {
+        data[key] = JSON.parse(raw);
+      } catch {
+        // Skip corrupted entries
+      }
+    }
+  }
+  return JSON.stringify({
+    app: "zen-frame",
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    data
+  }, null, 2);
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+export function importBackup(raw: string): { ok: boolean; error?: string; count?: number } {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return { ok: false, error: "The selected file is not valid JSON." };
+  }
+
+  if (!isPlainObject(parsed) || parsed.app !== "zen-frame" || !isPlainObject(parsed.data)) {
+    return { ok: false, error: "This file does not look like a Zen Frame backup." };
+  }
+
+  const entries: Array<[BackupKey, unknown]> = [];
+  for (const key of BACKUP_KEYS) {
+    if (!(key in parsed.data)) continue;
+    const value = parsed.data[key];
+    if (ARRAY_KEYS.has(key) && !Array.isArray(value)) {
+      return { ok: false, error: `Invalid "${key}" data in backup.` };
+    }
+    if (OBJECT_KEYS.has(key) && !isPlainObject(value)) {
+      return { ok: false, error: `Invalid "${key}" data in backup.` };
+    }
+    if (STRING_KEYS.has(key) && typeof value !== "string") {
+      return { ok: false, error: `Invalid "${key}" data in backup.` };
+    }
+    entries.push([key, value]);
+  }
+
+  for (const [key, value] of entries) {
+    if (STRING_KEYS.has(key)) {
+      localStorage.setItem(key, value as string);
+    } else if (!saveJson(key, value)) {
+      return { ok: false, error: "Your browser storage is full." };
+    }
+  }
+
+  return { ok: true, count: entries.length };
+}

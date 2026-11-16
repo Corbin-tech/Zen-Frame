@@ -1,0 +1,63 @@
+---
+// A small single-series bar chart for Insights. `items` is an Alpine expression for an array of
+// { key, label, value, tip, highlight }: label sits under the bar (leave it empty to skip),
+// tip shows on hover or focus, and highlighted bars use the full accent.
+interface Props {
+    items: string;
+    label: string; // What the bars count, for screen readers
+    height?: string;
+}
+
+const { items, label, height = 'h-32' } = Astro.props;
+
+// Alpine expressions, built here because the template parser can't take ">" inside attributes
+const peak = `Math.max(1, ...${items}.map(item => item.value))`;
+const tooltipStyle = `hovered ? \`left: \${(hovered.index + 0.5) / ${items}.length * 100}%;\` : ''`;
+const showValue = `bar.value > 0 && index === ${items}.findIndex(item => item.value === ${peak})`;
+const barStyle = `\`height: \${bar.value ? Math.max(3, bar.value / ${peak} * 85) : 0}%;\``;
+---
+
+<div class="relative" x-data="{ hovered: null }" x-on:mouseleave="hovered = null">
+    <!-- Tooltip -->
+    <div
+        x-show="hovered"
+        x-cloak
+        class="absolute -top-2 z-10 -translate-x-1/2 -translate-y-full px-2.5 py-1.5 rounded-lg bg-gray-900 dark:bg-slate-950 text-white text-xs font-medium shadow-lg pointer-events-none whitespace-nowrap"
+        x-bind:style={tooltipStyle}
+        x-text="hovered?.tip"
+    ></div>
+
+    <div class={`flex items-end gap-[2px] ${height} border-b border-gray-200 dark:border-slate-600`} role="list" aria-label={label}>
+        <template x-for={`(bar, index) in ${items}`} x-bind:key="bar.key">
+            <div
+                class="flex-1 h-full flex flex-col items-center justify-end gap-1 rounded-t focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
+                role="listitem"
+                tabindex="0"
+                x-bind:aria-label="bar.tip"
+                x-on:mouseenter="hovered = { ...bar, index }"
+                x-on:focus="hovered = { ...bar, index }"
+                x-on:blur="hovered = null"
+            >
+                <!-- Only the first tallest bar carries its number -->
+                <span
+                    class="text-[11px] font-medium tabular-nums whitespace-nowrap text-gray-700 dark:text-gray-200"
+                    x-show={showValue}
+                    x-text="bar.display ?? bar.value"
+                ></span>
+                <div
+                    class="w-full max-w-[1.5rem] rounded-t-[4px] transition-[height,opacity] duration-500"
+                    x-bind:class="[
+                        bar.highlight ? 'bg-teal-600 dark:bg-teal-400' : 'bg-teal-500/55 dark:bg-teal-400/45',
+                        hovered && hovered.key === bar.key ? 'opacity-75' : ''
+                    ]"
+                    x-bind:style={barStyle}
+                ></div>
+            </div>
+        </template>
+    </div>
+    <div class="flex gap-[2px] mt-1.5" aria-hidden="true">
+        <template x-for={`bar in ${items}`} x-bind:key="bar.key">
+            <span class="flex-1 text-center text-[11px] whitespace-nowrap text-gray-400 dark:text-gray-500" x-bind:class="bar.highlight && 'font-semibold text-gray-700 dark:text-gray-200'" x-text="bar.label"></span>
+        </template>
+    </div>
+</div>

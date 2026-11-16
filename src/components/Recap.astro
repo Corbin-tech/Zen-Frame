@@ -1,0 +1,366 @@
+---
+// The monthly recap: a full-screen story of one month, opened with the "open-recap" window event
+// ({ month: "YYYY-MM" }). Slides advance on their own; tap the right side or press → for the next,
+// the left side or ← for the previous, and hold to pause. Esc closes it.
+// Its name on screen is recapName in src/data/site.json.
+import data from '../data/site.json';
+
+const name = data.recapName;
+---
+
+<div
+    x-data="recap"
+    x-on:open-recap.window="open($event.detail.month)"
+    x-on:keydown.window="onKey($event)"
+>
+    <div
+        x-show="isOpen"
+        x-cloak
+        x-transition.opacity.duration.300ms
+        class="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-0 sm:p-6"
+        role="dialog"
+        aria-modal="true"
+        x-bind:aria-label={`\`\${monthName} ${name}\``}
+    >
+        <div
+            x-ref="story"
+            tabindex="-1"
+            class="relative w-full h-full sm:h-[min(44rem,calc(100vh-3rem))] sm:w-auto sm:aspect-[9/16] sm:rounded-3xl overflow-hidden shadow-2xl ring-1 ring-white/10 text-white select-none focus:outline-none bg-gradient-to-br transition-[background] duration-700"
+            x-bind:class="slide?.theme"
+            x-on:pointerdown="holding = true"
+            x-on:pointerup="holding = false"
+            x-on:pointerleave="holding = false"
+        >
+            <!-- Moving glows -->
+            <span class="recap-orb absolute -top-24 -left-20 w-72 h-72 rounded-full bg-white/20 blur-3xl" aria-hidden="true"></span>
+            <span class="recap-orb recap-orb-slow absolute -bottom-28 -right-16 w-80 h-80 rounded-full bg-black/20 blur-3xl" aria-hidden="true"></span>
+
+            <!-- Progress, one segment per slide -->
+            <div class="absolute top-0 inset-x-0 z-20 flex gap-1 px-3 pt-3">
+                <template x-for="(item, i) in slides" :key="i">
+                    <div class="flex-1 h-1 rounded-full bg-white/30 overflow-hidden">
+                        <div class="h-full bg-white" x-bind:style="`width: ${i < index ? 100 : i === index ? progress * 100 : 0}%;`"></div>
+                    </div>
+                </template>
+            </div>
+            <div class="absolute top-6 inset-x-0 z-20 flex items-center justify-between px-4">
+                <p class="text-xs font-semibold tracking-wide text-white/80" x-text="`Zen Frame · ${monthName}`"></p>
+                <div class="flex items-center gap-1">
+                    <button type="button" x-on:click.stop="paused = !paused" x-on:pointerdown.stop class="p-2 rounded-full hover:bg-white/15" x-bind:aria-label="paused ? 'Play' : 'Pause'">
+                        <svg x-show="!paused" class="w-4 h-4" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" stroke="none" d="M7 5h3v14H7zM14 5h3v14h-3z" /></svg>
+                        <svg x-show="paused" class="w-4 h-4" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" stroke="none" d="M8 5.14v13.72a1 1 0 001.5.86l11-6.86a1 1 0 000-1.72l-11-6.86A1 1 0 008 5.14z" /></svg>
+                    </button>
+                    <button type="button" x-ref="close" x-on:click.stop="close()" x-on:pointerdown.stop class="p-2 rounded-full hover:bg-white/15" aria-label={`Close ${name}`}>
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tap zones -->
+            <button type="button" class="absolute inset-y-0 left-0 w-1/3 z-10" x-on:click="previous()" aria-label="Previous slide"></button>
+            <button type="button" class="absolute inset-y-0 right-0 w-2/3 z-10" x-on:click="next()" aria-label="Next slide"></button>
+
+            <!-- Slide -->
+            <template x-for="(item, i) in slides" :key="i">
+                <div
+                    x-show="i === index"
+                    x-transition:enter="transition ease-out duration-500"
+                    x-transition:enter-start="opacity-0 translate-y-4 scale-[0.98]"
+                    x-transition:enter-end="opacity-100 translate-y-0 scale-100"
+                    class="absolute inset-0 flex flex-col justify-center px-8 pt-16 pb-10"
+                    aria-live="polite"
+                >
+                    <p class="text-sm font-semibold uppercase tracking-[0.2em] text-white/75" x-text="item.eyebrow"></p>
+                    <p class="mt-4 font-black tracking-tight leading-none" x-bind:class="valueSize(item.value)" x-text="item.value"></p>
+                    <p class="mt-3 text-2xl font-semibold leading-snug" x-text="item.label"></p>
+                    <p x-show="item.note" class="mt-4 text-base text-white/80 leading-relaxed" x-text="item.note"></p>
+
+                    <ol x-show="item.list?.length" class="mt-6 space-y-3">
+                        <template x-for="(row, r) in item.list ?? []" :key="r">
+                            <li class="flex items-center gap-3 rounded-2xl px-4 py-3 ring-1 ring-white/15" style="background-color: rgb(255 255 255 / 0.12);">
+                                <span class="text-lg font-black tabular-nums text-white/60" x-text="r + 1"></span>
+                                <span class="w-3 h-3 rounded-full shrink-0 ring-2 ring-white/70" x-bind:style="`background-color: ${row.color};`"></span>
+                                <span class="flex-1 min-w-0 truncate font-semibold" x-text="row.name"></span>
+                                <span class="tabular-nums font-semibold" x-text="row.value"></span>
+                            </li>
+                        </template>
+                    </ol>
+
+                    <div x-show="item.grid?.length" class="mt-6 grid grid-cols-2 gap-3">
+                        <template x-for="(cell, c) in item.grid ?? []" :key="c">
+                            <div class="rounded-2xl px-4 py-3 ring-1 ring-white/15" style="background-color: rgb(255 255 255 / 0.12);">
+                                <p class="text-2xl font-black tabular-nums truncate" x-text="cell.value"></p>
+                                <p class="text-xs font-medium text-white/75" x-text="cell.label"></p>
+                            </div>
+                        </template>
+                    </div>
+
+                    <div x-show="item.final" class="relative z-20 mt-8 flex flex-wrap gap-2">
+                        <button type="button" x-on:click.stop="copySummary()" x-on:pointerdown.stop class="px-4 py-2.5 rounded-full bg-white text-gray-900 text-sm font-semibold hover:bg-white/90 transition-colors">Copy summary</button>
+                        <button type="button" x-on:click.stop="index = 0; progress = 0" x-on:pointerdown.stop class="px-4 py-2.5 rounded-full bg-white/15 text-white text-sm font-semibold hover:bg-white/25 transition-colors">Watch again</button>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </div>
+</div>
+
+<script>
+    import { dates } from '../lib/dates';
+    import { averageEnergy, formatMonth, monthRange, partOfDay, percentChange, previousMonth, summarize } from '../lib/insights';
+    import site from '../data/site.json';
+
+    const SLIDE_MS = 6500;
+    const THEMES = [
+        'from-teal-500 via-teal-700 to-slate-900',
+        'from-indigo-500 via-violet-700 to-slate-900',
+        'from-fuchsia-500 via-rose-600 to-orange-500',
+        'from-sky-500 via-indigo-600 to-violet-800',
+        'from-emerald-500 via-teal-700 to-sky-900',
+        'from-amber-400 via-orange-600 to-rose-700',
+        'from-violet-500 via-fuchsia-700 to-slate-900',
+        'from-rose-500 via-pink-700 to-indigo-900'
+    ];
+    const plural = (count, word) => `${count} ${word}${count === 1 ? '' : 's'}`;
+    const weekdayName = (day) => new Date(2026, 0, 4 + day).toLocaleDateString(undefined, { weekday: 'long' });
+    const hourRange = (hour) => `${hour % 12 || 12}${hour < 12 ? 'am' : 'pm'} and ${(hour + 1) % 12 || 12}${hour + 1 < 12 || hour === 23 ? 'am' : 'pm'}`;
+
+    function buildSlides(month, store) {
+        const { completions, sessions, checkIns, clusterName, clusterColor } = store;
+        const range = monthRange(month);
+        const stats = summarize(completions, sessions, range);
+        const before = summarize(completions, sessions, monthRange(previousMonth(month)));
+        const name = formatMonth(month, { month: 'long' });
+        const previousName = formatMonth(previousMonth(month), { month: 'long' });
+        const isCurrent = month === dates.toDateKey().slice(0, 7);
+        const slides = [];
+
+        slides.push({
+            eyebrow: `Your monthly ${site.recapName}`,
+            value: name,
+            label: isCurrent ? 'So far, here’s how it’s going.' : 'Here’s how it went.',
+            note: 'Tap to skip ahead, hold to pause.'
+        });
+
+        if (!stats.tasks && !stats.focusMinutes) {
+            slides.push({
+                eyebrow: 'A quiet month',
+                value: '0',
+                label: 'tasks or focus sessions logged',
+                note: 'Finish a task or a Pomodoro and this story fills itself in.',
+                final: true,
+                empty: true
+            });
+            return slides.map((slide, i) => ({ ...slide, theme: THEMES[i % THEMES.length] }));
+        }
+
+        const taskChange = percentChange(stats.tasks, before.tasks);
+        slides.push({
+            eyebrow: 'You got things done',
+            value: String(stats.tasks),
+            label: stats.tasks === 1 ? 'task finished' : 'tasks finished',
+            note: taskChange === null
+                ? (before.tasks ? '' : `Your first month on the books.`)
+                : taskChange >= 0 ? `That’s ${taskChange}% more than ${previousName}.` : `${Math.abs(taskChange)}% fewer than ${previousName}. Rest counts too.`
+        });
+
+        if (stats.focusMinutes) {
+            const hours = stats.focusMinutes / 60;
+            slides.push({
+                eyebrow: 'Deep work',
+                value: hours >= 1 ? `${Math.round(hours * 10) / 10}h` : `${stats.focusMinutes}m`,
+                label: 'of focused time',
+                note: `${plural(stats.sessions, 'Pomodoro session')}.${stats.bestFocusDay ? ` Your deepest day was ${dates.formatDate(stats.bestFocusDay.date, { weekday: 'long', month: 'short', day: 'numeric' })} with ${dates.formatDuration(stats.bestFocusDay.minutes)}.` : ''}`
+            });
+        }
+
+        if (stats.byCluster.length && stats.tasks) {
+            const top = stats.byCluster[0];
+            slides.push({
+                eyebrow: 'Where your effort went',
+                value: clusterName(top) || 'No cluster',
+                label: `${plural(top.count, 'task')}, ${Math.round(top.count / stats.tasks * 100)}% of the month`,
+                list: stats.byCluster.slice(0, 3).map(entry => ({ name: clusterName(entry) || 'No cluster', color: clusterColor(entry), value: entry.count }))
+            });
+        }
+
+        if (stats.tasks >= 3) {
+            const bestWeekday = stats.byWeekday.indexOf(Math.max(...stats.byWeekday));
+            const peakHour = stats.byHour.indexOf(Math.max(...stats.byHour));
+            const part = partOfDay(stats.byHour);
+            slides.push({
+                eyebrow: 'Your rhythm',
+                value: `${weekdayName(bestWeekday)}s`,
+                label: 'were your power day',
+                note: `${part ? `You’re ${/^[aeiou]/.test(part) ? 'an' : 'a'} ${part}${part.includes(' ') ? '' : ' person'}: ` : ''}most tasks got done between ${hourRange(peakHour)}.`
+            });
+        }
+
+        if (stats.busiestDay && stats.busiestDay.count > 1) {
+            slides.push({
+                eyebrow: 'Your biggest day',
+                value: dates.formatDate(stats.busiestDay.date, { month: 'short', day: 'numeric' }),
+                label: `${stats.busiestDay.count} tasks in one day`,
+                note: dates.formatDate(stats.busiestDay.date, { weekday: 'long' }) + ' was on fire.'
+            });
+        }
+
+        slides.push({
+            eyebrow: 'Consistency',
+            value: String(stats.longestStreak),
+            label: stats.longestStreak === 1 ? 'day streak, your longest' : 'days in a row, your longest streak',
+            note: `You showed up on ${plural(stats.activeDays, 'day')} this month.`
+        });
+
+        if (stats.onTimePercent !== null) {
+            slides.push({
+                eyebrow: 'Deadlines',
+                value: `${stats.onTimePercent}%`,
+                label: 'of tasks with a due date were done on time',
+                note: stats.onTimePercent >= 80 ? 'Reliable. Future you says thanks.' : 'Room to grow. Try planning due tasks into your schedule.'
+            });
+        }
+
+        const energy = averageEnergy(checkIns, range);
+        if (energy !== null) {
+            slides.push({
+                eyebrow: 'How you felt',
+                value: `${energy}/5`,
+                label: 'average energy in your weekly check-ins',
+                note: energy >= 3.5 ? 'You kept your battery charged.' : 'Lower energy this month. Be kind to yourself.'
+            });
+        }
+
+        slides.push({
+            eyebrow: `${name} at a glance`,
+            value: 'That’s your month',
+            label: '',
+            grid: [
+                { value: String(stats.tasks), label: 'tasks finished' },
+                { value: dates.formatDuration(stats.focusMinutes), label: 'focus time' },
+                { value: plural(stats.longestStreak, 'day'), label: 'longest streak' },
+                { value: stats.byCluster[0] ? (clusterName(stats.byCluster[0]) || 'No cluster') : '–', label: 'top cluster' }
+            ],
+            final: true,
+            summaryText: [
+                `My ${name} on Zen Frame:`,
+                `${plural(stats.tasks, 'task')} finished`,
+                `${dates.formatDuration(stats.focusMinutes)} of focus over ${plural(stats.sessions, 'session')}`,
+                `${plural(stats.longestStreak, 'day')} longest streak, active ${plural(stats.activeDays, 'day')}`,
+                stats.byCluster[0] ? `Top cluster: ${clusterName(stats.byCluster[0]) || 'No cluster'}` : '',
+                stats.onTimePercent !== null ? `${stats.onTimePercent}% on time` : ''
+            ].filter(Boolean).join('\n')
+        });
+
+        return slides.map((slide, i) => ({ ...slide, theme: THEMES[i % THEMES.length] }));
+    }
+
+    document.addEventListener('alpine:init', () => {
+        window.Alpine.data('recap', () => ({
+            isOpen: false,
+            month: '',
+            slides: [],
+            index: 0,
+            progress: 0,
+            paused: false,
+            holding: false,
+            timer: null,
+            returnFocus: null,
+
+            get slide() {
+                return this.slides[this.index];
+            },
+
+            // Short values get the biggest type; long names shrink so words don't break
+            valueSize(value) {
+                if (value.length <= 4) return 'text-7xl sm:text-8xl';
+                if (value.length <= 7) return 'text-6xl';
+                if (value.length <= 11) return 'text-5xl';
+                return 'text-4xl break-words';
+            },
+
+            get monthName() {
+                return this.month ? formatMonth(this.month) : '';
+            },
+
+            open(month) {
+                const todos = this.$store.todos;
+                this.month = month;
+                this.slides = buildSlides(month, {
+                    completions: todos.completions,
+                    sessions: this.$store.pomoState.sessions,
+                    checkIns: Object.values(this.$store.goals.checkIns),
+                    clusterName: entry => (entry.clusterId && todos.find(entry.clusterId)?.todo) || entry.name,
+                    clusterColor: entry => entry.clusterId && todos.find(entry.clusterId) ? todos.clusterColor(entry.clusterId) : 'var(--c-none)'
+                });
+                this.index = 0;
+                this.progress = 0;
+                this.paused = false;
+                this.returnFocus = document.activeElement;
+                this.isOpen = true;
+                this.$nextTick(() => this.$refs.story.focus());
+
+                clearInterval(this.timer);
+                let last = Date.now();
+                this.timer = setInterval(() => {
+                    const now = Date.now();
+                    const elapsed = now - last;
+                    last = now;
+                    if (this.paused || this.holding || this.slide?.final) return;
+                    this.progress = Math.min(1, this.progress + elapsed / SLIDE_MS);
+                    if (this.progress >= 1) this.next();
+                }, 100);
+            },
+
+            close() {
+                this.isOpen = false;
+                clearInterval(this.timer);
+                this.returnFocus?.focus?.();
+            },
+
+            next() {
+                if (this.index < this.slides.length - 1) {
+                    this.index++;
+                    this.progress = 0;
+                    // Reaching the last slide counts as seen, and the entry on Insights shrinks.
+                    // A month with nothing in it doesn't count: there was no story yet.
+                    if (this.slide.final && !this.slide.empty) this.$store.settings.markRecapSeen(this.month);
+                } else {
+                    this.progress = 1;
+                }
+            },
+
+            previous() {
+                this.index = Math.max(0, this.index - 1);
+                this.progress = 0;
+            },
+
+            onKey(event) {
+                if (!this.isOpen) return;
+                if (event.key === 'Escape') this.close();
+                else if (event.key === 'ArrowRight') this.next();
+                else if (event.key === 'ArrowLeft') this.previous();
+                else return;
+                event.preventDefault();
+            },
+
+            async copySummary() {
+                const text = this.slides.find(slide => slide.summaryText)?.summaryText ?? '';
+                try {
+                    await navigator.clipboard.writeText(text);
+                    window.dispatchEvent(new CustomEvent('app-toast', { detail: { title: 'Summary copied', body: 'Paste it anywhere to share your month.' } }));
+                } catch (e) {
+                    window.dispatchEvent(new CustomEvent('app-toast', { detail: { title: 'Couldn’t copy', body: 'Your browser blocked the clipboard.' } }));
+                }
+            }
+        }));
+    });
+</script>
+
+<style>
+    .recap-orb { animation: recap-drift 8s ease-in-out infinite alternate; }
+    .recap-orb-slow { animation-duration: 11s; }
+    @keyframes recap-drift {
+        to { transform: translate(3rem, 2.5rem) scale(1.2); }
+    }
+</style>

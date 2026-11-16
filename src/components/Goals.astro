@@ -1,0 +1,373 @@
+---
+// Goals, the weekly check-in, and notes. Data lives in $store.goals (src/stores/goalsStore.ts).
+const panel = 'rounded-2xl bg-white/80 dark:bg-slate-800/70 backdrop-blur-sm shadow-sm ring-1 ring-black/5 dark:ring-white/10';
+const panelTitle = 'text-base font-semibold text-gray-900 dark:text-white';
+const field = 'block w-full rounded-lg border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-700/60 dark:text-white text-sm focus:border-teal-500 focus:ring-teal-500';
+const iconButton = 'p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:hover:text-gray-200 dark:hover:bg-slate-700 transition-colors';
+const prompts = [
+    { key: 'wins', label: 'What went well this week?', placeholder: 'Wins, big or small' },
+    { key: 'blockers', label: 'What got in the way?', placeholder: 'Distractions, energy, too much on the list…' },
+    { key: 'nextFocus', label: 'What will you focus on next week?', placeholder: 'One to three priorities' }
+];
+---
+
+<div x-data="goalsPage" class="space-y-6">
+    <header class="flex flex-wrap items-end justify-between gap-4">
+        <div>
+            <p class="text-sm font-medium text-teal-700 dark:text-teal-400">Goals</p>
+            <h1 class="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900 dark:text-white">Goals &amp; check-ins</h1>
+            <p class="mt-1 text-gray-500 dark:text-gray-400" x-text="summary"></p>
+        </div>
+    </header>
+
+    <div class="grid gap-6 lg:grid-cols-3 items-start">
+        <div class="lg:col-span-2 min-w-0 space-y-6">
+            <!-- Goals -->
+            <section class={`${panel} p-5`}>
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h2 class={panelTitle}>Goals</h2>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Link a goal to a cluster and its progress follows the cluster's tasks.</p>
+                    </div>
+                </div>
+
+                <form class="flex gap-2 mb-4" x-on:submit.prevent="addGoal()">
+                    <label for="new-goal" class="sr-only">New goal</label>
+                    <input id="new-goal" name="new-goal" type="text" x-model="newGoal" placeholder="Add a goal, for example Pass Network+" class={field} />
+                    <button type="submit" class="shrink-0 px-4 py-2 text-sm font-medium rounded-lg bg-teal-600 text-white hover:bg-teal-700 shadow-sm">Add</button>
+                </form>
+
+                <ul class="space-y-3">
+                    <template x-for="goal in goals" :key="goal.id">
+                        <li class="rounded-xl ring-1 ring-black/5 dark:ring-white/10 bg-gray-50/80 dark:bg-slate-700/30 p-4" x-data="{ open: false }">
+                            <div class="flex items-start gap-3">
+                                <input
+                                    type="checkbox"
+                                    name="goal-done"
+                                    class="mt-1 w-4 h-4 rounded border-gray-300 dark:border-slate-500 text-teal-600 focus:ring-teal-500 dark:bg-slate-700"
+                                    x-bind:checked="goal.done"
+                                    x-on:change="$store.goals.updateGoal(goal.id, { done: $event.target.checked })"
+                                    x-bind:aria-label="`Mark ${goal.title} ${goal.done ? 'not reached' : 'reached'}`"
+                                />
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex items-center gap-2">
+                                        <input
+                                            type="text"
+                                            name="goal-title"
+                                            aria-label="Goal"
+                                            x-bind:value="goal.title"
+                                            x-on:change="$event.target.value.trim() && $store.goals.updateGoal(goal.id, { title: $event.target.value.trim() })"
+                                            class="flex-1 min-w-0 p-0 bg-transparent border-none focus:ring-0 text-sm font-semibold"
+                                            x-bind:class="goal.done ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-white'"
+                                        />
+                                        <span class="text-sm font-semibold tabular-nums text-gray-700 dark:text-gray-200" x-text="`${progressOf(goal)}%`"></span>
+                                    </div>
+
+                                    <div
+                                        class="mt-2 h-2 rounded-full overflow-hidden"
+                                        x-bind:style="`background-color: color-mix(in srgb, ${colorOf(goal)} 18%, transparent);`"
+                                        role="progressbar" aria-valuemin="0" aria-valuemax="100"
+                                        x-bind:aria-valuenow="progressOf(goal)"
+                                        x-bind:aria-label="`${goal.title} progress`"
+                                    >
+                                        <div class="h-full rounded-full transition-[width] duration-700" x-bind:style="`width: ${progressOf(goal)}%; background-color: ${colorOf(goal)};`"></div>
+                                    </div>
+
+                                    <div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500 dark:text-gray-400">
+                                        <span x-show="goal.clusterId" x-text="clusterDetail(goal)"></span>
+                                        <span x-show="goal.targetDate" class="px-1.5 py-0.5 rounded font-medium" x-bind:class="goal.targetDate ? $dates.dueClass(goal.targetDate, goal.done) : ''" x-text="goal.targetDate ? `Target ${$dates.formatDate(goal.targetDate)}` : ''"></span>
+                                        <button type="button" x-on:click="open = !open" class="font-medium text-teal-700 dark:text-teal-400 hover:underline" x-text="open ? 'Close' : (goal.why ? 'Notes & settings' : 'Add notes & settings')" x-bind:aria-expanded="open"></button>
+                                    </div>
+
+                                    <!-- Details -->
+                                    <div x-show="open" x-cloak x-transition.opacity class="mt-3 space-y-3">
+                                        <div class="grid sm:grid-cols-2 gap-3">
+                                            <label class="block text-xs font-medium text-gray-500 dark:text-gray-400">
+                                                Track progress with
+                                                <select class={`${field} mt-1`} name="goal-cluster" x-on:change="$store.goals.updateGoal(goal.id, { clusterId: $event.target.value || null })">
+                                                    <option value="">My own estimate</option>
+                                                    <template x-for="cluster in $store.todos.clusters" :key="cluster.id">
+                                                        <option x-bind:value="cluster.id" x-bind:selected="cluster.id === goal.clusterId" x-text="`${cluster.todo} tasks`"></option>
+                                                    </template>
+                                                </select>
+                                            </label>
+                                            <label class="block text-xs font-medium text-gray-500 dark:text-gray-400">
+                                                Target date
+                                                <input type="date" name="goal-target" class={`${field} mt-1`} x-bind:value="goal.targetDate ?? ''" x-on:change="$store.goals.updateGoal(goal.id, { targetDate: $event.target.value || null })" />
+                                            </label>
+                                        </div>
+                                        <label x-show="!goal.clusterId" class="block text-xs font-medium text-gray-500 dark:text-gray-400">
+                                            <span class="flex justify-between">Progress <span class="tabular-nums" x-text="`${goal.progress}%`"></span></span>
+                                            <input type="range" name="goal-progress" min="0" max="100" step="5" class="w-full mt-1 accent-teal-600" x-bind:value="goal.progress" x-on:input="$store.goals.updateGoal(goal.id, { progress: Number($event.target.value) })" />
+                                        </label>
+                                        <label class="block text-xs font-medium text-gray-500 dark:text-gray-400">
+                                            Notes
+                                            <textarea name="goal-notes" rows="3" class={`${field} mt-1`} placeholder="Why this matters, next steps, resources…" x-bind:value="goal.why" x-on:change="$store.goals.updateGoal(goal.id, { why: $event.target.value })"></textarea>
+                                        </label>
+                                        <button type="button" x-on:click="confirm(`Delete the goal “${goal.title}”?`) && $store.goals.removeGoal(goal.id)" class="text-xs font-medium text-red-600 dark:text-red-400 hover:underline">Delete goal</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </li>
+                    </template>
+                </ul>
+                <div x-show="!goals.length" class="rounded-xl border-2 border-dashed border-gray-200 dark:border-slate-700 px-6 py-8 text-center">
+                    <p class="text-sm font-medium text-gray-700 dark:text-gray-200">No goals yet</p>
+                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Add what you're working toward. The weekly check-in keeps it on track.</p>
+                </div>
+            </section>
+
+            <!-- Weekly check-in -->
+            <section class={`${panel} p-5`}>
+                <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                    <div>
+                        <h2 class={panelTitle}>Weekly check-in</h2>
+                        <p class="text-sm text-gray-500 dark:text-gray-400" x-text="weekLabel"></p>
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <button type="button" class={iconButton} x-on:click="changeWeek(-7)" aria-label="Previous week">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+                        </button>
+                        <button type="button" x-on:click="changeWeek(0)" x-bind:disabled="week === thisWeek" class="px-2.5 py-1 text-xs font-medium rounded-lg border border-gray-200 dark:border-slate-600 text-gray-700 dark:text-gray-200 disabled:opacity-40">This week</button>
+                        <button type="button" class={iconButton} x-on:click="changeWeek(7)" x-bind:disabled="week === thisWeek" aria-label="Next week">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- The week in numbers -->
+                <div class="grid grid-cols-3 gap-3 mb-5">
+                    <template x-for="stat in weekStats" :key="stat.label">
+                        <div class="rounded-xl bg-gray-50 dark:bg-slate-700/40 px-3 py-2.5">
+                            <p class="text-xl font-semibold tabular-nums text-gray-900 dark:text-white" x-text="stat.value"></p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400" x-text="stat.label"></p>
+                        </div>
+                    </template>
+                </div>
+
+                <form class="space-y-4" x-on:submit.prevent="saveCheckIn()" x-on:input="dirty = true">
+                    <div>
+                        <p class="text-sm font-medium text-gray-900 dark:text-white mb-2">How was your energy?</p>
+                        <div class="flex gap-2" role="radiogroup" aria-label="Energy">
+                            <template x-for="level in [1, 2, 3, 4, 5]" :key="level">
+                                <button
+                                    type="button"
+                                    x-on:click="draft.energy = level; dirty = true"
+                                    class="flex-1 py-2 rounded-lg text-sm font-semibold ring-1 transition-colors"
+                                    x-bind:class="draft.energy === level ? 'bg-teal-600 text-white ring-teal-600' : 'ring-black/10 text-gray-500 hover:bg-gray-50 dark:ring-white/10 dark:text-gray-400 dark:hover:bg-slate-700/50'"
+                                    role="radio"
+                                    x-bind:aria-checked="draft.energy === level"
+                                    x-bind:aria-label="['Very low', 'Low', 'Okay', 'Good', 'Great'][level - 1]"
+                                    x-text="level"
+                                ></button>
+                            </template>
+                        </div>
+                        <div class="flex justify-between mt-1 text-[11px] text-gray-400"><span>Drained</span><span>Great</span></div>
+                    </div>
+
+                    {prompts.map((prompt) => (
+                        <label class="block">
+                            <span class="text-sm font-medium text-gray-900 dark:text-white">{prompt.label}</span>
+                            <textarea name={`checkin-${prompt.key}`} rows="3" class={`${field} mt-1.5`} placeholder={prompt.placeholder} x-model={`draft.${prompt.key}`}></textarea>
+                        </label>
+                    ))}
+
+                    <div class="flex items-center justify-end gap-3">
+                        <span class="text-xs text-gray-500 dark:text-gray-400" x-text="saveStatus"></span>
+                        <button type="submit" class="px-4 py-2 text-sm font-medium rounded-lg bg-teal-600 text-white hover:bg-teal-700 shadow-sm">Save check-in</button>
+                    </div>
+                </form>
+            </section>
+        </div>
+
+        <!-- Side column -->
+        <div class="min-w-0 space-y-6">
+            <!-- Notes -->
+            <section class={`${panel} p-5`}>
+                <h2 class={`${panelTitle} mb-3`}>Notes</h2>
+                <form x-on:submit.prevent="addNote()" class="mb-3">
+                    <label for="new-note" class="sr-only">New note</label>
+                    <textarea
+                        id="new-note"
+                        name="new-note"
+                        rows="3"
+                        x-model="newNote"
+                        x-on:keydown.meta.enter.prevent="addNote()"
+                        x-on:keydown.ctrl.enter.prevent="addNote()"
+                        placeholder="Jot something down… (⌘ Enter to save)"
+                        class={field}
+                    ></textarea>
+                    <div class="flex justify-end mt-2">
+                        <button type="submit" x-bind:disabled="!newNote.trim()" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-40">Add note</button>
+                    </div>
+                </form>
+                <ul class="space-y-2">
+                    <template x-for="note in $store.goals.sortedNotes" :key="note.id">
+                        <li class="group rounded-xl p-3 ring-1 transition-colors" x-bind:class="note.pinned ? 'bg-amber-50/80 ring-amber-500/20 dark:bg-amber-900/15 dark:ring-amber-400/20' : 'bg-gray-50/80 ring-black/5 dark:bg-slate-700/30 dark:ring-white/10'">
+                            <textarea
+                                name="note-text"
+                                aria-label="Note"
+                                rows="1"
+                                x-init="$el.style.height = $el.scrollHeight + 'px'"
+                                x-on:input="$el.style.height = 'auto'; $el.style.height = $el.scrollHeight + 'px'"
+                                x-bind:value="note.text"
+                                x-on:change="$event.target.value.trim() ? $store.goals.updateNote(note.id, { text: $event.target.value }) : $store.goals.removeNote(note.id)"
+                                class="block w-full p-0 bg-transparent border-none resize-none focus:ring-0 text-sm text-gray-800 dark:text-gray-100 whitespace-pre-wrap"
+                            ></textarea>
+                            <div class="mt-1.5 flex items-center justify-between text-[11px] text-gray-400 dark:text-gray-500">
+                                <span x-text="$dates.daysAgoText($dates.toDateKey(new Date(note.updatedAt)))"></span>
+                                <span class="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity">
+                                    <button type="button" class={iconButton} x-on:click="$store.goals.updateNote(note.id, { pinned: !note.pinned })" x-bind:aria-label="note.pinned ? 'Unpin note' : 'Pin note'" x-bind:title="note.pinned ? 'Unpin' : 'Pin'">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" x-bind:class="note.pinned && 'fill-current'"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" /></svg>
+                                    </button>
+                                    <button type="button" class={`${iconButton} hover:!text-red-500`} x-on:click="$store.goals.removeNote(note.id)" aria-label="Delete note" title="Delete">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                    </button>
+                                </span>
+                            </div>
+                        </li>
+                    </template>
+                </ul>
+                <p x-show="!$store.goals.notes.length" class="text-sm text-gray-500 dark:text-gray-400">Ideas, reminders, anything you want to keep.</p>
+            </section>
+
+            <!-- Past check-ins -->
+            <section class={`${panel} p-5`} x-show="$store.goals.pastCheckIns.length">
+                <h2 class={`${panelTitle} mb-3`}>Past check-ins</h2>
+                <ul class="space-y-2">
+                    <template x-for="entry in $store.goals.pastCheckIns" :key="entry.week">
+                        <li>
+                            <button
+                                type="button"
+                                x-on:click="openWeek(entry.week)"
+                                class="w-full flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-slate-700/40 transition-colors"
+                                x-bind:class="entry.week === week && 'bg-teal-50/70 dark:bg-teal-900/20'"
+                            >
+                                <span class="text-sm text-gray-800 dark:text-gray-100" x-text="`Week of ${$dates.formatDate(entry.week)}`"></span>
+                                <span class="flex gap-0.5" x-bind:aria-label="`Energy ${entry.energy} of 5`">
+                                    <template x-for="level in [1, 2, 3, 4, 5]" :key="level">
+                                        <span class="w-1.5 h-3 rounded-full" x-bind:class="level <= entry.energy ? 'bg-teal-500' : 'bg-gray-200 dark:bg-slate-600'"></span>
+                                    </template>
+                                </span>
+                            </button>
+                        </li>
+                    </template>
+                </ul>
+            </section>
+        </div>
+    </div>
+</div>
+
+<script>
+    import { dates } from '../lib/dates';
+    import { weekOf } from '../stores/goalsStore';
+
+    // Completed time in a week, from the timer's finished focus sessions
+    const focusMinutes = (sessions, start, end) => sessions
+        .filter(session => { const day = dates.toDateKey(new Date(session.completedAt)); return day >= start && day < end; })
+        .reduce((total, session) => total + session.minutes, 0);
+
+    document.addEventListener('alpine:init', () => {
+        window.Alpine.data('goalsPage', () => ({
+            newGoal: '',
+            newNote: '',
+            week: weekOf(),
+            draft: null,
+            dirty: false,
+            savedNote: '',
+
+            init() {
+                this.draft = { ...this.$store.goals.checkInFor(this.week) };
+            },
+
+            get thisWeek() {
+                return weekOf();
+            },
+
+            get goals() {
+                return [...this.$store.goals.goals].sort((a, b) => Number(a.done) - Number(b.done));
+            },
+
+            get summary() {
+                const active = this.goals.filter(goal => !goal.done).length;
+                const checkedIn = Boolean(this.$store.goals.checkIns[this.thisWeek]?.savedAt);
+                const goalsText = active ? `${active} active ${active === 1 ? 'goal' : 'goals'}` : 'No active goals';
+                return `${goalsText} · ${checkedIn ? "This week's check-in is done" : "This week's check-in is waiting"}`;
+            },
+
+            get weekLabel() {
+                const end = dates.addDays(this.week, 6);
+                return `${dates.formatDate(this.week)} – ${dates.formatDate(end)}${this.week === this.thisWeek ? ' · this week' : ''}`;
+            },
+
+            get weekStats() {
+                const start = this.week;
+                const end = dates.addDays(start, 7);
+                const inWeek = iso => { if (!iso) return false; const day = dates.toDateKey(new Date(iso)); return day >= start && day < end; };
+                // From the history, so clearing completed tasks doesn't lower a past week's count
+                const done = this.$store.todos.completions.filter(record => inWeek(record.at)).length;
+                const minutes = focusMinutes(this.$store.pomoState.sessions ?? [], start, end);
+                const goalsDone = this.$store.goals.goals.filter(goal => goal.done).length;
+                return [
+                    { label: 'tasks done', value: done },
+                    { label: 'focus time', value: minutes ? dates.formatDuration(minutes) : '0m' },
+                    { label: 'goals reached', value: `${goalsDone}/${this.$store.goals.goals.length}` }
+                ];
+            },
+
+            get saveStatus() {
+                if (this.dirty) return 'Unsaved changes';
+                if (this.savedNote) return this.savedNote;
+                const saved = this.$store.goals.checkIns[this.week]?.savedAt;
+                return saved ? `Saved ${dates.daysAgoText(dates.toDateKey(new Date(saved)))}` : '';
+            },
+
+            progressOf(goal) {
+                return this.$store.goals.goalProgress(goal, goal.clusterId ? this.$store.todos.clusterProgress(goal.clusterId) : null);
+            },
+
+            colorOf(goal) {
+                return goal.clusterId ? this.$store.todos.clusterColor(goal.clusterId) : 'rgb(var(--accent-500))';
+            },
+
+            clusterDetail(goal) {
+                const { done, total } = this.$store.todos.clusterProgress(goal.clusterId);
+                return `${this.$store.todos.clusterName(goal.clusterId)} · ${done}/${total} tasks`;
+            },
+
+            addGoal() {
+                const title = this.newGoal.trim();
+                if (!title) return;
+                this.$store.goals.addGoal(title);
+                this.newGoal = '';
+            },
+
+            addNote() {
+                const text = this.newNote.trim();
+                if (!text) return;
+                this.$store.goals.addNote(text);
+                this.newNote = '';
+            },
+
+            // Switching weeks asks before dropping unsaved answers. 0 goes to this week.
+            changeWeek(days) {
+                this.openWeek(days ? dates.addDays(this.week, days) : this.thisWeek);
+            },
+
+            openWeek(week) {
+                if (week > this.thisWeek || week === this.week) return;
+                if (this.dirty && !confirm('Leave this check-in without saving?')) return;
+                this.week = week;
+                this.draft = { ...this.$store.goals.checkInFor(week) };
+                this.dirty = false;
+                this.savedNote = '';
+            },
+
+            saveCheckIn() {
+                this.$store.goals.saveCheckIn({ ...this.draft, week: this.week });
+                this.dirty = false;
+                this.savedNote = 'Saved';
+            }
+        }));
+    });
+</script>

@@ -3,145 +3,338 @@ import PomoTimer from './pomoTimer.astro';
 import ZenToDoList from './zenToDoList.astro';
 import TaskManager from './taskManager.astro';
 import Schedule from './schedule.astro';
+import Dashboard from './Dashboard.astro';
+import Board from './Board.astro';
+import Goals from './Goals.astro';
+import Insights from './Insights.astro';
+import DarkModeToggle from './darkModeToggle.astro';
+import SettingsPanel from './SettingsPanel.astro';
+import QuickAdd from './QuickAdd.astro';
+import AppToasts from './AppToasts.astro';
+import Feedback from './Feedback.astro';
+import ZenQuote from './ZenQuote.astro';
+import ZenBackdrop from './ZenBackdrop.astro';
+
+const tabs = [
+    {
+        id: 'dashboard',
+        label: 'Dashboard',
+        icon: 'M4 5a1 1 0 011-1h4a1 1 0 011 1v5a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm10 0a1 1 0 011-1h4a1 1 0 011 1v2a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zm10-3a1 1 0 011-1h4a1 1 0 011 1v7a1 1 0 01-1 1h-4a1 1 0 01-1-1v-7z'
+    },
+    {
+        id: 'taskmanager',
+        label: 'Task Manager',
+        icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2'
+    },
+    {
+        id: 'board',
+        label: 'Board',
+        icon: 'M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2'
+    },
+    {
+        id: 'schedule',
+        label: 'Schedule',
+        icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z'
+    },
+    {
+        id: 'goals',
+        label: 'Goals',
+        icon: 'M3 21V4m0 0h11l-1.5 4L14 12H3'
+    },
+    {
+        id: 'insights',
+        label: 'Insights',
+        icon: 'M3 3v18h18M7 15l4-4 3 3 5-6'
+    },
+    {
+        id: 'pomodoro',
+        label: 'Pomodoro',
+        icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z'
+    },
+    {
+        id: 'zenmode',
+        label: 'Zen Mode',
+        icon: 'M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z'
+    }
+];
 ---
 
-<div 
-    x-data="{ 
-        activeTab: 'taskmanager',
-        init() {
-            if (typeof window !== 'undefined') {
-                this.activeTab = localStorage.getItem('activeTab') || 'taskmanager';
-                this.$nextTick(() => {
-                    this.$el.removeAttribute('x-cloak');
-                });
-                this.$watch('activeTab', (value) => {
-                    localStorage.setItem('activeTab', value);
-                });
-            }
-        },
-        handleTabChange(e) {
-            this.activeTab = e.detail.tab;
-        }
-    }" 
+<div
+    x-data="tabs"
     x-cloak
     @change-tab.window="activeTab = $event.detail.tab"
     class="w-full"
 >
-    <!-- Tab Navigation -->
-    <div class="border-b transition-colors duration-300 ease-in-out" style="border-color: var(--border-color);">
-        <ul class="flex flex-wrap -mb-px text-sm font-medium text-center text-gray-500 dark:text-gray-400">
-            <li class="mr-2 min-w-[120px]">
-                <button 
-                    @click="activeTab = 'taskmanager'; if (typeof window !== 'undefined') localStorage.setItem('activeTab', 'taskmanager')"
-                    :class="activeTab === 'taskmanager' ? 'border-teal-600 text-teal-600 dark:text-teal-500 dark:border-teal-500' : 'border-transparent hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300'"
-                    class="w-full pb-4 px-2 text-sm font-medium border-b-2 focus:outline-none transition-colors duration-200 select-none"
-                >
-                    <div class="flex items-center justify-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                        </svg>
-                        <span>Task Manager</span>
-                    </div>
-                </button>
-            </li>
-            <li class="mr-2 min-w-[120px]">
-                <button 
-                    @click="activeTab = 'schedule'; if (typeof window !== 'undefined') localStorage.setItem('activeTab', 'schedule')"
-                    :class="activeTab === 'schedule' ? 'border-teal-600 text-teal-600 dark:text-teal-500 dark:border-teal-500' : 'border-transparent hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300'"
-                    class="w-full pb-4 px-2 text-sm font-medium border-b-2 focus:outline-none transition-colors duration-200 select-none"
-                >
-                    <div class="flex items-center justify-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                        <span>Schedule</span>
-                    </div>
-                </button>
-            </li>
-            <li class="mr-2 min-w-[120px]">
-                <button 
-                    @click="activeTab = 'pomodoro'; if (typeof window !== 'undefined') localStorage.setItem('activeTab', 'pomodoro')"
-                    :class="activeTab === 'pomodoro' ? 'border-teal-600 text-teal-600 dark:text-teal-500 dark:border-teal-500' : 'border-transparent hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300'"
-                    class="w-full pb-4 px-2 text-sm font-medium border-b-2 focus:outline-none transition-colors duration-200 select-none"
-                >
-                    <div class="flex items-center justify-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <span>Pomodoro</span>
-                    </div>
-                </button>
-            </li>
-            <li class="mr-2 min-w-[120px]">
-                <button 
-                    @click="activeTab = 'zenmode'; if (typeof window !== 'undefined') localStorage.setItem('activeTab', 'zenmode')"
-                    :class="activeTab === 'zenmode' ? 'border-teal-600 text-teal-600 dark:text-teal-500 dark:border-teal-500' : 'border-transparent hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300'"
-                    class="w-full pb-4 px-2 text-sm font-medium border-b-2 focus:outline-none transition-colors duration-200 select-none"
-                >
-                    <div class="flex items-center justify-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-                        </svg>
-                        <span>Zen Mode</span>
-                    </div>
-                </button>
-            </li>
-            
-            <!-- Timer Status (shows only when timer is running) -->
-            <li class="ml-auto flex items-center" 
-                x-show="$store && $store.pomoState && ($store.pomoState.isRunning || $store.pomoState.timeLeft < $store.pomoState.totalTime)"
-                x-cloak role="timer" aria-live="polite"
-                :aria-label="$store.pomoState.isRunning ? 'A running Pomodoro timer displaying minutes and seconds remaining' : 'A paused Pomodoro timer displaying minutes and seconds remaining'">
-                <div class="inline-flex items-center space-x-2 p-2 bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm transform -translate-y-3 hover:shadow transition-all animate-in fade-in-50 duration-300"
-                     :class="$store.pomoState.isRunning ? '' : 'opacity-85'">
-                    <div class="text-sm font-medium flex items-center" 
-                         :class="$store.pomoState.isRunning ? 'text-gray-700 dark:text-gray-200' : 'text-gray-500 dark:text-gray-400'">
-                        <!-- Pause indicator when timer is paused -->
-                        <span x-show="!$store.pomoState.isRunning" class="mr-1">⏸️</span>
-                        <span x-text="Math.floor($store.pomoState.timeLeft / 60).toString().padStart(2, '0')"></span>:<span x-text="($store.pomoState.timeLeft % 60).toString().padStart(2, '0')"></span>
-                    </div>
-                    
-                    <!-- Mini Progress Circle -->
-                    <div class="relative w-5 h-5">
-                        <svg class="w-full h-full rotate-90 -scale-y-100" viewBox="0 0 100 100">
-                            <circle
-                                cx="50" cy="50" r="45"
-                                fill="transparent"
-                                stroke="currentColor"
-                                stroke-width="10"
-                                class="text-gray-200 dark:text-gray-700"
-                            />
-                            <circle
-                                cx="50" cy="50" r="45"
-                                fill="transparent"
-                                stroke="currentColor"
-                                stroke-width="10"
-                                stroke-linecap="round"
-                                :stroke-dasharray="283"
-                                :stroke-dashoffset="283 - (283 * $store.pomoState.percentComplete) / 100"
-                                :class="$store.pomoState.isRunning ? 'text-teal-500 dark:text-teal-400' : 'text-gray-400 dark:text-gray-500'"
-                                class="transition-all duration-1000 ease-in-out"
-                            />
-                        </svg>
-                    </div>
+    <!-- Sidebar: the same tabs down the left edge, chosen in Settings. Screens 1280px and wider. -->
+    <aside
+        x-show="$store.settings.navLayout === 'side'"
+        x-cloak
+        class="hidden xl:flex fixed z-40 left-3 top-3 bottom-3 flex-col gap-3 p-2 rounded-2xl backdrop-blur-xl backdrop-saturate-150 ring-1 ring-black/5 dark:ring-white/10 shadow-lg shadow-slate-900/[0.04] dark:shadow-black/20 transition-[width] duration-300"
+        style="width: var(--sidebar-w); background-color: var(--glass);"
+        x-data="{ get collapsed() { return $store.settings.sidebarCollapsed } }"
+    >
+        <div class="flex items-center gap-2 px-1 pt-1" x-bind:class="collapsed && 'flex-col'">
+            <button type="button" x-on:click="activeTab = 'dashboard'" class="flex items-center gap-2 min-w-0 rounded-lg" aria-label="Zen Frame, go to the dashboard">
+                <span class="grid place-items-center w-8 h-8 shrink-0 rounded-xl bg-gradient-to-br from-teal-400 to-teal-700 shadow-md shadow-teal-700/25 ring-1 ring-white/20">
+                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.25" d="M4 8V5a1 1 0 011-1h3M16 4h3a1 1 0 011 1v3M20 16v3a1 1 0 01-1 1h-3M8 20H5a1 1 0 01-1-1v-3M9 12h6" /></svg>
+                </span>
+                <span x-show="!collapsed" class="text-base font-semibold tracking-tight text-gray-900 dark:text-white truncate">Zen Frame</span>
+            </button>
+            <button
+                type="button"
+                x-on:click="$store.settings.update({ sidebarCollapsed: !collapsed })"
+                class="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-900/5 dark:hover:text-gray-200 dark:hover:bg-white/10 transition-colors"
+                x-bind:class="!collapsed && 'ml-auto'"
+                x-bind:aria-label="collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+                x-bind:title="collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+            >
+                <svg class="w-4 h-4 transition-transform" x-bind:class="collapsed && 'rotate-180'" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" /></svg>
+            </button>
+        </div>
+
+        <button
+            type="button"
+            x-on:click="$dispatch('open-quick-add')"
+            class="flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-teal-600 text-white text-sm font-medium shadow-sm shadow-teal-700/30 hover:bg-teal-700 transition-colors"
+            aria-label="New task or cluster (N)"
+            title="New task or cluster (N)"
+        >
+            <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 5v14m7-7H5" /></svg>
+            <span x-show="!collapsed">New</span>
+        </button>
+
+        <nav class="flex-1 min-h-0 overflow-y-auto -mx-0.5 px-0.5" aria-label="Sections">
+            <ul class="space-y-0.5">
+                {tabs.map((tab) => (
+                    <li>
+                        <button
+                            type="button"
+                            x-on:click={`activeTab = '${tab.id}'`}
+                            x-bind:class={`activeTab === '${tab.id}' ? 'bg-white text-gray-900 shadow-sm ring-1 ring-black/5 dark:bg-white/[0.14] dark:text-white dark:ring-white/10' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-900/[0.04] dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-white/[0.06]'`}
+                            x-bind:aria-current={`activeTab === '${tab.id}' ? 'page' : null`}
+                            class="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-colors"
+                            aria-label={tab.label}
+                            title={tab.label}
+                        >
+                            <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={tab.icon} />
+                            </svg>
+                            <span x-show="!collapsed" class="truncate">{tab.label}</span>
+                        </button>
+                    </li>
+                ))}
+            </ul>
+        </nav>
+
+        <!-- Timer status (shows only when a timer is running or paused) -->
+        <button
+            type="button"
+            x-show="$store.pomoState.isRunning || $store.pomoState.timeLeft < $store.pomoState.totalTime"
+            x-on:click="activeTab = 'pomodoro'"
+            :aria-label="$store.pomoState.isRunning ? 'Pomodoro timer running. Open the timer.' : 'Pomodoro timer paused. Open the timer.'"
+            class="flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-white/80 dark:bg-slate-800/80 ring-1 ring-black/5 dark:ring-white/10 text-sm font-semibold tabular-nums"
+            :class="$store.pomoState.isRunning ? 'text-gray-800 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400 opacity-75'"
+        >
+            <span class="relative flex w-2 h-2 shrink-0" aria-hidden="true">
+                <span x-show="$store.pomoState.isRunning" class="absolute inline-flex w-full h-full rounded-full bg-teal-400 opacity-75 animate-ping"></span>
+                <span class="relative inline-flex w-2 h-2 rounded-full" :class="$store.pomoState.isRunning ? 'bg-teal-500' : 'bg-gray-400'"></span>
+            </span>
+            <span x-show="!collapsed"><span x-text="Math.floor($store.pomoState.timeLeft / 60).toString().padStart(2, '0')"></span>:<span x-text="($store.pomoState.timeLeft % 60).toString().padStart(2, '0')"></span></span>
+        </button>
+
+        <div class="flex items-center gap-1 pt-2 border-t border-black/5 dark:border-white/10" x-bind:class="collapsed ? 'flex-col' : 'justify-between'">
+            <button
+                type="button"
+                x-on:click="$store.theme.toggle()"
+                class="p-2.5 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-900/5 dark:hover:bg-white/10 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
+                x-bind:aria-label="$store.theme.current === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'"
+                x-bind:title="$store.theme.current === 'dark' ? 'Light mode' : 'Dark mode'"
+            >
+                <svg x-show="$store.theme.current === 'light'" class="w-5 h-5" viewBox="0 0 20 20" aria-hidden="true"><path fill="currentColor" stroke="none" d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" /></svg>
+                <svg x-show="$store.theme.current === 'dark'" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+            </button>
+            <button
+                type="button"
+                x-on:click="$dispatch('open-settings')"
+                class="p-2.5 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-900/5 dark:hover:bg-white/10 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
+                aria-label="Open settings"
+                title="Settings"
+            >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+            </button>
+        </div>
+    </aside>
+
+    <!-- Top bar: brand, tab navigation, timer, theme -->
+    <!-- A floating frosted island that stays at the top while the page scrolls. With the sidebar on, wide screens hide it. -->
+    <header
+        x-bind:class="$store.settings.navLayout === 'side' && 'xl:hidden'"
+        class="sticky top-3 z-40 mt-3 mb-6 pl-2 pr-1.5 py-1.5 rounded-2xl backdrop-blur-xl backdrop-saturate-150 ring-1 ring-black/5 dark:ring-white/10 shadow-lg shadow-slate-900/[0.04] dark:shadow-black/20" style="background-color: var(--glass);">
+        <div class="flex items-center gap-2 sm:gap-3">
+            <button type="button" x-on:click="activeTab = 'dashboard'" class="hidden sm:flex items-center gap-2 shrink-0 rounded-lg" aria-label="Zen Frame, go to the dashboard">
+                <span class="grid place-items-center w-8 h-8 rounded-xl bg-gradient-to-br from-teal-400 to-teal-700 shadow-md shadow-teal-700/25 ring-1 ring-white/20">
+                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.25" d="M4 8V5a1 1 0 011-1h3M16 4h3a1 1 0 011 1v3M20 16v3a1 1 0 01-1 1h-3M8 20H5a1 1 0 01-1-1v-3M9 12h6" /></svg>
+                </span>
+                <span class="hidden xl:block text-base font-semibold tracking-tight text-gray-900 dark:text-white">Zen Frame</span>
+            </button>
+
+            <!-- Tabs: a pill slides under the active one -->
+            <nav class="min-w-0 flex-1 flex lg:justify-center" aria-label="Sections">
+                <div x-ref="track" class="relative flex max-w-full overflow-x-auto p-1 rounded-full bg-gray-900/[0.04] dark:bg-white/[0.06] ring-1 ring-black/5 dark:ring-white/10 [scrollbar-width:none]">
+                    <span
+                        class="tab-indicator absolute top-1 bottom-1 left-0 rounded-full bg-white dark:bg-white/[0.14] shadow-sm ring-1 ring-black/5 dark:ring-white/10"
+                        x-bind:style="`transform: translateX(${indicator.left}px); width: ${indicator.width}px; opacity: ${indicator.width ? 1 : 0};`"
+                        aria-hidden="true"
+                    ></span>
+                    {tabs.map((tab) => (
+                        <button
+                            type="button"
+                            data-tab={tab.id}
+                            x-on:click={`activeTab = '${tab.id}'`}
+                            x-bind:class={`activeTab === '${tab.id}' ? 'text-gray-900 dark:text-white' : 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200'`}
+                            x-bind:aria-current={`activeTab === '${tab.id}' ? 'page' : null`}
+                            class="relative z-10 shrink-0 flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap select-none transition-colors"
+                            aria-label={tab.label}
+                            title={tab.label}
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={tab.icon} />
+                            </svg>
+                            <!-- Phones show icons only; medium screens add the active tab's label; wide screens show every label -->
+                            <span x-bind:class={`activeTab === '${tab.id}' ? 'hidden sm:inline' : 'hidden xl:inline'`}>{tab.label}</span>
+                        </button>
+                    ))}
                 </div>
-            </li>
-        </ul>
-    </div>
+            </nav>
+
+            <!-- Timer status (shows only when a timer is running or paused) -->
+            <button
+                type="button"
+                x-show="$store.pomoState.isRunning || $store.pomoState.timeLeft < $store.pomoState.totalTime"
+                x-transition.opacity
+                x-on:click="activeTab = 'pomodoro'"
+                :aria-label="$store.pomoState.isRunning ? 'Pomodoro timer running. Open the timer.' : 'Pomodoro timer paused. Open the timer.'"
+                class="shrink-0 inline-flex items-center gap-2 pl-2.5 pr-2 py-1.5 rounded-full bg-white/80 dark:bg-slate-800/80 ring-1 ring-black/5 dark:ring-white/10 shadow-sm"
+                :class="$store.pomoState.isRunning ? '' : 'opacity-75'"
+            >
+                <span class="text-sm font-semibold tabular-nums"
+                     :class="$store.pomoState.isRunning ? 'text-gray-800 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400'">
+                    <span x-text="Math.floor($store.pomoState.timeLeft / 60).toString().padStart(2, '0')"></span>:<span x-text="($store.pomoState.timeLeft % 60).toString().padStart(2, '0')"></span>
+                </span>
+                <svg class="w-5 h-5 rotate-90 -scale-y-100" viewBox="0 0 100 100" aria-hidden="true">
+                    <circle cx="50" cy="50" r="40" fill="transparent" stroke="currentColor" stroke-width="12" class="text-gray-200 dark:text-gray-700" />
+                    <circle
+                        cx="50" cy="50" r="40"
+                        fill="transparent"
+                        stroke="currentColor"
+                        stroke-width="12"
+                        stroke-linecap="round"
+                        :stroke-dasharray="251"
+                        :stroke-dashoffset="251 - (251 * $store.pomoState.percentComplete) / 100"
+                        :class="$store.pomoState.isRunning ? 'text-teal-500 dark:text-teal-400' : 'text-gray-400 dark:text-gray-500'"
+                        class="transition-all duration-1000 ease-in-out"
+                    />
+                </svg>
+            </button>
+
+            <button
+                type="button"
+                x-on:click="$dispatch('open-quick-add')"
+                class="shrink-0 inline-flex items-center gap-1.5 p-2 xl:pl-2.5 xl:pr-3 rounded-full bg-teal-600 text-white text-sm font-medium shadow-sm shadow-teal-700/30 hover:bg-teal-700 transition-colors"
+                aria-label="New task or cluster (N)"
+                title="New task or cluster (N)"
+            >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 5v14m7-7H5" /></svg>
+                <span class="hidden xl:inline">New</span>
+            </button>
+            <!-- Phones switch theme in Settings, to leave room for the tabs -->
+            <div class="hidden sm:block -mx-1"><DarkModeToggle /></div>
+            <button
+                type="button"
+                x-on:click="$dispatch('open-settings')"
+                class="shrink-0 p-2.5 sm:-ml-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
+                aria-label="Open settings"
+                title="Settings"
+            >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+            </button>
+        </div>
+    </header>
+
+    <!-- Keeps the content clear of the top edge when the top bar is hidden -->
+    <div class="hidden" x-bind:class="$store.settings.navLayout === 'side' && 'xl:block h-3'" aria-hidden="true"></div>
+
+    <SettingsPanel />
+    <QuickAdd />
+    <AppToasts />
+    <Feedback />
 
     <!-- Tab Content -->
-    <div class="mt-4">
-        <div x-show="activeTab === 'taskmanager'" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100">
+    <div>
+        <div x-show="activeTab === 'dashboard'" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-1.5" x-transition:enter-end="opacity-100 translate-y-0">
+            <Dashboard />
+        </div>
+        <div x-show="activeTab === 'taskmanager'" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-1.5" x-transition:enter-end="opacity-100 translate-y-0">
             <TaskManager />
         </div>
-        <div x-show="activeTab === 'schedule'" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100">
+        <div x-show="activeTab === 'board'" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-1.5" x-transition:enter-end="opacity-100 translate-y-0">
+            <Board />
+        </div>
+        <div x-show="activeTab === 'schedule'" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-1.5" x-transition:enter-end="opacity-100 translate-y-0">
             <Schedule />
         </div>
-        <div x-show="activeTab === 'pomodoro'" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100">
+        <div x-show="activeTab === 'goals'" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-1.5" x-transition:enter-end="opacity-100 translate-y-0">
+            <Goals />
+        </div>
+        <div x-show="activeTab === 'insights'" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-1.5" x-transition:enter-end="opacity-100 translate-y-0">
+            <Insights />
+        </div>
+        <div x-show="activeTab === 'pomodoro'" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-1.5" x-transition:enter-end="opacity-100 translate-y-0">
             <PomoTimer />
         </div>
-        <div x-show="activeTab === 'zenmode'" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100">
-            <ZenToDoList />
+        <div x-show="activeTab === 'zenmode'" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-1.5" x-transition:enter-end="opacity-100 translate-y-0">
+            <!-- With a background chosen, one scene runs behind the task card and the quote.
+                 With none, this wrapper adds nothing and the two cards look as they always have. -->
+            <div
+                class="relative isolate w-full max-w-4xl mx-auto"
+                x-bind:class="$store.settings.zenBackground !== 'none' && 'overflow-hidden rounded-2xl bg-white/80 dark:bg-slate-800/70 backdrop-blur-sm shadow-sm ring-1 ring-black/5 dark:ring-white/10'"
+            >
+                <ZenBackdrop />
+                <ZenToDoList />
+                <ZenQuote />
+            </div>
         </div>
     </div>
 </div>
+
+<script>
+    document.addEventListener('alpine:init', () => {
+        window.Alpine.data('tabs', () => ({
+            activeTab: localStorage.getItem('activeTab') || 'dashboard',
+            indicator: { left: 0, width: 0 },
+
+            init() {
+                this.$watch('activeTab', (value) => {
+                    localStorage.setItem('activeTab', value);
+                    this.$nextTick(() => this.placeIndicator());
+                });
+                // Labels and fonts change tab widths, so measure whenever the track resizes
+                new ResizeObserver(() => this.placeIndicator()).observe(this.$refs.track);
+                this.$nextTick(() => this.placeIndicator());
+            },
+
+            placeIndicator() {
+                const button = this.$refs.track.querySelector(`[data-tab="${this.activeTab}"]`);
+                if (!button) return;
+                this.indicator = { left: button.offsetLeft, width: button.offsetWidth };
+                button.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+            }
+        }));
+    });
+</script>
+
+<style>
+    .tab-indicator {
+        transition: transform 380ms cubic-bezier(0.34, 1.3, 0.64, 1), width 380ms cubic-bezier(0.34, 1.3, 0.64, 1), opacity 150ms;
+    }
+</style>

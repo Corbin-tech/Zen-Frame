@@ -1,1432 +1,998 @@
 ---
-import DashboardView from "./dashboardView.astro";
+import { START_HOUR, END_HOUR, HOUR_HEIGHT, SLOT_MINUTES } from '../lib/timeline';
+import { formatTime, toTimeValue } from '../lib/dates';
+import AutoPlanPanel from './AutoPlanPanel.astro';
+
+const hours = Array.from({ length: END_HOUR - START_HOUR }, (_, i) => START_HOUR + i);
+const timelineHeight = hours.length * HOUR_HEIGHT;
+
+const timeOptions = [];
+for (let minutes = START_HOUR * 60; minutes <= END_HOUR * 60; minutes += SLOT_MINUTES) {
+    timeOptions.push({ value: toTimeValue(minutes), label: formatTime(minutes) });
+}
+const startOptions = timeOptions.slice(0, -1);
+const endOptions = timeOptions.slice(1);
+
+const weekdayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+const panel = 'rounded-2xl bg-white/80 dark:bg-slate-800/70 backdrop-blur-sm shadow-sm ring-1 ring-black/5 dark:ring-white/10';
+const iconButton = 'p-2 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-slate-700 transition-colors';
 ---
 
-<div class="container mx-auto px-4">
-    <div class="flex flex-col space-y-6 max-w-4xl mx-auto">
-        <div
-            x-data="calendar"
-            x-init="init()"
-            class="bg-white dark:bg-slate-800 rounded-lg shadow-md p-6"
-        >
-            <!-- Header: Month Navigation -->
-            <div class="flex justify-between items-center mb-4">
-                <button
-                    @click="prevMonth()"
-                    type="button"
-                    class="p-2 rounded-full hover:bg-teal-100 dark:hover:bg-teal-800/50 text-teal-600 dark:text-teal-400 focus:outline-none focus:ring-2 focus:ring-teal-300"
-                    aria-label="Previous month"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-                    </svg>
-                </button>
-                <h2 class="text-4xl mb-4 font-bold text-black dark:text-white" x-text="`${monthNames[currentMonth]} ${currentYear}`"></h2>
-                <button
-                    @click="nextMonth()"
-                    type="button"
-                    class="p-2 rounded-full hover:bg-teal-100 dark:hover:bg-teal-800/50 text-teal-600 dark:text-teal-400 focus:outline-none focus:ring-2 focus:ring-teal-300"
-                    aria-label="Next month"
-                >
-                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                    </svg>
-                </button>
-            </div>
+<div
+    x-data="schedule"
+    class="w-full"
+    x-on:pointermove.window="onPointerMove($event)"
+    x-on:pointerup.window="onPointerUp()"
+    x-on:pointercancel.window="drag = null"
+    x-on:keydown.escape.window="showModal && closeModal()"
+>
+    <div class="grid gap-6 lg:grid-cols-[18rem_minmax(0,1fr)] items-start">
 
-            <!-- Days of the Week Header -->
-            <div class="grid grid-cols-7 gap-1 text-center text-xs font-medium text-teal-600 dark:text-teal-400 mb-2">
-                <div x-text="weekDays[0]"></div>
-                <div x-text="weekDays[1]"></div>
-                <div x-text="weekDays[2]"></div>
-                <div x-text="weekDays[3]"></div>
-                <div x-text="weekDays[4]"></div>
-                <div x-text="weekDays[5]"></div>
-                <div x-text="weekDays[6]"></div>
-            </div>
-
-            <!-- Calendar Days Grid -->
-            <div class="grid grid-cols-7 gap-1">
-                <template x-for="(day, index) in days" :key="index">
-                    <div 
-                        @click="selectDate(day.date)"
-                        class="aspect-square flex flex-col p-1 rounded-xl cursor-pointer transition-colors relative"
-                        x-bind:class="selectedDate === day.date ? 'bg-teal-50 dark:bg-teal-900/30 ring-2 ring-teal-500 dark:ring-teal-600' : day.isCurrentMonth ? 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600' : 'bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-700/50 opacity-60'"
-                    >
-                        <!-- Day Number -->
-                        <div 
-                            class="text-center font-medium mb-1 rounded-full w-6 h-6 flex items-center justify-center mx-auto"
-                            x-bind:class="selectedDate === day.date
-                                ? 'bg-teal-500 dark:bg-teal-600 text-white ring-2 ring-teal-400 dark:ring-teal-500' 
-                                : day.isToday
-                                    ? 'bg-gray-400 dark:bg-gray-500 text-gray-800 dark:text-gray-100 ring-2 ring-teal-200 dark:ring-teal-700'
-                                    : day.isCurrentMonth
-                                        ? 'text-gray-900 dark:text-white bg-gray-300 dark:bg-gray-600'
-                                        : 'text-gray-400 dark:text-gray-500 bg-gray-300 dark:bg-gray-600'"
-                        >
-                            <span x-text="day.day"></span>
-                        </div>
-                    </div>
-                </template>
-            </div>
-        </div>
-        
-        <!-- Time Blocking Feature -->
-        <div 
-            x-data="timeBlocking"
-            x-init="initTimeBlocking()" 
-            class="bg-white dark:bg-slate-800 rounded-lg shadow-md p-6"
-        >
-            <h3 class="text-4xl font-bold text-center mb-6 text-black dark:text-white">Schedule</h3>
-            
-            <!-- Selected date indicator -->
-            <div class="flex justify-center items-center mb-6">
-                <div 
-                    class="flex flex-col items-center px-6 py-3 rounded-lg transition-colors duration-150"
-                    x-bind:class="isToday(selectedDate) 
-                        ? 'bg-white dark:bg-slate-800 border border-teal-200 dark:border-teal-700 shadow-sm' 
-                        : 'bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 shadow-xs'" 
-                >
-                    <h2 class="text-xl font-semibold text-black dark:text-white" x-text="selectedDateFormatted"></h2>
-                </div>
-            </div>
-            
-            <!-- Timeline Container - Taller for better visualization -->
-            <div class="relative h-64 mb-6"> 
-                <!-- Scrollable container for the timeline -->
-                <div class="overflow-x-auto pb-4 border border-gray-200 dark:border-gray-700 rounded-lg shadow-md relative bg-white dark:bg-slate-800 hover:shadow-lg transition-shadow duration-300">
-                    <!-- Hour Markers and Click Area - made wider for better visibility -->
-                    <div 
-                        class="relative flex items-stretch p-0 min-w-full" 
-                        x-ref="timelineContainer"
-                        style="width: 150%; min-width: 800px; height: 180px;"
-                     >
-                        <!-- Timeline Hours Strip - only for display -->
-                        <div class="absolute inset-0 flex pointer-events-none">
-                            <template x-for="(hour, index) in hours" :key="hour">
-                                <!-- Hour columns with alternating background colors for better readability -->
-                                <div 
-                                    class="flex-1 flex flex-col justify-start h-full border-r border-gray-200 dark:border-gray-700 relative"
-                                    :class="index % 2 === 0 ? 'bg-gray-50 dark:bg-slate-700/50' : 'bg-white dark:bg-slate-800'"
-                                    :id="'hour-' + hour"
-                                >
-                                    <!-- Hour label (positioned at top) -->
-                                    <div class="absolute top-0 left-0 right-0 h-8 flex items-center justify-center border-b border-gray-200 dark:border-gray-700 bg-gradient-to-b from-white dark:from-slate-700 to-transparent dark:to-transparent">
-                                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300" x-text="formatHour(hour)"></span>
-                                    </div>
-                                    
-                                    <!-- Time markers -->
-                                    <!-- Vertical time markers container -->
-                                    <div class="absolute inset-0 flex mt-8"> 
-                                        <!-- 15-minute marker -->
-                                        <div class="w-1/4 h-full border-r border-dashed border-teal-100 dark:border-teal-900/30"></div>
-                                        <!-- 30-minute marker (more prominent) -->
-                                        <div class="w-1/4 h-full border-r border-dashed border-teal-200 dark:border-teal-800/50"></div>
-                                        <!-- 45-minute marker -->
-                                        <div class="w-1/4 h-full border-r border-dashed border-teal-100 dark:border-teal-900/30"></div>
-                                        <!-- Remaining space -->
-                                        <div class="w-1/4 h-full"></div>
-                                    </div>
-                                    
-                                    <!-- Current time indicator (only for today, and only for the correct hour) -->
-                                    <div 
-                                        x-show="isToday(selectedDate) && isCurrentHour(hour)" 
-                                        class="absolute h-full w-0.5 bg-teal-500 dark:bg-teal-400 z-10"
-                                        :style="getCurrentTimePosition(hour)"
-                                    >
-                                        <div class="absolute -left-1.5 top-0 w-3 h-3 rounded-full bg-teal-500 dark:bg-teal-400"></div>
-                                    </div>
-                                </div>
-                            </template>
-                        </div>
-                         
-                        <!-- Interactive Layer - For Click Handling (z-index to ensure it's above the visuals but below tasks) -->
-                        <div class="absolute inset-0 flex z-10">
-                            <template x-for="(hour, index) in hours" :key="hour">
-                                <div 
-                                    class="flex-1 h-full cursor-pointer" 
-                                    :data-hour="hour"
-                                    @click.stop="handleHourClick($event, hour)"
-                                ></div>
-                            </template>
-                        </div>
-                        
-                        <!-- Scheduled Task Blocks - moved inside the scrollable container with z-index to ensure they're on top -->
-                        <div class="absolute inset-0 pointer-events-none z-20"> 
-                            <template x-for="item in scheduledItemsForCurrentDate" :key="item.id">
-                                <div 
-                                    :style="getTaskBlockStyle(item)"
-                                    class="absolute flex flex-col justify-between bg-teal-100 dark:bg-teal-900/80 rounded-md overflow-hidden p-2 pointer-events-auto cursor-pointer hover:bg-teal-200 dark:hover:bg-teal-800 transition-all duration-150 shadow-sm hover:shadow-md border-l-4 border-teal-500 dark:border-teal-600"
-                                    @click.stop="editScheduledTask(item)"
-                                >
-                                    <span class="text-sm font-medium text-teal-800 dark:text-teal-200 truncate" x-text="getTaskTitle(item.taskId)"></span>
-                                    <span class="text-xs text-teal-600 dark:text-teal-400 mt-1">
-                                        <span x-text="formatTime(item.startTimeMinutes)"></span> - <span x-text="formatTime(item.endTimeMinutes)"></span>
-                                    </span>
-                                </div>
-                            </template>
-                        </div>
+        <!-- Sidebar -->
+        <aside class="order-2 lg:order-1 min-w-0 space-y-6">
+            <!-- Month calendar -->
+            <section class={`${panel} p-5`}>
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="text-base font-semibold text-gray-900 dark:text-white" x-text="viewMonthLabel"></h3>
+                    <div class="flex items-center">
+                        <button type="button" class={iconButton} x-on:click="shiftMonth(-1)" aria-label="Previous month">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+                        </button>
+                        <button type="button" class={iconButton} x-on:click="shiftMonth(1)" aria-label="Next month">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+                        </button>
                     </div>
                 </div>
-                
-                <!-- Scroll indicator with better visual cue -->
-                <div class="flex items-center justify-center gap-2 text-sm text-gray-600 text-center mt-3 dark:text-gray-400 font-medium">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-                    </svg>
-                    <span>Scroll to see more hours</span>
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                    </svg>
+
+                <div class="grid grid-cols-7 text-center text-xs font-medium text-gray-400 dark:text-gray-500 mb-1">
+                    {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((weekDay) => <div class="py-1">{weekDay}</div>)}
                 </div>
-            </div>
-            
-            <!-- Time Block Scheduling Modal -->
-            <div
-                x-ref="timeBlockModal"
-                x-show="showTimeBlockModal"
-                x-transition:enter="transition ease-out duration-300"
-                x-transition:enter-start="opacity-0 transform scale-90"
-                x-transition:enter-end="opacity-100 transform scale-100"
-                x-transition:leave="transition ease-in duration-300"
-                x-transition:leave-start="opacity-100 transform scale-100"
-                x-transition:leave-end="opacity-0 transform scale-90"
-                x-cloak
-                class="fixed inset-0 z-50 overflow-y-auto"
-                @keydown.escape="closeTimeBlockModal()"
-            >
-                <!-- Modal Backdrop -->
-                <div class="fixed inset-0 bg-black opacity-30" @click="closeTimeBlockModal()"></div>
-                
-                <!-- Modal Content -->
-                <div class="flex items-center justify-center min-h-screen p-4">
-                    <div 
-                        class="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl p-5 w-full max-w-lg z-60"
-                        @click.outside="closeTimeBlockModal()"
-                    >
-                        <!-- Close Button -->
+
+                <div class="grid grid-cols-7 gap-1">
+                    <template x-for="day in calendarDays" :key="day.date">
                         <button
                             type="button"
-                            @click="closeTimeBlockModal()"
-                            class="absolute top-3 right-3 text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-teal-500 rounded-full p-1"
+                            x-on:click="selectDate(day.date)"
+                            class="relative aspect-square rounded-lg text-sm tabular-nums flex items-center justify-center transition-colors"
+                            x-bind:class="day.date === selectedDate
+                                ? 'bg-teal-600 text-white font-semibold shadow-sm'
+                                : day.date === todayKey
+                                    ? 'text-teal-700 dark:text-teal-300 font-semibold ring-1 ring-inset ring-teal-500/50 hover:bg-teal-50 dark:hover:bg-teal-900/30'
+                                    : day.isCurrentMonth
+                                        ? 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-700'
+                                        : 'text-gray-300 dark:text-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700/50'"
+                            x-bind:aria-label="$dates.formatDate(day.date, { weekday: 'long', month: 'long', day: 'numeric' })"
+                            x-bind:aria-pressed="day.date === selectedDate"
                         >
-                            <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                            </svg>
+                            <span x-text="day.day"></span>
+                            <span class="absolute bottom-1 left-1/2 -translate-x-1/2 flex gap-0.5">
+                                <span x-show="plannedDays.has(day.date)" class="w-1 h-1 rounded-full" x-bind:class="day.date === selectedDate ? 'bg-white' : 'bg-teal-500'"></span>
+                                <span x-show="dueDays.has(day.date)" class="w-1 h-1 rounded-full" x-bind:class="day.date === selectedDate ? 'bg-amber-200' : 'bg-amber-500'"></span>
+                            </span>
                         </button>
-                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4" x-text="modalTitle"></h3>
-                        
-                        <!-- Schedule New Task Form -->
-                        <div x-show="!editingItemId" class="space-y-4">
-                            <div>
-                                <label for="task-select" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Select Task</label>
-                                <select 
-                                    id="task-select"
-                                    x-model="selectedTaskId"
-                                    class="block w-full mt-1 border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:border-teal-500 focus:ring-teal-500 rounded-md shadow-sm"
-                                >
-                                    <option value="">-- Select a Task --</option>
-                                    <template x-for="task in availableTasksForScheduling" :key="task.id">
-                                        <option :value="task.id" x-text="task.todo"></option>
-                                    </template>
-                                </select>
-                                <p x-show="availableTasksForScheduling.length === 0" class="text-sm text-gray-500 dark:text-gray-400 mt-1">No unscheduled tasks available.</p>
+                    </template>
+                </div>
+
+                <div class="flex items-center gap-4 mt-3 text-xs text-gray-500 dark:text-gray-400">
+                    <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-teal-500"></span>Planned</span>
+                    <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>Due</span>
+                </div>
+            </section>
+
+            <AutoPlanPanel panel={panel} />
+
+            <!-- Tasks without a block on this day -->
+            <section class={`${panel} p-5`}>
+                <div class="flex items-baseline justify-between">
+                    <h3 class="text-base font-semibold text-gray-900 dark:text-white">To schedule</h3>
+                    <span class="text-xs font-medium tabular-nums text-gray-400" x-text="unscheduledTasks.length"></span>
+                </div>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 mb-3">Drag a task onto the timeline, or press + to pick a time.</p>
+
+                <ul class="space-y-1.5 max-h-80 overflow-y-auto -mr-1 pr-1">
+                    <template x-for="task in unscheduledTasks" :key="task.id">
+                        <li
+                            x-drag-task="task.id"
+                            class="schedule-chip group flex items-center gap-2 rounded-lg pl-2.5 pr-1 py-1.5 bg-gray-50 dark:bg-slate-700/50 hover:bg-gray-100 dark:hover:bg-slate-700 cursor-grab transition-colors"
+                        >
+                            <span class="w-2 h-2 rounded-full shrink-0" x-bind:style="`background-color: ${$store.todos.clusterColor(task.parentId)};`"></span>
+                            <div class="flex-1 min-w-0">
+                                <p class="truncate text-sm text-gray-700 dark:text-gray-200" x-text="task.todo" x-bind:title="task.todo"></p>
+                                <p x-show="task.parentId || task.dueDate" class="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+                                    <span class="truncate" x-text="$store.todos.clusterName(task.parentId)"></span>
+                                    <span
+                                        x-show="task.dueDate"
+                                        class="shrink-0 font-medium px-1 rounded"
+                                        x-bind:class="task.dueDate ? $dates.dueClass(task.dueDate) : ''"
+                                        x-text="task.dueDate ? $dates.dueLabel(task.dueDate) : ''"
+                                    ></span>
+                                </p>
                             </div>
-                            
-                            <div class="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label for="start-time" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Start Time</label>
-                                    <select 
-                                        id="start-time"
-                                        x-model="startTime" 
-                                        class="block w-full mt-1 border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:border-teal-500 focus:ring-teal-500 rounded-md shadow-sm"
-                                    >
-                                        <option value="06:00">6:00 AM</option>
-                                        <option value="06:15">6:15 AM</option>
-                                        <option value="06:30">6:30 AM</option>
-                                        <option value="06:45">6:45 AM</option>
-                                        <option value="07:00">7:00 AM</option>
-                                        <option value="07:15">7:15 AM</option>
-                                        <option value="07:30">7:30 AM</option>
-                                        <option value="07:45">7:45 AM</option>
-                                        <option value="08:00">8:00 AM</option>
-                                        <option value="08:15">8:15 AM</option>
-                                        <option value="08:30">8:30 AM</option>
-                                        <option value="08:45">8:45 AM</option>
-                                        <option value="09:00">9:00 AM</option>
-                                        <option value="09:15">9:15 AM</option>
-                                        <option value="09:30">9:30 AM</option>
-                                        <option value="09:45">9:45 AM</option>
-                                        <option value="10:00">10:00 AM</option>
-                                        <option value="10:15">10:15 AM</option>
-                                        <option value="10:30">10:30 AM</option>
-                                        <option value="10:45">10:45 AM</option>
-                                        <option value="11:00">11:00 AM</option>
-                                        <option value="11:15">11:15 AM</option>
-                                        <option value="11:30">11:30 AM</option>
-                                        <option value="11:45">11:45 AM</option>
-                                        <option value="12:00">12:00 PM</option>
-                                        <option value="12:15">12:15 PM</option>
-                                        <option value="12:30">12:30 PM</option>
-                                        <option value="12:45">12:45 PM</option>
-                                        <option value="13:00">1:00 PM</option>
-                                        <option value="13:15">1:15 PM</option>
-                                        <option value="13:30">1:30 PM</option>
-                                        <option value="13:45">1:45 PM</option>
-                                        <option value="14:00">2:00 PM</option>
-                                        <option value="14:15">2:15 PM</option>
-                                        <option value="14:30">2:30 PM</option>
-                                        <option value="14:45">2:45 PM</option>
-                                        <option value="15:00">3:00 PM</option>
-                                        <option value="15:15">3:15 PM</option>
-                                        <option value="15:30">3:30 PM</option>
-                                        <option value="15:45">3:45 PM</option>
-                                        <option value="16:00">4:00 PM</option>
-                                        <option value="16:15">4:15 PM</option>
-                                        <option value="16:30">4:30 PM</option>
-                                        <option value="16:45">4:45 PM</option>
-                                        <option value="17:00">5:00 PM</option>
-                                        <option value="17:15">5:15 PM</option>
-                                        <option value="17:30">5:30 PM</option>
-                                        <option value="17:45">5:45 PM</option>
-                                        <option value="18:00">6:00 PM</option>
-                                        <option value="18:15">6:15 PM</option>
-                                        <option value="18:30">6:30 PM</option>
-                                        <option value="18:45">6:45 PM</option>
-                                        <option value="19:00">7:00 PM</option>
-                                        <option value="19:15">7:15 PM</option>
-                                        <option value="19:30">7:30 PM</option>
-                                        <option value="19:45">7:45 PM</option>
-                                        <option value="20:00">8:00 PM</option>
-                                        <option value="20:15">8:15 PM</option>
-                                        <option value="20:30">8:30 PM</option>
-                                        <option value="20:45">8:45 PM</option>
-                                        <option value="21:00">9:00 PM</option>
-                                        <option value="21:15">9:15 PM</option>
-                                        <option value="21:30">9:30 PM</option>
-                                        <option value="21:45">9:45 PM</option>
-                                        <option value="22:00">10:00 PM</option>
-                                        <option value="22:15">10:15 PM</option>
-                                        <option value="22:30">10:30 PM</option>
-                                        <option value="22:45">10:45 PM</option>
-                                        <option value="23:00">11:00 PM</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label for="end-time" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">End Time</label>
-                                    <select 
-                                        id="end-time"
-                                        x-model="endTime"
-                                        class="block w-full mt-1 border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:border-teal-500 focus:ring-teal-500 rounded-md shadow-sm"
-                                    >
-                                        <option value="06:00">6:00 AM</option>
-                                        <option value="06:15">6:15 AM</option>
-                                        <option value="06:30">6:30 AM</option>
-                                        <option value="06:45">6:45 AM</option>
-                                        <option value="07:00">7:00 AM</option>
-                                        <option value="07:15">7:15 AM</option>
-                                        <option value="07:30">7:30 AM</option>
-                                        <option value="07:45">7:45 AM</option>
-                                        <option value="08:00">8:00 AM</option>
-                                        <option value="08:15">8:15 AM</option>
-                                        <option value="08:30">8:30 AM</option>
-                                        <option value="08:45">8:45 AM</option>
-                                        <option value="09:00">9:00 AM</option>
-                                        <option value="09:15">9:15 AM</option>
-                                        <option value="09:30">9:30 AM</option>
-                                        <option value="09:45">9:45 AM</option>
-                                        <option value="10:00">10:00 AM</option>
-                                        <option value="10:15">10:15 AM</option>
-                                        <option value="10:30">10:30 AM</option>
-                                        <option value="10:45">10:45 AM</option>
-                                        <option value="11:00">11:00 AM</option>
-                                        <option value="11:15">11:15 AM</option>
-                                        <option value="11:30">11:30 AM</option>
-                                        <option value="11:45">11:45 AM</option>
-                                        <option value="12:00">12:00 PM</option>
-                                        <option value="12:15">12:15 PM</option>
-                                        <option value="12:30">12:30 PM</option>
-                                        <option value="12:45">12:45 PM</option>
-                                        <option value="13:00">1:00 PM</option>
-                                        <option value="13:15">1:15 PM</option>
-                                        <option value="13:30">1:30 PM</option>
-                                        <option value="13:45">1:45 PM</option>
-                                        <option value="14:00">2:00 PM</option>
-                                        <option value="14:15">2:15 PM</option>
-                                        <option value="14:30">2:30 PM</option>
-                                        <option value="14:45">2:45 PM</option>
-                                        <option value="15:00">3:00 PM</option>
-                                        <option value="15:15">3:15 PM</option>
-                                        <option value="15:30">3:30 PM</option>
-                                        <option value="15:45">3:45 PM</option>
-                                        <option value="16:00">4:00 PM</option>
-                                        <option value="16:15">4:15 PM</option>
-                                        <option value="16:30">4:30 PM</option>
-                                        <option value="16:45">4:45 PM</option>
-                                        <option value="17:00">5:00 PM</option>
-                                        <option value="17:15">5:15 PM</option>
-                                        <option value="17:30">5:30 PM</option>
-                                        <option value="17:45">5:45 PM</option>
-                                        <option value="18:00">6:00 PM</option>
-                                        <option value="18:15">6:15 PM</option>
-                                        <option value="18:30">6:30 PM</option>
-                                        <option value="18:45">6:45 PM</option>
-                                        <option value="19:00">7:00 PM</option>
-                                        <option value="19:15">7:15 PM</option>
-                                        <option value="19:30">7:30 PM</option>
-                                        <option value="19:45">7:45 PM</option>
-                                        <option value="20:00">8:00 PM</option>
-                                        <option value="20:15">8:15 PM</option>
-                                        <option value="20:30">8:30 PM</option>
-                                        <option value="20:45">8:45 PM</option>
-                                        <option value="21:00">9:00 PM</option>
-                                        <option value="21:15">9:15 PM</option>
-                                        <option value="21:30">9:30 PM</option>
-                                        <option value="21:45">9:45 PM</option>
-                                        <option value="22:00">10:00 PM</option>
-                                        <option value="22:15">10:15 PM</option>
-                                        <option value="22:30">10:30 PM</option>
-                                        <option value="22:45">10:45 PM</option>
-                                        <option value="23:00">11:00 PM</option>
-                                    </select>
-                                </div>
+                            <button
+                                type="button"
+                                x-on:click="openModalFor(task.id)"
+                                class="shrink-0 p-1 rounded-md text-teal-600 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/40"
+                                x-bind:aria-label="`Schedule ${task.todo}`"
+                            >
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v12m6-6H6" /></svg>
+                            </button>
+                        </li>
+                    </template>
+                </ul>
+                <p x-show="unscheduledTasks.length === 0" class="text-sm text-gray-400 dark:text-gray-500 py-2">Every open task has a block on this day.</p>
+            </section>
+        </aside>
+
+        <!-- Day view -->
+        <section class={`${panel} order-1 lg:order-2 min-w-0 overflow-hidden`}>
+            <header class="flex flex-wrap items-start justify-between gap-4 p-5 border-b border-gray-100 dark:border-slate-700">
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-wider text-teal-600 dark:text-teal-400" x-text="selectedDayLabel"></p>
+                    <h2 class="text-2xl font-bold text-gray-900 dark:text-white" x-text="$dates.formatDate(selectedDate, { weekday: 'long', month: 'long', day: 'numeric' })"></h2>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-0.5" x-text="daySummary"></p>
+                </div>
+                <div class="flex items-center gap-1">
+                    <button type="button" class={iconButton} x-on:click="selectDate($dates.addDays(selectedDate, -1))" aria-label="Previous day">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+                    </button>
+                    <button
+                        type="button"
+                        x-on:click="selectDate(todayKey)"
+                        x-bind:disabled="selectedDate === todayKey"
+                        class="px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-200 dark:border-slate-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-default transition-colors"
+                    >Today</button>
+                    <button type="button" class={iconButton} x-on:click="selectDate($dates.addDays(selectedDate, 1))" aria-label="Next day">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+                    </button>
+                    <button
+                        type="button"
+                        x-on:click="openModalFor(null)"
+                        class="ml-2 flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg bg-teal-600 text-white hover:bg-teal-700 shadow-sm transition-colors"
+                    >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v12m6-6H6" /></svg>
+                        Add block
+                    </button>
+                </div>
+            </header>
+
+            <!-- Timeline -->
+            <div x-ref="scroller" class="max-h-[36rem] overflow-y-auto overscroll-contain">
+                <div class="flex py-3 pr-3 select-none">
+                    <!-- Hour labels -->
+                    <div class="relative w-16 shrink-0" style={`height: ${timelineHeight}px;`} aria-hidden="true">
+                        {hours.map((hour) => (
+                            <span
+                                class="absolute right-3 -translate-y-1/2 text-xs font-medium text-gray-400 dark:text-gray-500"
+                                style={`top: ${(hour - START_HOUR) * HOUR_HEIGHT}px;`}
+                            >{formatTime(hour * 60).replace(':00', '')}</span>
+                        ))}
+                    </div>
+
+                    <!-- Grid: drag here to plan a block, or drop a task -->
+                    <div
+                        x-ref="grid"
+                        class="timeline-grid relative flex-1 border-l border-gray-100 dark:border-slate-700 cursor-crosshair"
+                        style={`height: ${timelineHeight}px;`}
+                        x-on:pointerdown="startCreate($event)"
+                        x-task-drop="scheduleDroppedTask($taskId, $clientY)"
+                        x-on:task-dragover="dropPreview = rangeAt($event.detail.clientY)"
+                        x-on:task-dragleave="dropPreview = null"
+                    >
+                        {hours.map((hour) => (
+                            <>
+                                <div class="absolute inset-x-0 border-t border-gray-100 dark:border-slate-700/70 pointer-events-none" style={`top: ${(hour - START_HOUR) * HOUR_HEIGHT}px;`}></div>
+                                <div class="absolute inset-x-0 border-t border-dashed border-gray-100/70 dark:border-slate-700/40 pointer-events-none" style={`top: ${(hour - START_HOUR + 0.5) * HOUR_HEIGHT}px;`}></div>
+                            </>
+                        ))}
+
+                        <!-- Hours you're free to work (from Auto-plan) -->
+                        <template x-for="band in availabilityBands" :key="band.start">
+                            <div
+                                class="absolute inset-x-0 bg-teal-500/[0.06] dark:bg-teal-400/[0.07] border-y border-teal-500/15 pointer-events-none"
+                                x-bind:style="{ top: `${toY(band.start)}px`, height: `${toY(band.end) - toY(band.start)}px` }"
+                                aria-hidden="true"
+                            ></div>
+                        </template>
+
+                        <!-- Current time -->
+                        <div
+                            x-show="isNowVisible"
+                            class="absolute inset-x-0 z-20 pointer-events-none"
+                            x-bind:style="{ top: `${toY(nowMinutes)}px` }"
+                        >
+                            <div class="relative h-0.5 bg-rose-500">
+                                <span class="absolute -left-1.5 -top-[5px] w-3 h-3 rounded-full bg-rose-500 ring-2 ring-white dark:ring-slate-800"></span>
                             </div>
                         </div>
-                        
-                        <!-- Edit Existing Task Form -->
-                        <div x-show="editingItemId" class="space-y-4">
-                            <p class="text-gray-800 dark:text-gray-200">
-                                Task: <strong x-text="getTaskTitle(selectedTaskId)"></strong>
-                            </p>
-                            <div class="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label for="edit-start-time" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Start Time</label>
-                                    <select 
-                                        id="edit-start-time"
-                                        x-model="startTime" 
-                                        class="block w-full mt-1 border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:border-teal-500 focus:ring-teal-500 rounded-md shadow-sm"
-                                    >
-                                        <option value="06:00">6:00 AM</option>
-                                        <option value="06:15">6:15 AM</option>
-                                        <option value="06:30">6:30 AM</option>
-                                        <option value="06:45">6:45 AM</option>
-                                        <option value="07:00">7:00 AM</option>
-                                        <option value="07:15">7:15 AM</option>
-                                        <option value="07:30">7:30 AM</option>
-                                        <option value="07:45">7:45 AM</option>
-                                        <option value="08:00">8:00 AM</option>
-                                        <option value="08:15">8:15 AM</option>
-                                        <option value="08:30">8:30 AM</option>
-                                        <option value="08:45">8:45 AM</option>
-                                        <option value="09:00">9:00 AM</option>
-                                        <option value="09:15">9:15 AM</option>
-                                        <option value="09:30">9:30 AM</option>
-                                        <option value="09:45">9:45 AM</option>
-                                        <option value="10:00">10:00 AM</option>
-                                        <option value="10:15">10:15 AM</option>
-                                        <option value="10:30">10:30 AM</option>
-                                        <option value="10:45">10:45 AM</option>
-                                        <option value="11:00">11:00 AM</option>
-                                        <option value="11:15">11:15 AM</option>
-                                        <option value="11:30">11:30 AM</option>
-                                        <option value="11:45">11:45 AM</option>
-                                        <option value="12:00">12:00 PM</option>
-                                        <option value="12:15">12:15 PM</option>
-                                        <option value="12:30">12:30 PM</option>
-                                        <option value="12:45">12:45 PM</option>
-                                        <option value="13:00">1:00 PM</option>
-                                        <option value="13:15">1:15 PM</option>
-                                        <option value="13:30">1:30 PM</option>
-                                        <option value="13:45">1:45 PM</option>
-                                        <option value="14:00">2:00 PM</option>
-                                        <option value="14:15">2:15 PM</option>
-                                        <option value="14:30">2:30 PM</option>
-                                        <option value="14:45">2:45 PM</option>
-                                        <option value="15:00">3:00 PM</option>
-                                        <option value="15:15">3:15 PM</option>
-                                        <option value="15:30">3:30 PM</option>
-                                        <option value="15:45">3:45 PM</option>
-                                        <option value="16:00">4:00 PM</option>
-                                        <option value="16:15">4:15 PM</option>
-                                        <option value="16:30">4:30 PM</option>
-                                        <option value="16:45">4:45 PM</option>
-                                        <option value="17:00">5:00 PM</option>
-                                        <option value="17:15">5:15 PM</option>
-                                        <option value="17:30">5:30 PM</option>
-                                        <option value="17:45">5:45 PM</option>
-                                        <option value="18:00">6:00 PM</option>
-                                        <option value="18:15">6:15 PM</option>
-                                        <option value="18:30">6:30 PM</option>
-                                        <option value="18:45">6:45 PM</option>
-                                        <option value="19:00">7:00 PM</option>
-                                        <option value="19:15">7:15 PM</option>
-                                        <option value="19:30">7:30 PM</option>
-                                        <option value="19:45">7:45 PM</option>
-                                        <option value="20:00">8:00 PM</option>
-                                        <option value="20:15">8:15 PM</option>
-                                        <option value="20:30">8:30 PM</option>
-                                        <option value="20:45">8:45 PM</option>
-                                        <option value="21:00">9:00 PM</option>
-                                        <option value="21:15">9:15 PM</option>
-                                        <option value="21:30">9:30 PM</option>
-                                        <option value="21:45">9:45 PM</option>
-                                        <option value="22:00">10:00 PM</option>
-                                        <option value="22:15">10:15 PM</option>
-                                        <option value="22:30">10:30 PM</option>
-                                        <option value="22:45">10:45 PM</option>
-                                        <option value="23:00">11:00 PM</option>
-                                    </select>
+
+                        <!-- New block preview while dragging -->
+                        <div
+                            x-show="preview"
+                            class="absolute left-1 right-1 z-10 rounded-lg border-2 border-dashed border-teal-500 bg-teal-500/10 px-2 py-1 text-xs font-medium text-teal-700 dark:text-teal-300 pointer-events-none"
+                            x-bind:style="preview ? { top: `${toY(preview.start)}px`, height: `${toY(preview.end) - toY(preview.start)}px` } : {}"
+                            x-text="preview ? formatRange(preview.start, preview.end) : ''"
+                        ></div>
+
+                        <!-- Scheduled blocks -->
+                        <template x-for="block in blocks" :key="block.id">
+                            <div
+                                class="absolute z-10 rounded-lg pl-2.5 pr-2 py-1 overflow-hidden cursor-grab active:cursor-grabbing shadow-sm hover:shadow-md touch-pan-y transition-shadow"
+                                x-bind:class="{ 'opacity-60': block.completed, 'z-30 shadow-lg ring-2 ring-teal-500': drag && drag.itemId === block.id && drag.moved }"
+                                x-bind:style="block.style"
+                                x-on:pointerdown.stop="startMove($event, block)"
+                                role="button"
+                                tabindex="0"
+                                x-bind:aria-label="`${block.title}, ${formatRange(block.start, block.end)}${block.repeatDays ? `, repeats ${block.repeatDays}` : ''}. Press Enter to edit.`"
+                                x-on:keydown.enter="openModalFor(block.taskId, block.item)"
+                            >
+                                <div class="flex items-start gap-2 min-w-0">
+                                    <!-- A class meeting (a cluster block) is not a to-do -->
+                                    <input name="block-done"
+                                        x-show="!block.isCluster"
+                                        type="checkbox"
+                                        class="mt-0.5 w-3.5 h-3.5 shrink-0 rounded border-gray-300 dark:border-slate-500 text-teal-600 focus:ring-teal-500 dark:bg-slate-700 cursor-pointer"
+                                        x-bind:checked="block.completed"
+                                        x-on:pointerdown.stop
+                                        x-on:click.stop="$store.todos.toggleBlockDone(block.item, selectedDate)"
+                                        x-bind:aria-label="`Mark ${block.title} ${block.completed ? 'not done' : 'done'}`"
+                                    />
+                                    <div class="min-w-0 leading-tight">
+                                        <p class="flex items-center gap-1 text-sm font-medium text-gray-900 dark:text-white">
+                                            <span class="truncate" x-bind:class="block.completed && 'line-through'" x-text="block.title"></span>
+                                            <svg x-show="block.repeatDays" class="w-3 h-3 shrink-0 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                                        </p>
+                                        <p x-show="block.end - block.start >= 30" class="text-xs text-gray-600 dark:text-gray-300 truncate mt-0.5" x-text="block.subtitle"></p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <label for="edit-end-time" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">End Time</label>
-                                    <select 
-                                        id="edit-end-time"
-                                        x-model="endTime"
-                                        class="block w-full mt-1 border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:border-teal-500 focus:ring-teal-500 rounded-md shadow-sm"
-                                    >
-                                        <option value="06:00">6:00 AM</option>
-                                        <option value="06:15">6:15 AM</option>
-                                        <option value="06:30">6:30 AM</option>
-                                        <option value="06:45">6:45 AM</option>
-                                        <option value="07:00">7:00 AM</option>
-                                        <option value="07:15">7:15 AM</option>
-                                        <option value="07:30">7:30 AM</option>
-                                        <option value="07:45">7:45 AM</option>
-                                        <option value="08:00">8:00 AM</option>
-                                        <option value="08:15">8:15 AM</option>
-                                        <option value="08:30">8:30 AM</option>
-                                        <option value="08:45">8:45 AM</option>
-                                        <option value="09:00">9:00 AM</option>
-                                        <option value="09:15">9:15 AM</option>
-                                        <option value="09:30">9:30 AM</option>
-                                        <option value="09:45">9:45 AM</option>
-                                        <option value="10:00">10:00 AM</option>
-                                        <option value="10:15">10:15 AM</option>
-                                        <option value="10:30">10:30 AM</option>
-                                        <option value="10:45">10:45 AM</option>
-                                        <option value="11:00">11:00 AM</option>
-                                        <option value="11:15">11:15 AM</option>
-                                        <option value="11:30">11:30 AM</option>
-                                        <option value="11:45">11:45 AM</option>
-                                        <option value="12:00">12:00 PM</option>
-                                        <option value="12:15">12:15 PM</option>
-                                        <option value="12:30">12:30 PM</option>
-                                        <option value="12:45">12:45 PM</option>
-                                        <option value="13:00">1:00 PM</option>
-                                        <option value="13:15">1:15 PM</option>
-                                        <option value="13:30">1:30 PM</option>
-                                        <option value="13:45">1:45 PM</option>
-                                        <option value="14:00">2:00 PM</option>
-                                        <option value="14:15">2:15 PM</option>
-                                        <option value="14:30">2:30 PM</option>
-                                        <option value="14:45">2:45 PM</option>
-                                        <option value="15:00">3:00 PM</option>
-                                        <option value="15:15">3:15 PM</option>
-                                        <option value="15:30">3:30 PM</option>
-                                        <option value="15:45">3:45 PM</option>
-                                        <option value="16:00">4:00 PM</option>
-                                        <option value="16:15">4:15 PM</option>
-                                        <option value="16:30">4:30 PM</option>
-                                        <option value="16:45">4:45 PM</option>
-                                        <option value="17:00">5:00 PM</option>
-                                        <option value="17:15">5:15 PM</option>
-                                        <option value="17:30">5:30 PM</option>
-                                        <option value="17:45">5:45 PM</option>
-                                        <option value="18:00">6:00 PM</option>
-                                        <option value="18:15">6:15 PM</option>
-                                        <option value="18:30">6:30 PM</option>
-                                        <option value="18:45">6:45 PM</option>
-                                        <option value="19:00">7:00 PM</option>
-                                        <option value="19:15">7:15 PM</option>
-                                        <option value="19:30">7:30 PM</option>
-                                        <option value="19:45">7:45 PM</option>
-                                        <option value="20:00">8:00 PM</option>
-                                        <option value="20:15">8:15 PM</option>
-                                        <option value="20:30">8:30 PM</option>
-                                        <option value="20:45">8:45 PM</option>
-                                        <option value="21:00">9:00 PM</option>
-                                        <option value="21:15">9:15 PM</option>
-                                        <option value="21:30">9:30 PM</option>
-                                        <option value="21:45">9:45 PM</option>
-                                        <option value="22:00">10:00 PM</option>
-                                        <option value="22:15">10:15 PM</option>
-                                        <option value="22:30">10:30 PM</option>
-                                        <option value="22:45">10:45 PM</option>
-                                        <option value="23:00">11:00 PM</option>
-                                    </select>
-                                </div>
+                                <!-- Bottom edge resizes the block -->
+                                <div class="absolute inset-x-0 bottom-0 h-2 cursor-ns-resize touch-none" x-on:pointerdown.stop="startResize($event, block)"></div>
                             </div>
-                        </div>
-                        
-                        <div class="flex justify-end gap-3 mt-6">
-                            <!-- Editing mode buttons layout -->
-                            <div x-show="editingItemId" class="flex gap-3">
-                                <button
-                                    type="button"
-                                    @click="closeTimeBlockModal()"
-                                    class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    @click="deleteScheduledTask()"
-                                    class="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md transition-colors"
-                                >
-                                    Remove
-                                </button>
-                                <button
-                                    @click="saveScheduledTask()"
-                                    :disabled="!selectedTaskId || startTime === '' || endTime === '' || parseTimeToMinutes(endTime) <= parseTimeToMinutes(startTime)"
-                                    class="px-4 py-2 text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    Update
-                                </button>
-                            </div>
-                            
-                            <!-- Non-editing mode buttons layout -->
-                            <div x-show="!editingItemId" class="flex gap-3">
-                                <button
-                                    type="button"
-                                    @click="closeTimeBlockModal()"
-                                    class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    @click="saveScheduledTask()"
-                                    :disabled="!selectedTaskId || startTime === '' || endTime === '' || parseTimeToMinutes(endTime) <= parseTimeToMinutes(startTime)"
-                                    class="px-4 py-2 text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    Schedule
-                                </button>
-                            </div>
-                        </div>
+                        </template>
                     </div>
                 </div>
             </div>
+
+            <p class="px-5 py-3 text-xs text-gray-500 dark:text-gray-400 border-t border-gray-100 dark:border-slate-700">
+                Drag on the timeline to plan a block. Drag a block to move it, or its bottom edge to change its length. Click a block to edit it.
+            </p>
+        </section>
+    </div>
+
+    <!-- Block editor -->
+    <div
+        x-show="showModal"
+        x-transition:leave="duration-150"
+        x-cloak
+        class="fixed inset-0 z-50 flex items-center justify-center p-4"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="block-editor-title"
+    >
+        <div
+            x-show="showModal"
+            x-transition.opacity.duration.200ms
+            class="absolute inset-0 bg-slate-900/40 backdrop-blur-[2px]"
+            x-on:click="closeModal()"
+        ></div>
+
+        <div
+            x-show="showModal"
+            x-transition:enter="transition ease-out duration-200"
+            x-transition:enter-start="opacity-0 translate-y-2 scale-95"
+            x-transition:enter-end="opacity-100 translate-y-0 scale-100"
+            x-transition:leave="transition ease-in duration-150"
+            x-transition:leave-start="opacity-100 scale-100"
+            x-transition:leave-end="opacity-0 scale-95"
+            class="relative w-full max-w-md max-h-full overflow-y-auto rounded-2xl bg-white dark:bg-slate-800 shadow-2xl ring-1 ring-black/5 dark:ring-white/10"
+        >
+            <div class="p-5 space-y-5">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <h3 id="block-editor-title" class="text-lg font-semibold text-gray-900 dark:text-white" x-text="editingItemId ? 'Edit block' : 'Plan a block'"></h3>
+                        <p class="text-sm text-gray-500 dark:text-gray-400" x-text="$dates.formatDate(selectedDate, { weekday: 'long', month: 'long', day: 'numeric' })"></p>
+                    </div>
+                    <button type="button" class={iconButton} x-on:click="closeModal()" aria-label="Close">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                </div>
+
+                <!-- Editing: the block's task -->
+                <div x-show="editingItemId" class="flex items-center gap-3 rounded-xl bg-gray-50 dark:bg-slate-700/50 px-3 py-2.5">
+                    <span class="w-2.5 h-2.5 rounded-full shrink-0" x-bind:style="`background-color: ${$store.todos.clusterColor($store.todos.clusterOf(selectedTask))};`"></span>
+                    <div class="min-w-0 flex-1">
+                        <p class="text-sm font-medium text-gray-900 dark:text-white truncate" x-text="selectedTask?.todo ?? 'Deleted task'"></p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400" x-text="selectedTask?.isCluster ? 'Cluster' : $store.todos.clusterName(selectedTask?.parentId ?? null) || 'No cluster'"></p>
+                    </div>
+                    <label x-show="editingItem && !selectedTask?.isCluster" class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 cursor-pointer">
+                        <input id="block-editor-done" name="block-editor-done"
+                            type="checkbox"
+                            class="w-4 h-4 rounded border-gray-300 dark:border-slate-500 text-teal-600 focus:ring-teal-500 dark:bg-slate-700"
+                            x-bind:checked="editingItem && $store.todos.isBlockDone(editingItem, selectedDate)"
+                            x-on:change="$store.todos.toggleBlockDone(editingItem, selectedDate)"
+                        />
+                        Done
+                    </label>
+                </div>
+
+                <!-- New block: find a task or create one -->
+                <div x-show="!editingItemId" class="space-y-2">
+                    <label for="block-task-search" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Task or cluster</label>
+                    <input
+                        id="block-task-search"
+                        x-ref="search"
+                        type="text"
+                        x-model="query"
+                        x-on:keydown.enter.prevent="pickFirstMatch()"
+                        placeholder="Search tasks and clusters, or type a new task"
+                        autocomplete="off"
+                        class="block w-full rounded-lg border-gray-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-sm focus:border-teal-500 focus:ring-teal-500"
+                    />
+                    <ul class="max-h-44 overflow-y-auto rounded-lg border border-gray-100 dark:border-slate-700 divide-y divide-gray-100 dark:divide-slate-700" x-show="pickerTasks.length || pickerClusters.length || canCreateFromQuery">
+                        <template x-for="task in pickerTasks" :key="task.id">
+                            <li>
+                                <button
+                                    type="button"
+                                    x-on:click="selectedTaskId = task.id"
+                                    class="w-full flex items-center gap-2 px-3 py-2 text-left text-sm transition-colors"
+                                    x-bind:class="selectedTaskId === task.id ? 'bg-teal-50 dark:bg-teal-900/30 text-teal-800 dark:text-teal-200' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-700/60'"
+                                    x-bind:aria-pressed="selectedTaskId === task.id"
+                                >
+                                    <span class="w-2 h-2 rounded-full shrink-0" x-bind:style="`background-color: ${$store.todos.clusterColor(task.parentId)};`"></span>
+                                    <span class="flex-1 min-w-0 truncate" x-text="task.todo"></span>
+                                    <span x-show="task.parentId" class="shrink-0 text-xs text-gray-400" x-text="$store.todos.clusterName(task.parentId)"></span>
+                                    <svg x-show="selectedTaskId === task.id" class="w-4 h-4 shrink-0 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                                </button>
+                            </li>
+                        </template>
+                        <!-- A cluster block is a class meeting, not a to-do -->
+                        <template x-for="cluster in pickerClusters" :key="cluster.id">
+                            <li>
+                                <button
+                                    type="button"
+                                    x-on:click="selectedTaskId = cluster.id"
+                                    class="w-full flex items-center gap-2 px-3 py-2 text-left text-sm transition-colors"
+                                    x-bind:class="selectedTaskId === cluster.id ? 'bg-teal-50 dark:bg-teal-900/30 text-teal-800 dark:text-teal-200' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-700/60'"
+                                    x-bind:aria-pressed="selectedTaskId === cluster.id"
+                                >
+                                    <span class="w-2.5 h-2.5 rounded shrink-0" x-bind:style="`background-color: ${$store.todos.clusterColor(cluster.id)};`"></span>
+                                    <span class="flex-1 min-w-0 truncate font-medium" x-text="cluster.todo"></span>
+                                    <span class="shrink-0 text-xs text-gray-400">Cluster</span>
+                                    <svg x-show="selectedTaskId === cluster.id" class="w-4 h-4 shrink-0 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                                </button>
+                            </li>
+                        </template>
+                        <li x-show="canCreateFromQuery">
+                            <button
+                                type="button"
+                                x-on:click="selectedTaskId = NEW_TASK"
+                                class="w-full flex items-center gap-2 px-3 py-2 text-left text-sm transition-colors"
+                                x-bind:class="selectedTaskId === NEW_TASK ? 'bg-teal-50 dark:bg-teal-900/30 text-teal-800 dark:text-teal-200' : 'text-teal-700 dark:text-teal-300 hover:bg-gray-50 dark:hover:bg-slate-700/60'"
+                            >
+                                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v12m6-6H6" /></svg>
+                                <span class="truncate" x-text="`Create “${query.trim()}”`"></span>
+                            </button>
+                        </li>
+                    </ul>
+                    <p x-show="!pickerTasks.length && !pickerClusters.length && !canCreateFromQuery" class="text-sm text-gray-400 dark:text-gray-500">Type a name to create a new task.</p>
+
+                    <!-- Options for a new task -->
+                    <div x-show="selectedTaskId === NEW_TASK" class="grid grid-cols-2 gap-3 pt-1">
+                        <div>
+                            <label for="new-task-cluster" class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Cluster</label>
+                            <select id="new-task-cluster" x-model="newTaskClusterId" class="block w-full rounded-lg border-gray-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-sm focus:border-teal-500 focus:ring-teal-500">
+                                <option value="">No cluster</option>
+                                <template x-for="cluster in $store.todos.clusters" :key="cluster.id">
+                                    <option x-bind:value="cluster.id" x-text="cluster.todo"></option>
+                                </template>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="new-task-due" class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Due date</label>
+                            <input id="new-task-due" type="date" x-model="newTaskDueDate" class="block w-full rounded-lg border-gray-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-sm focus:border-teal-500 focus:ring-teal-500" />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Time -->
+                <div class="space-y-3">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label for="block-start" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Start</label>
+                            <select id="block-start" x-model="startTime" x-on:change="setDuration(length)" class="block w-full rounded-lg border-gray-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-sm focus:border-teal-500 focus:ring-teal-500">
+                                {startOptions.map((option) => <option value={option.value}>{option.label}</option>)}
+                            </select>
+                        </div>
+                        <div>
+                            <label for="block-end" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">End</label>
+                            <select id="block-end" x-model="endTime" x-on:change="length = duration" class="block w-full rounded-lg border-gray-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-sm focus:border-teal-500 focus:ring-teal-500">
+                                {endOptions.map((option) => <option value={option.value}>{option.label}</option>)}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap gap-1.5" role="group" aria-label="Length">
+                        <template x-for="minutes in [30, 45, 60, 90, 120]" :key="minutes">
+                            <button
+                                type="button"
+                                x-on:click="setDuration(minutes)"
+                                class="px-2.5 py-1 text-xs font-medium rounded-full border transition-colors"
+                                x-bind:class="duration === minutes
+                                    ? 'border-teal-600 bg-teal-600 text-white'
+                                    : 'border-gray-200 dark:border-slate-600 text-gray-600 dark:text-gray-300 hover:border-teal-400 hover:text-teal-700 dark:hover:text-teal-300'"
+                                x-text="$dates.formatDuration(minutes)"
+                            ></button>
+                        </template>
+                    </div>
+                    <p x-show="duration <= 0" class="text-sm text-red-600 dark:text-red-400">The block must end after it starts.</p>
+                    <p x-show="conflicts.length" class="flex items-start gap-1.5 text-sm text-amber-700 dark:text-amber-300">
+                        <svg class="w-4 h-4 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /></svg>
+                        <span x-text="`Overlaps ${conflicts.join(', ')}`"></span>
+                    </p>
+                </div>
+
+                <!-- Weekly repeat -->
+                <div class="space-y-3">
+                    <label class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
+                        <input id="block-repeats" name="block-repeats" type="checkbox" x-model="repeats" class="w-4 h-4 rounded border-gray-300 dark:border-slate-500 text-teal-600 focus:ring-teal-500 dark:bg-slate-700" />
+                        Repeats weekly
+                    </label>
+                    <div x-show="repeats" class="space-y-3 pl-6">
+                        <div class="flex gap-1.5" role="group" aria-label="Repeat on">
+                            {weekdayNames.map((name, day) => (
+                                <button
+                                    type="button"
+                                    x-on:click={`toggleRepeatDay(${day})`}
+                                    class="w-8 h-8 rounded-full text-xs font-semibold transition-colors"
+                                    x-bind:class={`repeatDays.includes(${day}) ? 'bg-teal-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-slate-700 dark:text-gray-300 dark:hover:bg-slate-600'`}
+                                    x-bind:aria-pressed={`repeatDays.includes(${day})`}
+                                    aria-label={name}
+                                >{name[0]}</button>
+                            ))}
+                        </div>
+                        <div class="flex flex-wrap items-end gap-3">
+                            <div>
+                                <label for="block-repeat-until" class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Ends on (optional)</label>
+                                <input id="block-repeat-until" type="date" x-model="repeatUntil" x-bind:min="repeatStart" class="block rounded-lg border-gray-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-sm focus:border-teal-500 focus:ring-teal-500" />
+                            </div>
+                            <p class="pb-2 text-xs text-gray-500 dark:text-gray-400" x-text="`Starts ${$dates.formatDate(repeatStart, { weekday: 'short', month: 'short', day: 'numeric' })}`"></p>
+                        </div>
+                        <p x-show="repeatError" class="text-sm text-red-600 dark:text-red-400" x-text="repeatError"></p>
+                    </div>
+                    <p x-show="editingItem?.repeat" class="text-xs text-gray-500 dark:text-gray-400" x-text="repeats
+                        ? 'Changes apply to every day this block repeats.'
+                        : `Saving keeps this block on ${$dates.formatDate(selectedDate)} only and removes it from the other days.`"></p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2 px-5 py-4 border-t border-gray-100 dark:border-slate-700 bg-gray-50/60 dark:bg-slate-800/60 rounded-b-2xl">
+                <button
+                    type="button"
+                    x-show="editingItemId"
+                    x-on:click="deleteBlock()"
+                    class="px-3 py-2 text-sm font-medium rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
+                    x-text="editingItem?.repeat ? 'Remove all days' : 'Remove'"
+                ></button>
+                <div class="flex-1"></div>
+                <button type="button" x-on:click="closeModal()" class="px-4 py-2 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors">Cancel</button>
+                <button
+                    type="button"
+                    x-on:click="saveBlock()"
+                    x-bind:disabled="!canSave"
+                    class="px-4 py-2 text-sm font-medium rounded-lg bg-teal-600 text-white hover:bg-teal-700 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    x-text="editingItemId ? 'Save' : 'Add block'"
+                ></button>
+            </div>
         </div>
-        
-        <!-- Dashboard View -->
-        <DashboardView />
     </div>
 </div>
 
-<script is:inline>
-// is:inline is crucial for Alpine.js functions within Astro components
-
-// Helper to format date to YYYY-MM-DD - used by both components
-function formatDateToYYYYMMDD(date) {
-    return date.toISOString().split('T')[0];
-}
-
-function calendar() {
-    const today = new Date();
-    return {
-        currentMonth: today.getMonth(),
-        currentYear: today.getFullYear(),
-        selectedDate: null,
-        days: [],
-        monthNames: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
-        weekDays: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
-        
-        init() {
-            this.generateCalendar();
-            
-            // Set today as the initial selected date
-            this.selectDate(today);
-        },
-        
-        // Generate the calendar days for the current month and year
-        generateCalendar() {
-            const firstDay = new Date(this.currentYear, this.currentMonth, 1);
-            const lastDay = new Date(this.currentYear, this.currentMonth + 1, 0);
-            const daysInMonth = lastDay.getDate();
-            const startingDayOfWeek = firstDay.getDay();
-            
-            this.days = [];
-            
-            // Add days from previous month to fill the first week
-            const prevMonthLastDay = new Date(this.currentYear, this.currentMonth, 0).getDate();
-            for (let i = startingDayOfWeek - 1; i >= 0; i--) {
-                const day = prevMonthLastDay - i;
-                const date = new Date(this.currentYear, this.currentMonth - 1, day);
-                this.days.push({
-                    day,
-                    isCurrentMonth: false,
-                    date: formatDateToYYYYMMDD(date),
-                    isToday: this.isToday(date)
-                });
-            }
-            
-            // Add days from current month
-            for (let day = 1; day <= daysInMonth; day++) {
-                const date = new Date(this.currentYear, this.currentMonth, day);
-                this.days.push({
-                    day,
-                    isCurrentMonth: true,
-                    date: formatDateToYYYYMMDD(date),
-                    isToday: this.isToday(date)
-                });
-            }
-            
-            // Calculate how many days from next month are needed to complete the last week
-            const remainingDays = 7 - (this.days.length % 7);
-            if (remainingDays < 7) {
-                for (let day = 1; day <= remainingDays; day++) {
-                    const date = new Date(this.currentYear, this.currentMonth + 1, day);
-                    this.days.push({
-                        day,
-                        isCurrentMonth: false,
-                        date: formatDateToYYYYMMDD(date),
-                        isToday: this.isToday(date)
-                    });
-                }
-            }
-        },
-        
-        // Navigate to the previous month
-        prevMonth() {
-            if (this.currentMonth === 0) {
-                this.currentMonth = 11;
-                this.currentYear--;
-            } else {
-                this.currentMonth--;
-            }
-            this.generateCalendar();
-        },
-        
-        // Navigate to the next month
-        nextMonth() {
-            if (this.currentMonth === 11) {
-                this.currentMonth = 0;
-                this.currentYear++;
-            } else {
-                this.currentMonth++;
-            }
-            this.generateCalendar();
-        },
-        
-        // Select a date and notify the timeBlocking component
-        selectDate(date) {
-            // Format the date to YYYY-MM-DD
-            const formattedDate = date instanceof Date
-                ? formatDateToYYYYMMDD(date)
-                : date; // If already formatted
-            
-            this.selectedDate = formattedDate;
-            
-            // Dispatch a standard CustomEvent that the listener in timeBlocking expects
-            document.dispatchEvent(new CustomEvent('calendar-date-selected', {
-                detail: { date: formattedDate }
-            }));
-            
-            console.log('Calendar: Date selected:', formattedDate);
-        },
-
-        // Check if a date is today
-        isToday(date) {
-            const today = new Date();
-            return date.getDate() === today.getDate() &&
-                  date.getMonth() === today.getMonth() &&
-                  date.getFullYear() === today.getFullYear();
-        },
+<style>
+    /* A task from the list is over the timeline */
+    .timeline-grid[data-drop-active] {
+        background-color: rgba(20, 184, 166, 0.04);
     }
-}
 
-function timeBlocking() {
-    const START_HOUR = 6;
-    const END_HOUR = 23; // Non-inclusive, so up to 10:59 PM
-    const TOTAL_HOURS = END_HOUR - START_HOUR;
-    const TOTAL_MINUTES = TOTAL_HOURS * 60;
-    const MINUTE_INCREMENT = 15;
+    .schedule-chip[data-drag-active="true"] {
+        opacity: 0.5;
+    }
+</style>
 
-    return {
-        hours: Array.from({ length: TOTAL_HOURS }, (_, i) => START_HOUR + i),
-        selectedDate: new Date(),
-        scheduledItems: [], // Stores { id: string, taskId: string, startTimeMinutes: number, endTimeMinutes: number }
-        showTimeBlockModal: false,
-        editingItemId: null, // ID of the item being edited
-        modalTitle: '',
-        selectedTaskId: '',
-        startTime: '',
-        endTime: '',
-        selectedStartTimeMinutes: null,
-        selectedEndTimeMinutes: null,
-        activeTab: 'tasks',
-        availableTasksForScheduling: [], // Add this property
-        
-        // Layout caching
-        timelineRect: null,
-        hourBoundaries: [], // Stores { hour: number, x: number }
-        
-        // Helper method to safely check if store exists
-        storeExists() {
-            try {
-                return (
-                    typeof Alpine !== 'undefined' && 
-                    Alpine.store && 
-                    typeof Alpine.store === 'function' && 
-                    Alpine.store('todos') && 
-                    typeof Alpine.store('todos') === 'object'
-                );
-            } catch (e) {
-                console.error("Error checking store existence", e);
-                return false;
-            }
-        },
+<script>
+    import { dates } from '../lib/dates';
+    import { DAY_START, DAY_END, HOUR_HEIGHT, SLOT_MINUTES } from '../lib/timeline';
+    import { windowsOn } from '../lib/autoPlan';
 
-        initTimeBlocking() {
-            console.log("TimeBlocking: Initializing component setup...");
-            
-            // Try loading tasks or retry with exponential backoff
-            this.tryLoadingTasks(0);
+    const NEW_TASK = '__new__';
+    const DEFAULT_LENGTH = 60;
+    const DRAG_THRESHOLD_PX = 4;
 
-            // Define the logic that depends on the todoStore
-            const runStoreDependentInit = () => {
-                console.log("TimeBlocking: todos store confirmed available. Running store-dependent initialization.");
-                Alpine.effect(() => {
-                    const currentDate = this.selectedDate;
-                    console.log(`TimeBlocking: Effect triggered for date: ${this.formatDateForStore(currentDate)}. Loading tasks and calculating layout.`);
-                    this.loadScheduledTasks();
-                    
-                    // Only try to load available tasks if store exists
-                    if (this.storeExists()) {
-                        this.loadAvailableTasks();
-                    }
-                    
-                    // Delay layout calculation slightly to ensure DOM updates from task loading are potentially settled
-                    this.$nextTick(() => this.calculateTimelineLayout());
+    const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+    const snap = (minutes) => Math.round(minutes / SLOT_MINUTES) * SLOT_MINUTES;
+
+    document.addEventListener('alpine:init', () => {
+        window.Alpine.data('schedule', () => ({
+            NEW_TASK,
+            now: new Date(),
+            selectedDate: dates.toDateKey(),
+            viewMonth: new Date().getMonth(),
+            viewYear: new Date().getFullYear(),
+
+            // Pointer drag on the timeline: { mode: 'create' | 'move' | 'resize', start, end, moved, ... }
+            drag: null,
+            // Where a task from the list would land while it is dragged over the timeline
+            dropPreview: null,
+
+            // Block editor
+            showModal: false,
+            editingItemId: null,
+            selectedTaskId: '',
+            query: '',
+            newTaskClusterId: '',
+            newTaskDueDate: '',
+            startTime: '',
+            endTime: '',
+            length: DEFAULT_LENGTH, // Minutes the block keeps when its start moves
+            repeats: false,
+            repeatDays: [],
+            repeatUntil: '',
+
+            init() {
+                // Keeps the current-time line and "today" up to date
+                setInterval(() => { this.now = new Date(); }, 60 * 1000);
+                this.$watch('selectedDate', () => this.$nextTick(() => this.scrollToFocus()));
+
+                // The tab can be hidden at load, where scrolling does nothing.
+                // Scroll each time the timeline appears after being hidden, but not on page scroll.
+                let wasHidden = true;
+                new IntersectionObserver(([entry]) => {
+                    if (entry.isIntersecting && wasHidden) this.scrollToFocus();
+                    wasHidden = !entry.isIntersecting && this.$refs.scroller.offsetParent === null;
+                }).observe(this.$refs.scroller);
+            },
+
+            get todayKey() {
+                return dates.toDateKey(this.now);
+            },
+
+            get nowMinutes() {
+                return dates.minutesNow(this.now);
+            },
+
+            get isNowVisible() {
+                return this.selectedDate === this.todayKey && this.nowMinutes >= DAY_START && this.nowMinutes < DAY_END;
+            },
+
+            // --- Calendar ---
+
+            get viewMonthLabel() {
+                return new Date(this.viewYear, this.viewMonth, 1).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+            },
+
+            // Whole weeks that cover the month in view
+            get calendarDays() {
+                const firstDay = new Date(this.viewYear, this.viewMonth, 1);
+                const lastDay = new Date(this.viewYear, this.viewMonth + 1, 0);
+                const cellCount = Math.ceil((firstDay.getDay() + lastDay.getDate()) / 7) * 7;
+
+                return Array.from({ length: cellCount }, (_, i) => {
+                    const date = new Date(this.viewYear, this.viewMonth, i - firstDay.getDay() + 1);
+                    return {
+                        day: date.getDate(),
+                        date: dates.toDateKey(date),
+                        isCurrentMonth: date.getMonth() === this.viewMonth
+                    };
                 });
+            },
 
-                // Calculate layout initially now that store effect is set up
-                this.$nextTick(() => this.calculateTimelineLayout());
-            };
+            get plannedDays() {
+                return new Set(this.calendarDays.map(day => day.date).filter(date => this.$store.todos.scheduledItemsOn(date).length));
+            },
 
-            // Check if store is ready immediately
-            if (Alpine.store('todos')) {
-                runStoreDependentInit();
-            } else {
-                // If not ready, listen for the event
-                console.log("TimeBlocking: todos store not yet available. Waiting for 'todostore-ready' event.");
-                const handleStoreReady = () => {
-                    console.log("TimeBlocking: 'todostore-ready' event received.");
-                    runStoreDependentInit();
-                    document.removeEventListener('todostore-ready', handleStoreReady);
+            get dueDays() {
+                return new Set(this.$store.todos.openTasks.map(task => task.dueDate).filter(Boolean));
+            },
+
+            shiftMonth(offset) {
+                const date = new Date(this.viewYear, this.viewMonth + offset, 1);
+                this.viewMonth = date.getMonth();
+                this.viewYear = date.getFullYear();
+            },
+
+            selectDate(key) {
+                this.selectedDate = key;
+                const date = dates.fromDateKey(key);
+                this.viewMonth = date.getMonth();
+                this.viewYear = date.getFullYear();
+            },
+
+            // --- Day ---
+
+            get selectedDayLabel() {
+                const days = dates.daysBetween(this.todayKey, this.selectedDate);
+                if (days === 0) return 'Today';
+                if (days === 1) return 'Tomorrow';
+                if (days === -1) return 'Yesterday';
+                return days > 0 ? `In ${days} days` : `${-days} days ago`;
+            },
+
+            get itemsForDay() {
+                return this.$store.todos.scheduledItemsOn(this.selectedDate);
+            },
+
+            get daySummary() {
+                const items = this.itemsForDay;
+                const dueCount = this.$store.todos.openTasks.filter(task => task.dueDate === this.selectedDate).length;
+                const parts = [];
+                if (items.length) {
+                    const minutes = items.reduce((sum, item) => sum + item.endTimeMinutes - item.startTimeMinutes, 0);
+                    parts.push(`${items.length} ${items.length === 1 ? 'block' : 'blocks'}`, `${dates.formatDuration(minutes)} planned`);
+                } else {
+                    parts.push('Nothing planned yet');
+                }
+                if (dueCount) parts.push(`${dueCount} due`);
+                return parts.join(' · ');
+            },
+
+            // Availability on this day, clipped to the timeline
+            get availabilityBands() {
+                return windowsOn(this.$store.todos.planning.availability, this.selectedDate)
+                    .map(band => ({ start: Math.max(band.start, DAY_START), end: Math.min(band.end, DAY_END) }))
+                    .filter(band => band.end > band.start);
+            },
+
+            // Open tasks without a block on this day, soonest due date first
+            get unscheduledTasks() {
+                const scheduled = new Set(this.itemsForDay.map(item => item.taskId));
+                return this.$store.todos.openTasks
+                    .filter(task => task.todo.trim() !== '' && !scheduled.has(task.id))
+                    .sort((a, b) => (a.dueDate || '9999-12-31').localeCompare(b.dueDate || '9999-12-31'));
+            },
+
+            // Blocks with their position. Overlapping blocks share the width side by side.
+            get blocks() {
+                const items = this.itemsForDay.map(item => {
+                    const dragged = this.drag && this.drag.itemId === item.id && this.drag.moved;
+                    return { item, start: dragged ? this.drag.start : item.startTimeMinutes, end: dragged ? this.drag.end : item.endTimeMinutes };
+                }).sort((a, b) => a.start - b.start || b.end - a.end);
+
+                // Group blocks that overlap in a chain, then give each a column in its group
+                let group = [];
+                let groupEnd = -1;
+                let columnEnds = [];
+                const finishGroup = () => group.forEach(entry => { entry.columns = columnEnds.length; });
+                items.forEach(entry => {
+                    if (entry.start >= groupEnd) {
+                        finishGroup();
+                        group = [];
+                        columnEnds = [];
+                    }
+                    let column = columnEnds.findIndex(end => end <= entry.start);
+                    if (column === -1) column = columnEnds.length;
+                    columnEnds[column] = entry.end;
+                    entry.column = column;
+                    group.push(entry);
+                    groupEnd = Math.max(groupEnd, entry.end);
+                });
+                finishGroup();
+
+                return items.map(({ item, start, end, column, columns }) => {
+                    const task = this.$store.todos.find(item.taskId);
+                    const isCluster = Boolean(task?.isCluster);
+                    const color = this.$store.todos.clusterColor(this.$store.todos.clusterOf(task));
+                    const clusterName = isCluster ? '' : this.$store.todos.clusterName(task?.parentId ?? null);
+                    const top = this.toY(start);
+                    const height = Math.max(this.toY(end) - top - 2, 18);
+                    return {
+                        id: item.id,
+                        item,
+                        taskId: item.taskId,
+                        start,
+                        end,
+                        isCluster,
+                        repeatDays: item.repeat ? dates.formatWeekdays(item.repeat.weekdays) : '',
+                        title: task?.todo || 'Deleted task',
+                        subtitle: [this.formatRange(start, end), clusterName].filter(Boolean).join(' · '),
+                        completed: this.$store.todos.isBlockDone(item, this.selectedDate),
+                        style: `top: ${top}px; height: ${height}px; left: calc(${(column / columns) * 100}% + 4px); width: calc(${100 / columns}% - 8px); ` +
+                            `background-color: color-mix(in srgb, ${color} 16%, var(--card-bg)); border-left: 3px solid ${color};`
+                    };
+                });
+            },
+
+            // --- Timeline geometry ---
+
+            toY(minutes) {
+                return (minutes - DAY_START) / 60 * HOUR_HEIGHT;
+            },
+
+            // Minutes at a screen position, not snapped
+            minutesAt(clientY) {
+                const top = this.$refs.grid.getBoundingClientRect().top;
+                return DAY_START + (clientY - top) / HOUR_HEIGHT * 60;
+            },
+
+            // The slot under a screen position
+            slotAt(clientY) {
+                const slot = Math.floor(this.minutesAt(clientY) / SLOT_MINUTES) * SLOT_MINUTES;
+                return clamp(slot, DAY_START, DAY_END - SLOT_MINUTES);
+            },
+
+            rangeAt(clientY, length = DEFAULT_LENGTH) {
+                const start = this.slotAt(clientY);
+                return { start, end: Math.min(start + length, DAY_END) };
+            },
+
+            formatRange(start, end) {
+                return `${dates.formatTime(start)} – ${dates.formatTime(end)}`;
+            },
+
+            get preview() {
+                if (this.drag && this.drag.mode === 'create' && this.drag.moved) {
+                    return { start: this.drag.start, end: this.drag.end };
+                }
+                return this.dropPreview;
+            },
+
+            // Show the current time on today, else the first block, else 8 AM
+            scrollToFocus() {
+                const scroller = this.$refs.scroller;
+                if (!scroller) return;
+                const first = this.itemsForDay[0];
+                const focus = this.selectedDate === this.todayKey
+                    ? this.nowMinutes - 60
+                    : (first ? first.startTimeMinutes - 30 : 8 * 60);
+                scroller.scrollTop = Math.max(0, this.toY(focus));
+            },
+
+            // First free hour-long slot: after now on today, from 9 AM on other days
+            suggestedStart() {
+                const earliest = this.selectedDate === this.todayKey
+                    ? Math.ceil(this.nowMinutes / SLOT_MINUTES) * SLOT_MINUTES
+                    : 9 * 60;
+                const base = clamp(earliest, DAY_START, DAY_END - DEFAULT_LENGTH);
+                const items = this.itemsForDay;
+                for (let start = base; start + DEFAULT_LENGTH <= DAY_END; start += SLOT_MINUTES) {
+                    const end = start + DEFAULT_LENGTH;
+                    if (!items.some(item => item.startTimeMinutes < end && item.endTimeMinutes > start)) return start;
+                }
+                return base;
+            },
+
+            // --- Pointer dragging on the timeline ---
+
+            startCreate(event) {
+                if (event.button !== 0) return;
+                event.preventDefault();
+                const slot = this.slotAt(event.clientY);
+                this.drag = { mode: 'create', anchor: slot, start: slot, end: slot + SLOT_MINUTES, startY: event.clientY, moved: false };
+            },
+
+            startMove(event, block) {
+                if (event.button !== 0) return;
+                if (event.pointerType === 'mouse') event.preventDefault();
+                this.drag = {
+                    mode: 'move',
+                    itemId: block.id,
+                    offset: this.minutesAt(event.clientY) - block.start,
+                    start: block.start,
+                    end: block.end,
+                    startY: event.clientY,
+                    moved: false
                 };
-                document.addEventListener('todostore-ready', handleStoreReady);
+            },
 
-                // Fallback: Check again after a short delay in case the event fired before listener was attached
-                // Or if the event dispatch mechanism isn't implemented yet.
-                setTimeout(() => {
-                    if (Alpine.store('todos') && !this.scheduledItems.length) { // Check if store exists but maybe init didn't run
-                         console.warn("TimeBlocking: todos store found on fallback check, running init.");
-                         // Ensure we don't double-init if event listener also worked
-                         document.removeEventListener('todostore-ready', handleStoreReady);
-                         runStoreDependentInit();
-                    }
-                }, 1000); // Wait a bit longer for store to be ready
-            }
+            startResize(event, block) {
+                if (event.button !== 0) return;
+                event.preventDefault();
+                this.drag = { mode: 'resize', itemId: block.id, start: block.start, end: block.end, startY: event.clientY, moved: false };
+            },
 
-            // Initial layout calculation for non-store-dependent elements and resize listener can run immediately
-            this.$nextTick(() => {
-                this.calculateTimelineLayout(); // Calculate initial layout based on container size
-                window.addEventListener('resize', () => this.calculateTimelineLayout());
-            });
+            onPointerMove(event) {
+                const drag = this.drag;
+                if (!drag) return;
+                if (!drag.moved && Math.abs(event.clientY - drag.startY) < DRAG_THRESHOLD_PX) return;
+                drag.moved = true;
+                this.autoScroll(event.clientY);
 
-            // Initialize Sortable for unscheduled tasks (assuming it doesn't strictly need the store immediately)
-            // If Sortable *does* need the store data, move this inside runStoreDependentInit
-            // this.initSortable(); // Assuming initSortable handles its own store checks or is independent
-        },
-
-        // Calculate and cache timeline and hour element boundaries
-        calculateTimelineLayout() {
-            const container = this.$refs.timelineContainer;
-            if (!container) {
-                console.error("TimeBlocking: Timeline container ref not found!");
-                this.timelineRect = null;
-                this.hourBoundaries = [];
-                return;
-            }
-            this.timelineRect = container.getBoundingClientRect();
-            this.hourBoundaries = this.hours.map(hour => {
-                const hourIndex = hour - START_HOUR;
-                const x = (hourIndex / TOTAL_HOURS) * this.timelineRect.width;
-                return { hour, x };
-            });
-            console.log("TimeBlocking: Layout calculated", { rect: this.timelineRect, boundaries: this.hourBoundaries });
-        },
-
-        loadScheduledTasks() {
-            const dateString = this.formatDateForStore(this.selectedDate);
-            console.log(`TimeBlocking: Loading scheduled tasks for ${dateString}`);
-
-            // Check if store exists before trying to load
-            if (!this.storeExists()) {
-                console.error('TimeBlocking: Cannot load scheduled tasks, todos store not available');
-                return;
-            }
-
-            try {
-                const store = Alpine.store('todos');
-                
-                if (!store) {
-                    console.error('TimeBlocking: Todos store not available');
-                    return;
+                if (drag.mode === 'create') {
+                    const slot = this.slotAt(event.clientY);
+                    drag.start = Math.min(drag.anchor, slot);
+                    drag.end = Math.max(drag.anchor, slot) + SLOT_MINUTES;
+                } else if (drag.mode === 'move') {
+                    const length = drag.end - drag.start;
+                    drag.start = clamp(snap(this.minutesAt(event.clientY) - drag.offset), DAY_START, DAY_END - length);
+                    drag.end = drag.start + length;
+                } else {
+                    drag.end = clamp(snap(this.minutesAt(event.clientY)), drag.start + SLOT_MINUTES, DAY_END);
                 }
+            },
 
-                // Initialize scheduledItems if it doesn't exist in the store
-                if (!store.scheduledItems) {
-                    store.scheduledItems = [];
-                    this.scheduledItems = [];
-                    return;
+            onPointerUp() {
+                const drag = this.drag;
+                if (!drag) return;
+                this.drag = null;
+
+                const item = drag.itemId ? this.itemsForDay.find(entry => entry.id === drag.itemId) : null;
+
+                if (drag.mode === 'create') {
+                    const end = drag.moved ? drag.end : Math.min(drag.anchor + DEFAULT_LENGTH, DAY_END);
+                    this.openModal(drag.start, end);
+                } else if (!drag.moved) {
+                    // A click on a block opens it
+                    if (item && drag.mode === 'move') this.openModal(item.startTimeMinutes, item.endTimeMinutes, item);
+                } else if (item) {
+                    this.$store.todos.saveScheduledItem({ ...item, startTimeMinutes: drag.start, endTimeMinutes: drag.end });
                 }
+            },
 
-                // Simply filter the array by date
-                if (Array.isArray(store.scheduledItems)) {
-                    this.scheduledItems = store.scheduledItems.filter(item => 
-                        item && item.date === dateString
-                    );
-                    console.log(`TimeBlocking: Loaded ${this.scheduledItems.length} scheduled items from array for ${dateString}`);
-                } 
-                // Alternative: create the array structure if it doesn't exist as expected
-                else {
-                    store.scheduledItems = [];
-                    console.log('TimeBlocking: Created new scheduledItems array');
-                }
-                
-                // Reload to update display
-                this.loadAvailableTasks();
-                
-                console.log('TimeBlocking: Successfully loaded scheduled tasks');
-            } catch (error) {
-                console.error('TimeBlocking: Error loading scheduled items', error);
-                this.scheduledItems = [];
-            }
-        },
-        
-        // --- Date Formatting ---
-        get selectedDateFormatted() {
-            return this.formatDate(this.selectedDate);
-        },
-        
-        formatDate(date, options = { year: 'numeric', month: 'long', day: 'numeric' }) {
-            return date.toLocaleDateString(undefined, options);
-        },
+            // Scroll the timeline while dragging near its top or bottom edge
+            autoScroll(clientY) {
+                const scroller = this.$refs.scroller;
+                const rect = scroller.getBoundingClientRect();
+                if (clientY < rect.top + 40) scroller.scrollTop -= 12;
+                else if (clientY > rect.bottom - 40) scroller.scrollTop += 12;
+            },
 
-        formatDateForStore(date) {
-            // YYYY-MM-DD format for consistency with storage
-            return date.toISOString().split('T')[0];
-        },
+            // A task from the list was dropped on the timeline
+            scheduleDroppedTask(taskId, clientY) {
+                const { start, end } = this.rangeAt(clientY);
+                this.dropPreview = null;
+                this.$store.todos.saveScheduledItem({
+                    id: crypto.randomUUID(),
+                    taskId,
+                    date: this.selectedDate,
+                    startTimeMinutes: start,
+                    endTimeMinutes: end
+                });
+            },
 
-        formatHour(hour) {
-            // Display correct hour in 12-hour format with AM/PM
-            const h = hour % 12 === 0 ? 12 : hour % 12;
-            const ampm = hour < 12 ? 'AM' : 'PM';
-            return `${h} ${ampm}`;
-        },
-        
-        formatTimeRange(startMinutes, endMinutes) {
-            if (startMinutes === null || endMinutes === null) return 'Select time range';
-            return `${this.formatMinutesToTime(startMinutes)} - ${this.formatMinutesToTime(endMinutes)}`;
-        },
-        
-        formatMinutesToTime(totalMinutes) {
-            if (totalMinutes === null || totalMinutes === undefined) return '';
-            const hours = Math.floor(totalMinutes / 60);
-            const minutes = totalMinutes % 60;
-            return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-        },
+            // --- Block editor ---
 
-        parseTimeToMinutes(timeString) { // e.g., "09:30"
-            if (!timeString || typeof timeString !== 'string') {
-                console.error('TimeBlocking: Invalid time string:', timeString);
-                return 0;
-            }
-            
-            try {
-                const [hours, minutes] = timeString.split(':').map(Number);
-                
-                // Debug logging to help diagnose time conversion issues
-                console.log(`TimeBlocking: Parsed time ${timeString} to ${hours * 60 + minutes} minutes (${hours}h ${minutes}m)`);
-                
-                return hours * 60 + minutes;
-            } catch (error) {
-                console.error('TimeBlocking: Error parsing time string:', timeString, error);
-                return 0;
-            }
-        },
-        
-        // --- Time Parsing and Formatting ---
-        validateAndFormatTime(timeProperty) {
-            // Get the current value from the model
-            const timeValue = this[timeProperty];
-            if (!timeValue) return;
-            
-            try {
-                // Parse the time string into hours and minutes
-                const [hours, minutes] = timeValue.split(':').map(Number);
-                
-                // Check if time is within allowed range (6am to 11pm)
-                let validHours = Math.min(Math.max(hours, 6), 23);
-                
-                // Round minutes to nearest 15-minute increment
-                let validMinutes = Math.round(minutes / 15) * 15;
-                
-                // Handle edge case where rounding to 60 minutes
-                if (validMinutes === 60) {
-                    validMinutes = 0;
-                    validHours = (validHours + 1) % 24;
-                }
-                
-                // Format back to HH:MM format with leading zeros
-                const formattedTime = `${String(validHours).padStart(2, '0')}:${String(validMinutes).padStart(2, '0')}`;
-                
-                // Only update if it's different
-                if (formattedTime !== timeValue) {
-                    console.log(`TimeBlocking: Adjusted time from ${timeValue} to ${formattedTime}`);
-                    this[timeProperty] = formattedTime;
-                }
-            } catch (error) {
-                console.error('TimeBlocking: Error validating time', error);
-            }
-        },
-        
-        // --- Timeline Click Handling ---
-        handleHourClick(event, hour) {
-            console.log(`TimeBlocking: Hour ${hour} clicked`);
-            const startMinutes = hour * 60; 
-            const endMinutes = startMinutes + 60; 
-            console.log(`TimeBlocking: Opening modal with start: ${this.formatMinutesToTime(startMinutes)}, end: ${this.formatMinutesToTime(endMinutes)}`);
-            this.openTimeBlockModal(startMinutes, endMinutes);
-            this.loadAvailableTasks(); // Add this call to ensure tasks are loaded when modal opens
-        },
+            get selectedTask() {
+                return this.selectedTaskId && this.selectedTaskId !== NEW_TASK
+                    ? this.$store.todos.find(this.selectedTaskId) ?? null
+                    : null;
+            },
 
-        // --- Modal Handling ---
-        openTimeBlockModal(startTimeMinutes = null, endTimeMinutes = null, existingItem = null) {
-            console.log('TimeBlocking: Opening time block modal', { startTimeMinutes, endTimeMinutes, existingItem });
-            
-            // Set default times if not provided
-            const now = new Date();
-            const currentHour = now.getHours();
-            const roundedMinutes = Math.ceil(now.getMinutes() / 15) * 15;
-            
-            // Default to current hour rounded up to next 15 min increment
-            if (startTimeMinutes === null) {
-                this.startTime = `${String(currentHour).padStart(2, '0')}:${String(roundedMinutes).padStart(2, '0')}`;
-                this.endTime = `${String(currentHour + 1).padStart(2, '0')}:${String(roundedMinutes).padStart(2, '0')}`;
-            } else {
-                // Convert minutes to HH:MM format for the inputs
-                this.startTime = this.formatMinutesToTime(startTimeMinutes);
-                this.endTime = this.formatMinutesToTime(endTimeMinutes);
-            }
-            
-            // Set editing state if we're editing an existing item
-            if (existingItem) {
-                this.editingItemId = existingItem.id;
-                this.selectedTaskId = existingItem.taskId;
-            } else {
-                this.editingItemId = null;
-                this.selectedTaskId = null;
-            }
-            
-            // Load available tasks before showing the modal
-            this.loadAvailableTasks();
-            
-            // Show the modal
-            this.showTimeBlockModal = true;
-        },
+            get pickerTasks() {
+                const query = this.query.trim().toLowerCase();
+                return this.unscheduledTasks.filter(task => task.todo.toLowerCase().includes(query));
+            },
 
-        closeTimeBlockModal() {
-            // Set the Alpine.js state
-            this.showTimeBlockModal = false;
+            get pickerClusters() {
+                const query = this.query.trim().toLowerCase();
+                return this.$store.todos.clusters.filter(cluster => cluster.todo.toLowerCase().includes(query));
+            },
 
-            // Clear other modal state immediately
-            this.editingItemId = null;
-            this.selectedTaskId = '';
-            this.selectedStartTimeMinutes = null;
-            this.selectedEndTimeMinutes = null;
-            this.startTime = ''; // Clear input field model
-            this.endTime = '';   // Clear input field model
-        },
+            get canCreateFromQuery() {
+                const query = this.query.trim().toLowerCase();
+                return query !== '' && ![...this.pickerTasks, ...this.pickerClusters].some(item => item.todo.trim().toLowerCase() === query);
+            },
 
-        deleteScheduledTask() {
-            if (!this.editingItemId) return;
-            
-            console.log('TimeBlocking: Deleting scheduled task ID:', this.editingItemId);
-            
-            try {
-                // Get the task information before removing it (so we can update the UI after)
-                const taskId = this.selectedTaskId;
-                
-                // Call removeScheduledTask with the current editing item's ID
-                this.removeScheduledTask(this.editingItemId);
-                
-                // Close the modal
-                this.closeTimeBlockModal();
-                
-                console.log('TimeBlocking: Successfully deleted scheduled task');
-            } catch (error) {
-                console.error('TimeBlocking: Error deleting scheduled task', error);
-            }
-        },
+            get editingItem() {
+                return this.$store.todos.scheduledItems.find(item => item.id === this.editingItemId) ?? null;
+            },
 
-        removeScheduledTask(itemId) {
-            if (!itemId) {
-                console.error('TimeBlocking: Cannot remove scheduled task, no item ID provided');
-                return;
-            }
+            // A repeating block keeps its first day when it is edited on a later day
+            get repeatStart() {
+                return this.repeats && this.editingItem?.repeat ? this.editingItem.date : this.selectedDate;
+            },
 
-            // Check if store exists before trying to remove
-            if (!this.storeExists()) {
-                console.error('TimeBlocking: Cannot remove scheduled task, todos store not available');
-                return;
-            }
+            get repeatError() {
+                if (!this.repeats) return '';
+                if (!this.repeatDays.length) return 'Pick at least one day.';
+                if (this.repeatUntil && this.repeatUntil < this.repeatStart) return 'The end date must be on or after the start date.';
+                return '';
+            },
 
-            try {
-                const store = Alpine.store('todos');
-                
-                // Ensure scheduledItems exists and is an array
-                if (!store.scheduledItems) {
-                    console.warn('TimeBlocking: No scheduledItems in store to remove from');
-                    return;
-                }
+            get startMinutes() {
+                return dates.fromTimeValue(this.startTime || '00:00');
+            },
 
-                // Handle array storage
-                if (Array.isArray(store.scheduledItems)) {
-                    // Remove the item by ID
-                    const originalLength = store.scheduledItems.length;
-                    store.scheduledItems = store.scheduledItems.filter(item => 
-                        item.id !== itemId
-                    );
-                    
-                    const removed = originalLength - store.scheduledItems.length;
-                    if (removed > 0) {
-                        console.log(`TimeBlocking: Removed scheduled item from array: ${itemId}`);
-                    } else {
-                        console.warn(`TimeBlocking: Item with ID ${itemId} not found in scheduledItems array`);
-                    }
-                } 
-                // Alternative: create the array structure if it doesn't exist as expected
-                else {
-                    store.scheduledItems = [];
-                    console.log('TimeBlocking: Created new scheduledItems array');
-                }
-                
-                // Reload to update display
-                this.loadScheduledTasks();
-                
-                console.log('TimeBlocking: Successfully removed scheduled task');
-            } catch (error) {
-                console.error('TimeBlocking: Error removing scheduled task', error);
-            }
-        },
-        
-        // --- Visual Rendering ---
-        getTaskBlockStyle(item) {
-            if (!item) return 'display: none;';
-            
-            // Get the hour and minute components
-            const startHour = Math.floor(item.startTimeMinutes / 60);
-            const startMinute = item.startTimeMinutes % 60;
-            const endHour = Math.floor(item.endTimeMinutes / 60);
-            const endMinute = item.endTimeMinutes % 60;
-            
-            // Calculate the hour index (0-based from START_HOUR)
-            const startHourIndex = startHour - START_HOUR;
-            const endHourIndex = endHour - START_HOUR;
-            
-            if (startHourIndex < 0 || startHourIndex >= TOTAL_HOURS) {
-                console.error(`Task scheduled outside visible range: ${startHour}:${startMinute}`);
-                return 'display: none;';
-            }
-            
-            // Calculate position based on hour blocks
-            // Each hour block is exactly 1/TOTAL_HOURS of the container width (as percentage)
-            const hourWidth = 100 / TOTAL_HOURS;
-            
-            // Calculate the start position: hourIndex * hourWidth + (minute/60) * hourWidth
-            // This gives us a position that's exactly aligned with the hour blocks
-            const startPosition = (startHourIndex * hourWidth) + ((startMinute / 60) * hourWidth);
-            const endPosition = (endHourIndex * hourWidth) + ((endMinute / 60) * hourWidth);
-            
-            // Ensure values are within bounds
-            const left = Math.max(0, Math.min(startPosition, 100));
-            const width = Math.max(0, Math.min(endPosition - startPosition, 100));
-            
-            if (width <= 0) return 'display: none;'; // Avoid rendering zero-width blocks
-            
-            // Center the task vertically in the timeline
-            const top = 40; // 40% from the top
-            
-            // Debug logging
-            console.log(`Task: ${this.getTaskTitle(item.taskId)}, ` +
-                      `Time: ${startHour}:${String(startMinute).padStart(2,'0')}, ` +
-                      `Position: ${left.toFixed(1)}%, Width: ${width.toFixed(1)}%, Hour: ${startHourIndex}`);
-            
-            return `left: ${left}%; width: ${Math.max(width, 3)}%; top: ${top}%;`;
-        },
-        
-        getTimeBlockStyle(startTimeMinutes, endTimeMinutes) {
-            // Min-width is 2% to ensure very short blocks are still visible
-            const totalMinutes = TOTAL_MINUTES;
-            // Adjust for the start hour offset
-            const startMinutesFromDayStart = startTimeMinutes - (START_HOUR * 60);
-            const endMinutesFromDayStart = endTimeMinutes - (START_HOUR * 60);
-            
-            // Calculate percentages based on the visible time range
-            const left = (startMinutesFromDayStart / totalMinutes) * 100;
-            const width = (endMinutesFromDayStart - startMinutesFromDayStart) / totalMinutes * 100;
-            return `left: ${left}%; width: ${Math.max(width, 2)}%;`;
-        },
-        
-        loadAvailableTasks() {
-            // Reset the array first
-            this.availableTasksForScheduling = [];
-            
-            // Only attempt to load if store exists
-            if (!this.storeExists()) {
-                console.error('TimeBlocking: Cannot load available tasks, store not available');
-                return;
-            }
-            
-            try {
-                const store = Alpine.store('todos');
-                
-                if (!store || !store.items || !Array.isArray(store.items)) {
-                    console.error('TimeBlocking: Store items not available or not an array');
-                    return;
-                }
-                
-                // Get the current date string for filtering
-                const dateString = this.formatDateForStore(this.selectedDate);
-                
-                // Get list of already scheduled task IDs for this date
-                const scheduledTaskIds = new Set();
-                
-                if (store.scheduledItems && Array.isArray(store.scheduledItems)) {
-                    store.scheduledItems.forEach(item => {
-                        if (item && item.date === dateString) {
-                            scheduledTaskIds.add(item.taskId);
+            get duration() {
+                return dates.fromTimeValue(this.endTime || '00:00') - this.startMinutes;
+            },
+
+            get conflicts() {
+                const start = this.startMinutes;
+                const end = start + this.duration;
+                const overlapsTime = (item) => item.id !== this.editingItemId && item.startTimeMinutes < end && item.endTimeMinutes > start;
+                const candidates = this.repeats && this.repeatDays.length
+                    ? this.$store.todos.scheduledItems.filter(item => {
+                        if (!overlapsTime(item)) return false;
+                        if (item.repeat) {
+                            const sharesDay = item.repeat.weekdays.some(day => this.repeatDays.includes(day));
+                            const rangesOverlap = (!this.repeatUntil || item.date <= this.repeatUntil) && (!item.repeat.until || this.repeatStart <= item.repeat.until);
+                            return sharesDay && rangesOverlap;
                         }
+                        const inWindow = item.date >= this.repeatStart && (!this.repeatUntil || item.date <= this.repeatUntil);
+                        return inWindow && this.repeatDays.includes(dates.fromDateKey(item.date).getDay());
+                    })
+                    : this.itemsForDay.filter(overlapsTime);
+                return candidates.map(item => `${this.$store.todos.find(item.taskId)?.todo ?? 'a block'} (${this.formatRange(item.startTimeMinutes, item.endTimeMinutes)})`);
+            },
+
+            get canSave() {
+                if (this.duration <= 0 || this.repeatError) return false;
+                if (this.editingItemId) return true;
+                return this.selectedTaskId === NEW_TASK ? this.query.trim() !== '' : Boolean(this.selectedTask);
+            },
+
+            openModal(start, end, item = null, taskId = '') {
+                this.editingItemId = item?.id ?? null;
+                this.selectedTaskId = item?.taskId ?? taskId ?? '';
+                this.query = '';
+                this.newTaskClusterId = '';
+                this.newTaskDueDate = '';
+                this.startTime = dates.toTimeValue(start);
+                this.endTime = dates.toTimeValue(end);
+                this.length = end - start;
+                this.repeats = Boolean(item?.repeat);
+                this.repeatDays = item?.repeat ? [...item.repeat.weekdays] : [dates.fromDateKey(this.selectedDate).getDay()];
+                this.repeatUntil = item?.repeat?.until ?? '';
+                this.showModal = true;
+                if (!item && !taskId) this.$nextTick(() => this.$refs.search.focus());
+            },
+
+            // From the "To schedule" list (+) or the header button (no task)
+            openModalFor(taskId, item = null) {
+                if (item) {
+                    this.openModal(item.startTimeMinutes, item.endTimeMinutes, item);
+                    return;
+                }
+                const start = this.suggestedStart();
+                this.openModal(start, Math.min(start + DEFAULT_LENGTH, DAY_END), null, taskId ?? '');
+            },
+
+            closeModal() {
+                this.showModal = false;
+            },
+
+            pickFirstMatch() {
+                const match = this.pickerTasks[0] ?? this.pickerClusters[0];
+                if (match) this.selectedTaskId = match.id;
+                else if (this.canCreateFromQuery) this.selectedTaskId = NEW_TASK;
+            },
+
+            setDuration(minutes) {
+                this.length = minutes;
+                this.endTime = dates.toTimeValue(Math.min(this.startMinutes + minutes, DAY_END));
+            },
+
+            toggleRepeatDay(day) {
+                this.repeatDays = this.repeatDays.includes(day)
+                    ? this.repeatDays.filter(other => other !== day)
+                    : [...this.repeatDays, day].sort((a, b) => a - b);
+            },
+
+            saveBlock() {
+                if (!this.canSave) return;
+
+                let taskId = this.selectedTaskId;
+                if (taskId === NEW_TASK) {
+                    taskId = this.$store.todos.addTodo(this.query.trim(), {
+                        parentId: this.newTaskClusterId || null,
+                        dueDate: this.newTaskDueDate || null
                     });
                 }
-                
-                console.log(`TimeBlocking: Found ${scheduledTaskIds.size} already scheduled tasks for this date`);
-                
-                // Filter to only include non-completed, non-cluster tasks that are not already scheduled
-                this.availableTasksForScheduling = store.items.filter(item => {
-                    // Skip if task is already scheduled for this date (unless we're editing it)
-                    if (scheduledTaskIds.has(item.id) && (!this.editingItemId || this.selectedTaskId !== item.id)) {
-                        return false;
-                    }
-                    
-                    // Only include valid, non-completed tasks
-                    return item && 
-                           !item.completed && 
-                           !item.isCluster && 
-                           item.todo && 
-                           item.todo.trim() !== '';
-                });
-                
-                console.log(`TimeBlocking: Loaded ${this.availableTasksForScheduling.length} available tasks for scheduling`);
-            } catch (error) {
-                console.error('TimeBlocking: Error loading available tasks', error);
-                this.availableTasksForScheduling = [];
-            }
-        },
-        
-        // Safely get store items with error handling
-        safelyGetStoreItems() {
-            try {
-                if (!this.storeExists()) return [];
-                
-                const store = Alpine.store('todos');
-                if (!store) return [];
-                
-                const items = store.items;
-                if (!items) return [];
-                
-                return Array.isArray(items) ? items : [];
-            } catch (e) {
-                console.error('Error getting store items', e);
-                return [];
-            }
-        },
-        
-        // Try loading tasks with retry backoff
-        tryLoadingTasks(attempt) {
-            const maxAttempts = 5;
-            const backoffMs = Math.min(100 * Math.pow(2, attempt), 3000); // Exponential backoff, max 3 seconds
-            
-            if (attempt >= maxAttempts) {
-                console.warn(`TimeBlocking: Failed to load tasks after ${maxAttempts} attempts`);
-                return;
-            }
-            
-            if (this.storeExists()) {
-                console.log(`TimeBlocking: Store available on attempt ${attempt + 1}, loading tasks`);
-                this.loadAvailableTasks();
-            } else {
-                console.log(`TimeBlocking: Store not available on attempt ${attempt + 1}, retrying in ${backoffMs}ms`);
-                setTimeout(() => this.tryLoadingTasks(attempt + 1), backoffMs);
-            }
-        },
 
-        getTaskTitle(taskId) {
-            if (!taskId) return 'Unknown Task';
-            
-            // More thorough store existence check
-            if (!this.storeExists()) {
-                console.error("TimeBlocking: Cannot get task title - store not available");
-                return 'Unknown Task';
-            }
-            
-            try {
-                // Safely get the items
-                const storeItems = this.safelyGetStoreItems();
-                
-                if (!storeItems || !Array.isArray(storeItems)) {
-                    console.warn('TimeBlocking: Store items not available or not an array');
-                    return 'Unknown Task';
-                }
-                
-                const task = storeItems.find(t => t && t.id === taskId);
-                return task && task.todo ? task.todo : 'Unknown Task';
-            } catch (error) {
-                console.error('TimeBlocking: Error getting task title', error);
-                return 'Unknown Task';
-            }
-        },
-        
-        // Edit an existing scheduled task
-        editScheduledTask(item) {
-            console.log('TimeBlocking: Editing scheduled task', item);
-            if (!item) return;
-            
-            // Open the modal with the existing item's data
-            this.openTimeBlockModal(
-                item.startTimeMinutes,
-                item.endTimeMinutes,
-                item
-            );
-        },
-        
-        // Re-implementation of schedule task saving
-        saveScheduledTask() {
-            // Parse times from input fields
-            const startMinutes = this.parseTimeToMinutes(this.startTime);
-            const endMinutes = this.parseTimeToMinutes(this.endTime);
-            const dateString = this.formatDateForStore(this.selectedDate);
-            
-            console.log('TimeBlocking: Starting to save scheduled task', {
-                startMinutes, endMinutes, taskId: this.selectedTaskId
-            });
-            
-            // Basic validation
-            if (!startMinutes || !endMinutes || !this.selectedTaskId) {
-                console.error('TimeBlocking: Missing required data for scheduling');
-                return;
-            }
-            
-            if (endMinutes <= startMinutes) {
-                console.error('TimeBlocking: End time must be after start time');
-                return;
-            }
-            
-            // Get store reference
-            if (!this.storeExists()) {
-                console.error('TimeBlocking: Store not available');
-                return;
-            }
-
-            try {
-                const store = Alpine.store('todos');
-                
-                // Create the scheduled item
-                const newItem = {
+                this.$store.todos.saveScheduledItem({
                     id: this.editingItemId || crypto.randomUUID(),
-                    taskId: this.selectedTaskId,
-                    date: dateString,
-                    startTimeMinutes: startMinutes,
-                    endTimeMinutes: endMinutes
-                };
-                
-                // Initialize scheduledItems if it doesn't exist
-                if (!store.scheduledItems) {
-                    store.scheduledItems = [];
-                }
-                
-                // Handle array storage
-                if (Array.isArray(store.scheduledItems)) {
-                    // Remove existing item if we're editing
-                    if (this.editingItemId) {
-                        store.scheduledItems = store.scheduledItems.filter(item => 
-                            item.id !== this.editingItemId
-                        );
-                    }
-                    
-                    // Add the new/updated item
-                    store.scheduledItems.push(newItem);
-                    console.log('TimeBlocking: Added item to scheduledItems array', newItem);
-                } 
-                // Alternative: create the array structure if it doesn't exist as expected
-                else {
-                    store.scheduledItems = [newItem];
-                    console.log('TimeBlocking: Created new scheduledItems array with item', newItem);
-                }
-                
-                // Directly update our component's scheduledItems to show immediately
-                this.loadScheduledTasks();
-                
-                // Close the modal
-                this.closeTimeBlockModal();
-                
-                console.log('TimeBlocking: Successfully saved scheduled task');
-            } catch (error) {
-                console.error('TimeBlocking: Error saving scheduled task', error);
+                    taskId,
+                    date: this.repeatStart,
+                    startTimeMinutes: this.startMinutes,
+                    endTimeMinutes: this.startMinutes + this.duration,
+                    repeat: this.repeats
+                        ? { weekdays: [...this.repeatDays], until: this.repeatUntil || null, doneDates: this.editingItem?.repeat?.doneDates ?? [] }
+                        : undefined
+                });
+                this.closeModal();
+            },
+
+            deleteBlock() {
+                this.$store.todos.removeScheduledItem(this.editingItemId);
+                this.closeModal();
             }
-        },
-        
-        // Listen for date selection events from the calendar component
-        initTimeBlocking() {
-            document.addEventListener('calendar-date-selected', (event) => {
-                this.selectedDate = event.detail.date;
-                this.loadScheduledItems();
-                console.log('TimeBlocking: Date updated from calendar:', this.selectedDate);
-            });
-        },
-        
-        // Computed property to show only items for the current selected date
-        get scheduledItemsForCurrentDate() {
-            return this.scheduledItems.filter(item => item.date === this.formatDateForStore(this.selectedDate));
-        },
-        
-        // Check if the selected date is today
-        isToday(dateString) {
-            const today = this.formatDateForStore(new Date());
-            return dateString === today;
-        },
-        
-        // Check if the given hour is the current hour (for today only)
-        isCurrentHour(hour) {
-            const now = new Date();
-            const currentHour = now.getHours();
-            return hour === currentHour;
-        },
-        
-        // Calculate the current time position within an hour
-        getCurrentTimePosition(hour) {
-            const now = new Date();
-            const currentHour = now.getHours();
-            const currentMinute = now.getMinutes();
-            
-            // Only relevant for the current hour
-            if (hour !== currentHour) return 'left: 0%;';
-            
-            // Calculate the percentage position within the hour
-            const minutePercentage = (currentMinute / 60) * 100;
-            return `left: ${minutePercentage}%;`;
-        },
-    }
-}
+        }));
+    });
 </script>

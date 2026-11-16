@@ -1,0 +1,165 @@
+import { loadJson, saveJson } from "../lib/storage";
+
+// Minutes for each preset
+export const POMO_DURATIONS = {
+  pomodoro: { work: 25, break: 5 },
+  long: { work: 50, break: 10 }
+} as const;
+
+export type PomoPreset = keyof typeof POMO_DURATIONS;
+
+export interface FocusSession {
+  completedAt: string;
+  minutes: number;
+}
+
+interface PomoSavedState {
+  preset?: string;
+  isBreak?: boolean;
+}
+
+declare global {
+  interface Window {
+    notify?: (kind: string, title: string, body: string) => void;
+  }
+}
+
+export function initPomoStore() {
+  return {
+    preset: "pomodoro" as PomoPreset,
+    isBreak: false,
+    totalTime: POMO_DURATIONS.pomodoro.work * 60, // Seconds
+    timeLeft: POMO_DURATIONS.pomodoro.work * 60, // Seconds
+    isRunning: false,
+    timer: null as ReturnType<typeof setInterval> | null,
+    sessions: [] as FocusSession[], // Finished focus sessions: { completedAt, minutes }
+
+    // Alpine calls init() when the store is registered
+    init(): void {
+      this.loadState();
+      this.resetTimer();
+
+      // Space starts or pauses the timer when on Pomodoro (or Zen Mode with its timer visible),
+      // unless the user is typing, on a control, or a dialog is open
+      document.addEventListener("keydown", (e: KeyboardEvent) => {
+        if (e.code !== "Space") return;
+        const target = e.target as Element | null;
+        if (target?.closest("input, textarea, select, button, [role='button'], [contenteditable], [role='dialog']")) return;
+        if (document.querySelector("[role='dialog']:not([style*='display: none'])")) return;
+        const activeTab = localStorage.getItem("activeTab") || "dashboard";
+        const settings = window.Alpine.store("settings") as { zenShowTimer?: boolean } | undefined;
+        const zenTimerActive = activeTab === "zenmode" && Boolean(settings?.zenShowTimer);
+        if (activeTab !== "pomodoro" && !zenTimerActive) return;
+        e.preventDefault();
+        this.isRunning ? this.pauseTimer() : this.startTimer();
+      });
+    },
+
+    get percentComplete(): number {
+      return 100 - (this.timeLeft / this.totalTime * 100);
+    },
+
+    // "MMSS", for the faces that draw each digit
+    get digits(): string {
+      const minutes = Math.floor(this.timeLeft / 60);
+      return minutes.toString().padStart(2, "0") + (this.timeLeft % 60).toString().padStart(2, "0");
+    },
+
+    // Full length in seconds of the work or break phase for the current preset
+    phaseTime(isBreak: boolean): number {
+      return POMO_DURATIONS[this.preset][isBreak ? "break" : "work"] * 60;
+    },
+
+    get currentPresetName(): string {
+      if (this.isBreak) return "Recharge";
+      return this.preset === "long" ? "Extended Focus" : "Burst Focus";
+    },
+
+    startTimer(): void {
+      if (this.isRunning) return;
+      this.isRunning = true;
+
+      // Count down from a fixed end time so throttled background tabs stay accurate
+      const endsAt = Date.now() + this.timeLeft * 1000;
+      this.timer = setInterval(() => {
+        this.timeLeft = Math.max(0, Math.round((endsAt - Date.now()) / 1000));
+        if (this.timeLeft === 0) this.completeTimer();
+      }, 1000);
+    },
+
+    stopTimer(): void {
+      this.isRunning = false;
+      if (this.timer !== null) {
+        clearInterval(this.timer);
+        this.timer = null;
+      }
+    },
+
+    pauseTimer(): void {
+      this.stopTimer();
+    },
+
+    resetTimer(): void {
+      this.stopTimer();
+      this.totalTime = this.phaseTime(this.isBreak);
+      this.timeLeft = this.totalTime;
+      this.saveState();
+    },
+
+    // Start or resume a focus session, leaving a break if one is set
+    startFocus(): void {
+      if (this.isBreak) {
+        this.isBreak = false;
+        this.resetTimer();
+      }
+      this.startTimer();
+    },
+
+    completeTimer(): void {
+      this.playAlarm();
+      if (!this.isBreak) {
+        this.sessions = [...this.sessions, {
+          completedAt: new Date().toISOString(),
+          minutes: this.totalTime / 60
+        }].slice(-500);
+        saveJson("pomoSessions", this.sessions);
+      }
+      // Switch between work and break
+      this.isBreak = !this.isBreak;
+      this.resetTimer();
+    },
+
+    toggleBreak(): void {
+      this.isBreak = !this.isBreak;
+      this.resetTimer();
+    },
+
+    setPreset(newPreset: PomoPreset): void {
+      this.preset = newPreset;
+      this.resetTimer();
+    },
+
+    playAlarm(): void {
+      // The sound and volume chosen in Settings
+      const settings = window.Alpine.store("settings") as { playAlarm?: () => void } | undefined;
+      settings?.playAlarm?.();
+
+      // Shown only if timer alerts are on in Settings
+      window.notify?.("timer", "Timer complete", `Your ${this.isBreak ? "break" : "focus"} session is complete.`);
+    },
+
+    saveState(): void {
+      saveJson("pomoState", {
+        preset: this.preset,
+        isBreak: this.isBreak
+      });
+    },
+
+    loadState(): void {
+      const state = loadJson<PomoSavedState>("pomoState", {});
+      this.preset = state.preset && state.preset in POMO_DURATIONS ? state.preset as PomoPreset : "pomodoro";
+      this.isBreak = Boolean(state.isBreak);
+      this.sessions = loadJson<FocusSession[]>("pomoSessions", []);
+    }
+  };
+}

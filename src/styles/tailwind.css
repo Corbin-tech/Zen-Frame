@@ -1,0 +1,4 @@
+/* Tailwind's layers, imported first in Layout.astro */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;

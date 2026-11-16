@@ -1,0 +1,406 @@
+---
+import BarChart from './BarChart.astro';
+import Recap from './Recap.astro';
+import data from '../data/site.json';
+
+// The monthly recap's name on screen
+const recapName = data.recapName;
+
+const panel = 'rounded-2xl bg-white/80 dark:bg-slate-800/70 backdrop-blur-sm shadow-sm ring-1 ring-black/5 dark:ring-white/10';
+const panelTitle = 'text-base font-semibold text-gray-900 dark:text-white';
+const segmented = 'inline-flex flex-wrap p-1 rounded-xl bg-gray-900/[0.04] dark:bg-white/[0.06] ring-1 ring-black/5 dark:ring-white/10';
+const segment = 'px-3 py-1.5 rounded-lg text-sm font-medium transition-all';
+const segmentOn = 'bg-white text-gray-900 shadow-sm ring-1 ring-black/5 dark:bg-white/[0.14] dark:text-white dark:ring-white/10';
+const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200';
+---
+
+<div x-data="insights" x-effect="compute()" class="space-y-6">
+    <header class="flex flex-wrap items-end justify-between gap-4">
+        <div>
+            <p class="text-sm font-medium text-teal-700 dark:text-teal-400">Insights</p>
+            <h1 class="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900 dark:text-white">How you've been doing</h1>
+            <p class="mt-1 text-gray-500 dark:text-gray-400">Finished tasks and focus time. Clearing completed tasks keeps their history here.</p>
+        </div>
+        <div class={segmented} role="group" aria-label="Time range">
+            <template x-for="option in ranges" :key="option.id">
+                <button
+                    type="button"
+                    x-on:click="setRange(option.id)"
+                    class={segment}
+                    x-bind:class={`range === option.id ? '${segmentOn}' : '${segmentOff}'`}
+                    x-bind:aria-pressed="range === option.id"
+                    x-text="option.label"
+                ></button>
+            </template>
+        </div>
+    </header>
+
+    <!-- Monthly recap banner: shown until the chosen month's story has been watched to the end -->
+    <section x-show="!recapSeen" class="relative overflow-hidden isolate rounded-2xl p-5 sm:p-6 text-white shadow-lg shadow-teal-900/20 ring-1 ring-white/10 bg-gradient-to-br from-teal-600 via-indigo-700 to-fuchsia-800">
+        <span class="absolute -z-10 -top-16 -right-10 w-56 h-56 rounded-full bg-fuchsia-400/30 blur-3xl" aria-hidden="true"></span>
+        <span class="absolute -z-10 -bottom-20 -left-10 w-56 h-56 rounded-full bg-teal-300/30 blur-3xl" aria-hidden="true"></span>
+        <div class="flex flex-wrap items-center justify-between gap-4">
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-wider text-white/70">Monthly {recapName}</p>
+                <p class="mt-1 text-2xl font-bold tracking-tight" x-text="`Your ${recapMonthName} in review`"></p>
+                <p class="mt-1 text-sm text-white/80" x-text="recapTeaser"></p>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+                <label for="recap-month" class="sr-only">Month</label>
+                <select
+                    id="recap-month"
+                    x-model="recapMonth"
+                    class="rounded-lg border-0 bg-white/15 text-white text-sm py-2 focus:ring-2 focus:ring-white/60 [&>option]:text-gray-900"
+                >
+                    <template x-for="month in months" :key="month.id">
+                        <option x-bind:value="month.id" x-text="month.label" x-bind:selected="month.id === recapMonth"></option>
+                    </template>
+                </select>
+                <button
+                    type="button"
+                    x-on:click="$dispatch('open-recap', { month: recapMonth })"
+                    class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-white text-indigo-800 text-sm font-semibold shadow-sm hover:bg-indigo-50 transition-colors"
+                >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></svg>
+                    Play {recapName}
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Once watched, the banner shrinks to one row. Picking a month that hasn't been watched brings it back. -->
+    <section x-show="recapSeen" x-cloak class={`${panel} flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5`}>
+        <span class="grid place-items-center w-8 h-8 shrink-0 rounded-lg text-white bg-gradient-to-br from-teal-600 via-indigo-700 to-fuchsia-800" aria-hidden="true">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></svg>
+        </span>
+        <p class="flex-1 min-w-0 text-sm">
+            <span class="font-semibold text-gray-900 dark:text-white" x-text={`\`\${recapMonthName} ${recapName}\``}></span>
+            <span class="ml-1 text-gray-500 dark:text-gray-400" x-text="`· Watched${recapCounts ? ` · ${recapCounts}` : ''}`"></span>
+        </p>
+        <select
+            x-model="recapMonth"
+            aria-label="Month"
+            class="rounded-lg border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-800 dark:text-white text-sm py-1.5 focus:border-teal-500 focus:ring-teal-500"
+        >
+            <template x-for="month in months" :key="month.id">
+                <option x-bind:value="month.id" x-text="month.label" x-bind:selected="month.id === recapMonth"></option>
+            </template>
+        </select>
+        <button
+            type="button"
+            x-on:click="$dispatch('open-recap', { month: recapMonth })"
+            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-slate-700 dark:text-gray-200 dark:hover:bg-slate-600 transition-colors"
+        >
+            <svg class="w-4 h-4" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" stroke="none" d="M8 5.14v13.72a1 1 0 001.5.86l11-6.86a1 1 0 000-1.72l-11-6.86A1 1 0 008 5.14z" /></svg>
+            Replay
+        </button>
+    </section>
+
+    <!-- Key numbers -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <template x-for="tile in view.tiles" :key="tile.label">
+            <div class={`${panel} p-4`}>
+                <p class="text-sm font-medium text-gray-500 dark:text-gray-400" x-text="tile.label"></p>
+                <p class="mt-2 text-3xl font-semibold tracking-tight tabular-nums text-gray-900 dark:text-white" x-text="tile.value"></p>
+                <p class="mt-1 flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
+                    <!-- Up or down against the previous period: an arrow and words, not color alone -->
+                    <svg x-show="tile.trend" class="w-3.5 h-3.5 shrink-0" x-bind:class="tile.trend === 'up' ? 'text-teal-600 dark:text-teal-400' : 'text-gray-400 rotate-180'" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 15l7-7 7 7" /></svg>
+                    <span class="truncate" x-text="tile.detail"></span>
+                </p>
+            </div>
+        </template>
+    </div>
+
+    <!-- Activity calendar -->
+    <section class={`${panel} p-5`}>
+        <div class="flex flex-wrap items-baseline justify-between gap-2 mb-4">
+            <div>
+                <h2 class={panelTitle}>Activity</h2>
+                <p class="text-sm text-gray-500 dark:text-gray-400" x-text="`Last 26 weeks · ${view.heatmapActiveDays} active days`"></p>
+            </div>
+            <div class="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400" aria-hidden="true">
+                Less
+                <template x-for="level in [0, 1, 2, 3, 4]" :key="level">
+                    <span class="w-3 h-3 rounded-[3px]" x-bind:class="levelClass(level)"></span>
+                </template>
+                More
+            </div>
+        </div>
+        <div class="relative max-w-lg" x-data="{ hovered: null }" x-on:mouseleave="hovered = null">
+            <div
+                x-show="hovered"
+                x-cloak
+                class="absolute z-10 -translate-x-1/2 -translate-y-full px-2.5 py-1.5 rounded-lg bg-gray-900 dark:bg-slate-950 text-white text-xs shadow-lg pointer-events-none whitespace-nowrap"
+                x-bind:style="hovered ? `left: ${(hovered.column + 0.5) / 26 * 100}%; top: ${hovered.row / 7 * 100}%;` : ''"
+            >
+                <p class="font-semibold" x-text="hovered?.summary"></p>
+                <p class="text-gray-300" x-text="hovered ? $dates.formatDate(hovered.date, { weekday: 'short', month: 'short', day: 'numeric' }) : ''"></p>
+            </div>
+            <div class="grid grid-rows-7 grid-flow-col auto-cols-fr gap-[3px]" role="list" aria-label="Activity per day for the last 26 weeks">
+                <template x-for="cell in view.heatmap" :key="cell.date">
+                    <div
+                        class="aspect-square rounded-[3px] focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
+                        x-bind:class="cell.future ? 'invisible' : levelClass(cell.level)"
+                        x-bind:role="cell.future ? null : 'listitem'"
+                        x-bind:tabindex="cell.future ? -1 : 0"
+                        x-bind:aria-label="cell.future ? null : `${$dates.formatDate(cell.date, { month: 'short', day: 'numeric' })}: ${cell.summary}`"
+                        x-on:mouseenter="!cell.future && (hovered = cell)"
+                        x-on:focus="hovered = cell"
+                        x-on:blur="hovered = null"
+                    ></div>
+                </template>
+            </div>
+        </div>
+    </section>
+
+    <div class="grid gap-6 lg:grid-cols-2">
+        <section class={`${panel} p-5`}>
+            <div class="flex items-baseline justify-between mb-6">
+                <h2 class={panelTitle}>Tasks completed</h2>
+                <span class="text-xs text-gray-500 dark:text-gray-400" x-text="view.bucketLabel"></span>
+            </div>
+            <BarChart items="view.taskBars" label="Tasks completed per period" />
+        </section>
+        <section class={`${panel} p-5`}>
+            <div class="flex items-baseline justify-between mb-6">
+                <h2 class={panelTitle}>Focus time</h2>
+                <span class="text-xs text-gray-500 dark:text-gray-400" x-text="view.bucketLabel"></span>
+            </div>
+            <BarChart items="view.focusBars" label="Focus minutes per period" />
+        </section>
+    </div>
+
+    <div class="grid gap-6 lg:grid-cols-3">
+        <!-- By cluster -->
+        <section class={`${panel} p-5`}>
+            <h2 class={`${panelTitle} mb-1`}>By cluster</h2>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-4" x-text="view.summary.tasks ? `${view.summary.tasks} tasks in ${rangeLabel}` : `Nothing finished in ${rangeLabel}`"></p>
+            <ul class="space-y-3" x-show="view.clusters.length">
+                <template x-for="cluster in view.clusters" :key="cluster.key">
+                    <li>
+                        <div class="flex items-center gap-2 text-sm">
+                            <span class="w-2.5 h-2.5 rounded-full shrink-0" x-bind:style="`background-color: ${cluster.color};`"></span>
+                            <span class="flex-1 min-w-0 truncate text-gray-800 dark:text-gray-100" x-text="cluster.name"></span>
+                            <span class="tabular-nums font-medium text-gray-600 dark:text-gray-300" x-text="cluster.count"></span>
+                        </div>
+                        <div class="mt-1.5 h-1.5 rounded-full overflow-hidden" x-bind:style="`background-color: color-mix(in srgb, ${cluster.color} 16%, transparent);`">
+                            <div class="h-full rounded-full transition-[width] duration-700" x-bind:style="`width: ${cluster.percent}%; background-color: ${cluster.color};`"></div>
+                        </div>
+                    </li>
+                </template>
+            </ul>
+        </section>
+
+        <!-- Rhythm -->
+        <section class={`${panel} p-5 lg:col-span-2`}>
+            <h2 class={`${panelTitle} mb-1`}>Your rhythm</h2>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-6" x-text="view.rhythm"></p>
+            <div class="grid gap-6 sm:grid-cols-[2fr_3fr]">
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-4">By weekday</p>
+                    <BarChart items="view.weekdayBars" label="Tasks completed per weekday" height="h-24" />
+                </div>
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-4">By hour</p>
+                    <BarChart items="view.hourBars" label="Tasks completed per hour of the day" height="h-24" />
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <Recap />
+</div>
+
+<script>
+    import { dates } from '../lib/dates';
+    import {
+        activeDays, dailyActivity, formatMonth, lastDays, monthOf, monthRange, monthsWithActivity,
+        partOfDay, percentChange, previousRange, streaks, summarize
+    } from '../lib/insights';
+
+    const RANGES = [
+        { id: '7d', label: '7 days', days: 7 },
+        { id: '30d', label: '30 days', days: 30 },
+        { id: '90d', label: '90 days', days: 90 },
+        { id: '12m', label: '12 months' }
+    ];
+
+    // January 4, 2026 is a Sunday
+    const weekdayName = (day, style = 'short') => new Date(2026, 0, 4 + day).toLocaleDateString(undefined, { weekday: style });
+    const hourLabel = (hour) => `${hour % 12 || 12}${hour < 12 ? 'a' : 'p'}`;
+    const plural = (count, word) => `${count} ${word}${count === 1 ? '' : 's'}`;
+
+    function rangeFor(id, today) {
+        if (id === '12m') {
+            const [year, month] = today.split('-').map(Number);
+            return { from: dates.toDateKey(new Date(year, month - 12, 1)), to: today };
+        }
+        return lastDays(RANGES.find(range => range.id === id).days, today);
+    }
+
+    // Days for short ranges, weeks for 90 days, months for a year
+    function buckets(id, range, completions, sessions, today) {
+        const days = dailyActivity(completions, sessions, range);
+        if (id === '7d' || id === '30d') {
+            return days.map((day, i) => ({
+                key: day.date,
+                label: id === '7d' ? weekdayName(dates.fromDateKey(day.date).getDay()) : (i % 5 === 4 || day.date === today ? String(Number(day.date.slice(8))) : ''),
+                name: dates.formatDate(day.date, { weekday: 'short', month: 'short', day: 'numeric' }),
+                tasks: day.tasks,
+                focus: day.focusMinutes,
+                current: day.date === today
+            }));
+        }
+        const groups = new Map();
+        days.forEach((day, i) => {
+            const key = id === '12m' ? monthOf(day.date) : String(Math.floor((days.length - 1 - i) / 7));
+            const group = groups.get(key) ?? { key, from: day.date, tasks: 0, focus: 0 };
+            group.tasks += day.tasks;
+            group.focus += day.focusMinutes;
+            group.to = day.date;
+            groups.set(key, group);
+        });
+        return [...groups.values()].map((group, i, all) => ({
+            ...group,
+            label: id === '12m' ? formatMonth(group.key, { month: 'narrow' }) : (i % 3 === 0 || i === all.length - 1 ? dates.formatDate(group.from, { month: 'numeric', day: 'numeric' }) : ''),
+            name: id === '12m' ? formatMonth(group.key) : `Week of ${dates.formatDate(group.from)}`,
+            current: i === all.length - 1
+        }));
+    }
+
+    document.addEventListener('alpine:init', () => {
+        window.Alpine.data('insights', () => ({
+            ranges: RANGES,
+            range: localStorage.getItem('insightsRange') || '30d',
+            recapMonth: monthOf(dates.toDateKey()),
+            months: [],
+            view: { tiles: [], heatmap: [], heatmapActiveDays: 0, taskBars: [], focusBars: [], weekdayBars: [], hourBars: [], clusters: [], summary: { tasks: 0 }, bucketLabel: '', rhythm: '' },
+            recapTeaser: '',
+            recapCounts: '',
+
+            setRange(id) {
+                this.range = id;
+                try { localStorage.setItem('insightsRange', id); } catch (e) {}
+            },
+
+            get rangeLabel() {
+                return this.range === '12m' ? 'the last 12 months' : `the last ${RANGES.find(range => range.id === this.range).days} days`;
+            },
+
+            get recapMonthName() {
+                return formatMonth(this.recapMonth, { month: 'long' });
+            },
+
+            // Saved in Settings once the month's story has been watched to the end
+            get recapSeen() {
+                return this.$store.settings.recapSeenMonths.includes(this.recapMonth);
+            },
+
+            levelClass(level) {
+                return [
+                    'bg-gray-100 dark:bg-slate-700/60',
+                    'bg-teal-100 dark:bg-teal-900',
+                    'bg-teal-300 dark:bg-teal-700',
+                    'bg-teal-500 dark:bg-teal-500',
+                    'bg-teal-700 dark:bg-teal-300'
+                ][level];
+            },
+
+            // Rebuilds every chart. x-effect reruns it when tasks, sessions, or the range change.
+            compute() {
+                const today = dates.toDateKey();
+                const completions = this.$store.todos.completions;
+                const sessions = this.$store.pomoState.sessions;
+                const todos = this.$store.todos;
+
+                const range = rangeFor(this.range, today);
+                const summary = summarize(completions, sessions, range);
+                const before = summarize(completions, sessions, previousRange(range));
+                const streak = streaks(activeDays(completions, sessions), today);
+
+                const change = (now, then, noun) => {
+                    const percent = percentChange(now, then);
+                    if (percent === null) return { detail: now ? `None the prior ${noun}` : 'Nothing yet', trend: null };
+                    if (percent === 0) return { detail: `Same as prior ${noun}`, trend: null };
+                    return { detail: `${percent > 0 ? 'Up' : 'Down'} ${Math.abs(percent)}% vs. prior ${noun}`, trend: percent > 0 ? 'up' : 'down' };
+                };
+                const noun = this.range === '12m' ? '12 months' : `${RANGES.find(option => option.id === this.range).days} days`;
+
+                const tiles = [
+                    { label: 'Tasks completed', value: summary.tasks, ...change(summary.tasks, before.tasks, noun) },
+                    { label: 'Focus time', value: dates.formatDuration(summary.focusMinutes), ...change(summary.focusMinutes, before.focusMinutes, noun) },
+                    { label: 'Current streak', value: plural(streak.current, 'day'), detail: `Longest ever: ${plural(streak.longest, 'day')}`, trend: null },
+                    {
+                        label: 'On time',
+                        value: summary.onTimePercent === null ? '–' : `${summary.onTimePercent}%`,
+                        detail: summary.onTimePercent === null ? 'No due dates in this range' : 'Of tasks with a due date',
+                        trend: null
+                    }
+                ];
+
+                // 26 weeks ending this Saturday, Sunday-first columns
+                const lastSaturday = dates.addDays(today, 6 - dates.fromDateKey(today).getDay());
+                const heatRange = { from: dates.addDays(lastSaturday, -26 * 7 + 1), to: lastSaturday };
+                const heatDays = dailyActivity(completions, sessions, heatRange);
+                const score = (day) => day.tasks + day.focusMinutes / 25;
+                const maxScore = Math.max(0, ...heatDays.map(score));
+                const heatmap = heatDays.map((day, i) => ({
+                    date: day.date,
+                    column: Math.floor(i / 7),
+                    row: i % 7,
+                    future: day.date > today,
+                    level: score(day) ? Math.max(1, Math.ceil(score(day) / maxScore * 4)) : 0,
+                    summary: score(day) ? [day.tasks && plural(day.tasks, 'task'), day.focusMinutes && `${dates.formatDuration(day.focusMinutes)} focus`].filter(Boolean).join(' · ') : 'No activity'
+                }));
+
+                const periods = buckets(this.range, range, completions, sessions, today);
+                const taskBars = periods.map(period => ({ key: period.key, label: period.label, value: period.tasks, highlight: period.current, tip: `${period.name}: ${plural(period.tasks, 'task')}` }));
+                const focusBars = periods.map(period => ({ key: period.key, label: period.label, value: period.focus, display: dates.formatDuration(period.focus), highlight: period.current, tip: `${period.name}: ${dates.formatDuration(period.focus)}` }));
+
+                const topWeekday = Math.max(...summary.byWeekday);
+                const topHour = Math.max(...summary.byHour);
+                const weekdayBars = summary.byWeekday.map((count, day) => ({ key: day, label: weekdayName(day, 'narrow'), value: count, highlight: count > 0 && count === topWeekday, tip: `${weekdayName(day, 'long')}s: ${plural(count, 'task')}` }));
+                const hourBars = summary.byHour.map((count, hour) => ({ key: hour, label: hour % 6 === 0 ? hourLabel(hour) : '', value: count, highlight: count > 0 && count === topHour, tip: `${hourLabel(hour)}–${hourLabel((hour + 1) % 24)}: ${plural(count, 'task')}` }));
+
+                const part = partOfDay(summary.byHour);
+                const bestDay = summary.byWeekday.indexOf(topWeekday);
+                const rhythm = summary.tasks
+                    ? `${weekdayName(bestDay, 'long')}s are your strongest day${part ? `, and you're ${/^[aeiou]/.test(part) ? 'an' : 'a'} ${part} ${part.includes(' ') ? '' : 'person'}`.trimEnd() : ''}.`
+                    : 'Finish a few tasks to see when you work best.';
+
+                const topCount = summary.byCluster[0]?.count ?? 0;
+                const clusters = summary.byCluster.slice(0, 6).map(entry => ({
+                    key: entry.clusterId ?? 'none',
+                    name: (entry.clusterId && todos.find(entry.clusterId)?.todo) || entry.name,
+                    count: entry.count,
+                    percent: topCount ? Math.round(entry.count / topCount * 100) : 0,
+                    color: entry.clusterId && todos.find(entry.clusterId) ? todos.clusterColor(entry.clusterId) : 'var(--c-none)'
+                }));
+
+                this.view = {
+                    tiles,
+                    heatmap,
+                    heatmapActiveDays: heatDays.filter(day => score(day) > 0).length,
+                    taskBars,
+                    focusBars,
+                    weekdayBars,
+                    hourBars,
+                    clusters,
+                    summary,
+                    bucketLabel: { '7d': 'Per day', '30d': 'Per day', '90d': 'Per week', '12m': 'Per month' }[this.range],
+                    rhythm
+                };
+
+                this.months = monthsWithActivity(completions, sessions, today).map(month => ({
+                    id: month,
+                    label: month === monthOf(today) ? `${formatMonth(month)} (so far)` : formatMonth(month)
+                }));
+                const month = summarize(completions, sessions, monthRange(this.recapMonth));
+                this.recapCounts = month.tasks || month.focusMinutes ? `${plural(month.tasks, 'task')} and ${dates.formatDuration(month.focusMinutes)} of focus` : '';
+                this.recapTeaser = this.recapCounts
+                    ? `${this.recapCounts}. Tap play for the full story.`
+                    : 'Nothing logged this month yet. Finish a task or a focus session to start the story.';
+            }
+        }));
+    });
+</script>

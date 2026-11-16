@@ -1,0 +1,505 @@
+---
+// Settings: a panel that slides in from the right. Open it with the "open-settings" window event.
+// { section: "zen" } in the event's detail scrolls to that section (see data-settings-section).
+// Every change saves right away through $store.settings.
+const section = 'space-y-3';
+const sectionTitle = 'text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400';
+const label = 'block text-sm font-medium text-gray-900 dark:text-white';
+const segmented = 'inline-flex flex-wrap p-1 rounded-xl bg-gray-900/[0.04] dark:bg-white/[0.06] ring-1 ring-black/5 dark:ring-white/10';
+const segment = 'px-3 py-1.5 rounded-lg text-sm font-medium transition-all';
+const segmentOn = 'bg-white text-gray-900 shadow-sm ring-1 ring-black/5 dark:bg-white/[0.14] dark:text-white dark:ring-white/10';
+const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200';
+---
+
+<div
+    x-data="{ open: false }"
+    x-init="$watch('open', value => window.dispatchEvent(new CustomEvent('settings-panel', { detail: { open: value } })))"
+    x-on:open-settings.window="open = true; const section = $event.detail?.section; $nextTick(() => { $refs.close.focus(); if (section) $el.querySelector(`[data-settings-section='${section}']`)?.scrollIntoView({ block: 'start' }); })"
+    x-on:keydown.escape.window="open = false"
+>
+    <!-- Backdrop -->
+    <div
+        x-show="open"
+        x-cloak
+        x-transition.opacity.duration.200ms
+        x-on:click="open = false"
+        class="fixed inset-0 z-50 bg-slate-900/30 backdrop-blur-sm"
+        aria-hidden="true"
+    ></div>
+
+    <!-- Panel -->
+    <aside
+        x-show="open"
+        x-cloak
+        x-transition:enter="transition ease-out duration-300"
+        x-transition:enter-start="translate-x-full"
+        x-transition:enter-end="translate-x-0"
+        x-transition:leave="transition ease-in duration-200"
+        x-transition:leave-start="translate-x-0"
+        x-transition:leave-end="translate-x-full"
+        class="fixed inset-y-0 right-0 z-50 w-full sm:max-w-md flex flex-col bg-white dark:bg-slate-900 shadow-2xl ring-1 ring-black/5 dark:ring-white/10"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="settings-title"
+    >
+        <header class="flex items-center justify-between px-6 py-4 border-b border-black/5 dark:border-white/10">
+            <div>
+                <h2 id="settings-title" class="text-lg font-semibold text-gray-900 dark:text-white">Settings</h2>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Changes save automatically.</p>
+            </div>
+            <button
+                type="button"
+                x-ref="close"
+                x-on:click="open = false"
+                class="p-2 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:hover:text-gray-200 dark:hover:bg-slate-800 transition-colors"
+                aria-label="Close settings"
+            >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+        </header>
+
+        <div class="flex-1 overflow-y-auto px-6 py-6 space-y-8">
+            <!-- Profile -->
+            <section class={section}>
+                <h3 class={sectionTitle}>Profile</h3>
+                <div>
+                    <label for="settings-name" class={label}>Your name</label>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">Used in the dashboard greeting.</p>
+                    <input
+                        id="settings-name"
+                        name="settings-name"
+                        type="text"
+                        autocomplete="given-name"
+                        placeholder="Your name"
+                        x-bind:value="$store.settings.name"
+                        x-on:input="$store.settings.update({ name: $event.target.value })"
+                        class="block w-full rounded-lg border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 dark:text-white text-sm focus:border-teal-500 focus:ring-teal-500"
+                    />
+                </div>
+            </section>
+
+            <!-- Appearance -->
+            <section class={section}>
+                <h3 class={sectionTitle}>Appearance</h3>
+
+                <div>
+                    <p class={`${label} mb-2`}>Theme</p>
+                    <div class={segmented} role="group" aria-label="Theme">
+                        <template x-for="theme in [{ id: 'light', label: 'Light' }, { id: 'dark', label: 'Dark' }]" :key="theme.id">
+                            <button
+                                type="button"
+                                x-on:click="$store.theme.setTheme(theme.id)"
+                                class={segment}
+                                x-bind:class={`$store.theme.current === theme.id ? '${segmentOn}' : '${segmentOff}'`}
+                                x-bind:aria-pressed="$store.theme.current === theme.id"
+                                x-text="theme.label"
+                            ></button>
+                        </template>
+                    </div>
+                </div>
+
+                <div>
+                    <p class={`${label} mb-2`}>Navigation</p>
+                    <div class={segmented} role="group" aria-label="Navigation">
+                        <template x-for="layout in $store.settings.navLayouts" :key="layout.id">
+                            <button
+                                type="button"
+                                x-on:click="$store.settings.update({ navLayout: layout.id })"
+                                class={segment}
+                                x-bind:class={`$store.settings.navLayout === layout.id ? '${segmentOn}' : '${segmentOff}'`}
+                                x-bind:aria-pressed="$store.settings.navLayout === layout.id"
+                                x-text="layout.label"
+                            ></button>
+                        </template>
+                    </div>
+                    <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">The sidebar shows on wide screens. Phones and small windows keep the top bar.</p>
+                </div>
+
+                <div>
+                    <p class={`${label} mb-2`}>Color scheme</p>
+                    <div class="grid grid-cols-3 gap-2" role="group" aria-label="Color scheme">
+                        <template x-for="accent in $store.settings.accents" :key="accent.id">
+                            <button
+                                type="button"
+                                x-on:click="$store.settings.update({ accent: accent.id })"
+                                class="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium ring-1 transition-all"
+                                x-bind:class="$store.settings.accent === accent.id
+                                    ? 'ring-2 ring-teal-500 bg-teal-50 text-gray-900 dark:bg-teal-900/30 dark:text-white'
+                                    : 'ring-black/10 text-gray-600 hover:ring-black/20 dark:ring-white/10 dark:text-gray-300 dark:hover:ring-white/20'"
+                                x-bind:aria-pressed="$store.settings.accent === accent.id"
+                            >
+                                <span class="w-4 h-4 rounded-full shrink-0 ring-2 ring-white dark:ring-slate-900 shadow" x-bind:style="`background-color: ${accent.swatch};`"></span>
+                                <span x-text="accent.label"></span>
+                            </button>
+                        </template>
+                    </div>
+                </div>
+
+                <div>
+                    <p class={`${label} mb-2`}>Font</p>
+                    <div class="grid grid-cols-4 gap-2" role="group" aria-label="Font">
+                        <template x-for="font in $store.settings.fonts" :key="font.id">
+                            <button
+                                type="button"
+                                x-on:click="$store.settings.update({ font: font.id })"
+                                class="flex flex-col items-center gap-1 px-2 py-2.5 rounded-xl ring-1 transition-all"
+                                x-bind:class="$store.settings.font === font.id
+                                    ? 'ring-2 ring-teal-500 bg-teal-50 text-gray-900 dark:bg-teal-900/30 dark:text-white'
+                                    : 'ring-black/10 text-gray-600 hover:ring-black/20 dark:ring-white/10 dark:text-gray-300 dark:hover:ring-white/20'"
+                                x-bind:aria-pressed="$store.settings.font === font.id"
+                            >
+                                <span class="text-xl leading-none" x-bind:style="`font-family: ${font.sample};`" aria-hidden="true">Aa</span>
+                                <span class="text-xs font-medium" x-text="font.label"></span>
+                            </button>
+                        </template>
+                    </div>
+                </div>
+
+                <div>
+                    <p class={`${label} mb-2`}>Text size</p>
+                    <div class={segmented} role="group" aria-label="Text size">
+                        <template x-for="size in $store.settings.textSizes" :key="size.id">
+                            <button
+                                type="button"
+                                x-on:click="$store.settings.update({ textSize: size.id })"
+                                class={segment}
+                                x-bind:class={`$store.settings.textSize === size.id ? '${segmentOn}' : '${segmentOff}'`}
+                                x-bind:aria-pressed="$store.settings.textSize === size.id"
+                                x-text="size.label"
+                            ></button>
+                        </template>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Zen mode: the only place its options are changed. Zen mode's Customize button opens the panel here. -->
+            <section class={`${section} scroll-mt-6`} data-settings-section="zen">
+                <h3 class={sectionTitle}>Zen mode</h3>
+                <template x-for="option in $store.settings.zenOptions" :key="option.key">
+                    <label class="flex items-start justify-between gap-4 cursor-pointer">
+                        <span>
+                            <span class={label} x-text="option.label"></span>
+                            <span class="block text-xs text-gray-500 dark:text-gray-400" x-text="option.hint"></span>
+                        </span>
+                        <span class="relative shrink-0 mt-0.5">
+                            <input
+                                type="checkbox"
+                                role="switch"
+                                class="peer sr-only"
+                                x-bind:name="`settings-${option.key}`"
+                                x-bind:checked="$store.settings[option.key]"
+                                x-on:change="$store.settings.update({ [option.key]: $event.target.checked })"
+                            />
+                            <span class="block w-11 h-6 rounded-full bg-gray-200 dark:bg-slate-700 peer-checked:bg-teal-600 peer-focus-visible:ring-2 peer-focus-visible:ring-teal-500 peer-focus-visible:ring-offset-2 transition-colors"></span>
+                            <span class="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-5"></span>
+                        </span>
+                    </label>
+                </template>
+                <div>
+                    <p class={`${label} mb-2`}>Background</p>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2" role="group" aria-label="Zen mode background">
+                        <template x-for="background in $store.settings.zenBackgrounds" :key="background.id">
+                            <button
+                                type="button"
+                                x-on:click="$store.settings.update({ zenBackground: background.id })"
+                                class="flex flex-col items-start px-3 py-2 rounded-xl text-left ring-1 transition-all"
+                                x-bind:class="$store.settings.zenBackground === background.id
+                                    ? 'ring-2 ring-teal-500 bg-teal-50 text-gray-900 dark:bg-teal-900/30 dark:text-white'
+                                    : 'ring-black/10 text-gray-600 hover:ring-black/20 dark:ring-white/10 dark:text-gray-300 dark:hover:ring-white/20'"
+                                x-bind:aria-pressed="$store.settings.zenBackground === background.id"
+                            >
+                                <span class="text-sm font-medium" x-text="background.label"></span>
+                                <span class="text-xs text-gray-500 dark:text-gray-400" x-text="background.hint"></span>
+                            </button>
+                        </template>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Notifications -->
+            <section class={section}>
+                <h3 class={sectionTitle}>Notifications</h3>
+                <label for="settings-notify" class="flex items-start justify-between gap-4 cursor-pointer">
+                    <span>
+                        <span class={label}>Reminders and alerts</span>
+                        <span class="block text-xs text-gray-500 dark:text-gray-400">Shown while Zen Frame is open in a tab. Turning this on asks your browser for permission.</span>
+                    </span>
+                    <span class="relative shrink-0 mt-0.5">
+                        <input
+                            id="settings-notify"
+                            name="settings-notify"
+                            type="checkbox"
+                            role="switch"
+                            class="peer sr-only"
+                            x-bind:checked="$store.settings.notifyEnabled"
+                            x-on:change="$store.settings.setNotifications($event.target.checked)"
+                        />
+                        <span class="block w-11 h-6 rounded-full bg-gray-200 dark:bg-slate-700 peer-checked:bg-teal-600 peer-focus-visible:ring-2 peer-focus-visible:ring-teal-500 peer-focus-visible:ring-offset-2 transition-colors"></span>
+                        <span class="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-5"></span>
+                    </span>
+                </label>
+                <p
+                    x-show="$store.settings.notifyEnabled && $store.settings.notificationPermission !== 'granted'"
+                    class="text-xs rounded-lg px-3 py-2 bg-amber-50 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200"
+                    x-text="$store.settings.notificationPermission === 'unsupported'
+                        ? 'This browser has no system notifications, so reminders appear inside the app only.'
+                        : 'Your browser is blocking notifications for this site, so reminders appear inside the app only. Allow them in the site settings (the icon left of the address) to get system alerts too.'"
+                ></p>
+
+                <div class="space-y-3 pl-0.5" x-bind:class="!$store.settings.notifyEnabled && 'opacity-50 pointer-events-none'">
+                    <label for="settings-notify-blocks" class="flex items-start justify-between gap-4 cursor-pointer">
+                        <span>
+                            <span class={label}>Scheduled blocks</span>
+                            <span class="block text-xs text-gray-500 dark:text-gray-400">A heads-up before each block on today's schedule.</span>
+                        </span>
+                        <span class="relative shrink-0 mt-0.5">
+                        <input
+                            id="settings-notify-blocks"
+                            name="settings-notify-blocks"
+                            type="checkbox"
+                            role="switch"
+                            class="peer sr-only"
+                            x-bind:checked="$store.settings.notifyBlocks"
+                            x-on:change="$store.settings.update({ notifyBlocks: $event.target.checked })"
+                        />
+                        <span class="block w-11 h-6 rounded-full bg-gray-200 dark:bg-slate-700 peer-checked:bg-teal-600 peer-focus-visible:ring-2 peer-focus-visible:ring-teal-500 peer-focus-visible:ring-offset-2 transition-colors"></span>
+                        <span class="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-5"></span>
+                    </span>
+                    </label>
+                    <div x-show="$store.settings.notifyBlocks" class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                        <label for="settings-notify-lead">Remind me</label>
+                        <select
+                            id="settings-notify-lead"
+                            name="settings-notify-lead"
+                            x-on:change="$store.settings.update({ notifyBlockLead: Number($event.target.value) })"
+                            class="rounded-lg border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 dark:text-white text-sm py-1.5 focus:border-teal-500 focus:ring-teal-500"
+                        >
+                            <template x-for="lead in $store.settings.blockLeads" :key="lead">
+                                <option x-bind:value="lead" x-bind:selected="lead === $store.settings.notifyBlockLead" x-text="lead ? `${lead} minutes before` : 'When it starts'"></option>
+                            </template>
+                        </select>
+                    </div>
+
+                    <label for="settings-notify-due" class="flex items-start justify-between gap-4 cursor-pointer">
+                        <span>
+                            <span class={label}>Daily deadline summary</span>
+                            <span class="block text-xs text-gray-500 dark:text-gray-400">Tasks due today and overdue, once a day.</span>
+                        </span>
+                        <span class="relative shrink-0 mt-0.5">
+                        <input
+                            id="settings-notify-due"
+                            name="settings-notify-due"
+                            type="checkbox"
+                            role="switch"
+                            class="peer sr-only"
+                            x-bind:checked="$store.settings.notifyDue"
+                            x-on:change="$store.settings.update({ notifyDue: $event.target.checked })"
+                        />
+                        <span class="block w-11 h-6 rounded-full bg-gray-200 dark:bg-slate-700 peer-checked:bg-teal-600 peer-focus-visible:ring-2 peer-focus-visible:ring-teal-500 peer-focus-visible:ring-offset-2 transition-colors"></span>
+                        <span class="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-5"></span>
+                    </span>
+                    </label>
+                    <div x-show="$store.settings.notifyDue" class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                        <label for="settings-notify-due-time">At</label>
+                        <input
+                            id="settings-notify-due-time"
+                            name="settings-notify-due-time"
+                            type="time"
+                            x-bind:value="$store.settings.notifyDueTime"
+                            x-on:change="$event.target.value && $store.settings.update({ notifyDueTime: $event.target.value })"
+                            class="rounded-lg border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 dark:text-white text-sm py-1.5 focus:border-teal-500 focus:ring-teal-500"
+                        />
+                    </div>
+
+                    <label for="settings-notify-timer" class="flex items-start justify-between gap-4 cursor-pointer">
+                        <span>
+                            <span class={label}>Timer finished</span>
+                            <span class="block text-xs text-gray-500 dark:text-gray-400">When a focus session or break ends. The alarm sound plays either way.</span>
+                        </span>
+                        <span class="relative shrink-0 mt-0.5">
+                        <input
+                            id="settings-notify-timer"
+                            name="settings-notify-timer"
+                            type="checkbox"
+                            role="switch"
+                            class="peer sr-only"
+                            x-bind:checked="$store.settings.notifyTimer"
+                            x-on:change="$store.settings.update({ notifyTimer: $event.target.checked })"
+                        />
+                        <span class="block w-11 h-6 rounded-full bg-gray-200 dark:bg-slate-700 peer-checked:bg-teal-600 peer-focus-visible:ring-2 peer-focus-visible:ring-teal-500 peer-focus-visible:ring-offset-2 transition-colors"></span>
+                        <span class="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-5"></span>
+                    </span>
+                    </label>
+
+                    <button
+                        type="button"
+                        x-on:click="window.dispatchEvent(new CustomEvent('app-toast', { detail: { title: 'Test reminder', body: 'Reminders will look like this.' } })); $store.settings.notificationPermission === 'granted' && new Notification('Test reminder', { body: 'Reminders will look like this.', icon: '/favicon.svg' })"
+                        class="text-sm font-medium text-teal-700 dark:text-teal-400 hover:text-teal-800 dark:hover:text-teal-300"
+                    >Send a test reminder</button>
+                </div>
+            </section>
+
+            <!-- Timer -->
+            <section class={section}>
+                <h3 class={sectionTitle}>Timer</h3>
+
+                <div>
+                    <p class={`${label} mb-2`}>Timer style</p>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2" role="group" aria-label="Timer style">
+                        <template x-for="style in $store.settings.timerStyles" :key="style.id">
+                            <button
+                                type="button"
+                                x-on:click="$store.settings.update({ timerStyle: style.id })"
+                                class="flex flex-col items-start px-3 py-2 rounded-xl text-left ring-1 transition-all"
+                                x-bind:class="$store.settings.timerStyle === style.id
+                                    ? 'ring-2 ring-teal-500 bg-teal-50 text-gray-900 dark:bg-teal-900/30 dark:text-white'
+                                    : 'ring-black/10 text-gray-600 hover:ring-black/20 dark:ring-white/10 dark:text-gray-300 dark:hover:ring-white/20'"
+                                x-bind:aria-pressed="$store.settings.timerStyle === style.id"
+                            >
+                                <span class="text-sm font-medium" x-text="style.label"></span>
+                                <span class="text-xs text-gray-500 dark:text-gray-400" x-text="style.hint"></span>
+                            </button>
+                        </template>
+                    </div>
+                </div>
+
+                <p class={label}>Alarm sound</p>
+                <ul class="space-y-1.5" role="radiogroup" aria-label="Alarm sound">
+                    <template x-for="sound in $store.settings.alarmSounds" :key="sound.id">
+                        <li
+                            class="flex items-center gap-3 px-3 py-2 rounded-xl ring-1 transition-all"
+                            x-bind:class="$store.settings.alarmSound === sound.id
+                                ? 'ring-2 ring-teal-500 bg-teal-50 dark:bg-teal-900/30'
+                                : 'ring-black/10 dark:ring-white/10'"
+                        >
+                            <label class="flex-1 flex items-center gap-3 cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="settings-alarm"
+                                    x-bind:value="sound.id"
+                                    x-bind:checked="$store.settings.alarmSound === sound.id"
+                                    x-on:change="$store.settings.update({ alarmSound: sound.id }); $store.settings.playAlarm(sound.id)"
+                                    class="w-4 h-4 text-teal-600 border-gray-300 focus:ring-teal-500 dark:bg-slate-700 dark:border-slate-500"
+                                />
+                                <span class="text-sm font-medium text-gray-900 dark:text-white" x-text="sound.label"></span>
+                            </label>
+                            <button
+                                type="button"
+                                x-show="sound.id !== 'none'"
+                                x-on:click="$store.settings.playAlarm(sound.id)"
+                                class="p-1.5 rounded-lg text-gray-500 hover:text-teal-700 hover:bg-white dark:text-gray-400 dark:hover:text-teal-300 dark:hover:bg-slate-800 transition-colors"
+                                x-bind:aria-label="`Play ${sound.label}`"
+                                title="Preview"
+                            >
+                                <svg class="w-4 h-4" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" stroke="none" d="M8 5.14v13.72a1 1 0 001.5.86l11-6.86a1 1 0 000-1.72l-11-6.86A1 1 0 008 5.14z" /></svg>
+                            </button>
+                        </li>
+                    </template>
+                </ul>
+
+                <div>
+                    <label for="settings-volume" class="flex items-center justify-between text-sm font-medium text-gray-900 dark:text-white mb-2">
+                        Volume
+                        <span class="text-xs tabular-nums text-gray-500 dark:text-gray-400" x-text="`${Math.round($store.settings.alarmVolume * 100)}%`"></span>
+                    </label>
+                    <input
+                        id="settings-volume"
+                        name="settings-volume"
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.05"
+                        x-bind:value="$store.settings.alarmVolume"
+                        x-on:input="$store.settings.update({ alarmVolume: Number($event.target.value) })"
+                        x-on:change="$store.settings.playAlarm()"
+                        class="w-full accent-teal-600"
+                    />
+                </div>
+            </section>
+
+            <!-- Data & backup -->
+            <section class={section} x-data="backupPanel">
+                <h3 class={sectionTitle}>Data &amp; backup</h3>
+                <p class="text-xs text-gray-500 dark:text-gray-400">
+                    Your tasks, schedule, goals, notes, and settings are stored locally in this browser. Export a backup to keep a copy or move to another device.
+                </p>
+                <div class="flex flex-wrap gap-2">
+                    <button
+                        type="button"
+                        x-on:click="download()"
+                        class="px-3 py-2 text-sm font-medium rounded-lg bg-gray-100 text-gray-800 hover:bg-gray-200 dark:bg-slate-800 dark:text-gray-200 dark:hover:bg-slate-700 transition-colors"
+                    >Export backup</button>
+                    <button
+                        type="button"
+                        x-on:click="$refs.file.click()"
+                        class="px-3 py-2 text-sm font-medium rounded-lg ring-1 ring-black/10 text-gray-700 hover:bg-gray-50 dark:ring-white/10 dark:text-gray-200 dark:hover:bg-slate-800 transition-colors"
+                    >Import backup</button>
+                    <input
+                        type="file"
+                        x-ref="file"
+                        accept="application/json,.json"
+                        class="sr-only"
+                        x-on:change="restore($event)"
+                    />
+                </div>
+                <p x-show="error" x-cloak class="text-xs text-red-600 dark:text-red-400" x-text="error"></p>
+            </section>
+        </div>
+
+        <footer class="flex items-center justify-between gap-4 px-6 py-4 border-t border-black/5 dark:border-white/10">
+            <button
+                type="button"
+                x-on:click="open = false; $dispatch('open-feedback')"
+                class="text-sm font-medium text-teal-700 dark:text-teal-400 hover:text-teal-800 dark:hover:text-teal-300 transition-colors"
+            >Send feedback</button>
+            <button
+                type="button"
+                x-on:click="if (confirm('Reset appearance, quotes, timer style, and sound to their defaults? Your name is kept.')) $store.settings.reset()"
+                class="text-sm font-medium text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400 transition-colors"
+            >Reset to defaults</button>
+        </footer>
+    </aside>
+</div>
+
+<script>
+    import { exportBackup, importBackup } from '../lib/storage';
+    import { toDateKey } from '../lib/dates';
+
+    document.addEventListener('alpine:init', () => {
+        window.Alpine.data('backupPanel', () => ({
+            error: '',
+
+            download() {
+                this.error = '';
+                const blob = new Blob([exportBackup()], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `zen-frame-backup-${toDateKey()}.json`;
+                link.click();
+                URL.revokeObjectURL(url);
+            },
+
+            async restore(event) {
+                this.error = '';
+                const input = event.target;
+                const file = input.files?.[0];
+                input.value = '';
+                if (!file) return;
+                if (!confirm('Replace your current tasks, schedule, goals, and settings with this backup?')) return;
+
+                try {
+                    const text = await file.text();
+                    const result = importBackup(text);
+                    if (!result.ok) {
+                        this.error = result.error || 'Could not restore backup.';
+                        return;
+                    }
+                    window.location.reload();
+                } catch {
+                    this.error = 'Could not read the selected file.';
+                }
+            }
+        }));
+    });
+</script>

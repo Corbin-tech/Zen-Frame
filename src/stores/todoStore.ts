@@ -1,767 +1,585 @@
-import { z } from 'zod';
+import { toDateKey, fromDateKey, addDays, minutesNow } from "../lib/dates";
+import { planTasks, type AvailabilityWindow } from "../lib/autoPlan";
+import { loadJson, saveJson } from "../lib/storage";
 
-// Strict type validation for Todo
-const TodoSchema = z.object({
-  id: z.string(),
-  todo: z.string().min(1, "Task must not be empty"),
-  completed: z.boolean(),
-  section: z.enum(['taskManager', 'Completed', 'mainContainer']),
-  isEditing: z.boolean().optional().default(false),
-  isCluster: z.boolean().optional().default(false),
-  isPinned: z.boolean().optional().default(false),
-  parentId: z.string().nullable().optional(),
-  subtasks: z.array(z.object({
-    id: z.string(),
-    todo: z.string().min(1, "Task must not be empty"),
-    completed: z.boolean(),
-    createdAt: z.string().datetime(),
-    parentId: z.string()
-  })).optional(),
-  createdAt: z.string().datetime(),
-  updatedAt: z.string().datetime().optional(),
-  completedAt: z.string().datetime().optional()
-});
-
-export type Todo = z.infer<typeof TodoSchema>;
-
-interface TodoStore {
-  items: Todo[];
-  currentIndex: number;
-  readonly incompleteTasks: Todo[];
-  readonly currentTask: Todo | null;
-  readonly hasMoreTasks: boolean;
-  readonly hasCompletedTasks: boolean;
-  skippedClusters: string[];
-  init(): void;
-  loadTodos(): void;
-  saveTodos(): void;
-  addTodo(todoText: string, isCluster?: boolean): string;
-  deleteTodo(id: string): void;
-  toggleTodo(id: string): void;
-  deleteCompleted(): void;
-  updateTask(id: string, updates: Partial<Todo>): void;
-  toggleSubtask(taskId: string, subtaskId: string): void;
-  moveTask(taskId: string, newGroupId: string): void;
-  reorderTask(taskId: string, targetId: string, position: "above" | "below"): void;
-  createCluster(name?: string): string;
-  migrateTasksToMainContainer(): void;
-  shiftTask(taskId: string, direction: -1 | 1): void;
-  moveTaskUp(taskId: string): void;
-  moveTaskDown(taskId: string): void;
-  isFirstTask(taskId: string): boolean;
-  isLastTask(taskId: string): boolean;
-  getTaskPosition(taskId: string): number;
-  isCluster(id: string): boolean;
-  setParentId(taskId: string, parentId: string): void;
-  performTaskDeletion(id: string): void;
-  togglePinCluster(clusterId: string): void;
-  moveClusterUp(clusterId: string): void;
-  moveClusterDown(clusterId: string): void;
-  isFirstCluster(clusterId: string): boolean;
-  isLastCluster(clusterId: string): boolean;
-  getClusterPosition(clusterId: string): number;
-  skipTaskToEndOfCluster(taskId: string): void;
-  skipCurrentCluster(): void;
-  getClusterIdsWithIncompleteTasks(): string[];
+export interface Todo {
+  id: string;
+  todo: string;
+  completed: boolean;
+  isCluster: boolean;
+  isPinned: boolean;
+  parentId: string | null;
+  dueDate?: string | null; // Local date as YYYY-MM-DD
+  color?: string; // Clusters only: a key of CLUSTER_COLORS
+  createdAt: string;
+  updatedAt?: string;
+  startedAt?: string; // Set while the task is in the board's In progress column
+  completedAt?: string;
 }
 
-export interface QuickTaskStore {
-  text: string;
-  handleEnter: () => void;
+// One finished task, kept after the task itself is cleared so Insights can count it
+export interface CompletionRecord {
+  taskId: string;
+  title: string;
+  clusterId: string | null;
+  clusterName: string; // Kept in case the cluster is deleted later
+  dueDate: string | null;
+  at: string; // ISO time it was completed
+  blockId?: string; // Set when this is one ticked day of a repeating block, not a finished task
 }
 
-export function initStores(): void {
-  if (typeof window === "undefined") return;
+const HISTORY_LIMIT = 5000;
 
-  if (!window.Alpine) {
-    console.warn('Alpine.js not initialized');
-    return;
-  }
+// Kanban columns. A task's column comes from completed and startedAt.
+export type BoardColumn = "todo" | "doing" | "done";
 
-  // Define the todos store using ES6 getters
-  const todosStore: TodoStore = {
+export interface ScheduledItem {
+  id: string;
+  taskId: string; // A task, or a cluster for a class meeting
+  date: string; // Local date as YYYY-MM-DD. A repeating block starts on this day.
+  startTimeMinutes: number;
+  endTimeMinutes: number;
+  repeat?: {
+    weekdays: number[]; // 0 = Sunday to 6 = Saturday
+    until: string | null; // Last day as YYYY-MM-DD, or null for no end
+    doneDates: string[]; // Days the block was checked off. The task stays open for the other days.
+  };
+}
+
+// Auto-planning preferences: when the user is free to work, and how blocks are sized
+export interface Planning {
+  availability: AvailabilityWindow[];
+  duration: number; // Minutes per planned task
+  gap: number; // Free minutes after each planned task
+}
+
+const DEFAULT_PLANNING: Planning = { availability: [], duration: 45, gap: 15 };
+
+const NEW_CLUSTER_NAME = "New Cluster";
+
+// Cluster colors, picked in this order for new clusters. Each key is a CSS variable
+// (--c-<key>) in Layout.astro with separate light and dark values. The order keeps
+// neighbors distinct for color-blind readers; check changes with a palette validator.
+// The last four extend the set so up to 12 clusters each get their own color.
+export const CLUSTER_COLORS = ["teal", "indigo", "amber", "sky", "rose", "violet", "emerald", "orange", "pink", "lime", "cyan", "fuchsia"];
+
+function createTodosStore() {
+  return {
     items: [] as Todo[],
-    currentIndex: 0,
     skippedClusters: [] as string[],
-    get incompleteTasks(): Todo[] {
-      return this.items.filter(item => !item.completed && !item.isCluster);
-    },
+    scheduledItems: [] as ScheduledItem[],
+    planning: { ...DEFAULT_PLANNING } as Planning,
+    history: [] as CompletionRecord[],
 
-    get currentTask(): Todo | null {
-      const tasks = this.items.filter(item => !item.completed && !item.isCluster);
-      return tasks[this.currentIndex] || null;
-    },
-
-    get hasMoreTasks(): boolean {
-      const tasks = this.items.filter(item => !item.completed && !item.isCluster);
-      return this.currentIndex < tasks.length;
+    get clusters(): Todo[] {
+      return this.items.filter(item => item.isCluster);
     },
 
     get hasCompletedTasks(): boolean {
       return this.items.some(item => item.completed);
     },
 
-    init(): void {
-      this.loadTodos();
-      this.migrateTasksToMainContainer();
+    // What statistics count: finished tasks, plus one entry for each ticked day of a repeating
+    // block. A routine ticked on a day its task was also finished counts once.
+    get completions(): CompletionRecord[] {
+      if (!this.history.some(record => record.blockId)) return this.history;
+      const dayKey = (record: CompletionRecord) => `${record.taskId}|${toDateKey(new Date(record.at))}`;
+      const finished = new Set(this.history.filter(record => !record.blockId).map(dayKey));
+      return this.history.filter(record => !record.blockId || !finished.has(dayKey(record)));
     },
 
-    loadTodos(): void {
-      const savedTodos = localStorage.getItem("todos");
-      if (savedTodos) {
-        this.items = JSON.parse(savedTodos);
-      }
-      
-      // Also load the skipped clusters state
-      const savedSkippedClusters = localStorage.getItem("skippedClusters");
-      if (savedSkippedClusters) {
-        this.skippedClusters = JSON.parse(savedSkippedClusters);
-      }
+    get openTasks(): Todo[] {
+      return this.items.filter(item => !item.isCluster && !item.completed);
+    },
+
+    // The task Zen mode shows: the first open task in list order, skipping clusters the user skipped.
+    // Tasks in progress on the board come first. When every open task is in a skipped cluster,
+    // fall back to the first open task.
+    get nextTask(): Todo | null {
+      const openTasks = [...this.openTasks].sort((a, b) => Number(Boolean(b.startedAt)) - Number(Boolean(a.startedAt)));
+      return openTasks.find(task => !task.parentId || !this.skippedClusters.includes(task.parentId))
+        ?? openTasks[0]
+        ?? null;
+    },
+
+    palette: CLUSTER_COLORS,
+
+    // Alpine calls init() when the store is registered
+    init(): void {
+      this.items = loadJson<Todo[]>("todos", []).map(item => ({ ...item, parentId: item.parentId ?? null }));
+      this.skippedClusters = loadJson<string[]>("skippedClusters", []);
+      this.scheduledItems = loadJson<ScheduledItem[]>("scheduledItems", []);
+      this.planning = { ...DEFAULT_PLANNING, ...loadJson<Partial<Planning>>("planning", {}) };
+      this.history = loadJson<CompletionRecord[]>("history", []);
+      this.recordExistingCompletions();
+      this.recordExistingTicks();
+      // Last: it may save, and saving writes every list, so all of them must be loaded first
+      this.giveClustersDistinctColors();
     },
 
     saveTodos(): void {
-      localStorage.setItem("todos", JSON.stringify(this.items));
-      // Also save the skipped clusters state
-      localStorage.setItem("skippedClusters", JSON.stringify(this.skippedClusters));
+      saveJson("todos", this.items);
+      saveJson("skippedClusters", this.skippedClusters);
+      saveJson("scheduledItems", this.scheduledItems);
+      saveJson("planning", this.planning);
+      saveJson("history", this.history);
     },
 
-    addTodo(todoText: string, isCluster: boolean = false): string {
+    // Completed tasks from before the history existed, so their stats aren't lost
+    recordExistingCompletions(): void {
+      const recorded = new Set(this.history.map(record => `${record.taskId}|${record.at}`));
+      const missing = this.items.filter(item => !item.isCluster && item.completed && item.completedAt && !recorded.has(`${item.id}|${item.completedAt}`));
+      if (!missing.length) return;
+      this.history = [...this.history, ...missing.map(task => this.completionRecord(task, task.completedAt!))]
+        .sort((a, b) => a.at.localeCompare(b.at));
+      saveJson("history", this.history);
+    },
+
+    // Days ticked on repeating blocks before ticks were kept in the history
+    recordExistingTicks(): void {
+      const recorded = new Set(this.history
+        .filter(record => record.blockId)
+        .map(record => `${record.blockId}|${toDateKey(new Date(record.at))}`));
+      const missing: CompletionRecord[] = [];
+      for (const item of this.scheduledItems) {
+        for (const day of item.repeat?.doneDates ?? []) {
+          if (typeof day !== "string" || recorded.has(`${item.id}|${day}`)) continue;
+          const record = this.tickRecord(item, day);
+          if (record) missing.push(record);
+        }
+      }
+      if (!missing.length) return;
+      this.history = [...this.history, ...missing].sort((a, b) => a.at.localeCompare(b.at)).slice(-HISTORY_LIMIT);
+      saveJson("history", this.history);
+    },
+
+    // One ticked day of a repeating block. Today's tick is timed now; another day's is timed
+    // at the block's start, so it counts on the day it was for. A class meeting (a cluster
+    // block) is not a to-do, so it has no record.
+    tickRecord(item: ScheduledItem, dateKey: string): CompletionRecord | null {
+      const task = this.find(item.taskId);
+      if (!task || task.isCluster) return null;
+      const time = dateKey === toDateKey() ? new Date() : fromDateKey(dateKey);
+      if (dateKey !== toDateKey()) time.setMinutes(item.startTimeMinutes);
+      return { ...this.completionRecord(task, time.toISOString()), dueDate: null, blockId: item.id };
+    },
+
+    completionRecord(task: Todo, at: string): CompletionRecord {
+      return {
+        taskId: task.id,
+        title: task.todo,
+        clusterId: task.parentId,
+        clusterName: this.clusterName(task.parentId),
+        dueDate: task.dueDate ?? null,
+        at
+      };
+    },
+
+    find(id: string): Todo | undefined {
+      return this.items.find(item => item.id === id);
+    },
+
+    addTodo(todoText: string, fields: Partial<Todo> = {}): string {
       const id = crypto.randomUUID();
-      const newItems = [...this.items];
-      const newTask: Todo = {
+      this.items = [...this.items, {
         id,
         todo: todoText,
         completed: false,
-        section: "taskManager",
-        isEditing: false,
-        isCluster,
+        isCluster: false,
         isPinned: false,
         parentId: null,
-        subtasks: [],
+        dueDate: null,
         createdAt: new Date().toISOString(),
-        updatedAt: undefined,
-        completedAt: undefined
-      };
-      
-      // If it's not a cluster, add it to the main container instead of 'other tasks'
-      // by setting a special property that will be handled differently in the template
-      if (!isCluster) {
-        newTask.section = "mainContainer";
-      }
-      
-      newItems.push(newTask);
-      this.items = newItems;
+        ...fields
+      }];
       this.saveTodos();
-      
-      // Dispatch task-added event
-      if (typeof document !== 'undefined') {
-        setTimeout(() => {
-          document.dispatchEvent(new CustomEvent('task-added', { 
-            detail: { taskId: id } 
-          }));
-        }, 0);
-      }
-      
       return id;
     },
 
-    deleteTodo(id: string): void {
-      const todo = this.items.find(item => item.id === id);
-      if (!todo) return;
-      
-      // If this is a pinned cluster, show a confirmation dialog
-      if (todo.isCluster && todo.isPinned) {
-        // Create and dispatch a custom event for the UI to handle
-        const event = new CustomEvent('confirm-delete-pinned-cluster', {
-          detail: { clusterId: id, clusterName: todo.todo }
-        });
-        document.dispatchEvent(event);
-        return; // Exit early - the actual deletion will happen if user confirms
-      }
-      
-      // If we reach here, either it's not a cluster or not pinned
-      this.performTaskDeletion(id);
+    createCluster(name = NEW_CLUSTER_NAME): string {
+      return this.addTodo(name.trim() || NEW_CLUSTER_NAME, { isCluster: true, color: this.nextClusterColor() });
     },
-    
-    toggleTodo(id: string): void {
-      const todo = this.items.find(t => t.id === id);
-      if (todo) {
-        todo.completed = !todo.completed;
-        todo.completedAt = todo.completed ? new Date().toISOString() : undefined;
-        todo.updatedAt = new Date().toISOString();
-        
-        // If it's a mainContainer task, keep it in the mainContainer section
-        // otherwise use the default behavior
-        if (todo.section === 'mainContainer') {
-          // Keep it in mainContainer even when completed
-          todo.section = 'mainContainer';
-        } else {
-          // Use original behavior for other tasks
-          todo.section = todo.completed ? 'Completed' : 'taskManager';
-        }
-        
-        this.saveTodos();
+
+    // The first color no cluster uses yet, or the least used one once all are taken
+    nextClusterColor(): string {
+      const uses = new Map(CLUSTER_COLORS.map(color => [color, 0]));
+      for (const cluster of this.clusters) {
+        if (cluster.color && uses.has(cluster.color)) uses.set(cluster.color, uses.get(cluster.color)! + 1);
       }
+      return CLUSTER_COLORS.reduce((best, color) => uses.get(color)! < uses.get(best)! ? color : best);
+    },
+
+    // Clusters without a color, or sharing one with an earlier cluster, get an unused color.
+    // Runs at load, so clusters made before there were enough colors are fixed once.
+    giveClustersDistinctColors(): void {
+      const taken = new Set<string>();
+      const repaint: Todo[] = [];
+      for (const cluster of this.clusters) {
+        if (cluster.color && CLUSTER_COLORS.includes(cluster.color) && !taken.has(cluster.color)) {
+          taken.add(cluster.color);
+        } else {
+          repaint.push(cluster);
+        }
+      }
+      const free = CLUSTER_COLORS.filter(color => !taken.has(color));
+      let changed = false;
+      for (const cluster of repaint) {
+        const color = free.shift();
+        if (!color) break; // More clusters than colors: the rest keep what they have
+        cluster.color = color;
+        changed = true;
+      }
+      if (changed) this.saveTodos();
+    },
+
+    // Whether another cluster already has this color (the color picker marks these)
+    colorTaken(color: string, exceptId: string): boolean {
+      return this.clusters.some(cluster => cluster.id !== exceptId && this.clusterColorKey(cluster.id) === color);
+    },
+
+    // The cluster of a task, or the cluster itself
+    clusterOf(item?: Todo | null): string | null {
+      return item?.isCluster ? item.id : item?.parentId ?? null;
+    },
+
+    clusterName(clusterId: string | null): string {
+      return clusterId ? this.find(clusterId)?.todo ?? "" : "";
+    },
+
+    // A cluster's progress. Finished tasks that were cleared from the list still count, from
+    // the history, so "Delete completed" never moves a progress bar.
+    clusterProgress(clusterId: string): { done: number; total: number } {
+      const tasks = this.items.filter(item => !item.isCluster && item.parentId === clusterId);
+      const listed = new Set(this.items.map(item => item.id));
+      const cleared = new Set(this.history
+        .filter(record => !record.blockId && record.clusterId === clusterId && !listed.has(record.taskId))
+        .map(record => record.taskId));
+      return {
+        done: tasks.filter(task => task.completed).length + cleared.size,
+        total: tasks.length + cleared.size
+      };
+    },
+
+    // Clusters made before colors existed get a color from their position
+    clusterColorKey(clusterId: string | null): string {
+      const cluster = clusterId ? this.find(clusterId) : undefined;
+      if (!cluster) return "none";
+      if (cluster.color && CLUSTER_COLORS.includes(cluster.color)) return cluster.color;
+      const position = Math.max(0, this.clusters.findIndex(item => item.id === clusterId));
+      return CLUSTER_COLORS[position % CLUSTER_COLORS.length];
+    },
+
+    // A CSS color for inline styles, for example "var(--c-teal)"
+    clusterColor(clusterId: string | null): string {
+      return `var(--c-${this.clusterColorKey(clusterId)})`;
+    },
+
+    setClusterColor(clusterId: string, color: string): void {
+      const cluster = this.find(clusterId);
+      if (!cluster?.isCluster) return;
+      cluster.color = color;
+      this.saveTodos();
+    },
+
+    setDueDate(taskId: string, dueDate: string | null): void {
+      const task = this.find(taskId);
+      if (!task) return;
+      task.dueDate = dueDate || null;
+      task.updatedAt = new Date().toISOString();
+      this.saveTodos();
+    },
+
+    // A repeating block is returned as stored, for each day it repeats on
+    scheduledItemsOn(dateKey: string = toDateKey()): ScheduledItem[] {
+      const weekday = fromDateKey(dateKey).getDay();
+      return this.scheduledItems
+        .filter(item => item.repeat
+          ? item.repeat.weekdays.includes(weekday) && item.date <= dateKey && (!item.repeat.until || dateKey <= item.repeat.until)
+          : item.date === dateKey)
+        .sort((a, b) => a.startTimeMinutes - b.startTimeMinutes);
+    },
+
+    // A repeating block is checked off one day at a time, so its other days stay open.
+    // Its task is never marked completed by a tick.
+    isBlockDone(item: ScheduledItem, dateKey: string): boolean {
+      return item.repeat ? item.repeat.doneDates.includes(dateKey) : Boolean(this.find(item.taskId)?.completed);
+    },
+
+    toggleBlockDone(item: ScheduledItem, dateKey: string): void {
+      if (!item.repeat) {
+        this.toggleTodo(item.taskId);
+        return;
+      }
+      const { doneDates } = item.repeat;
+      const wasDone = doneDates.includes(dateKey);
+      item.repeat.doneDates = wasDone ? doneDates.filter(day => day !== dateKey) : [...doneDates, dateKey];
+
+      // Each ticked day is one history entry, so routines count in Insights and streaks.
+      // Unticking takes that day's entry out again.
+      const record = wasDone ? null : this.tickRecord(item, dateKey);
+      this.history = this.history.filter(entry => !(entry.blockId === item.id && toDateKey(new Date(entry.at)) === dateKey));
+      if (record) this.history = [...this.history, record].sort((a, b) => a.at.localeCompare(b.at)).slice(-HISTORY_LIMIT);
+      this.saveTodos();
+    },
+
+    deleteTodo(id: string): void {
+      const todo = this.find(id);
+      if (!todo) return;
+
+      if (todo.isCluster && todo.isPinned &&
+          !confirm(`"${todo.todo}" is pinned. Delete it and all of its tasks?`)) {
+        return;
+      }
+
+      const ids = this.items.filter(item => item.id === id || item.parentId === id).map(item => item.id);
+      this.removeItems(new Set(ids));
     },
 
     deleteCompleted(): void {
-      // First, identify clusters where all tasks are complete
-      const clusters = this.items.filter(item => item.isCluster);
-      const clustersToDelete: string[] = [];
-      
-      clusters.forEach(cluster => {
-        // Skip pinned clusters
-        if (cluster.isPinned) return;
-        
-        const clusterTasks = this.items.filter(item => item.parentId === cluster.id);
-        // If all tasks in the cluster are complete or there are no tasks, mark the cluster for deletion
-        if (clusterTasks.length > 0 && clusterTasks.every(task => task.completed)) {
-          clustersToDelete.push(cluster.id);
-        }
-      });
-      
-      // Delete all completed tasks and the identified clusters
-      this.items = this.items.filter(todo => {
-        // Keep if not completed and not in the clusters to delete list
-        return (!todo.completed && !clustersToDelete.includes(todo.id)) || 
-               // Or if it's a cluster that's not in the delete list
-               (todo.isCluster && !clustersToDelete.includes(todo.id));
-      });
-      
+      // Unpinned clusters whose tasks are all complete go away with their tasks.
+      // A cluster with blocks is a class on the timetable, so it stays.
+      const finishedClusterIds = this.clusters
+        .filter(cluster => {
+          if (cluster.isPinned || this.scheduledItems.some(entry => entry.taskId === cluster.id)) return false;
+          const tasks = this.items.filter(item => item.parentId === cluster.id);
+          return tasks.length > 0 && tasks.every(task => task.completed);
+        })
+        .map(cluster => cluster.id);
+
+      const ids = this.items
+        .filter(item => item.completed || finishedClusterIds.includes(item.id))
+        .map(item => item.id);
+      this.removeItems(new Set(ids));
+    },
+
+    // Removes items and everything that points at them
+    removeItems(ids: Set<string>): void {
+      this.items = this.items.filter(item => !ids.has(item.id));
+      this.scheduledItems = this.scheduledItems.filter(entry => !ids.has(entry.taskId));
+      this.skippedClusters = this.skippedClusters.filter(clusterId => !ids.has(clusterId));
+      this.saveTodos();
+    },
+
+    toggleTodo(id: string): void {
+      const todo = this.find(id);
+      if (!todo) return;
+
+      const now = new Date().toISOString();
+      if (!todo.isCluster) {
+        this.history = todo.completed
+          ? this.history.filter(record => !(record.taskId === id && record.at === todo.completedAt))
+          : [...this.history, this.completionRecord(todo, now)].slice(-HISTORY_LIMIT);
+      }
+      todo.completed = !todo.completed;
+      todo.completedAt = todo.completed ? now : undefined;
+      todo.updatedAt = now;
       this.saveTodos();
     },
 
     updateTask(id: string, updates: Partial<Todo>): void {
-      console.log(`Updating task ${id} with:`, updates);
-      
-      // Find the task to check if it's a cluster
-      const taskToUpdate = this.items.find(todo => todo.id === id);
-      
-      // Handle task name updates
+      const task = this.find(id);
+      if (!task) return;
+
       if (updates.todo !== undefined) {
-        const trimmedInput = updates.todo.trim();
-        
-        // Only for clusters, and only when creating new ones (not editing)
-        if (taskToUpdate?.isCluster) {
-          // If the input is completely empty and we're not creating a new cluster,
-          // preserve the existing name instead of using the default
-          if (trimmedInput === '') {
-            // Keep the existing name if this is an edit (not a new cluster)
-            updates.todo = taskToUpdate.todo;
-          } else {
-            // Otherwise use the trimmed input
-            updates.todo = trimmedInput;
-          }
+        // A cluster always needs a name
+        updates.todo = updates.todo.trim() || (task.isCluster ? NEW_CLUSTER_NAME : "");
+      }
+
+      Object.assign(task, updates, { updatedAt: new Date().toISOString() });
+      this.saveTodos();
+    },
+
+    moveTask(taskId: string, clusterId: string): void {
+      const task = this.find(taskId);
+      if (!task || task.isCluster || task.parentId === clusterId) return;
+
+      task.parentId = clusterId;
+      task.updatedAt = new Date().toISOString();
+      this.saveTodos();
+    },
+
+    boardColumn(task: Todo): BoardColumn {
+      if (task.completed) return "done";
+      return task.startedAt ? "doing" : "todo";
+    },
+
+    // Moves a task to a board column. With a target task it lands just before
+    // (or after) that card; without one it keeps its place in list order.
+    moveToColumn(taskId: string, column: BoardColumn, targetId?: string, after = false): void {
+      const task = this.find(taskId);
+      if (!task || task.isCluster) return;
+
+      if (this.boardColumn(task) !== column) {
+        if (column === "done") {
+          this.toggleTodo(taskId);
         } else {
-          // For regular tasks, just trim the input
-          updates.todo = trimmedInput;
+          if (task.completed) this.toggleTodo(taskId);
+          task.startedAt = column === "doing" ? task.startedAt ?? new Date().toISOString() : undefined;
+          task.updatedAt = new Date().toISOString();
         }
       }
-      
-      this.items = this.items.map(todo => {
-        if (todo.id === id) {
-          const updatedTodo = { ...todo, ...updates, updatedAt: new Date().toISOString() };
-          console.log(`Task updated:`, updatedTodo);
-          return updatedTodo;
+
+      if (targetId && targetId !== taskId) {
+        const items = this.items.filter(item => item.id !== taskId);
+        const index = items.findIndex(item => item.id === targetId);
+        if (index !== -1) {
+          items.splice(index + (after ? 1 : 0), 0, task);
+          this.items = items;
         }
-        return todo;
-      });
-      
+      }
       this.saveTodos();
     },
 
-    toggleSubtask(taskId: string, subtaskId: string): void {
-      const task = this.items.find(t => t.id === taskId);
-      if (task && task.subtasks) {
-        const subtask = task.subtasks.find(st => st.id === subtaskId);
-        if (subtask) {
-          subtask.completed = !subtask.completed;
-          const allSubtasksCompleted = task.subtasks.every(st => st.completed);
-          task.completed = allSubtasksCompleted;
-          task.completedAt = allSubtasksCompleted ? new Date().toISOString() : undefined;
-          this.saveTodos();
-        }
-      }
+    // Tasks in the same cluster, or all unclustered tasks
+    siblingsOf(task: Todo): Todo[] {
+      return this.items.filter(item => !item.isCluster && item.parentId === task.parentId);
     },
 
-    moveTask(taskId: string, newGroupId: string): void {
-      const taskIndex = this.items.findIndex(t => t.id === taskId);
-      if (taskIndex > -1) {
-        // Update the task's section or parentId depending on what newGroupId represents
-        const task = this.items[taskIndex];
-        
-        // If newGroupId is one of the defined sections, update the section
-        if (newGroupId === 'taskManager' || newGroupId === 'Completed' || newGroupId === 'mainContainer') {
-          this.items = this.items.map((item, index) => {
-            if (index === taskIndex) {
-              return { 
-                ...item, 
-                section: newGroupId as 'taskManager' | 'Completed' | 'mainContainer',
-                parentId: null // Remove any cluster association
-              };
-            }
-            return item;
-          });
-        } else {
-          // Otherwise, treat it as a cluster ID and update the parentId
-          this.items = this.items.map((item, index) => {
-            if (index === taskIndex) {
-              return { 
-                ...item, 
-                parentId: newGroupId,
-                section: 'taskManager' // Ensure consistent section for clustered tasks
-              };
-            }
-            return item;
-          });
-        }
-        
-        this.saveTodos();
-      }
-    },
-
-    reorderTask(taskId: string, targetId: string, position: "above" | "below"): void {
-      console.log(`Reordering task ${taskId} ${position} ${targetId}`);
-      
-      // First check if the task is already in the right position
-      if (taskId === targetId) {
-        console.log('Task is being dropped onto itself - ignoring');
-        return;
-      }
-      
-      // Find the tasks
-      const sourceTask = this.items.find(t => t.id === taskId);
-      const targetTask = this.items.find(t => t.id === targetId);
-      
-      if (!sourceTask || !targetTask) {
-        console.error('Source or target task not found', { taskId, targetId });
-        return;
-      }
-      
-      // Debug the task states before changing anything
-      console.log('Source task before:', {
-        id: sourceTask.id,
-        todo: sourceTask.todo,
-        isCluster: sourceTask.isCluster,
-        parentId: sourceTask.parentId
-      });
-      console.log('Target task before:', {
-        id: targetTask.id,
-        todo: targetTask.todo,
-        isCluster: targetTask.isCluster,
-        parentId: targetTask.parentId
-      });
-      
-      // Only update parentId if the tasks should be in the same container
-      // Don't forcibly set parentId if moving between different contexts
-      const oldParentId = sourceTask.parentId;
-      if (sourceTask.isCluster === targetTask.isCluster) {
-        sourceTask.parentId = targetTask.parentId;
-        console.log(`Updated parentId from ${oldParentId} to ${sourceTask.parentId}`);
-      } else {
-        console.log(`Keeping parentId as ${sourceTask.parentId} since task types differ`);
-      }
-      
-      // Find indices
-      const sourceIndex = this.items.findIndex(t => t.id === taskId);
-      const targetIndex = this.items.findIndex(t => t.id === targetId);
-      
-      console.log(`Source index: ${sourceIndex}, target index: ${targetIndex}`);
-      
-      // Create a new array without the source task
-      const newItems = [...this.items];
-      const [removedTask] = newItems.splice(sourceIndex, 1);
-      
-      // Find the new target index after removing the source task
-      const newTargetIndex = newItems.findIndex(t => t.id === targetId);
-      
-      // Calculate insert position
-      const insertIndex = position === 'above' ? newTargetIndex : newTargetIndex + 1;
-      
-      console.log(`Inserting at index: ${insertIndex} (${position} ${targetId})`);
-      
-      // Insert the task at the new position
-      newItems.splice(insertIndex, 0, removedTask);
-      
-      // Update the store
-      this.items = newItems;
+    swapItems(firstId: string, secondId: string): void {
+      const items = [...this.items];
+      const i = items.findIndex(item => item.id === firstId);
+      const j = items.findIndex(item => item.id === secondId);
+      if (i === -1 || j === -1) return;
+      [items[i], items[j]] = [items[j], items[i]];
+      this.items = items;
       this.saveTodos();
-      
-      console.log('Task reordering complete');
-    },
-
-    createCluster(name: string = "New Cluster"): string {
-      // Make sure name is not empty only when creating a new cluster
-      const clusterName = name.trim() || "New Cluster";
-      
-      const newCluster: Todo = {
-        id: crypto.randomUUID(),
-        todo: clusterName,
-        completed: false,
-        section: "taskManager",
-        isEditing: false,
-        isCluster: true,
-        isPinned: false,
-        parentId: null,
-        subtasks: [],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        completedAt: undefined
-      };
-      const newItems = [...this.items];
-      newItems.push(newCluster);
-      this.items = newItems;
-      this.saveTodos();
-      
-      // Dispatch task-added event
-      if (typeof document !== 'undefined') {
-        setTimeout(() => {
-          document.dispatchEvent(new CustomEvent('task-added', { 
-            detail: { taskId: newCluster.id } 
-          }));
-        }, 0);
-      }
-      
-      return newCluster.id;
-    },
-
-    migrateTasksToMainContainer(): void {
-      let updated = false;
-      
-      this.items.forEach(item => {
-        // Only modify non-cluster items that are not already in mainContainer
-        if (!item.isCluster && item.section !== 'mainContainer') {
-          item.section = 'mainContainer';
-          updated = true;
-        }
-      });
-      
-      if (updated) {
-        this.saveTodos();
-        console.log('Migrated existing tasks to mainContainer section');
-      }
     },
 
     shiftTask(taskId: string, direction: -1 | 1): void {
-      const task = this.items.find(t => t.id === taskId);
+      const task = this.find(taskId);
       if (!task) return;
 
-      // Get the container where this task belongs
-      let containerTasks: Todo[];
-      
-      if (task.parentId) {
-        // Task is in a cluster
-        containerTasks = this.items.filter(t => t.parentId === task.parentId);
-      } else {
-        // Task is at the root level
-        containerTasks = this.items.filter(t => !t.parentId && !this.isCluster(t.id));
-      }
-
-      // Find the task's position in its container
-      const taskIndex = containerTasks.findIndex(t => t.id === taskId);
-      
-      // Check if we can move in the requested direction
-      if (direction < 0 && taskIndex <= 0) return; // Already at the top
-      if (direction > 0 && (taskIndex === -1 || taskIndex >= containerTasks.length - 1)) return; // Already at the bottom
-
-      // Find the adjacent task
-      const adjacentTask = containerTasks[taskIndex + direction];
-      
-      // Determine position based on direction
-      const position = direction < 0 ? "above" : "below";
-      
-      // Reorder using the existing method
-      this.reorderTask(taskId, adjacentTask.id, position);
-    },
-
-    moveTaskUp(taskId: string): void {
-      this.shiftTask(taskId, -1);
-    },
-
-    moveTaskDown(taskId: string): void {
-      this.shiftTask(taskId, 1);
-    },
-
-    isFirstTask(taskId: string): boolean {
-      const task = this.items.find(t => t.id === taskId);
-      if (!task) return false;
-
-      // Get the container where this task belongs
-      let containerTasks: Todo[];
-      
-      if (task.parentId) {
-        // Task is in a cluster
-        containerTasks = this.items.filter(t => t.parentId === task.parentId);
-      } else {
-        // Task is at the root level
-        containerTasks = this.items.filter(t => !t.isCluster && !t.parentId);
-      }
-
-      // Check if this task is the first one in its container
-      return containerTasks.length > 0 && containerTasks[0].id === taskId;
-    },
-
-    isLastTask(taskId: string): boolean {
-      const task = this.items.find(item => item.id === taskId);
-      if (!task) return false;
-      
-      // Get the relevant container
-      const container = task.parentId 
-        ? this.items.filter(t => t.parentId === task.parentId)
-        : this.items.filter(t => !t.parentId && !t.isCluster);
-        
-      return container.indexOf(task) === container.length - 1;
+      const siblings = this.siblingsOf(task);
+      const neighbor = siblings[siblings.findIndex(item => item.id === taskId) + direction];
+      if (neighbor) this.swapItems(taskId, neighbor.id);
     },
 
     getTaskPosition(taskId: string): number {
-      const task = this.items.find(t => t.id === taskId);
-      if (!task) return -1;
-      
-      // Get all tasks in the same container
-      const tasksInContainer = task.parentId
-        ? this.items.filter(t => t.parentId === task.parentId)
-        : this.items.filter(t => !t.parentId && !this.isCluster(t.id));
-      
-      // Find the position (1-based)
-      return tasksInContainer.findIndex(t => t.id === taskId) + 1;
-    },
-    
-    isCluster(id: string): boolean {
-      const task = this.items.find(item => item.id === id);
-      return Boolean(task && task.isCluster);
+      const task = this.find(taskId);
+      if (!task) return 0;
+      return this.siblingsOf(task).findIndex(item => item.id === taskId) + 1;
     },
 
-    setParentId(taskId: string, parentId: string): void {
-      // Use the moveTask method for consistency
-      this.moveTask(taskId, parentId === 'null' ? 'mainContainer' : parentId);
+    isFirstTask(taskId: string): boolean {
+      return this.getTaskPosition(taskId) === 1;
     },
 
-    performTaskDeletion(id: string): void {
-      // Find the item index
-      const taskIndex = this.items.findIndex(item => item.id === id);
-      if (taskIndex === -1) return;
+    isLastTask(taskId: string): boolean {
+      const task = this.find(taskId);
+      return Boolean(task) && this.getTaskPosition(taskId) === this.siblingsOf(task).length;
+    },
 
-      // Get the item
-      const taskToDelete = this.items[taskIndex];
+    shiftCluster(clusterId: string, direction: -1 | 1): void {
+      const clusters = this.clusters;
+      const neighbor = clusters[clusters.findIndex(cluster => cluster.id === clusterId) + direction];
+      if (neighbor) this.swapItems(clusterId, neighbor.id);
+    },
 
-      // If it's a cluster, delete all its tasks first
-      if (this.isCluster(id)) {
-        const tasksInCluster = this.items.filter(task => task.parentId === id);
-        tasksInCluster.forEach(task => {
-          this.performTaskDeletion(task.id);
-        });
-      }
+    isFirstCluster(clusterId: string): boolean {
+      return this.clusters[0]?.id === clusterId;
+    },
 
-      // Now delete the item itself
-      this.items.splice(taskIndex, 1);
-      this.saveTodos();
+    isLastCluster(clusterId: string): boolean {
+      return this.clusters[this.clusters.length - 1]?.id === clusterId;
     },
 
     togglePinCluster(clusterId: string): void {
-      const cluster = this.items.find(item => item.id === clusterId);
-      if (!cluster || !cluster.isCluster) return;
+      const cluster = this.find(clusterId);
+      if (!cluster?.isCluster) return;
 
-      const newPinnedState = !cluster.isPinned;
-      this.updateTask(clusterId, { isPinned: newPinnedState });
-
-      // Dispatch an event for the UI to show a notification
-      const eventName = newPinnedState ? 'cluster-pinned' : 'cluster-unpinned';
-      const event = new CustomEvent(eventName, {
-        detail: { clusterId, clusterName: cluster.todo }
-      });
-      document.dispatchEvent(event);
-    },
-
-    moveClusterUp(clusterId: string): void {
-      const cluster = this.items.find(item => item.id === clusterId);
-      if (!cluster || !cluster.isCluster) return;
-
-      // Get all clusters
-      const clusters = this.items.filter(item => item.isCluster);
-      
-      // Find the index of the current cluster
-      const currentIndex = clusters.findIndex(c => c.id === clusterId);
-      if (currentIndex <= 0) return; // Already at the top
-      
-      // Get the previous cluster
-      const prevCluster = clusters[currentIndex - 1];
-      
-      // Swap the positions in the items array
-      const currentIndexInItems = this.items.findIndex(item => item.id === clusterId);
-      const prevIndexInItems = this.items.findIndex(item => item.id === prevCluster.id);
-      
-      // Swap in place
-      [this.items[currentIndexInItems], this.items[prevIndexInItems]] = 
-        [this.items[prevIndexInItems], this.items[currentIndexInItems]];
-      
+      cluster.isPinned = !cluster.isPinned;
       this.saveTodos();
     },
-    
-    moveClusterDown(clusterId: string): void {
-      const cluster = this.items.find(item => item.id === clusterId);
-      if (!cluster || !cluster.isCluster) return;
 
-      // Get all clusters
-      const clusters = this.items.filter(item => item.isCluster);
-      
-      // Find the index of the current cluster
-      const currentIndex = clusters.findIndex(c => c.id === clusterId);
-      if (currentIndex === -1 || currentIndex >= clusters.length - 1) return; // Already at the bottom
-      
-      // Get the next cluster
-      const nextCluster = clusters[currentIndex + 1];
-      
-      // Swap the positions in the items array
-      const currentIndexInItems = this.items.findIndex(item => item.id === clusterId);
-      const nextIndexInItems = this.items.findIndex(item => item.id === nextCluster.id);
-      
-      // Swap in place
-      [this.items[currentIndexInItems], this.items[nextIndexInItems]] = 
-        [this.items[nextIndexInItems], this.items[currentIndexInItems]];
-      
-      this.saveTodos();
-    },
-    
-    isFirstCluster(clusterId: string): boolean {
-      const clusters = this.items.filter(item => item.isCluster);
-      return clusters.length > 0 && clusters[0].id === clusterId;
-    },
-    
-    isLastCluster(clusterId: string): boolean {
-      const clusters = this.items.filter(item => item.isCluster);
-      return clusters.length > 0 && clusters[clusters.length - 1].id === clusterId;
-    },
-    
-    getClusterPosition(clusterId: string): number {
-      const clusters = this.items.filter(item => item.isCluster);
-      const index = clusters.findIndex(c => c.id === clusterId);
-      return index >= 0 ? index + 1 : 0; // 1-indexed for display
-    },
-    
+    // Zen mode: move a task behind the other open tasks in its cluster
     skipTaskToEndOfCluster(taskId: string): void {
-      const task = this.items.find(t => t.id === taskId);
-      if (!task) return;
-      
-      // If the task is not in a cluster, nothing to do
-      if (!task.parentId) return;
-      
-      // Find all tasks in the same cluster
-      const clusterTasks = this.items.filter(t => t.parentId === task.parentId && !t.completed && t.id !== taskId);
-      
-      // Remove the task from its current position
-      const newItems = this.items.filter(t => t.id !== taskId);
-      
-      // Find the position of the last task in the cluster
-      let insertIndex = newItems.length;
-      if (clusterTasks.length > 0) {
-        const lastTaskIndex = newItems.findIndex(t => t.id === clusterTasks[clusterTasks.length - 1].id);
-        insertIndex = lastTaskIndex !== -1 ? lastTaskIndex + 1 : insertIndex;
-      }
-      
-      // Insert the task at the new position
-      newItems.splice(insertIndex, 0, task);
-      this.items = newItems;
-      this.saveTodos();
-      
-      // Refresh the currentTodoCache in the zenTodoList component
-      document.dispatchEvent(new CustomEvent('zen-task-skipped'));
-    },
-    
-    skipCurrentCluster(): void {
-      // This method is meant to be used in Zen mode
-      const todos = this.items;
-      if (!todos || !todos.length) return;
-      
-      // Filter out clusters and only consider actual tasks
-      const tasks = todos.filter(task => !task.isCluster);
-      const clusters = todos.filter(item => item.isCluster);
-      
-      // Get all incomplete tasks
-      const incompleteTasks = tasks.filter(task => !task.completed);
-      if (incompleteTasks.length === 0) return;
-      
-      // Get all non-skipped incomplete tasks
-      const nonSkippedIncompleteTasks = incompleteTasks.filter(task => {
-        return !task.parentId || !this.skippedClusters.includes(task.parentId);
-      });
-      
-      // Get the current highest priority task and its cluster
-      let currentHighestTask;
-      
-      if (nonSkippedIncompleteTasks.length > 0) {
-        // Get the first non-skipped task in visual order
-        // Tasks appear in the same order as they are in the items array
-        currentHighestTask = nonSkippedIncompleteTasks[0];
-      } else {
-        // If all tasks are in skipped clusters, use the first cluster in the skipped list
-        // to implement cycling through all clusters
-        const firstSkippedClusterId = this.skippedClusters[0];
-        
-        // Find tasks in this cluster
-        const tasksInFirstSkippedCluster = incompleteTasks.filter(task => 
-          task.parentId === firstSkippedClusterId
-        );
-        
-        if (tasksInFirstSkippedCluster.length > 0) {
-          currentHighestTask = tasksInFirstSkippedCluster[0];
-        } else {
-          // No tasks found, reset skipped clusters
-          this.skippedClusters = [];
-          // Dispatch event to refresh
-          document.dispatchEvent(new CustomEvent('zen-cluster-skipped'));
-          return;
-        }
-      }
-      
-      // Get the current cluster ID
-      const currentClusterId = currentHighestTask.parentId;
-      
-      // If not in a cluster, nothing to skip
-      if (!currentClusterId) return;
-      
-      // If we have already skipped all but one cluster, and we're trying to skip the last one,
-      // rotate the skipped clusters instead
-      const clustersWithIncompleteTasks = this.getClusterIdsWithIncompleteTasks();
-      const nonSkippedClusters = clustersWithIncompleteTasks.filter(id => 
-        !this.skippedClusters.includes(id)
-      );
-      
-      if (nonSkippedClusters.length <= 1 && clustersWithIncompleteTasks.length > 1) {
-        // If this is the last non-skipped cluster, rotate the skipped clusters
-        const oldestSkippedCluster = this.skippedClusters.shift();
-        
-        // If we have an oldest skipped cluster, move the current cluster to the skipped list
-        if (oldestSkippedCluster !== undefined) {
-          this.skippedClusters.push(currentClusterId);
-        }
-      } else {
-        // Normal case: Add this cluster to the skipped clusters list
-        if (!this.skippedClusters.includes(currentClusterId)) {
-          this.skippedClusters.push(currentClusterId);
-        }
-      }
-      
-      // Save the changes to localStorage
-      this.saveTodos();
-      
-      // Refresh the currentTodoCache in the zenTodoList component
-      document.dispatchEvent(new CustomEvent('zen-cluster-skipped'));
-    },
-    
-    // Helper method to get all cluster IDs that have incomplete tasks
-    getClusterIdsWithIncompleteTasks(): string[] {
-      const tasks = this.items.filter(item => !item.isCluster && !item.completed);
-      const clusterIds = new Set<string>();
-      
-      tasks.forEach(task => {
-        if (task.parentId) {
-          clusterIds.add(task.parentId);
-        }
-      });
-      
-      return Array.from(clusterIds);
-    },
-  };
+      const task = this.find(taskId);
+      if (!task?.parentId) return;
 
-  window.Alpine.store("todos", todosStore);
+      const openSiblings = this.items.filter(item =>
+        item.parentId === task.parentId && !item.completed && item.id !== taskId
+      );
+      if (openSiblings.length === 0) return;
+
+      const items = this.items.filter(item => item.id !== taskId);
+      const lastIndex = items.findIndex(item => item.id === openSiblings[openSiblings.length - 1].id);
+      items.splice(lastIndex + 1, 0, task);
+      this.items = items;
+      this.saveTodos();
+    },
+
+    // Zen mode: hide a cluster's tasks until every other cluster has been skipped too
+    skipCluster(clusterId: string): void {
+      const openClusterIds = new Set(
+        this.items.filter(item => !item.isCluster && !item.completed && item.parentId).map(item => item.parentId)
+      );
+
+      let skipped = this.skippedClusters.filter(id => openClusterIds.has(id) && id !== clusterId);
+      skipped.push(clusterId);
+      if ([...openClusterIds].every(id => skipped.includes(id))) {
+        skipped = [clusterId];
+      }
+
+      this.skippedClusters = skipped;
+      this.saveTodos();
+    },
+
+    saveScheduledItem(entry: ScheduledItem): void {
+      this.scheduledItems = [...this.scheduledItems.filter(item => item.id !== entry.id), entry];
+      this.saveTodos();
+    },
+
+    updatePlanning(changes: Partial<Planning>): void {
+      this.planning = { ...this.planning, ...changes };
+      this.saveTodos();
+    },
+
+    // Plans open tasks into free availability on `dayCount` days from `fromDate`.
+    // Skips tasks that already have a block today or later, and routines (repeating blocks).
+    // Returns the new block ids so the plan can be undone.
+    autoPlan(fromDate: string, dayCount: number): string[] {
+      const today = toDateKey();
+      const start = fromDate < today ? today : fromDate;
+      const days = Array.from({ length: dayCount }, (_, i) => addDays(start, i));
+      const planned = new Set(this.scheduledItems
+        .filter(item => item.repeat || item.date >= today)
+        .map(item => item.taskId));
+      const tasks = this.openTasks.filter(task => task.todo.trim() && !planned.has(task.id));
+
+      const blocks = planTasks({
+        tasks,
+        days,
+        availability: this.planning.availability,
+        busyOn: day => this.scheduledItemsOn(day).map(item => ({ start: item.startTimeMinutes, end: item.endTimeMinutes })),
+        earliestOn: day => day === today ? minutesNow() : 0,
+        duration: this.planning.duration,
+        gap: this.planning.gap
+      });
+
+      const created = blocks.map(block => ({
+        id: crypto.randomUUID(),
+        taskId: block.taskId,
+        date: block.date,
+        startTimeMinutes: block.start,
+        endTimeMinutes: block.end
+      }));
+      this.scheduledItems = [...this.scheduledItems, ...created];
+      this.saveTodos();
+      return created.map(item => item.id);
+    },
+
+    removeScheduledItems(ids: string[]): void {
+      const remove = new Set(ids);
+      this.scheduledItems = this.scheduledItems.filter(item => !remove.has(item.id));
+      this.saveTodos();
+    },
+
+    removeScheduledItem(id: string): void {
+      this.removeScheduledItems([id]);
+    }
+  };
+}
+
+export function initStores(): void {
+  window.Alpine.store("todos", createTodosStore());
 }
