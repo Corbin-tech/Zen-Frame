@@ -156,7 +156,8 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
             returnFocus: null,
 
             init() {
-                this.email = (this.$el.dataset.email || '').trim();
+                const email = (this.$el.dataset.email || '').trim();
+                this.email = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : '';
             },
 
             open() {

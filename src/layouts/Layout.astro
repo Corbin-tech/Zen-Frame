@@ -27,7 +27,8 @@ const preferenceScript = `(function() {
 		root.classList.toggle('dark', initialTheme === 'dark');
 		root.setAttribute('data-theme', initialTheme);
 
-		const settings = JSON.parse(localStorage.getItem('settings') || '{}');
+		const parsedSettings = JSON.parse(localStorage.getItem('settings') || '{}');
+		const settings = parsedSettings && typeof parsedSettings === 'object' && !Array.isArray(parsedSettings) ? parsedSettings : {};
 		if (settings.accent) root.dataset.accent = settings.accent;
 		if (settings.font) root.dataset.font = settings.font;
 		if (settings.textSize) root.dataset.textSize = settings.textSize;

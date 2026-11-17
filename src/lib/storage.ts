@@ -111,6 +111,9 @@ export function importBackup(raw: string): { ok: boolean; error?: string; count?
   if (!isPlainObject(parsed) || parsed.app !== "zen-frame" || !isPlainObject(parsed.data)) {
     return { ok: false, error: "This file does not look like a Zen Frame backup." };
   }
+  if (parsed.version !== 1) {
+    return { ok: false, error: "This backup uses an unsupported version." };
+  }
 
   const entries: Array<[BackupKey, unknown]> = [];
   for (const key of BACKUP_KEYS) {
