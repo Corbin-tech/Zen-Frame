@@ -13,7 +13,7 @@ const fieldLabel = 'block text-xs font-medium text-gray-500 dark:text-gray-400 m
         x-show="open"
         x-cloak
         x-transition.opacity.duration.150ms
-        x-on:click="open = false"
+        x-on:click="close()"
         class="fixed inset-0 z-50 bg-slate-900/30 backdrop-blur-sm"
         aria-hidden="true"
     ></div>
@@ -28,7 +28,7 @@ const fieldLabel = 'block text-xs font-medium text-gray-500 dark:text-gray-400 m
         x-transition:leave="transition ease-in duration-100"
         x-transition:leave-start="opacity-100"
         x-transition:leave-end="opacity-0"
-        x-on:keydown.escape.stop="open = false"
+        x-on:keydown.escape.stop="close()"
         class="fixed z-50 left-1/2 top-[12vh] -translate-x-1/2 w-[calc(100%-2rem)] max-w-lg rounded-2xl bg-white dark:bg-slate-900 shadow-2xl ring-1 ring-black/5 dark:ring-white/10"
         role="dialog"
         aria-modal="true"
@@ -115,7 +115,7 @@ const fieldLabel = 'block text-xs font-medium text-gray-500 dark:text-gray-400 m
                     <kbd class="px-1.5 py-0.5 rounded border border-gray-200 dark:border-slate-700 font-sans">Esc</kbd> to close
                 </p>
                 <div class="flex gap-2 ml-auto">
-                    <button type="button" x-on:click="open = false" class="px-3 py-2 text-sm font-medium rounded-lg text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-slate-800">Cancel</button>
+                    <button type="button" x-on:click="close()" class="px-3 py-2 text-sm font-medium rounded-lg text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-slate-800">Cancel</button>
                     <button
                         type="submit"
                         x-bind:disabled="!name.trim() && mode === 'task'"
@@ -145,6 +145,7 @@ const fieldLabel = 'block text-xs font-medium text-gray-500 dark:text-gray-400 m
     document.addEventListener('alpine:init', () => {
         window.Alpine.data('quickAdd', () => ({
             open: false,
+            opener: null,
             mode: 'task',
             name: '',
             parentId: '',
@@ -162,8 +163,16 @@ const fieldLabel = 'block text-xs font-medium text-gray-500 dark:text-gray-400 m
                 this.dueDate = '';
                 this.startNow = false;
                 this.color = this.$store.todos.nextClusterColor();
+                this.opener = document.activeElement;
                 this.open = true;
                 this.$nextTick(() => this.$refs.name.focus());
+            },
+
+            close(restoreFocus = true) {
+                this.open = false;
+                const opener = this.opener;
+                this.opener = null;
+                if (restoreFocus && opener?.isConnected && opener.focus) this.$nextTick(() => opener.focus());
             },
 
             // N opens the window, unless the user is typing somewhere
@@ -189,7 +198,7 @@ const fieldLabel = 'block text-xs font-medium text-gray-500 dark:text-gray-400 m
                         ...(this.startNow ? { startedAt: new Date().toISOString() } : {})
                     });
                 }
-                this.open = false;
+                this.close(false); // the new row is revealed instead
                 this.lastId = id;
                 const where = this.mode === 'task' && this.parentId ? ` to ${todos.clusterName(this.parentId)}` : '';
                 // The new row renders on the next tick
