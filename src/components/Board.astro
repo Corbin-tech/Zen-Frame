@@ -41,12 +41,6 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-1 rou
                     x-bind:aria-pressed="sortBy === option.id"
                 >
                     <span x-text="option.label"></span>
-                    <span
-                        x-show="option.id === 'due' && overdueCount"
-                        class="min-w-[1.25rem] px-1.5 py-0.5 rounded-full text-[11px] font-semibold tabular-nums bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300"
-                        x-text="overdueCount"
-                        x-bind:aria-label="`${overdueCount} overdue`"
-                    ></span>
                 </button>
             </template>
         </div>
@@ -260,12 +254,15 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-1 rou
                                 <button type="button" class={iconButton} x-on:click="details = !details" x-bind:aria-expanded="details" x-bind:aria-label="`Edit due date and cluster for ${task.todo || 'task'}`" title="Due date and cluster">
                                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                                 </button>
+                                <!-- With a mouse, drag or [ and ] move cards; touch screens keep the arrows -->
+                                <div class="hidden [@media(hover:none)]:flex items-center gap-0.5">
                                 <button type="button" class={iconButton} x-on:click="step(task, -1)" x-bind:disabled="column.id === 'todo'" x-bind:aria-label="`Move ${task.todo || 'task'} left`" title="Move left">
                                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
                                 </button>
                                 <button type="button" class={iconButton} x-on:click="step(task, 1)" x-bind:disabled="column.id === 'done'" x-bind:aria-label="`Move ${task.todo || 'task'} right`" title="Move right">
                                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
                                 </button>
+                                </div>
                                 <button type="button" class={`${iconButton} hover:!text-red-500`} x-on:click="$store.todos.deleteTodo(task.id)" x-bind:aria-label="`Delete ${task.todo || 'task'}`" title="Delete">
                                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                                 </button>
@@ -328,6 +325,8 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-1 rou
 </div>
 
 <script>
+    import { loadString, saveString } from '../lib/storage';
+
     // Columns in order. A task's column comes from $store.todos.boardColumn().
     const COLUMNS = [
         { id: 'todo', title: 'To do', dot: 'bg-slate-400', empty: 'Nothing waiting. Add a task or drag one here.' },
@@ -345,7 +344,7 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-1 rou
     document.addEventListener('alpine:init', () => {
         window.Alpine.data('board', () => ({
             columns: COLUMNS,
-            clusterFilter: localStorage.getItem(FILTER_KEY) || 'all',
+            clusterFilter: loadString(FILTER_KEY) || 'all',
             adding: null,
             newTask: '',
             doneLimit: DONE_LIMIT,
@@ -353,13 +352,13 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-1 rou
                 { id: 'manual', label: 'My order' },
                 { id: 'due', label: 'Overdue first' }
             ],
-            sortBy: localStorage.getItem(SORT_KEY) === 'due' ? 'due' : 'manual',
+            sortBy: loadString(SORT_KEY) === 'due' ? 'due' : 'manual',
             search: '',
-            wipLimit: Number(localStorage.getItem(WIP_KEY)) || 0,
+            wipLimit: Number(loadString(WIP_KEY)) || 0,
 
             init() {
-                this.$watch('clusterFilter', (value) => localStorage.setItem(FILTER_KEY, value));
-                this.$watch('sortBy', (value) => localStorage.setItem(SORT_KEY, value));
+                this.$watch('clusterFilter', (value) => saveString(FILTER_KEY, value));
+                this.$watch('sortBy', (value) => saveString(SORT_KEY, value));
             },
 
             // A saved filter for a cluster that was deleted shows everything
@@ -379,7 +378,7 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-1 rou
 
             setWipLimit(limit) {
                 this.wipLimit = limit;
-                localStorage.setItem(WIP_KEY, String(limit));
+                saveString(WIP_KEY, String(limit));
             },
 
             get overLimit() {

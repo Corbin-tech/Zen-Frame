@@ -35,7 +35,6 @@ const checkbox = 'w-4 h-4 shrink-0 rounded border-gray-300 dark:border-slate-500
         <p class="text-sm">Move, hide, or add widgets. Changes save as you go.</p>
         <div class="flex gap-2">
             <button type="button" x-on:click="if (confirm('Put the dashboard back to its original widgets?')) $store.settings.resetDashboardLayout()" class="px-3 py-1.5 text-sm font-medium rounded-lg text-teal-800 hover:bg-teal-100 dark:text-teal-200 dark:hover:bg-teal-900/50">Reset layout</button>
-            <button type="button" x-on:click="editing = false" class="px-3 py-1.5 text-sm font-semibold rounded-lg bg-teal-600 text-white hover:bg-teal-700">Done</button>
         </div>
     </div>
 

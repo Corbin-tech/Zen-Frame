@@ -213,6 +213,7 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
 
 <script>
     import { dates } from '../lib/dates';
+    import { loadString, saveString } from '../lib/storage';
     import {
         activeDays, dailyActivity, formatMonth, lastDays, monthOf, monthRange, monthsWithActivity,
         partOfDay, percentChange, previousRange, streaks, summarize
@@ -271,7 +272,8 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
     document.addEventListener('alpine:init', () => {
         window.Alpine.data('insights', () => ({
             ranges: RANGES,
-            range: localStorage.getItem('insightsRange') || '30d',
+            // Validated: a restored backup could hold any string
+            range: RANGES.some(range => range.id === loadString('insightsRange')) ? loadString('insightsRange') : '30d',
             recapMonth: monthOf(dates.toDateKey()),
             months: [],
             view: { tiles: [], heatmap: [], heatmapActiveDays: 0, taskBars: [], focusBars: [], weekdayBars: [], hourBars: [], clusters: [], summary: { tasks: 0 }, bucketLabel: '', rhythm: '' },
@@ -280,7 +282,7 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
 
             setRange(id) {
                 this.range = id;
-                try { localStorage.setItem('insightsRange', id); } catch (e) {}
+                saveString('insightsRange', id);
             },
 
             get rangeLabel() {

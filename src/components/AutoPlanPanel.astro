@@ -21,15 +21,22 @@ const select = 'rounded-lg border-gray-200 dark:border-slate-600 bg-white dark:b
 
 <section x-data="autoPlan" class={`${panel} p-5`}>
     <div class="flex items-center justify-between">
-        <h3 class="text-base font-semibold text-gray-900 dark:text-white">Auto-plan</h3>
+        <h3 class="text-base font-semibold text-gray-900 dark:text-white">
+            <button type="button" x-on:click="open = !open" x-bind:aria-expanded="open" aria-controls="auto-plan-body" class="flex items-center gap-1.5">
+                Auto-plan
+                <svg class="w-4 h-4 text-gray-500 dark:text-gray-400 transition-transform" x-bind:class="open && 'rotate-180'" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+            </button>
+        </h3>
         <button
             type="button"
+            x-show="open"
             x-on:click="editing = !editing"
             class="text-xs font-medium text-teal-700 dark:text-teal-400 hover:text-teal-800 dark:hover:text-teal-300"
             x-text="editing ? 'Done' : (windows.length ? 'Edit hours' : 'Set hours')"
             x-bind:aria-expanded="editing"
         ></button>
     </div>
+    <div id="auto-plan-body" x-show="open" x-cloak>
     <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
         Set when you're free to work, then let Zen Frame fill those hours with your open tasks, most urgent first.
     </p>
@@ -133,6 +140,7 @@ const select = 'rounded-lg border-gray-200 dark:border-slate-600 bg-white dark:b
         <span x-text="result"></span>
         <button x-show="lastPlan.length" type="button" x-on:click="undo()" class="font-semibold text-teal-700 dark:text-teal-400 hover:underline">Undo</button>
     </div>
+    </div>
 </section>
 
 <script>
@@ -143,12 +151,15 @@ const select = 'rounded-lg border-gray-200 dark:border-slate-600 bg-white dark:b
     document.addEventListener('alpine:init', () => {
         window.Alpine.data('autoPlan', () => ({
             editing: false,
+            open: false,
             result: '',
             lastPlan: [],
 
             init() {
                 // Open the editor straight away the first time, when there are no hours yet
                 this.editing = !this.windows.length;
+                // Collapsed once hours are set, so the sidebar leads with the calendar and tasks
+                this.open = this.editing;
             },
 
             get windows() {

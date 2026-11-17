@@ -1,4 +1,4 @@
-import { loadJson, saveJson } from "../lib/storage";
+import { loadJson, loadString, saveJson } from "../lib/storage";
 
 // Minutes for each preset
 export const POMO_DURATIONS = {
@@ -46,7 +46,7 @@ export function initPomoStore() {
         const target = e.target as Element | null;
         if (target?.closest("input, textarea, select, button, [role='button'], [contenteditable], [role='dialog']")) return;
         if (document.querySelector("[role='dialog']:not([style*='display: none'])")) return;
-        const activeTab = localStorage.getItem("activeTab") || "dashboard";
+        const activeTab = loadString("activeTab", "dashboard");
         const settings = window.Alpine.store("settings") as { zenShowTimer?: boolean } | undefined;
         const zenTimerActive = activeTab === "zenmode" && Boolean(settings?.zenShowTimer);
         if (activeTab !== "pomodoro" && !zenTimerActive) return;

@@ -32,7 +32,6 @@
                 x-model="task.todo"
                 x-bind:readonly="task.completed"
                 x-on:keydown.enter="$event.target.blur()"
-                x-on:input="$store.todos.saveTodos()"
                 x-on:blur="$store.todos.updateTask(task.id, { todo: task.todo })"
                 class="flex-1 min-w-0 bg-transparent border-none focus:ring-0 focus:outline-none"
                 x-bind:class="{
@@ -76,7 +75,7 @@
     </div>
     
     <!-- Task ordering and actions -->
-    <div class="shrink-0 ml-auto pb-2 sm:pb-0 flex items-center gap-2">
+    <div class="shrink-0 ml-auto pb-2 sm:pb-0 flex items-center gap-2 transition-opacity sm:opacity-0 sm:group-hover/task:opacity-100 sm:focus-within:opacity-100 [@media(hover:none)]:opacity-100">
         <!-- Up/down controls: stacked with a mouse, side by side where they are 44px touch targets -->
         <div class="flex sm:flex-col sm:gap-1 [@media(pointer:coarse)]:flex-row">
             <button 
@@ -102,12 +101,6 @@
                 </svg>
             </button>
         </div>
-        
-        <!-- Position number -->
-        <div 
-            class="hidden sm:block text-xs font-medium px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded"
-            x-text="$store.todos.getTaskPosition(task.id)"
-        ></div>
         
         <!-- Delete button -->
         <button 
