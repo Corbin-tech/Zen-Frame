@@ -33,12 +33,12 @@ const checkbox = 'w-4 h-4 shrink-0 rounded border-gray-300 dark:border-slate-500
                     <span class="self-stretch w-1 rounded-full shrink-0" x-bind:style="`background-color: ${block.color};`"></span>
                     <div class="w-24 shrink-0 text-xs font-medium tabular-nums text-gray-500 dark:text-gray-400">
                         <p x-text="$dates.formatTime(block.start)"></p>
-                        <p class="text-gray-400 dark:text-gray-500" x-text="$dates.formatDuration(block.end - block.start)"></p>
+                        <p class="text-gray-500 dark:text-gray-400" x-text="$dates.formatDuration(block.end - block.start)"></p>
                     </div>
                     <div class="min-w-0 flex-1">
                         <p
                             class="text-sm font-medium truncate"
-                            x-bind:class="block.completed ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-white'"
+                            x-bind:class="block.completed ? 'line-through text-gray-500 dark:text-gray-400' : 'text-gray-900 dark:text-white'"
                             x-text="block.title"
                         ></p>
                         <p class="text-xs text-gray-500 dark:text-gray-400 truncate" x-text="block.detail"></p>
@@ -57,7 +57,7 @@ const checkbox = 'w-4 h-4 shrink-0 rounded border-gray-300 dark:border-slate-500
                         </span>
                         Now
                     </span>
-                    <span x-show="block.status === 'past' && !block.completed" class="shrink-0 text-xs text-gray-400 dark:text-gray-500">Ended</span>
+                    <span x-show="block.status === 'past' && !block.completed" class="shrink-0 text-xs text-gray-500 dark:text-gray-400">Ended</span>
                     <!-- A class meeting (a cluster block) is not a to-do. Invisible keeps the rows aligned. -->
                     <input name="block-done"
                         type="checkbox"
@@ -183,7 +183,7 @@ const checkbox = 'w-4 h-4 shrink-0 rounded border-gray-300 dark:border-slate-500
                 <template x-for="day in weekActivity" :key="day.date">
                     <span
                         class="flex-1 text-center text-xs"
-                        x-bind:class="day.isToday ? 'font-semibold text-gray-900 dark:text-white' : 'text-gray-400 dark:text-gray-500'"
+                        x-bind:class="day.isToday ? 'font-semibold text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'"
                         x-text="day.label"
                     ></span>
                 </template>
@@ -275,7 +275,7 @@ const checkbox = 'w-4 h-4 shrink-0 rounded border-gray-300 dark:border-slate-500
                 <li class="flex items-center gap-2.5 text-sm">
                     <svg class="w-4 h-4 shrink-0 text-teal-600 dark:text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" /></svg>
                     <span class="flex-1 min-w-0 truncate text-gray-600 dark:text-gray-300" x-text="task.todo"></span>
-                    <span class="shrink-0 text-xs text-gray-400 dark:text-gray-500" x-text="timeAgo(task.completedAt)"></span>
+                    <span class="shrink-0 text-xs text-gray-500 dark:text-gray-400" x-text="timeAgo(task.completedAt)"></span>
                 </li>
             </template>
         </ul>
@@ -295,7 +295,7 @@ const checkbox = 'w-4 h-4 shrink-0 rounded border-gray-300 dark:border-slate-500
                     cx="50" cy="50" r="42" fill="none" stroke="currentColor" stroke-width="9" stroke-linecap="round"
                     transform="rotate(-90 50 50)" stroke-dasharray="263.9"
                     x-bind:stroke-dashoffset="263.9 - 263.9 * $store.pomoState.percentComplete / 100"
-                    x-bind:class="$store.pomoState.isRunning ? 'text-teal-500 dark:text-teal-400' : 'text-gray-400 dark:text-gray-500'"
+                    x-bind:class="$store.pomoState.isRunning ? 'text-teal-600 dark:text-teal-400' : 'text-gray-500 dark:text-gray-400'"
                 />
             </svg>
             <div class="min-w-0">
@@ -392,7 +392,7 @@ const checkbox = 'w-4 h-4 shrink-0 rounded border-gray-300 dark:border-slate-500
                         x-bind:class="[day.active ? 'bg-teal-500 dark:bg-teal-400' : 'bg-gray-100 dark:bg-slate-700/60', day.isToday ? 'ring-2 ring-offset-1 ring-teal-500/50 ring-offset-white dark:ring-offset-slate-800' : '']"
                         x-bind:title="`${$dates.formatDate(day.date, { weekday: 'short', month: 'short', day: 'numeric' })}: ${day.active ? 'active' : 'no activity'}`"
                     ></span>
-                    <span class="text-xs text-gray-400 dark:text-gray-500" x-text="day.label"></span>
+                    <span class="text-xs text-gray-500 dark:text-gray-400" x-text="day.label"></span>
                 </li>
             </template>
         </ol>

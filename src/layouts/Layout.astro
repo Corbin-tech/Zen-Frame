@@ -188,6 +188,7 @@ const contentSecurityPolicy = [
 			/* Only the root paints the page color, so the glows on body::before show above it */
 			html {
 				background-color: var(--bg-color);
+				scrollbar-gutter: stable;
 			}
 			
 			html {
@@ -256,7 +257,7 @@ const contentSecurityPolicy = [
 		</style>
 	</head>
 	<body>
-		<div class="min-h-screen flex flex-col">
+		<div class="min-h-screen flex flex-col overflow-x-clip">
 			<!-- Content Wrapper -->
 			<div class="flex-1">
 				<main class="px-3 pb-8 sm:px-6">

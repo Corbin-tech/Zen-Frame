@@ -14,7 +14,7 @@
         <div class="flex items-center gap-2 sm:gap-3">
             <div 
                 data-drag-handle
-                class="p-1 cursor-grab text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 flex items-center"
+                class="p-1 cursor-grab text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 flex items-center"
                 title="Drag to add to a cluster"
             >
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -36,7 +36,7 @@
                 x-on:blur="$store.todos.updateTask(task.id, { todo: task.todo })"
                 class="flex-1 min-w-0 bg-transparent border-none focus:ring-0 focus:outline-none"
                 x-bind:class="{
-                    'line-through text-gray-400 dark:text-gray-500': task.completed,
+                    'line-through text-gray-500 dark:text-gray-400': task.completed,
                     'text-gray-700 dark:text-gray-300': !task.completed
                 }"
             />
@@ -52,10 +52,10 @@
         <button
             type="button"
             x-on:click="$refs.due.showPicker ? $refs.due.showPicker() : $refs.due.focus()"
-            class="flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-md transition-opacity"
+            class="flex items-center gap-1 touch-target text-xs font-medium px-2 py-1 rounded-md transition-opacity"
             x-bind:class="task.dueDate
                 ? $dates.dueClass(task.dueDate, task.completed)
-                : 'text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 sm:opacity-0 sm:group-hover/task:opacity-100 focus:opacity-100 [@media(hover:none)]:opacity-100'"
+                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 sm:opacity-0 sm:group-hover/task:opacity-100 focus:opacity-100 [@media(hover:none)]:opacity-100'"
             x-bind:title="task.dueDate ? 'Due ' + $dates.formatDate(task.dueDate, { weekday: 'long', month: 'long', day: 'numeric' }) : 'Set a due date'"
             x-bind:aria-label="task.dueDate ? 'Due ' + $dates.dueLabel(task.dueDate) + '. Change due date' : 'Set a due date'"
         >
@@ -77,11 +77,11 @@
     
     <!-- Task ordering and actions -->
     <div class="shrink-0 ml-auto pb-2 sm:pb-0 flex items-center gap-2">
-        <!-- Up/down controls -->
-        <div class="flex flex-col space-y-1">
+        <!-- Up/down controls: stacked with a mouse, side by side where they are 44px touch targets -->
+        <div class="flex sm:flex-col sm:gap-1 [@media(pointer:coarse)]:flex-row">
             <button 
                 @click="$store.todos.shiftTask(task.id, -1)"
-                class="p-0.5 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 transition-colors"
+                class="inline-flex items-center justify-center touch-target p-0.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
                 :disabled="$store.todos.isFirstTask(task.id)"
                 :class="$store.todos.isFirstTask(task.id) ? 'opacity-30 cursor-not-allowed' : ''"
                 aria-label="Move task up"
@@ -92,7 +92,7 @@
             </button>
             <button 
                 @click="$store.todos.shiftTask(task.id, 1)"
-                class="p-0.5 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 transition-colors"
+                class="inline-flex items-center justify-center touch-target p-0.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
                 :disabled="$store.todos.isLastTask(task.id)"
                 :class="$store.todos.isLastTask(task.id) ? 'opacity-30 cursor-not-allowed' : ''"
                 aria-label="Move task down"
@@ -112,7 +112,7 @@
         <!-- Delete button -->
         <button 
             x-on:click="$store.todos.deleteTodo(task.id)"
-            class="p-1 text-gray-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400 transition-colors"
+            class="inline-flex items-center justify-center touch-target p-1 text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400 transition-colors"
             aria-label="Delete task"
         >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

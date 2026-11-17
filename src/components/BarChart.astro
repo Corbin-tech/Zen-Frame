@@ -57,7 +57,7 @@ const barStyle = `\`height: \${bar.value ? Math.max(3, bar.value / ${peak} * 85)
     </div>
     <div class="flex gap-[2px] mt-1.5" aria-hidden="true">
         <template x-for={`bar in ${items}`} x-bind:key="bar.key">
-            <span class="flex-1 text-center text-[11px] whitespace-nowrap text-gray-400 dark:text-gray-500" x-bind:class="bar.highlight && 'font-semibold text-gray-700 dark:text-gray-200'" x-text="bar.label"></span>
+            <span class="flex-1 text-center text-[11px] whitespace-nowrap text-gray-500 dark:text-gray-400" x-bind:class="bar.highlight && 'font-semibold text-gray-700 dark:text-gray-200'" x-text="bar.label"></span>
         </template>
     </div>
 </div>
