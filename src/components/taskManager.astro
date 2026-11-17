@@ -52,7 +52,7 @@ import TaskRow from './TaskRow.astro';
                             <button
                                 type="button"
                                 x-on:click="open = !open"
-                                class="p-1.5 rounded-lg transition-colors duration-300 ease-in-out"
+                                class="inline-flex items-center justify-center touch-target p-1.5 rounded-lg transition-colors duration-300 ease-in-out"
                                 x-bind:class="{'ring-2 ring-teal-300 dark:ring-teal-700': cluster.isPinned}"
                                 x-bind:style="`color: ${$store.todos.clusterColor(cluster.id)}; background-color: color-mix(in srgb, ${$store.todos.clusterColor(cluster.id)} 15%, transparent);`"
                                 aria-label="Change cluster color"
@@ -103,9 +103,10 @@ import TaskRow from './TaskRow.astro';
                         <!-- Pin indicator/button -->
                         <button 
                             x-on:click="$store.todos.togglePinCluster(cluster.id)"
-                            class="p-1.5 rounded-lg transition-all"
-                            x-bind:class="cluster.isPinned ? 'text-teal-500 hover:text-teal-600 dark:text-teal-400 dark:hover:text-teal-300' : 'text-gray-400 hover:text-teal-500 hover:bg-teal-50 dark:hover:bg-teal-900/20'"
+                            class="inline-flex items-center justify-center touch-target p-1.5 rounded-lg transition-all"
+                            x-bind:class="cluster.isPinned ? 'text-teal-600 hover:text-teal-700 dark:text-teal-400 dark:hover:text-teal-300' : 'text-gray-500 hover:text-teal-500 hover:bg-teal-50 dark:text-gray-400 dark:hover:bg-teal-900/20'"
                             x-bind:title="cluster.isPinned ? 'Unpin this cluster' : 'Pin this cluster'"
+                            x-bind:aria-label="cluster.isPinned ? 'Unpin this cluster' : 'Pin this cluster'"
                         >
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" x-bind:class="{'fill-current': cluster.isPinned}">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
@@ -143,7 +144,7 @@ import TaskRow from './TaskRow.astro';
                         <!-- Delete button -->
                         <button 
                             x-on:click="$store.todos.deleteTodo(cluster.id)"
-                            class="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg opacity-100 transition-all"
+                            class="inline-flex items-center justify-center touch-target p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 dark:text-gray-400 dark:hover:text-red-400 dark:hover:bg-red-900/20 rounded-lg opacity-100 transition-all"
                             aria-label="Delete cluster"
                         >
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

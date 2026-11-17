@@ -2,3 +2,13 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* A 44px hit area for small buttons, on phone widths and on any touch screen */
+@layer components {
+	@media (max-width: 639px), (pointer: coarse) {
+		.touch-target {
+			min-height: 44px;
+			min-width: 44px;
+		}
+	}
+}

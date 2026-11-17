@@ -16,7 +16,7 @@ const endOptions = timeOptions.slice(1);
 const weekdayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 const panel = 'rounded-2xl bg-white/80 dark:bg-slate-800/70 backdrop-blur-sm shadow-sm ring-1 ring-black/5 dark:ring-white/10';
-const iconButton = 'p-2 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-slate-700 transition-colors';
+const iconButton = 'inline-flex items-center justify-center touch-target p-2 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-slate-700 transition-colors';
 ---
 
 <div
@@ -45,7 +45,7 @@ const iconButton = 'p-2 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gr
                     </div>
                 </div>
 
-                <div class="grid grid-cols-7 text-center text-xs font-medium text-gray-400 dark:text-gray-500 mb-1">
+                <div class="grid grid-cols-7 text-center text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
                     {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((weekDay) => <div class="py-1">{weekDay}</div>)}
                 </div>
 
@@ -61,7 +61,7 @@ const iconButton = 'p-2 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gr
                                     ? 'text-teal-700 dark:text-teal-300 font-semibold ring-1 ring-inset ring-teal-500/50 hover:bg-teal-50 dark:hover:bg-teal-900/30'
                                     : day.isCurrentMonth
                                         ? 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-700'
-                                        : 'text-gray-300 dark:text-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700/50'"
+                                        : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700/50'"
                             x-bind:aria-label="$dates.formatDate(day.date, { weekday: 'long', month: 'long', day: 'numeric' })"
                             x-bind:aria-pressed="day.date === selectedDate"
                         >
@@ -86,7 +86,7 @@ const iconButton = 'p-2 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gr
             <section class={`${panel} p-5`}>
                 <div class="flex items-baseline justify-between">
                     <h3 class="text-base font-semibold text-gray-900 dark:text-white">To schedule</h3>
-                    <span class="text-xs font-medium tabular-nums text-gray-400" x-text="unscheduledTasks.length"></span>
+                    <span class="text-xs font-medium tabular-nums text-gray-500 dark:text-gray-400" x-text="unscheduledTasks.length"></span>
                 </div>
                 <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 mb-3">Drag a task onto the timeline, or press + to pick a time.</p>
 
@@ -112,7 +112,7 @@ const iconButton = 'p-2 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gr
                             <button
                                 type="button"
                                 x-on:click="openModalFor(task.id)"
-                                class="shrink-0 p-1 rounded-md text-teal-600 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/40"
+                                class="shrink-0 inline-flex items-center justify-center touch-target p-1 rounded-md text-teal-600 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/40"
                                 x-bind:aria-label="`Schedule ${task.todo}`"
                             >
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v12m6-6H6" /></svg>
@@ -120,7 +120,7 @@ const iconButton = 'p-2 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gr
                         </li>
                     </template>
                 </ul>
-                <p x-show="unscheduledTasks.length === 0" class="text-sm text-gray-400 dark:text-gray-500 py-2">Every open task has a block on this day.</p>
+                <p x-show="unscheduledTasks.length === 0" class="text-sm text-gray-500 dark:text-gray-400 py-2">Every open task has a block on this day.</p>
             </section>
         </aside>
 
@@ -163,7 +163,7 @@ const iconButton = 'p-2 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gr
                     <div class="relative w-16 shrink-0" style={`height: ${timelineHeight}px;`} aria-hidden="true">
                         {hours.map((hour) => (
                             <span
-                                class="absolute right-3 -translate-y-1/2 text-xs font-medium text-gray-400 dark:text-gray-500"
+                                class="absolute right-3 -translate-y-1/2 text-xs font-medium text-gray-500 dark:text-gray-400"
                                 style={`top: ${(hour - START_HOUR) * HOUR_HEIGHT}px;`}
                             >{formatTime(hour * 60).replace(':00', '')}</span>
                         ))}
@@ -340,7 +340,7 @@ const iconButton = 'p-2 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gr
                                 >
                                     <span class="w-2 h-2 rounded-full shrink-0" x-bind:style="`background-color: ${$store.todos.clusterColor(task.parentId)};`"></span>
                                     <span class="flex-1 min-w-0 truncate" x-text="task.todo"></span>
-                                    <span x-show="task.parentId" class="shrink-0 text-xs text-gray-400" x-text="$store.todos.clusterName(task.parentId)"></span>
+                                    <span x-show="task.parentId" class="shrink-0 text-xs text-gray-500 dark:text-gray-400" x-text="$store.todos.clusterName(task.parentId)"></span>
                                     <svg x-show="selectedTaskId === task.id" class="w-4 h-4 shrink-0 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
                                 </button>
                             </li>
@@ -357,7 +357,7 @@ const iconButton = 'p-2 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gr
                                 >
                                     <span class="w-2.5 h-2.5 rounded shrink-0" x-bind:style="`background-color: ${$store.todos.clusterColor(cluster.id)};`"></span>
                                     <span class="flex-1 min-w-0 truncate font-medium" x-text="cluster.todo"></span>
-                                    <span class="shrink-0 text-xs text-gray-400">Cluster</span>
+                                    <span class="shrink-0 text-xs text-gray-500 dark:text-gray-400">Cluster</span>
                                     <svg x-show="selectedTaskId === cluster.id" class="w-4 h-4 shrink-0 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
                                 </button>
                             </li>
@@ -374,7 +374,7 @@ const iconButton = 'p-2 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gr
                             </button>
                         </li>
                     </ul>
-                    <p x-show="!pickerTasks.length && !pickerClusters.length && !canCreateFromQuery" class="text-sm text-gray-400 dark:text-gray-500">Type a name to create a new task.</p>
+                    <p x-show="!pickerTasks.length && !pickerClusters.length && !canCreateFromQuery" class="text-sm text-gray-500 dark:text-gray-400">Type a name to create a new task.</p>
 
                     <!-- Options for a new task -->
                     <div x-show="selectedTaskId === NEW_TASK" class="grid grid-cols-2 gap-3 pt-1">

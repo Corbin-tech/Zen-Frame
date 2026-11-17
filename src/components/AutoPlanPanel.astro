@@ -66,7 +66,7 @@ const select = 'rounded-lg border-gray-200 dark:border-slate-600 bg-white dark:b
                             <option value={time.value} x-bind:selected={`hours.start === ${time.value}`}>{time.label}</option>
                         ))}
                     </select>
-                    <span class="text-xs text-gray-400">to</span>
+                    <span class="text-xs text-gray-500 dark:text-gray-400">to</span>
                     <select class={select} aria-label="To" x-on:change="setTime(hours, 'end', $event.target.value)">
                         {times.slice(1).map((time) => (
                             <option value={time.value} x-bind:selected={`hours.end === ${time.value}`}>{time.label}</option>
@@ -75,7 +75,7 @@ const select = 'rounded-lg border-gray-200 dark:border-slate-600 bg-white dark:b
                     <button
                         type="button"
                         x-on:click="removeWindow(hours.id)"
-                        class="ml-auto p-1 rounded-md text-gray-400 hover:text-red-500"
+                        class="ml-auto inline-flex items-center justify-center touch-target p-1 rounded-md text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400"
                         aria-label="Remove these hours"
                     >
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>

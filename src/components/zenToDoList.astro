@@ -174,7 +174,7 @@
                 <template x-if="!hasTasks">
                     <div class="text-center py-8">
                         <p class="text-xl text-gray-500 dark:text-gray-400">No tasks to display</p>
-                        <p class="text-gray-400 dark:text-gray-500 mt-2">Add some tasks to get started</p>
+                        <p class="text-gray-500 dark:text-gray-400 mt-2">Add some tasks to get started</p>
                     </div>
                 </template>
             </div>
@@ -237,7 +237,7 @@
                     <li class="flex items-center gap-3 rounded-lg px-3 py-2 bg-white/60 dark:bg-slate-700/40 ring-1 ring-black/5 dark:ring-white/5 text-sm text-gray-600 dark:text-gray-300">
                         <span class="w-1.5 h-1.5 rounded-full shrink-0" x-bind:style="`background-color: ${$store.todos.clusterColor(task.parentId)};`"></span>
                         <span class="min-w-0 truncate" x-text="task.todo"></span>
-                        <span x-show="task.parentId" class="ml-auto shrink-0 text-xs text-gray-400 dark:text-gray-500" x-text="$store.todos.clusterName(task.parentId)"></span>
+                        <span x-show="task.parentId" class="ml-auto shrink-0 text-xs text-gray-500 dark:text-gray-400" x-text="$store.todos.clusterName(task.parentId)"></span>
                     </li>
                 </template>
             </ol>
@@ -252,7 +252,7 @@
             class="text-center py-8"
         >
             <p class="text-2xl text-gray-500 dark:text-gray-400 font-medium">All tasks complete!</p>
-            <p class="text-gray-500 dark:text-gray-500 mt-2">Great job! Add more tasks or take a break.</p>
+            <p class="text-gray-500 dark:text-gray-400 mt-2">Great job! Add more tasks or take a break.</p>
         </div>
 
         <!-- Progress Bar -->

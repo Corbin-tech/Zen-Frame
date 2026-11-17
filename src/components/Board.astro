@@ -3,7 +3,7 @@
 // Drag a card between columns or within one; the arrow buttons, or [ and ] on a focused card,
 // do the same from the keyboard. The pencil opens a card's due date and cluster.
 const field = 'rounded-md border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-800 dark:text-white text-xs py-1 focus:border-teal-500 focus:ring-teal-500';
-const iconButton = 'p-1 rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-500 dark:hover:text-gray-200 dark:hover:bg-slate-700 transition-colors disabled:opacity-30 disabled:pointer-events-none';
+const iconButton = 'inline-flex items-center justify-center touch-target p-1 rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-slate-700 transition-colors disabled:opacity-30 disabled:pointer-events-none';
 ---
 
 <div x-data="board" class="space-y-5">
@@ -18,7 +18,7 @@ const iconButton = 'p-1 rounded-md text-gray-400 hover:text-gray-700 hover:bg-gr
         <div class="flex flex-wrap items-center gap-2">
         <label for="board-search" class="sr-only">Search the board</label>
         <div class="relative">
-            <svg class="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z" /></svg>
+            <svg class="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z" /></svg>
             <input
                 id="board-search"
                 type="search"
@@ -177,7 +177,7 @@ const iconButton = 'p-1 rounded-md text-gray-400 hover:text-gray-700 hover:bg-gr
                                             x-show="!editing"
                                             x-on:dblclick="editing = true; $nextTick(() => $refs.title.focus())"
                                             class="text-sm font-medium leading-snug break-words"
-                                            x-bind:class="task.completed ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-gray-100'"
+                                            x-bind:class="task.completed ? 'line-through text-gray-500 dark:text-gray-400' : 'text-gray-900 dark:text-gray-100'"
                                             x-text="task.todo || 'Untitled task'"
                                             title="Double-click to rename"
                                         ></p>
@@ -212,11 +212,11 @@ const iconButton = 'p-1 rounded-md text-gray-400 hover:text-gray-700 hover:bg-gr
                                         x-bind:class="task.dueDate ? $dates.dueClass(task.dueDate, task.completed) : ''"
                                         x-text="task.dueDate ? $dates.dueLabel(task.dueDate) : ''"
                                     ></span>
-                                    <span x-show="repeats(task.id)" class="inline-flex items-center text-gray-400 dark:text-gray-500" title="Repeats on the schedule">
+                                    <span x-show="repeats(task.id)" class="inline-flex items-center text-gray-500 dark:text-gray-400" title="Repeats on the schedule">
                                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
                                         <span class="sr-only">Repeats</span>
                                     </span>
-                                    <span x-show="column.id === 'doing' && task.startedAt && !isStalled(task)" class="text-gray-400 dark:text-gray-500" x-text="task.startedAt ? `Started ${$dates.daysAgoText($dates.toDateKey(new Date(task.startedAt)))}` : ''"></span>
+                                    <span x-show="column.id === 'doing' && task.startedAt && !isStalled(task)" class="text-gray-500 dark:text-gray-400" x-text="task.startedAt ? `Started ${$dates.daysAgoText($dates.toDateKey(new Date(task.startedAt)))}` : ''"></span>
                                     <!-- In progress for a while: a nudge to finish it or move it back -->
                                     <span
                                         x-show="column.id === 'doing' && isStalled(task)"
@@ -226,7 +226,7 @@ const iconButton = 'p-1 rounded-md text-gray-400 hover:text-gray-700 hover:bg-gr
                                         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                         <span x-text="`Stalled ${daysInProgress(task)} days`"></span>
                                     </span>
-                                    <span x-show="column.id === 'done' && task.completedAt" class="text-gray-400 dark:text-gray-500" x-text="task.completedAt ? `Done ${$dates.daysAgoText($dates.toDateKey(new Date(task.completedAt)))}` : ''"></span>
+                                    <span x-show="column.id === 'done' && task.completedAt" class="text-gray-500 dark:text-gray-400" x-text="task.completedAt ? `Done ${$dates.daysAgoText($dates.toDateKey(new Date(task.completedAt)))}` : ''"></span>
                                 </div>
                             </div>
 
@@ -276,7 +276,7 @@ const iconButton = 'p-1 rounded-md text-gray-400 hover:text-gray-700 hover:bg-gr
                     <!-- Empty column -->
                     <li
                         x-show="!tasksIn(column.id).length && adding !== column.id"
-                        class="board-empty h-full min-h-[7rem] grid place-items-center rounded-xl border-2 border-dashed border-gray-200 dark:border-slate-700 px-4 text-center text-sm text-gray-400 dark:text-gray-500"
+                        class="board-empty h-full min-h-[7rem] grid place-items-center rounded-xl border-2 border-dashed border-gray-200 dark:border-slate-700 px-4 text-center text-sm text-gray-500 dark:text-gray-400"
                         x-text="column.empty"
                     ></li>
                 </ol>

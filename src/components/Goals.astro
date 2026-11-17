@@ -3,7 +3,7 @@
 const panel = 'rounded-2xl bg-white/80 dark:bg-slate-800/70 backdrop-blur-sm shadow-sm ring-1 ring-black/5 dark:ring-white/10';
 const panelTitle = 'text-base font-semibold text-gray-900 dark:text-white';
 const field = 'block w-full rounded-lg border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-700/60 dark:text-white text-sm focus:border-teal-500 focus:ring-teal-500';
-const iconButton = 'p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:hover:text-gray-200 dark:hover:bg-slate-700 transition-colors';
+const iconButton = 'inline-flex items-center justify-center touch-target p-1.5 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-slate-700 transition-colors';
 const prompts = [
     { key: 'wins', label: 'What went well this week?', placeholder: 'Wins, big or small' },
     { key: 'blockers', label: 'What got in the way?', placeholder: 'Distractions, energy, too much on the list…' },
@@ -58,7 +58,7 @@ const prompts = [
                                             x-bind:value="goal.title"
                                             x-on:change="$event.target.value.trim() && $store.goals.updateGoal(goal.id, { title: $event.target.value.trim() })"
                                             class="flex-1 min-w-0 p-0 bg-transparent border-none focus:ring-0 text-sm font-semibold"
-                                            x-bind:class="goal.done ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-white'"
+                                            x-bind:class="goal.done ? 'line-through text-gray-500 dark:text-gray-400' : 'text-gray-900 dark:text-white'"
                                         />
                                         <span class="text-sm font-semibold tabular-nums text-gray-700 dark:text-gray-200" x-text="`${progressOf(goal)}%`"></span>
                                     </div>
@@ -162,7 +162,7 @@ const prompts = [
                                 ></button>
                             </template>
                         </div>
-                        <div class="flex justify-between mt-1 text-[11px] text-gray-400"><span>Drained</span><span>Great</span></div>
+                        <div class="flex justify-between mt-1 text-[11px] text-gray-500 dark:text-gray-400"><span>Drained</span><span>Great</span></div>
                     </div>
 
                     {prompts.map((prompt) => (
@@ -214,7 +214,7 @@ const prompts = [
                                 x-on:change="$event.target.value.trim() ? $store.goals.updateNote(note.id, { text: $event.target.value }) : $store.goals.removeNote(note.id)"
                                 class="block w-full p-0 bg-transparent border-none resize-none focus:ring-0 text-sm text-gray-800 dark:text-gray-100 whitespace-pre-wrap"
                             ></textarea>
-                            <div class="mt-1.5 flex items-center justify-between text-[11px] text-gray-400 dark:text-gray-500">
+                            <div class="mt-1.5 flex items-center justify-between text-[11px] text-gray-500 dark:text-gray-400">
                                 <span x-text="$dates.daysAgoText($dates.toDateKey(new Date(note.updatedAt)))"></span>
                                 <span class="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity">
                                     <button type="button" class={iconButton} x-on:click="$store.goals.updateNote(note.id, { pinned: !note.pinned })" x-bind:aria-label="note.pinned ? 'Unpin note' : 'Pin note'" x-bind:title="note.pinned ? 'Unpin' : 'Pin'">

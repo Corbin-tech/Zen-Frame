@@ -83,7 +83,7 @@ const tabs = [
             <button
                 type="button"
                 x-on:click="$store.settings.update({ sidebarCollapsed: !collapsed })"
-                class="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-900/5 dark:hover:text-gray-200 dark:hover:bg-white/10 transition-colors"
+                class="p-1.5 rounded-lg text-gray-500 dark:text-gray-400 hover:text-gray-700 hover:bg-gray-900/5 dark:hover:text-gray-200 dark:hover:bg-white/10 transition-colors"
                 x-bind:class="!collapsed && 'ml-auto'"
                 x-bind:aria-label="collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
                 x-bind:title="collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
@@ -180,7 +180,7 @@ const tabs = [
 
             <!-- Tabs: a pill slides under the active one -->
             <nav class="min-w-0 flex-1 flex lg:justify-center" aria-label="Sections">
-                <div x-ref="track" class="relative flex max-w-full overflow-x-auto p-1 rounded-full bg-gray-900/[0.04] dark:bg-white/[0.06] ring-1 ring-black/5 dark:ring-white/10 [scrollbar-width:none]">
+                <div x-ref="track" class="relative flex max-w-full overflow-x-auto scroll-smooth p-1 rounded-full bg-gray-900/[0.04] dark:bg-white/[0.06] ring-1 ring-black/5 dark:ring-white/10 [scrollbar-width:none]">
                     <span
                         class="tab-indicator absolute top-1 bottom-1 left-0 rounded-full bg-white dark:bg-white/[0.14] shadow-sm ring-1 ring-black/5 dark:ring-white/10"
                         x-bind:style="`transform: translateX(${indicator.left}px); width: ${indicator.width}px; opacity: ${indicator.width ? 1 : 0};`"
@@ -193,7 +193,7 @@ const tabs = [
                             x-on:click={`activeTab = '${tab.id}'`}
                             x-bind:class={`activeTab === '${tab.id}' ? 'text-gray-900 dark:text-white' : 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200'`}
                             x-bind:aria-current={`activeTab === '${tab.id}' ? 'page' : null`}
-                            class="relative z-10 shrink-0 flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap select-none transition-colors"
+                            class="relative z-10 shrink-0 flex items-center justify-center gap-1.5 touch-target px-2 sm:px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap select-none transition-colors"
                             aria-label={tab.label}
                             title={tab.label}
                         >
@@ -231,7 +231,7 @@ const tabs = [
                         stroke-linecap="round"
                         :stroke-dasharray="251"
                         :stroke-dashoffset="251 - (251 * $store.pomoState.percentComplete) / 100"
-                        :class="$store.pomoState.isRunning ? 'text-teal-500 dark:text-teal-400' : 'text-gray-400 dark:text-gray-500'"
+                        :class="$store.pomoState.isRunning ? 'text-teal-600 dark:text-teal-400' : 'text-gray-500 dark:text-gray-400'"
                         class="transition-all duration-1000 ease-in-out"
                     />
                 </svg>
@@ -240,7 +240,7 @@ const tabs = [
             <button
                 type="button"
                 x-on:click="$dispatch('open-quick-add')"
-                class="shrink-0 inline-flex items-center gap-1.5 p-2 xl:pl-2.5 xl:pr-3 rounded-full bg-teal-600 text-white text-sm font-medium shadow-sm shadow-teal-700/30 hover:bg-teal-700 transition-colors"
+                class="shrink-0 inline-flex items-center justify-center gap-1.5 touch-target p-2 xl:pl-2.5 xl:pr-3 rounded-full bg-teal-600 text-white text-sm font-medium shadow-sm shadow-teal-700/30 hover:bg-teal-700 transition-colors"
                 aria-label="New task or cluster (N)"
                 title="New task or cluster (N)"
             >
@@ -252,7 +252,7 @@ const tabs = [
             <button
                 type="button"
                 x-on:click="$dispatch('open-settings')"
-                class="shrink-0 p-2.5 sm:-ml-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
+                class="shrink-0 inline-flex items-center justify-center touch-target p-2.5 sm:-ml-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
                 aria-label="Open settings"
                 title="Settings"
             >
@@ -292,12 +292,12 @@ const tabs = [
         <div x-show="activeTab === 'pomodoro'" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-1.5" x-transition:enter-end="opacity-100 translate-y-0">
             <PomoTimer />
         </div>
-        <div x-show="activeTab === 'zenmode'" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-1.5" x-transition:enter-end="opacity-100 translate-y-0">
+        <div x-show="activeTab === 'zenmode'" x-transition:enter="transition-opacity ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100">
             <!-- With a background chosen, one scene runs behind the task card and the quote.
                  With none, this wrapper adds nothing and the two cards look as they always have. -->
             <div
                 class="relative isolate w-full max-w-4xl mx-auto"
-                x-bind:class="$store.settings.zenBackground !== 'none' && 'overflow-hidden rounded-2xl bg-white/80 dark:bg-slate-800/70 backdrop-blur-sm shadow-sm ring-1 ring-black/5 dark:ring-white/10'"
+                x-bind:class="$store.settings.zenBackground !== 'none' && 'overflow-hidden rounded-2xl bg-white/80 dark:bg-slate-800/70 shadow-sm ring-1 ring-black/5 dark:ring-white/10'"
             >
                 <ZenBackdrop />
                 <ZenToDoList />
@@ -327,7 +327,14 @@ const tabs = [
                 const button = this.$refs.track.querySelector(`[data-tab="${this.activeTab}"]`);
                 if (!button) return;
                 this.indicator = { left: button.offsetLeft, width: button.offsetWidth };
-                button.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+                // Scrolls the track only, never the page. The track's scroll-smooth class eases it,
+                // and the reduced-motion rule in Layout.astro turns that off.
+                const track = this.$refs.track;
+                if (button.offsetLeft < track.scrollLeft) {
+                    track.scrollTo({ left: button.offsetLeft - 4 });
+                } else if (button.offsetLeft + button.offsetWidth > track.scrollLeft + track.clientWidth) {
+                    track.scrollTo({ left: button.offsetLeft + button.offsetWidth - track.clientWidth + 4 });
+                }
             }
         }));
     });
