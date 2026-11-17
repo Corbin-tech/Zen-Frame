@@ -346,6 +346,12 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-2 rou
                                     <span class="w-2 h-2 rounded-full shrink-0" x-bind:style="`background-color: ${$store.todos.clusterColor(task.parentId)};`"></span>
                                     <span class="flex-1 min-w-0 truncate" x-text="task.todo"></span>
                                     <span x-show="task.parentId" class="shrink-0 text-xs text-gray-500 dark:text-gray-400" x-text="$store.todos.clusterName(task.parentId)"></span>
+                                    <!-- Picking a planned task moves it to this day -->
+                                    <span
+                                        x-show="plannedDateOf(task.id)"
+                                        class="shrink-0 text-xs font-medium px-1 rounded bg-gray-100 text-gray-600 dark:bg-slate-700 dark:text-gray-300"
+                                        x-text="plannedDateOf(task.id) ? `Planned ${$dates.formatDate(plannedDateOf(task.id))}` : ''"
+                                    ></span>
                                     <svg x-show="taskMode === 'existing' && selectedTaskId === task.id" class="w-4 h-4 shrink-0 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
                                 </button>
                             </li>
@@ -379,10 +385,7 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-2 rou
                             </button>
                         </li>
                     </ul>
-                    <p x-show="plannedMatch" class="text-sm text-gray-500 dark:text-gray-400" x-text="plannedMatch
-                        ? `“${plannedMatch.task.todo}” is already planned${plannedMatch.date ? ` for ${$dates.formatDate(plannedMatch.date, { weekday: 'long', month: 'short', day: 'numeric' })}` : ''}. Change its due date to move it.`
-                        : ''"></p>
-                    <p x-show="!plannedMatch && !pickerTasks.length && !pickerClusters.length && !canCreateFromQuery" class="text-sm text-gray-500 dark:text-gray-400">Type a name to create a new task.</p>
+                    <p x-show="!pickerTasks.length && !pickerClusters.length && !canCreateFromQuery" class="text-sm text-gray-500 dark:text-gray-400">Type a name to create a new task.</p>
 
                     <!-- Options for a new task -->
                     <div x-show="taskMode === 'new'" class="grid grid-cols-2 gap-3 pt-1">
@@ -649,16 +652,24 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-2 rou
                     .filter(band => band.end > band.start);
             },
 
-            // Open tasks without a block on this day, soonest due date first. A task with a one-off
-            // block today or later is already planned. A task whose block is in the past stays, and a drop moves it.
-            get unscheduledTasks() {
+            // Open tasks without a block on this day, soonest due date first. The block editor picks
+            // from these, so a task planned on another day can be found and moved here.
+            get tasksOffDay() {
                 const scheduled = new Set(this.itemsForDay.map(item => item.taskId));
-                for (const item of this.$store.todos.scheduledItems) {
-                    if (!item.repeat && item.date >= this.todayKey) scheduled.add(item.taskId);
-                }
                 return this.$store.todos.openTasks
                     .filter(task => task.todo.trim() !== '' && !scheduled.has(task.id))
                     .sort((a, b) => (a.dueDate || '9999-12-31').localeCompare(b.dueDate || '9999-12-31'));
+            },
+
+            // The sidebar list: tasks off this day that are not planned yet. A task with a one-off
+            // block today or later is already planned. A task whose block is in the past stays, and a drop moves it.
+            get unscheduledTasks() {
+                return this.tasksOffDay.filter(task => !this.plannedDateOf(task.id));
+            },
+
+            // The day of a task's one-off block today or later, or null
+            plannedDateOf(taskId) {
+                return this.$store.todos.scheduledItems.find(item => item.taskId === taskId && !item.repeat && item.date >= this.todayKey)?.date ?? null;
             },
 
             // Blocks with their position. Overlapping blocks share the width side by side.
@@ -881,7 +892,7 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-2 rou
 
             get pickerTasks() {
                 const query = this.query.trim().toLowerCase();
-                return this.unscheduledTasks.filter(task => task.todo.toLowerCase().includes(query));
+                return this.tasksOffDay.filter(task => task.todo.toLowerCase().includes(query));
             },
 
             get pickerClusters() {
@@ -889,20 +900,9 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-2 rou
                 return this.$store.todos.clusters.filter(cluster => cluster.todo.toLowerCase().includes(query));
             },
 
-            // An open task with exactly this name that the picker hides because it is already planned,
-            // with the day of its block. "Create" would make a second copy of it.
-            get plannedMatch() {
-                const query = this.query.trim().toLowerCase();
-                if (!query) return null;
-                const task = this.$store.todos.openTasks.find(task => task.todo.trim().toLowerCase() === query && !this.pickerTasks.includes(task));
-                if (!task) return null;
-                const block = this.$store.todos.scheduledItems.find(item => item.taskId === task.id && !item.repeat && item.date >= this.todayKey);
-                return { task, date: block?.date ?? task.dueDate };
-            },
-
             get canCreateFromQuery() {
                 const query = this.query.trim().toLowerCase();
-                return query !== '' && !this.plannedMatch && ![...this.pickerTasks, ...this.pickerClusters].some(item => item.todo.trim().toLowerCase() === query);
+                return query !== '' && ![...this.pickerTasks, ...this.pickerClusters].some(item => item.todo.trim().toLowerCase() === query);
             },
 
             get editingItem() {

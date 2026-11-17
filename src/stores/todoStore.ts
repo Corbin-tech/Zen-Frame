@@ -611,11 +611,12 @@ function createTodosStore() {
     },
 
     // Takes a plan back out: its blocks go, and replaced blocks and old due dates come back.
-    // A task whose planned block was moved to another day or removed since keeps what the user chose.
+    // A task whose planned block was moved, resized or removed since keeps what the user chose.
     // Returns the number of blocks removed.
     undoAutoPlan(plan: AutoPlanResult): number {
       const untouched = new Set(plan.blocks
-        .filter(block => this.scheduledItems.some(item => item.id === block.id && item.date === block.date))
+        .filter(block => this.scheduledItems.some(item => item.id === block.id && item.date === block.date
+          && item.startTimeMinutes === block.startTimeMinutes && item.endTimeMinutes === block.endTimeMinutes))
         .map(block => block.taskId));
       const planIds = new Set(plan.blocks.filter(block => untouched.has(block.taskId)).map(block => block.id));
       this.scheduledItems = [
