@@ -308,7 +308,7 @@ const checkbox = 'w-4 h-4 shrink-0 rounded border-gray-300 dark:border-slate-500
                 type="button"
                 x-on:click="$store.pomoState.isRunning ? $store.pomoState.pauseTimer() : $store.pomoState.startTimer()"
                 class="flex-1 px-3 py-2 text-sm font-semibold rounded-lg bg-teal-600 text-white hover:bg-teal-700 shadow-sm transition-colors"
-                x-text="$store.pomoState.isRunning ? 'Pause' : ($store.pomoState.timeLeft < $store.pomoState.totalTime ? 'Resume' : 'Start')"
+                x-text="$store.pomoState.status === 'running' ? 'Pause' : ($store.pomoState.status === 'paused' ? 'Resume' : 'Start')"
             ></button>
             <button
                 type="button"

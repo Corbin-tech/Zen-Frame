@@ -19,7 +19,19 @@ const segmentOn = 'bg-white text-gray-900 shadow-sm ring-1 ring-black/5 dark:bg-
 const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200';
 ---
 
-<div x-data x-cloak class="space-y-6">
+<div
+    x-data="{
+        baseTitle: document.title,
+        get today() {
+            const key = this.$dates.toDateKey();
+            const sessions = this.$store.pomoState.sessions.filter(session => this.$dates.toDateKey(new Date(session.completedAt)) === key);
+            return { count: sessions.length, minutes: sessions.reduce((sum, session) => sum + session.minutes, 0) };
+        }
+    }"
+    x-effect="document.title = $store.pomoState.isRunning ? `${$store.pomoState.digits.slice(0, 2)}:${$store.pomoState.digits.slice(2)} · ${$store.pomoState.isBreak ? 'Break' : 'Focus'} · ${baseTitle}` : baseTitle"
+    x-cloak
+    class="space-y-6"
+>
     <!-- Header -->
     <header class="flex flex-wrap items-end justify-between gap-4">
         <div>
@@ -29,8 +41,8 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
         </div>
         <!-- Length of a work stretch and its break -->
         <div class={segmented} role="group" aria-label="Timer length">
-            <button type="button" x-on:click="$store.pomoState.setPreset('pomodoro')" class={segment} x-bind:class={`$store.pomoState.preset === 'pomodoro' ? '${segmentOn}' : '${segmentOff}'`} x-bind:aria-pressed="$store.pomoState.preset === 'pomodoro'">25 / 5</button>
-            <button type="button" x-on:click="$store.pomoState.setPreset('long')" class={segment} x-bind:class={`$store.pomoState.preset === 'long' ? '${segmentOn}' : '${segmentOff}'`} x-bind:aria-pressed="$store.pomoState.preset === 'long'">50 / 10</button>
+            <button type="button" x-on:click="$store.pomoState.preset !== 'pomodoro' && (!$store.pomoState.started || confirm('Change the timer length? The current timer will start over.')) && $store.pomoState.setPreset('pomodoro')" class={segment} x-bind:class={`$store.pomoState.preset === 'pomodoro' ? '${segmentOn}' : '${segmentOff}'`} x-bind:aria-pressed="$store.pomoState.preset === 'pomodoro'">25 / 5</button>
+            <button type="button" x-on:click="$store.pomoState.preset !== 'long' && (!$store.pomoState.started || confirm('Change the timer length? The current timer will start over.')) && $store.pomoState.setPreset('long')" class={segment} x-bind:class={`$store.pomoState.preset === 'long' ? '${segmentOn}' : '${segmentOff}'`} x-bind:aria-pressed="$store.pomoState.preset === 'long'">50 / 10</button>
         </div>
     </header>
 
@@ -143,14 +155,15 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
             <button
               @click="$store.pomoState.isRunning ? $store.pomoState.pauseTimer() : $store.pomoState.startTimer()"
               class="min-w-[7rem] px-6 py-2.5 text-base font-semibold text-white bg-teal-600 hover:bg-teal-700 rounded-lg shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-800 transition-colors"
-              aria-label="Start or pause Pomodoro timer"
             >
-              <span x-text="$store.pomoState.isRunning ? 'Pause' : 'Start'"></span>
+              <span x-text="$store.pomoState.status === 'running' ? 'Pause' : $store.pomoState.status === 'paused' ? 'Resume' : 'Start'"></span>
             </button>
             
             <button 
+                type="button"
                 @click="if (confirm('Are you sure you want to reset the current timer?')) { $store.pomoState.resetTimer() }"
-                class="inline-flex items-center px-4 py-2.5 text-sm font-medium rounded-lg ring-1 bg-white text-gray-700 ring-black/10 hover:bg-gray-50 dark:bg-slate-800 dark:text-gray-200 dark:ring-white/10 dark:hover:bg-slate-700 transition-colors"
+                x-bind:disabled="!$store.pomoState.started"
+                class="inline-flex items-center px-4 py-2.5 text-sm font-medium rounded-lg ring-1 bg-white text-gray-700 ring-black/10 hover:bg-gray-50 dark:bg-slate-800 dark:text-gray-200 dark:ring-white/10 dark:hover:bg-slate-700 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 disabled:opacity-40 disabled:pointer-events-none"
             >
                 <div class="flex items-center">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -161,6 +174,13 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
             </button>
         </div>
 
+        <p class="mt-4 hidden sm:block text-xs text-gray-500 dark:text-gray-400">
+            Press <kbd class="px-1.5 py-0.5 rounded font-sans font-medium ring-1 ring-black/10 dark:ring-white/15">Space</kbd> to start or pause
+        </p>
+
+        <!-- Focus finished today -->
+        <p class="mt-6 pt-4 w-full text-center text-sm text-gray-600 dark:text-gray-300 border-t border-black/5 dark:border-white/10"
+            x-text="today.count ? `${today.count} focus ${today.count === 1 ? 'session' : 'sessions'} today · ${$dates.formatDuration(today.minutes)}` : 'No focus sessions finished yet today'"></p>
     </div>
 </div>
 
