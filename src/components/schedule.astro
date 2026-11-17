@@ -91,7 +91,7 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-2 rou
 
             <AutoPlanPanel panel={panel} />
 
-            <!-- Tasks without a block on this day -->
+            <!-- Tasks without a block on this day or a later one -->
             <section class={`${panel} p-5`}>
                 <div class="flex items-baseline justify-between">
                     <h3 class="text-base font-semibold text-gray-900 dark:text-white">To schedule</h3>
@@ -129,7 +129,7 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-2 rou
                         </li>
                     </template>
                 </ul>
-                <p x-show="unscheduledTasks.length === 0" class="text-sm text-gray-500 dark:text-gray-400 py-2">Every open task has a block on this day.</p>
+                <p x-show="unscheduledTasks.length === 0" class="text-sm text-gray-500 dark:text-gray-400 py-2">Every open task is on the schedule.</p>
             </section>
         </aside>
 
@@ -392,7 +392,8 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-2 rou
                                 </template>
                             </select>
                         </div>
-                        <div>
+                        <!-- A one-off block's day is the task's due date, so only a routine asks for one -->
+                        <div x-show="repeats">
                             <label for="new-task-due" class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Due date</label>
                             <input id="new-task-due" type="date" x-model="newTaskDueDate" class="block w-full rounded-lg border-gray-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-sm focus:border-teal-500 focus:ring-teal-500" />
                         </div>
@@ -645,9 +646,13 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-2 rou
                     .filter(band => band.end > band.start);
             },
 
-            // Open tasks without a block on this day, soonest due date first
+            // Open tasks without a block on this day, soonest due date first. A task with a one-off
+            // block today or later is already planned. A task whose block is in the past stays, and a drop moves it.
             get unscheduledTasks() {
                 const scheduled = new Set(this.itemsForDay.map(item => item.taskId));
+                for (const item of this.$store.todos.scheduledItems) {
+                    if (!item.repeat && item.date >= this.todayKey) scheduled.add(item.taskId);
+                }
                 return this.$store.todos.openTasks
                     .filter(task => task.todo.trim() !== '' && !scheduled.has(task.id))
                     .sort((a, b) => (a.dueDate || '9999-12-31').localeCompare(b.dueDate || '9999-12-31'));

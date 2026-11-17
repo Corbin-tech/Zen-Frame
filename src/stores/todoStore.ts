@@ -55,6 +55,13 @@ export interface Planning {
 
 const DEFAULT_PLANNING: Planning = { availability: [], duration: 45, gap: 15 };
 
+// What one Auto-plan run changed, so it can be undone
+export interface AutoPlanResult {
+  blocks: ScheduledItem[]; // The new blocks
+  replaced: ScheduledItem[]; // Past one-off blocks of the planned tasks, removed by the plan
+  dueDates: { taskId: string; dueDate: string | null }[]; // Due dates before the plan
+}
+
 const NEW_CLUSTER_NAME = "New Cluster";
 
 // Cluster colors, picked in this order for new clusters. Each key is a CSS variable
@@ -287,6 +294,13 @@ function createTodosStore() {
       if (!task) return;
       task.dueDate = dueDate || null;
       task.updatedAt = new Date().toISOString();
+
+      // A new due date moves the task's one-off block to that day, at the same time
+      const block = this.scheduledItems.find(item => item.taskId === taskId && !item.repeat);
+      if (task.dueDate && block && !task.isCluster && !task.completed) {
+        this.saveScheduledItem({ ...block, date: task.dueDate });
+        return;
+      }
       this.saveTodos();
     },
 
@@ -528,8 +542,21 @@ function createTodosStore() {
       this.saveTodos();
     },
 
+    // An open task is on one day: a one-off block moves the task there. Its other one-off
+    // blocks go, and its due date becomes that day, so the schedule, the list and the board agree.
+    // Repeating blocks are routines and class meetings (cluster blocks) are not to-dos, so they stay.
     saveScheduledItem(entry: ScheduledItem): void {
-      this.scheduledItems = [...this.scheduledItems.filter(item => item.id !== entry.id), entry];
+      const task = this.find(entry.taskId);
+      const movesTask = !entry.repeat && Boolean(task) && !task!.isCluster && !task!.completed;
+      this.scheduledItems = [
+        ...this.scheduledItems.filter(item => item.id !== entry.id
+          && !(movesTask && item.taskId === entry.taskId && !item.repeat)),
+        entry
+      ];
+      if (movesTask && task!.dueDate !== entry.date) {
+        task!.dueDate = entry.date;
+        task!.updatedAt = new Date().toISOString();
+      }
       this.saveTodos();
     },
 
@@ -540,8 +567,9 @@ function createTodosStore() {
 
     // Plans open tasks into free availability on `dayCount` days from `fromDate`.
     // Skips tasks that already have a block today or later, and routines (repeating blocks).
-    // Returns the new block ids so the plan can be undone.
-    autoPlan(fromDate: string, dayCount: number): string[] {
+    // Like saveScheduledItem, a planned task moves to its new day: its past one-off blocks go
+    // and its due date becomes that day. Returns what changed so undoAutoPlan can put it back.
+    autoPlan(fromDate: string, dayCount: number): AutoPlanResult {
       const today = toDateKey();
       const start = fromDate < today ? today : fromDate;
       const days = Array.from({ length: dayCount }, (_, i) => addDays(start, i));
@@ -567,9 +595,42 @@ function createTodosStore() {
         startTimeMinutes: block.start,
         endTimeMinutes: block.end
       }));
-      this.scheduledItems = [...this.scheduledItems, ...created];
+      const plannedTasks = new Set(created.map(item => item.taskId));
+      const replaced = this.scheduledItems.filter(item => !item.repeat && plannedTasks.has(item.taskId));
+      const dueDates = created.map(item => ({ taskId: item.taskId, dueDate: this.find(item.taskId)?.dueDate ?? null }));
+      this.scheduledItems = [...this.scheduledItems.filter(item => !replaced.includes(item)), ...created];
+      const now = new Date().toISOString();
+      for (const item of created) {
+        const task = this.find(item.taskId)!;
+        if (task.dueDate === item.date) continue;
+        task.dueDate = item.date;
+        task.updatedAt = now;
+      }
       this.saveTodos();
-      return created.map(item => item.id);
+      return { blocks: created, replaced, dueDates };
+    },
+
+    // Takes a plan back out: its blocks go, and replaced blocks and old due dates come back.
+    // A task whose planned block was moved to another day or removed since keeps what the user chose.
+    // Returns the number of blocks removed.
+    undoAutoPlan(plan: AutoPlanResult): number {
+      const untouched = new Set(plan.blocks
+        .filter(block => this.scheduledItems.some(item => item.id === block.id && item.date === block.date))
+        .map(block => block.taskId));
+      const planIds = new Set(plan.blocks.filter(block => untouched.has(block.taskId)).map(block => block.id));
+      this.scheduledItems = [
+        ...this.scheduledItems.filter(item => !planIds.has(item.id)),
+        ...plan.replaced.filter(item => untouched.has(item.taskId))
+      ];
+      const now = new Date().toISOString();
+      for (const { taskId, dueDate } of plan.dueDates) {
+        const task = this.find(taskId);
+        if (!task || !untouched.has(taskId)) continue;
+        task.dueDate = dueDate;
+        task.updatedAt = now;
+      }
+      this.saveTodos();
+      return planIds.size;
     },
 
     removeScheduledItems(ids: string[]): void {
