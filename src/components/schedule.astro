@@ -24,8 +24,9 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-2 rou
     class="space-y-6"
     x-on:pointermove.window="onPointerMove($event)"
     x-on:pointerup.window="onPointerUp()"
-    x-on:pointercancel.window="drag = null"
-    x-on:keydown.escape.window="showModal && closeModal()"
+    x-on:pointercancel.window="resetDrag()"
+    x-on:blur.window="resetDrag()"
+    x-on:keydown.escape.window="onEscape()"
 >
     <!-- Header -->
     <header>
@@ -808,6 +809,18 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-2 rou
                 } else {
                     drag.end = clamp(snap(this.minutesAt(event.clientY)), drag.start + SLOT_MINUTES, DAY_END);
                 }
+            },
+
+            // Cancel a drag without saving and clear any drop highlight
+            resetDrag() {
+                this.drag = null;
+                this.dropPreview = null;
+            },
+
+            // Escape cancels a drag in progress; otherwise it closes the editor
+            onEscape() {
+                if (this.drag) this.resetDrag();
+                else if (this.showModal) this.closeModal();
             },
 
             onPointerUp() {
