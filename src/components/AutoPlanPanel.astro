@@ -138,7 +138,7 @@ const select = 'rounded-lg border-gray-200 dark:border-slate-600 bg-white dark:b
     </div>
     <div x-show="result" x-cloak class="mt-2 flex items-center justify-between gap-2 text-xs text-gray-600 dark:text-gray-300">
         <span x-text="result"></span>
-        <button x-show="lastPlan.length" type="button" x-on:click="undo()" class="font-semibold text-teal-700 dark:text-teal-400 hover:underline">Undo</button>
+        <button x-show="lastPlan?.blocks.length" type="button" x-on:click="undo()" class="font-semibold text-teal-700 dark:text-teal-400 hover:underline">Undo</button>
     </div>
     </div>
 </section>
@@ -153,7 +153,7 @@ const select = 'rounded-lg border-gray-200 dark:border-slate-600 bg-white dark:b
             editing: false,
             open: false,
             result: '',
-            lastPlan: [],
+            lastPlan: null, // The todo store's AutoPlanResult, for Undo
 
             init() {
                 // Open the editor straight away the first time, when there are no hours yet
@@ -200,16 +200,17 @@ const select = 'rounded-lg border-gray-200 dark:border-slate-600 bg-white dark:b
             // Plans from the day shown on the timeline (or today, if that's in the past)
             plan(dayCount) {
                 this.lastPlan = this.$store.todos.autoPlan(this.selectedDate, dayCount);
-                const days = new Set(this.$store.todos.scheduledItems.filter(item => this.lastPlan.includes(item.id)).map(item => item.date)).size;
-                this.result = this.lastPlan.length
-                    ? `Planned ${this.lastPlan.length} ${this.lastPlan.length === 1 ? 'task' : 'tasks'}${dayCount > 1 ? ` over ${days} ${days === 1 ? 'day' : 'days'}` : ''}.`
+                const count = this.lastPlan.blocks.length;
+                const days = new Set(this.lastPlan.blocks.map(item => item.date)).size;
+                this.result = count
+                    ? `Planned ${count} ${count === 1 ? 'task' : 'tasks'}${dayCount > 1 ? ` over ${days} ${days === 1 ? 'day' : 'days'}` : ''}.`
                     : 'Nothing to plan: no free time left, or every open task already has a block.';
             },
 
             undo() {
-                this.$store.todos.removeScheduledItems(this.lastPlan);
-                this.result = `Removed ${this.lastPlan.length} planned ${this.lastPlan.length === 1 ? 'block' : 'blocks'}.`;
-                this.lastPlan = [];
+                const removed = this.$store.todos.undoAutoPlan(this.lastPlan);
+                this.result = `Removed ${removed} planned ${removed === 1 ? 'block' : 'blocks'}.`;
+                this.lastPlan = null;
             }
         }));
     });

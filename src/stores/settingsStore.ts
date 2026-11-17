@@ -1,6 +1,7 @@
 import { ALARM_SOUNDS, playAlarmSound, type AlarmSound } from "../lib/sounds";
 import { permission, requestPermission } from "../lib/notifications";
 import { loadJson, saveJson } from "../lib/storage";
+import { applyAccentFavicon } from "../lib/favicon";
 
 // Preferences, saved under "settings" in localStorage. The inline script in
 // Layout.astro applies accent, font, and text size before the page paints;
@@ -301,6 +302,7 @@ export function initSettingsStore() {
       root.dataset.textSize = this.textSize;
       root.dataset.nav = this.navLayout;
       root.dataset.sidebar = this.sidebarCollapsed ? "collapsed" : "open";
+      applyAccentFavicon();
     },
 
     playAlarm(sound?: AlarmSound): void {
