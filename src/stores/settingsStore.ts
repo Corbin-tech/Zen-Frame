@@ -108,6 +108,15 @@ export const ZEN_BACKGROUNDS = [
   { id: "sakura", label: "Sakura", hint: "Cherry blossoms drifting" }
 ] as const;
 
+// When confetti fires in Zen mode: what finishing a task has to wrap up. Smallest first;
+// src/lib/confetti.ts fires for the chosen milestone and every bigger one. Unclustered tasks
+// count as one cluster.
+export const CONFETTI_TRIGGERS = [
+  { id: "task", label: "Every task" },
+  { id: "cluster", label: "Every cluster" },
+  { id: "all", label: "All done" }
+] as const;
+
 // How many months of "seen" monthly stories to remember
 const SEEN_MONTHS_KEPT = 24;
 
@@ -120,12 +129,15 @@ type TextSize = typeof TEXT_SIZES[number]["id"];
 type TimerStyle = typeof TIMER_STYLES[number]["id"];
 type NavLayout = typeof NAV_LAYOUTS[number]["id"];
 type ZenBackground = typeof ZEN_BACKGROUNDS[number]["id"];
+export type Milestone = typeof CONFETTI_TRIGGERS[number]["id"];
 
 interface Settings {
   name: string;
   accent: Accent;
   font: Font;
   textSize: TextSize;
+  confetti: boolean;
+  confettiTrigger: Milestone;
   navLayout: NavLayout;
   sidebarCollapsed: boolean; // Sidebar shows icons only
   showQuotes: boolean;
@@ -153,6 +165,8 @@ const DEFAULTS: Settings = {
   accent: "teal",
   font: "inter",
   textSize: "md",
+  confetti: true,
+  confettiTrigger: "cluster",
   navLayout: "top",
   sidebarCollapsed: false,
   showQuotes: true,
@@ -207,6 +221,8 @@ function loadSettings(): Settings {
     accent: pick(saved.accent, ACCENTS, DEFAULTS.accent),
     font: pick(saved.font, FONTS, DEFAULTS.font),
     textSize: pick(saved.textSize, TEXT_SIZES, DEFAULTS.textSize),
+    confetti: flag(saved.confetti, DEFAULTS.confetti),
+    confettiTrigger: pick(saved.confettiTrigger, CONFETTI_TRIGGERS, DEFAULTS.confettiTrigger),
     navLayout: pick(saved.navLayout, NAV_LAYOUTS, DEFAULTS.navLayout),
     sidebarCollapsed: flag(saved.sidebarCollapsed, DEFAULTS.sidebarCollapsed),
     showQuotes: flag(saved.showQuotes, DEFAULTS.showQuotes),
@@ -237,6 +253,7 @@ export function initSettingsStore() {
     accents: ACCENTS,
     fonts: FONTS,
     textSizes: TEXT_SIZES,
+    confettiTriggers: CONFETTI_TRIGGERS,
     navLayouts: NAV_LAYOUTS,
     timerStyles: TIMER_STYLES,
     dashboardWidgets: DASHBOARD_WIDGETS,

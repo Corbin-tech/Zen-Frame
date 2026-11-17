@@ -1,6 +1,7 @@
 import { toDateKey, fromDateKey, addDays, minutesNow } from "../lib/dates";
 import { planTasks, type AvailabilityWindow } from "../lib/autoPlan";
 import { loadJson, saveJson } from "../lib/storage";
+import type { Milestone } from "./settingsStore";
 
 export interface Todo {
   id: string;
@@ -391,6 +392,12 @@ function createTodosStore() {
       if (todo.completed) todo.startedAt = undefined;
       todo.updatedAt = now;
       this.saveTodos();
+    },
+
+    // The biggest thing a just-finished task wraps up: every open task, its cluster, or only itself
+    milestoneOf(task: Todo): Milestone {
+      if (!this.openTasks.length) return "all";
+      return this.siblingsOf(task).every(item => item.completed) ? "cluster" : "task";
     },
 
     // Set completion with toggleTodo, not here, so history stays in step.

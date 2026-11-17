@@ -82,9 +82,6 @@ const contentSecurityPolicy = [
 			import { notify, startReminders } from '../lib/notifications';
 			import { registerTaskDragDrop } from '../scripts/taskDragDrop.js';
 			import { dates } from '../lib/dates';
-			import JSConfetti from 'js-confetti';
-
-			window.jsConfetti = new JSConfetti();
 
 			document.addEventListener('alpine:init', () => {
 				window.Alpine.store('theme', initThemeStore());
