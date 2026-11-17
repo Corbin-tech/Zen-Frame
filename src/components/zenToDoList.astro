@@ -1,4 +1,6 @@
 <script>
+    import { celebrate } from '../lib/confetti';
+
     document.addEventListener('alpine:init', () => {
         Alpine.data('zenTodoList', () => ({
             get tasks() {
@@ -62,6 +64,8 @@
                 if (!current) return;
 
                 this.$store.todos.toggleTodo(current.id);
+                // Confetti is for Zen mode only
+                celebrate(this.$store.todos.milestoneOf(current));
             },
             
             skipTask() {

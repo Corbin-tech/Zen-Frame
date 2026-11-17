@@ -171,11 +171,35 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
                         </template>
                     </div>
                 </div>
+            </section>
 
+            <!-- Zen mode: the only place its options are changed. Zen mode's Customize button opens the panel here. -->
+            <section class={`${section} scroll-mt-6`} data-settings-section="zen">
+                <h3 class={sectionTitle}>Zen mode</h3>
+                <template x-for="option in $store.settings.zenOptions" :key="option.key">
+                    <label class="flex items-start justify-between gap-4 cursor-pointer">
+                        <span>
+                            <span class={label} x-text="option.label"></span>
+                            <span class="block text-xs text-gray-500 dark:text-gray-400" x-text="option.hint"></span>
+                        </span>
+                        <span class="relative shrink-0 mt-0.5">
+                            <input
+                                type="checkbox"
+                                role="switch"
+                                class="peer sr-only"
+                                x-bind:name="`settings-${option.key}`"
+                                x-bind:checked="$store.settings[option.key]"
+                                x-on:change="$store.settings.update({ [option.key]: $event.target.checked })"
+                            />
+                            <span class="block w-11 h-6 rounded-full bg-gray-200 dark:bg-slate-700 peer-checked:bg-teal-600 peer-focus-visible:ring-2 peer-focus-visible:ring-teal-500 peer-focus-visible:ring-offset-2 transition-colors"></span>
+                            <span class="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-5"></span>
+                        </span>
+                    </label>
+                </template>
                 <label for="settings-confetti" class="flex items-start justify-between gap-4 cursor-pointer">
                     <span>
                         <span class={label}>Confetti</span>
-                        <span class="block text-xs text-gray-500 dark:text-gray-400">A burst in your color scheme when you finish tasks. Off when your device asks for reduced motion.</span>
+                        <span class="block text-xs text-gray-500 dark:text-gray-400">A burst in your color scheme when you finish a task here. Off when your device asks for reduced motion.</span>
                     </span>
                     <span class="relative shrink-0 mt-0.5">
                         <input
@@ -208,31 +232,6 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
                     </div>
                     <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">A cluster counts as finished when its last open task is done. Tasks outside a cluster count as one group.</p>
                 </div>
-            </section>
-
-            <!-- Zen mode: the only place its options are changed. Zen mode's Customize button opens the panel here. -->
-            <section class={`${section} scroll-mt-6`} data-settings-section="zen">
-                <h3 class={sectionTitle}>Zen mode</h3>
-                <template x-for="option in $store.settings.zenOptions" :key="option.key">
-                    <label class="flex items-start justify-between gap-4 cursor-pointer">
-                        <span>
-                            <span class={label} x-text="option.label"></span>
-                            <span class="block text-xs text-gray-500 dark:text-gray-400" x-text="option.hint"></span>
-                        </span>
-                        <span class="relative shrink-0 mt-0.5">
-                            <input
-                                type="checkbox"
-                                role="switch"
-                                class="peer sr-only"
-                                x-bind:name="`settings-${option.key}`"
-                                x-bind:checked="$store.settings[option.key]"
-                                x-on:change="$store.settings.update({ [option.key]: $event.target.checked })"
-                            />
-                            <span class="block w-11 h-6 rounded-full bg-gray-200 dark:bg-slate-700 peer-checked:bg-teal-600 peer-focus-visible:ring-2 peer-focus-visible:ring-teal-500 peer-focus-visible:ring-offset-2 transition-colors"></span>
-                            <span class="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-5"></span>
-                        </span>
-                    </label>
-                </template>
                 <div>
                     <p class={`${label} mb-2`}>Background</p>
                     <div class="grid grid-cols-2 sm:grid-cols-3 gap-2" role="group" aria-label="Zen mode background">

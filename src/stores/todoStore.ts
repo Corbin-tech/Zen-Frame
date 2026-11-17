@@ -1,7 +1,6 @@
 import { toDateKey, fromDateKey, addDays, minutesNow } from "../lib/dates";
 import { planTasks, type AvailabilityWindow } from "../lib/autoPlan";
 import { loadJson, saveJson } from "../lib/storage";
-import { celebrate } from "../lib/confetti";
 import type { Milestone } from "./settingsStore";
 
 export interface Todo {
@@ -379,8 +378,6 @@ function createTodosStore() {
       if (todo.completed) todo.startedAt = undefined;
       todo.updatedAt = now;
       this.saveTodos();
-      // Every way to finish a task comes through here, so confetti fires once for each
-      if (todo.completed && !todo.isCluster) celebrate(this.milestoneOf(todo));
     },
 
     // The biggest thing a just-finished task wraps up: every open task, its cluster, or only itself

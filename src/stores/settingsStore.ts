@@ -107,8 +107,9 @@ export const ZEN_BACKGROUNDS = [
   { id: "sakura", label: "Sakura", hint: "Cherry blossoms drifting" }
 ] as const;
 
-// When confetti fires: what finishing a task has to wrap up. Smallest first; src/lib/confetti.ts
-// fires for the chosen milestone and every bigger one. Unclustered tasks count as one cluster.
+// When confetti fires in Zen mode: what finishing a task has to wrap up. Smallest first;
+// src/lib/confetti.ts fires for the chosen milestone and every bigger one. Unclustered tasks
+// count as one cluster.
 export const CONFETTI_TRIGGERS = [
   { id: "task", label: "Every task" },
   { id: "cluster", label: "Every cluster" },
