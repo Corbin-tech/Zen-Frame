@@ -24,8 +24,10 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-2 rou
     class="space-y-6"
     x-on:pointermove.window="onPointerMove($event)"
     x-on:pointerup.window="onPointerUp()"
-    x-on:pointercancel.window="drag = null"
-    x-on:keydown.escape.window="showModal && closeModal()"
+    x-on:pointercancel.window="resetDrag()"
+    x-on:blur.window="resetDrag()"
+    x-on:keydown.escape.window="onEscape()"
+    x-on:overlay-opened.window="if (showModal && $event.detail.name !== 'schedule') { $event.detail.opener = opener; closeModal(false); }"
 >
     <!-- Header -->
     <header>
@@ -164,7 +166,7 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-2 rou
             </header>
 
             <!-- Timeline -->
-            <div x-ref="scroller" class="max-h-[36rem] overflow-y-auto overscroll-contain">
+            <div x-ref="scroller" tabindex="-1" class="focus:outline-none max-h-[36rem] overflow-y-auto overscroll-contain">
                 <div class="flex py-3 pr-3 select-none">
                     <!-- Hour labels -->
                     <div class="relative w-16 shrink-0" style={`height: ${timelineHeight}px;`} aria-hidden="true">
@@ -528,6 +530,7 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-2 rou
             // Block editor
             showModal: false,
             editingItemId: null,
+            opener: null, // Element to focus again when the editor closes
             selectedTaskId: '',
             query: '',
             newTaskClusterId: '',
@@ -810,6 +813,18 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-2 rou
                 }
             },
 
+            // Cancel a drag without saving and clear any drop highlight
+            resetDrag() {
+                this.drag = null;
+                this.dropPreview = null;
+            },
+
+            // Escape cancels a drag in progress; otherwise it closes the editor
+            onEscape() {
+                if (this.drag) this.resetDrag();
+                else if (this.showModal) this.closeModal();
+            },
+
             onPointerUp() {
                 const drag = this.drag;
                 if (!drag) return;
@@ -922,6 +937,9 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-2 rou
             },
 
             openModal(start, end, item = null, taskId = '') {
+                const opened = { name: 'schedule' };
+                window.dispatchEvent(new CustomEvent('overlay-opened', { detail: opened }));
+                this.opener = opened.opener || document.activeElement;
                 this.editingItemId = item?.id ?? null;
                 this.selectedTaskId = item?.taskId ?? taskId ?? '';
                 this.query = '';
@@ -947,8 +965,12 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-2 rou
                 this.openModal(start, Math.min(start + DEFAULT_LENGTH, DAY_END), null, taskId ?? '');
             },
 
-            closeModal() {
-                this.showModal = false;
+            closeModal(restoreFocus = true) {
+                const opener = this.opener;
+                this.showModal = false; // editingItemId stays until the next open, so the editor doesn't change while it fades out
+                this.opener = null;
+                if (!restoreFocus) return;
+                this.$nextTick(() => (opener?.isConnected && opener.focus ? opener : this.$refs.scroller).focus());
             },
 
             pickFirstMatch() {

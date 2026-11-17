@@ -378,6 +378,7 @@ function createTodosStore() {
       this.saveTodos();
     },
 
+    // Set completion with toggleTodo, not here, so history stays in step.
     updateTask(id: string, updates: Partial<Todo>): void {
       const task = this.find(id);
       if (!task) return;
