@@ -622,10 +622,12 @@ function createTodosStore() {
         ...this.scheduledItems.filter(item => !planIds.has(item.id)),
         ...plan.replaced.filter(item => untouched.has(item.taskId))
       ];
+      // A due date changed or cleared after the plan is the user's choice, so it stays
+      const plannedDate = new Map(plan.blocks.map(block => [block.taskId, block.date]));
       const now = new Date().toISOString();
       for (const { taskId, dueDate } of plan.dueDates) {
         const task = this.find(taskId);
-        if (!task || !untouched.has(taskId)) continue;
+        if (!task || !untouched.has(taskId) || task.dueDate !== plannedDate.get(taskId)) continue;
         task.dueDate = dueDate;
         task.updatedAt = now;
       }
