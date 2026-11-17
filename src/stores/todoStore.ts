@@ -78,6 +78,7 @@ function createTodosStore() {
     scheduledItems: [] as ScheduledItem[],
     planning: { ...DEFAULT_PLANNING } as Planning,
     history: [] as CompletionRecord[],
+    saveTimer: undefined as ReturnType<typeof window.setTimeout> | undefined,
 
     get clusters(): Todo[] {
       return this.items.filter(item => item.isCluster);
@@ -121,12 +122,24 @@ function createTodosStore() {
       this.history = loadJson<CompletionRecord[]>("history", []);
       this.recordExistingCompletions();
       this.recordExistingTicks();
+      // A write that is waiting when the tab is hidden or closed lands before it really goes
+      window.addEventListener("pagehide", () => this.writeTodos());
+      document.addEventListener("visibilitychange", () => { if (document.hidden) this.writeTodos(); });
       // Last: it may save, and saving writes every list, so all of them must be loaded first
       this.giveClustersDistinctColors();
     },
 
-    // Stops at the first failed write, so one full-storage error shows one toast
+    // Writes happen a beat after the change, out of the completing click's frame, and runs of
+    // changes (a drag, a sweep, a plan) share one write. The store stays the source in memory.
     saveTodos(): void {
+      window.clearTimeout(this.saveTimer);
+      this.saveTimer = window.setTimeout(() => this.writeTodos(), 250);
+    },
+
+    writeTodos(): void {
+      window.clearTimeout(this.saveTimer);
+      this.saveTimer = undefined;
+      // Stops at the first failed write, so one full-storage error shows one toast
       void (saveJson("todos", this.items)
         && saveJson("skippedClusters", this.skippedClusters)
         && saveJson("scheduledItems", this.scheduledItems)
