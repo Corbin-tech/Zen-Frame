@@ -967,8 +967,7 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-2 rou
 
             closeModal(restoreFocus = true) {
                 const opener = this.opener;
-                this.showModal = false;
-                this.editingItemId = null;
+                this.showModal = false; // editingItemId stays until the next open, so the editor doesn't change while it fades out
                 this.opener = null;
                 if (!restoreFocus) return;
                 this.$nextTick(() => (opener?.isConnected && opener.focus ? opener : this.$refs.scroller).focus());
