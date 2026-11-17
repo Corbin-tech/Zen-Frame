@@ -177,7 +177,10 @@ export function celebrate(milestone: Milestone): void {
       window.addEventListener("resize", sizeCanvas);
       window.dispatchEvent(new CustomEvent("zen-confetti", { detail: { active: true } }));
     }
-    for (let i = 0; i < PIECES[milestone]; i++) pieces.push(makePiece(pieces.length + i));
+    // Snapshot the count first: pieces.length grows with every push, and makePiece's index
+    // alternates the launch side, so each piece needs its own sequential number
+    const firstIndex = pieces.length;
+    for (let i = 0; i < PIECES[milestone]; i++) pieces.push(makePiece(firstIndex + i));
     if (!running) {
       running = true;
       lastMs = performance.now();

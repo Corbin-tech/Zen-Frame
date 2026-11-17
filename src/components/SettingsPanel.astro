@@ -508,6 +508,8 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
 
             download() {
                 this.error = '';
+                // Store writes wait out a 250ms beat; land them first so nothing recent is missing
+                (window.Alpine.store('todos') as { writeTodos?: () => void } | undefined)?.writeTodos?.();
                 const blob = new Blob([exportBackup()], { type: 'application/json' });
                 const url = URL.createObjectURL(blob);
                 const link = document.createElement('a');
@@ -536,6 +538,8 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
                         this.error = result.error || 'Could not restore backup.';
                         return;
                     }
+                    // Storage now holds the restored lists; reload, but never write ours back over them
+                    (window.Alpine.store('todos') as { suspendWrites?: () => void } | undefined)?.suspendWrites?.();
                     window.location.reload();
                 } catch {
                     this.error = 'Could not read the selected file.';

@@ -79,6 +79,7 @@ function createTodosStore() {
     planning: { ...DEFAULT_PLANNING } as Planning,
     history: [] as CompletionRecord[],
     saveTimer: undefined as ReturnType<typeof window.setTimeout> | undefined,
+    writesSuspended: false,
 
     get clusters(): Todo[] {
       return this.items.filter(item => item.isCluster);
@@ -137,6 +138,7 @@ function createTodosStore() {
     },
 
     writeTodos(): void {
+      if (this.writesSuspended) return; // A restore put newer data in storage than we hold
       window.clearTimeout(this.saveTimer);
       this.saveTimer = undefined;
       // Stops at the first failed write, so one full-storage error shows one toast
@@ -145,6 +147,14 @@ function createTodosStore() {
         && saveJson("scheduledItems", this.scheduledItems)
         && saveJson("planning", this.planning)
         && saveJson("history", this.history));
+    },
+
+    // A backup restore wrote storage directly and the page is about to reload: cancel the
+    // pending save and hold every later write, or unloading would put our stale lists back.
+    suspendWrites(): void {
+      window.clearTimeout(this.saveTimer);
+      this.saveTimer = undefined;
+      this.writesSuspended = true;
     },
 
     // Completed tasks from before the history existed, so their stats aren't lost
