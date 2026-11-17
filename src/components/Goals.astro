@@ -145,14 +145,14 @@ const prompts = [
                     </template>
                 </div>
 
-                <form class="space-y-4" x-on:submit.prevent="saveCheckIn()" x-on:input="dirty = true">
+                <form class="space-y-4" x-on:submit.prevent="saveCheckIn()" x-on:input="saveState = 'dirty'">
                     <div>
                         <p class="text-sm font-medium text-gray-900 dark:text-white mb-2">How was your energy?</p>
                         <div class="flex gap-2" role="radiogroup" aria-label="Energy">
                             <template x-for="level in [1, 2, 3, 4, 5]" :key="level">
                                 <button
                                     type="button"
-                                    x-on:click="draft.energy = level; dirty = true"
+                                    x-on:click="draft.energy = level; saveState = 'dirty'"
                                     class="flex-1 py-2 rounded-lg text-sm font-semibold ring-1 transition-colors"
                                     x-bind:class="draft.energy === level ? 'bg-teal-600 text-white ring-teal-600' : 'ring-black/10 text-gray-500 hover:bg-gray-50 dark:ring-white/10 dark:text-gray-400 dark:hover:bg-slate-700/50'"
                                     role="radio"
@@ -273,8 +273,7 @@ const prompts = [
             newNote: '',
             week: weekOf(),
             draft: null,
-            dirty: false,
-            savedNote: '',
+            saveState: 'clean',
 
             init() {
                 this.draft = { ...this.$store.goals.checkInFor(this.week) };
@@ -316,8 +315,8 @@ const prompts = [
             },
 
             get saveStatus() {
-                if (this.dirty) return 'Unsaved changes';
-                if (this.savedNote) return this.savedNote;
+                if (this.saveState === 'dirty') return 'Unsaved changes';
+                if (this.saveState === 'saved') return 'Saved';
                 const saved = this.$store.goals.checkIns[this.week]?.savedAt;
                 return saved ? `Saved ${dates.daysAgoText(dates.toDateKey(new Date(saved)))}` : '';
             },
@@ -356,17 +355,15 @@ const prompts = [
 
             openWeek(week) {
                 if (week > this.thisWeek || week === this.week) return;
-                if (this.dirty && !confirm('Leave this check-in without saving?')) return;
+                if (this.saveState === 'dirty' && !confirm('Leave this check-in without saving?')) return;
                 this.week = week;
                 this.draft = { ...this.$store.goals.checkInFor(week) };
-                this.dirty = false;
-                this.savedNote = '';
+                this.saveState = 'clean';
             },
 
             saveCheckIn() {
                 this.$store.goals.saveCheckIn({ ...this.draft, week: this.week });
-                this.dirty = false;
-                this.savedNote = 'Saved';
+                this.saveState = 'saved';
             }
         }));
     });

@@ -338,15 +338,15 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-2 rou
                             <li>
                                 <button
                                     type="button"
-                                    x-on:click="selectedTaskId = task.id"
+                                    x-on:click="taskMode = 'existing'; selectedTaskId = task.id"
                                     class="w-full flex items-center gap-2 px-3 py-2 text-left text-sm transition-colors"
-                                    x-bind:class="selectedTaskId === task.id ? 'bg-teal-50 dark:bg-teal-900/30 text-teal-800 dark:text-teal-200' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-700/60'"
-                                    x-bind:aria-pressed="selectedTaskId === task.id"
+                                    x-bind:class="taskMode === 'existing' && selectedTaskId === task.id ? 'bg-teal-50 dark:bg-teal-900/30 text-teal-800 dark:text-teal-200' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-700/60'"
+                                    x-bind:aria-pressed="taskMode === 'existing' && selectedTaskId === task.id"
                                 >
                                     <span class="w-2 h-2 rounded-full shrink-0" x-bind:style="`background-color: ${$store.todos.clusterColor(task.parentId)};`"></span>
                                     <span class="flex-1 min-w-0 truncate" x-text="task.todo"></span>
                                     <span x-show="task.parentId" class="shrink-0 text-xs text-gray-500 dark:text-gray-400" x-text="$store.todos.clusterName(task.parentId)"></span>
-                                    <svg x-show="selectedTaskId === task.id" class="w-4 h-4 shrink-0 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                                    <svg x-show="taskMode === 'existing' && selectedTaskId === task.id" class="w-4 h-4 shrink-0 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
                                 </button>
                             </li>
                         </template>
@@ -355,24 +355,24 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-2 rou
                             <li>
                                 <button
                                     type="button"
-                                    x-on:click="selectedTaskId = cluster.id"
+                                    x-on:click="taskMode = 'existing'; selectedTaskId = cluster.id"
                                     class="w-full flex items-center gap-2 px-3 py-2 text-left text-sm transition-colors"
-                                    x-bind:class="selectedTaskId === cluster.id ? 'bg-teal-50 dark:bg-teal-900/30 text-teal-800 dark:text-teal-200' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-700/60'"
-                                    x-bind:aria-pressed="selectedTaskId === cluster.id"
+                                    x-bind:class="taskMode === 'existing' && selectedTaskId === cluster.id ? 'bg-teal-50 dark:bg-teal-900/30 text-teal-800 dark:text-teal-200' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-700/60'"
+                                    x-bind:aria-pressed="taskMode === 'existing' && selectedTaskId === cluster.id"
                                 >
                                     <span class="w-2.5 h-2.5 rounded shrink-0" x-bind:style="`background-color: ${$store.todos.clusterColor(cluster.id)};`"></span>
                                     <span class="flex-1 min-w-0 truncate font-medium" x-text="cluster.todo"></span>
                                     <span class="shrink-0 text-xs text-gray-500 dark:text-gray-400">Cluster</span>
-                                    <svg x-show="selectedTaskId === cluster.id" class="w-4 h-4 shrink-0 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                                    <svg x-show="taskMode === 'existing' && selectedTaskId === cluster.id" class="w-4 h-4 shrink-0 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
                                 </button>
                             </li>
                         </template>
                         <li x-show="canCreateFromQuery">
                             <button
                                 type="button"
-                                x-on:click="selectedTaskId = NEW_TASK"
+                                x-on:click="taskMode = 'new'; selectedTaskId = ''"
                                 class="w-full flex items-center gap-2 px-3 py-2 text-left text-sm transition-colors"
-                                x-bind:class="selectedTaskId === NEW_TASK ? 'bg-teal-50 dark:bg-teal-900/30 text-teal-800 dark:text-teal-200' : 'text-teal-700 dark:text-teal-300 hover:bg-gray-50 dark:hover:bg-slate-700/60'"
+                                x-bind:class="taskMode === 'new' ? 'bg-teal-50 dark:bg-teal-900/30 text-teal-800 dark:text-teal-200' : 'text-teal-700 dark:text-teal-300 hover:bg-gray-50 dark:hover:bg-slate-700/60'"
                             >
                                 <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v12m6-6H6" /></svg>
                                 <span class="truncate" x-text="`Create “${query.trim()}”`"></span>
@@ -382,7 +382,7 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-2 rou
                     <p x-show="!pickerTasks.length && !pickerClusters.length && !canCreateFromQuery" class="text-sm text-gray-500 dark:text-gray-400">Type a name to create a new task.</p>
 
                     <!-- Options for a new task -->
-                    <div x-show="selectedTaskId === NEW_TASK" class="grid grid-cols-2 gap-3 pt-1">
+                    <div x-show="taskMode === 'new'" class="grid grid-cols-2 gap-3 pt-1">
                         <div>
                             <label for="new-task-cluster" class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Cluster</label>
                             <select id="new-task-cluster" x-model="newTaskClusterId" class="block w-full rounded-lg border-gray-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-sm focus:border-teal-500 focus:ring-teal-500">
@@ -507,7 +507,6 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-2 rou
     import { DAY_START, DAY_END, HOUR_HEIGHT, SLOT_MINUTES } from '../lib/timeline';
     import { windowsOn } from '../lib/autoPlan';
 
-    const NEW_TASK = '__new__';
     const DEFAULT_LENGTH = 60;
     const DRAG_THRESHOLD_PX = 4;
 
@@ -516,7 +515,6 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-2 rou
 
     document.addEventListener('alpine:init', () => {
         window.Alpine.data('schedule', () => ({
-            NEW_TASK,
             now: new Date(),
             selectedDate: dates.toDateKey(),
             viewMonth: new Date().getMonth(),
@@ -531,6 +529,7 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-2 rou
             showModal: false,
             editingItemId: null,
             opener: null, // Element to focus again when the editor closes
+            taskMode: 'existing',
             selectedTaskId: '',
             query: '',
             newTaskClusterId: '',
@@ -821,14 +820,14 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-2 rou
 
             // Escape cancels a drag in progress; otherwise it closes the editor
             onEscape() {
-                if (this.drag) this.resetDrag();
+                if (this.drag || this.dropPreview) this.resetDrag();
                 else if (this.showModal) this.closeModal();
             },
 
             onPointerUp() {
                 const drag = this.drag;
+                this.resetDrag();
                 if (!drag) return;
-                this.drag = null;
 
                 const item = drag.itemId ? this.itemsForDay.find(entry => entry.id === drag.itemId) : null;
 
@@ -854,7 +853,7 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-2 rou
             // A task from the list was dropped on the timeline
             scheduleDroppedTask(taskId, clientY) {
                 const { start, end } = this.rangeAt(clientY);
-                this.dropPreview = null;
+                this.resetDrag();
                 this.$store.todos.saveScheduledItem({
                     id: crypto.randomUUID(),
                     taskId,
@@ -867,7 +866,7 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-2 rou
             // --- Block editor ---
 
             get selectedTask() {
-                return this.selectedTaskId && this.selectedTaskId !== NEW_TASK
+                return this.taskMode === 'existing' && this.selectedTaskId
                     ? this.$store.todos.find(this.selectedTaskId) ?? null
                     : null;
             },
@@ -933,7 +932,7 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-2 rou
             get canSave() {
                 if (this.duration <= 0 || this.repeatError) return false;
                 if (this.editingItemId) return true;
-                return this.selectedTaskId === NEW_TASK ? this.query.trim() !== '' : Boolean(this.selectedTask);
+                return this.taskMode === 'new' ? this.query.trim() !== '' : Boolean(this.selectedTask);
             },
 
             openModal(start, end, item = null, taskId = '') {
@@ -941,6 +940,7 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-2 rou
                 window.dispatchEvent(new CustomEvent('overlay-opened', { detail: opened }));
                 this.opener = opened.opener || document.activeElement;
                 this.editingItemId = item?.id ?? null;
+                this.taskMode = 'existing';
                 this.selectedTaskId = item?.taskId ?? taskId ?? '';
                 this.query = '';
                 this.newTaskClusterId = '';
@@ -975,8 +975,13 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-2 rou
 
             pickFirstMatch() {
                 const match = this.pickerTasks[0] ?? this.pickerClusters[0];
-                if (match) this.selectedTaskId = match.id;
-                else if (this.canCreateFromQuery) this.selectedTaskId = NEW_TASK;
+                if (match) {
+                    this.taskMode = 'existing';
+                    this.selectedTaskId = match.id;
+                } else if (this.canCreateFromQuery) {
+                    this.taskMode = 'new';
+                    this.selectedTaskId = '';
+                }
             },
 
             setDuration(minutes) {
@@ -994,7 +999,7 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-2 rou
                 if (!this.canSave) return;
 
                 let taskId = this.selectedTaskId;
-                if (taskId === NEW_TASK) {
+                if (this.taskMode === 'new') {
                     taskId = this.$store.todos.addTodo(this.query.trim(), {
                         parentId: this.newTaskClusterId || null,
                         dueDate: this.newTaskDueDate || null

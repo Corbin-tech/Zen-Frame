@@ -7,6 +7,7 @@ export const POMO_DURATIONS = {
 } as const;
 
 export type PomoPreset = keyof typeof POMO_DURATIONS;
+export type PomoStatus = "idle" | "running" | "paused";
 
 export interface FocusSession {
   completedAt: string;
@@ -55,6 +56,15 @@ export function initPomoStore() {
       });
     },
 
+    get started(): boolean {
+      return this.timeLeft < this.totalTime;
+    },
+
+    get status(): PomoStatus {
+      if (this.isRunning) return "running";
+      return this.started ? "paused" : "idle";
+    },
+
     get percentComplete(): number {
       return 100 - (this.timeLeft / this.totalTime * 100);
     },
@@ -77,6 +87,7 @@ export function initPomoStore() {
 
     startTimer(): void {
       if (this.isRunning) return;
+      if (this.timeLeft <= 0) this.resetTimer();
       this.isRunning = true;
 
       // Count down from a fixed end time so throttled background tabs stay accurate

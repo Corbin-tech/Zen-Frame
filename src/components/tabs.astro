@@ -62,7 +62,7 @@ const tabs = [
 <div
     x-data="tabs"
     x-cloak
-    @change-tab.window="activeTab = $event.detail.tab"
+    @change-tab.window="setTab($event.detail?.tab)"
     class="w-full"
 >
     <!-- Sidebar: the same tabs down the left edge, chosen in Settings. Screens 1280px and wider. -->
@@ -129,7 +129,7 @@ const tabs = [
         <!-- Timer status (shows only when a timer is running or paused) -->
         <button
             type="button"
-            x-show="$store.pomoState.isRunning || $store.pomoState.timeLeft < $store.pomoState.totalTime"
+            x-show="$store.pomoState.status !== 'idle'"
             x-on:click="activeTab = 'pomodoro'"
             :aria-label="$store.pomoState.isRunning ? 'Pomodoro timer running. Open the timer.' : 'Pomodoro timer paused. Open the timer.'"
             class="flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-white/80 dark:bg-slate-800/80 ring-1 ring-black/5 dark:ring-white/10 text-sm font-semibold tabular-nums"
@@ -210,7 +210,7 @@ const tabs = [
             <!-- Timer status (shows only when a timer is running or paused) -->
             <button
                 type="button"
-                x-show="$store.pomoState.isRunning || $store.pomoState.timeLeft < $store.pomoState.totalTime"
+                x-show="$store.pomoState.status !== 'idle'"
                 x-transition.opacity
                 x-on:click="activeTab = 'pomodoro'"
                 :aria-label="$store.pomoState.isRunning ? 'Pomodoro timer running. Open the timer.' : 'Pomodoro timer paused. Open the timer.'"
@@ -317,14 +317,26 @@ const tabs = [
 <script>
     import { loadString, saveString } from '../lib/storage';
 
+    const VALID_TABS = new Set(['dashboard', 'taskmanager', 'board', 'schedule', 'goals', 'insights', 'pomodoro', 'zenmode']);
+    const safeTab = (tab) => (VALID_TABS.has(tab) ? tab : 'dashboard');
+
     document.addEventListener('alpine:init', () => {
         window.Alpine.data('tabs', () => ({
-            activeTab: loadString('activeTab') || 'dashboard',
+            activeTab: safeTab(loadString('activeTab')),
             indicator: { left: 0, width: 0 },
+
+            setTab(tab) {
+                if (VALID_TABS.has(tab)) this.activeTab = tab;
+            },
 
             init() {
                 this.$watch('activeTab', (value) => {
-                    saveString('activeTab', value);
+                    const valid = safeTab(value);
+                    if (valid !== value) {
+                        this.activeTab = valid;
+                        return;
+                    }
+                    saveString('activeTab', valid);
                     this.$nextTick(() => this.placeIndicator());
                 });
                 // Labels and fonts change tab widths, so measure whenever the track resizes
@@ -333,7 +345,7 @@ const tabs = [
             },
 
             placeIndicator() {
-                const button = this.$refs.track.querySelector(`[data-tab="${this.activeTab}"]`);
+                const button = this.$refs.track.querySelector(`[data-tab="${CSS.escape(this.activeTab)}"]`);
                 if (!button) return;
                 this.indicator = { left: button.offsetLeft, width: button.offsetWidth };
                 // Scrolls the track only, never the page. The track's scroll-smooth class eases it,

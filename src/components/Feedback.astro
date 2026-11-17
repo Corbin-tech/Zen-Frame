@@ -31,7 +31,7 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
         aria-labelledby="feedback-title"
     >
         <!-- Form -->
-        <form x-show="!sent" x-on:submit.prevent="submit()" class="p-6 space-y-5">
+        <form x-show="step === 'form'" x-on:submit.prevent="submit()" class="p-6 space-y-5">
             <div class="flex items-start justify-between gap-4">
                 <div>
                     <h2 id="feedback-title" class="text-lg font-semibold text-gray-900 dark:text-white">Send feedback</h2>
@@ -117,7 +117,7 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
         </form>
 
         <!-- Done -->
-        <div x-show="sent" class="p-8 text-center">
+        <div x-show="step === 'sent'" class="p-8 text-center">
             <span class="mx-auto grid place-items-center w-12 h-12 rounded-full bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" /></svg>
             </span>
@@ -149,7 +149,7 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
             ratingWords: RATING_WORDS,
             email: '',
             isOpen: false,
-            sent: false,
+            step: 'form',
             kind: 'idea',
             rating: 0,
             message: '',
@@ -162,7 +162,7 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
             },
 
             open() {
-                this.sent = false;
+                this.step = 'form';
                 const opened = { name: 'feedback' };
                 window.dispatchEvent(new CustomEvent('overlay-opened', { detail: opened }));
                 this.returnFocus = opened.opener || document.activeElement;
@@ -209,7 +209,7 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
                         return;
                     }
                 }
-                this.sent = true;
+                this.step = 'sent';
                 this.message = '';
                 this.rating = 0;
             }

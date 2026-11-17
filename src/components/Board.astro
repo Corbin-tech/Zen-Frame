@@ -131,7 +131,7 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-1 rou
                 <ol class="flex-1 space-y-2 min-h-[7rem]">
                     <template x-for="task in visibleTasksIn(column.id)" :key="task.id">
                         <li
-                            x-data="{ edge: null, editing: false, details: false }"
+                            x-data="{ edge: null, mode: 'view' }"
                             tabindex="0"
                             x-bind:data-task-id="task.id"
                             x-bind:aria-label="`${task.todo || 'Untitled task'}. Press [ or ] to move it.`"
@@ -168,15 +168,15 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-1 rou
                                     <!-- Title: double-click to rename -->
                                     <div class="min-w-0 flex-1">
                                         <p
-                                            x-show="!editing"
-                                            x-on:dblclick="editing = true; $nextTick(() => $refs.title.focus())"
+                                            x-show="mode !== 'rename'"
+                                            x-on:dblclick="mode = 'rename'; $nextTick(() => $refs.title.focus())"
                                             class="text-sm font-medium leading-snug break-words"
                                             x-bind:class="task.completed ? 'line-through text-gray-500 dark:text-gray-400' : 'text-gray-900 dark:text-gray-100'"
                                             x-text="task.todo || 'Untitled task'"
                                             title="Double-click to rename"
                                         ></p>
                                         <textarea
-                                            x-show="editing"
+                                            x-show="mode === 'rename'"
                                             x-cloak
                                             x-ref="title"
                                             name="board-task-name"
@@ -185,7 +185,7 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-1 rou
                                             x-model="task.todo"
                                             x-on:keydown.enter.prevent="$el.blur()"
                                             x-on:keydown.escape="$el.blur()"
-                                            x-on:blur="editing = false; $store.todos.updateTask(task.id, { todo: task.todo })"
+                                            x-on:blur="mode = 'view'; $store.todos.updateTask(task.id, { todo: task.todo })"
                                             class="block w-full p-0 text-sm font-medium leading-snug bg-transparent border-none resize-none focus:ring-0 text-gray-900 dark:text-gray-100"
                                         ></textarea>
                                     </div>
@@ -225,7 +225,7 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-1 rou
                             </div>
 
                             <!-- Quick edit: due date and cluster -->
-                            <div x-show="details" x-cloak class="px-4 pb-3">
+                            <div x-show="mode === 'details'" x-cloak class="px-4 pb-3">
                                 <div class="pl-7 grid grid-cols-2 gap-2">
                                     <label class="text-[11px] font-medium text-gray-500 dark:text-gray-400">
                                         Due
@@ -251,7 +251,7 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-1 rou
                             <!-- Card actions: shown on hover or keyboard focus -->
                             <!-- Touch screens have no hover, so the actions stay visible there -->
                             <div class="absolute top-2 right-2 flex items-center gap-0.5 rounded-lg bg-white/90 dark:bg-slate-700/90 backdrop-blur-sm opacity-0 group-hover/card:opacity-100 group-focus/card:opacity-100 focus-within:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity">
-                                <button type="button" class={iconButton} x-on:click="details = !details" x-bind:aria-expanded="details" x-bind:aria-label="`Edit due date and cluster for ${task.todo || 'task'}`" title="Due date and cluster">
+                                <button type="button" class={iconButton} x-on:click="mode = mode === 'details' ? 'view' : 'details'" x-bind:aria-expanded="mode === 'details'" x-bind:aria-label="`Edit due date and cluster for ${task.todo || 'task'}`" title="Due date and cluster">
                                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                                 </button>
                                 <!-- With a mouse, drag or [ and ] move cards; touch screens keep the arrows -->

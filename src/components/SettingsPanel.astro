@@ -15,7 +15,7 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
     x-data="{ open: false, returnFocus: null, close(restoreFocus = true) { this.open = false; if (restoreFocus && this.returnFocus?.isConnected) this.returnFocus.focus(); this.returnFocus = null; } }"
     x-init="$watch('open', value => window.dispatchEvent(new CustomEvent('settings-panel', { detail: { open: value } })))"
     x-on:overlay-opened.window="if (open && $event.detail.name !== 'settings') { $event.detail.opener = returnFocus; close(false); }"
-    x-on:open-settings.window="if (!open) { const opened = { name: 'settings' }; window.dispatchEvent(new CustomEvent('overlay-opened', { detail: opened })); returnFocus = opened.opener || document.activeElement; } open = true; const section = $event.detail?.section; $nextTick(() => { $refs.close.focus(); if (section) $el.querySelector(`[data-settings-section='${section}']`)?.scrollIntoView({ block: 'start' }); })"
+    x-on:open-settings.window="if (!open) { const opened = { name: 'settings' }; window.dispatchEvent(new CustomEvent('overlay-opened', { detail: opened })); returnFocus = opened.opener || document.activeElement; } open = true; const section = $event.detail?.section; $nextTick(() => { $refs.close.focus(); if (section && /^[a-z0-9-]+$/i.test(section)) $el.querySelector(`[data-settings-section='${section}']`)?.scrollIntoView({ block: 'start' }); })"
     x-on:keydown.escape.window="if (open) close()"
 >
     <!-- Backdrop -->
@@ -450,7 +450,7 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
         <footer class="flex items-center justify-between gap-4 px-6 py-4 border-t border-black/5 dark:border-white/10">
             <button
                 type="button"
-                x-on:click="close(); $dispatch('open-feedback')"
+                x-on:click="$dispatch('open-feedback')"
                 class="text-sm font-medium text-teal-700 dark:text-teal-400 hover:text-teal-800 dark:hover:text-teal-300 transition-colors"
             >Send feedback</button>
             <button

@@ -374,12 +374,13 @@ function createTodosStore() {
       }
       todo.completed = !todo.completed;
       todo.completedAt = todo.completed ? now : undefined;
+      if (todo.completed) todo.startedAt = undefined;
       todo.updatedAt = now;
       this.saveTodos();
     },
 
     // Set completion with toggleTodo, not here, so history stays in step.
-    updateTask(id: string, updates: Partial<Todo>): void {
+    updateTask(id: string, updates: Partial<Omit<Todo, "id" | "completed" | "completedAt" | "isCluster">>): void {
       const task = this.find(id);
       if (!task) return;
 
