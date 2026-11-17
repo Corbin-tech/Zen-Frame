@@ -473,11 +473,7 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-1 rou
 
             // Dropped on a column's empty space (no target): change column, keep list position
             move(taskId, column, targetId, after = false) {
-                const task = this.$store.todos.find(taskId);
-                if (!task) return;
-                const finishing = column === 'done' && !task.completed;
                 this.$store.todos.moveToColumn(taskId, column, targetId, after);
-                if (finishing) this.celebrate();
             },
 
             step(task, direction) {
@@ -509,14 +505,6 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-1 rou
                     ...(column === 'doing' ? { startedAt: new Date().toISOString() } : {})
                 });
                 this.newTask = '';
-            },
-
-            celebrate() {
-                if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-                window.jsConfetti?.addConfetti({
-                    confettiColors: ['#0d9488', '#14b8a6', '#2dd4bf', '#f59e0b', '#FFFFFF'],
-                    confettiNumber: 60
-                });
             }
         }));
     });

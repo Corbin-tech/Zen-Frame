@@ -61,18 +61,7 @@
                 const current = this.currentTodo;
                 if (!current) return;
 
-                const isLastTask = !this.tasks.some(task => !task.completed && task.id !== current.id);
                 this.$store.todos.toggleTodo(current.id);
-
-                if (isLastTask) {
-                    const isDarkMode = document.documentElement.classList.contains('dark');
-                    window.jsConfetti.addConfetti({
-                        confettiColors: isDarkMode 
-                            ? ['#0d9488', '#14b8a6', '#2dd4bf', '#99f6e4', '#FFFFFF']
-                            : ['#0d9488', '#14b8a6', '#2dd4bf', '#FFFFFF', '#F3F4F6'],
-                        confettiNumber: 200
-                    });
-                }
             },
             
             skipTask() {
