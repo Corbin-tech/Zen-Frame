@@ -14,7 +14,8 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
 <div
     x-data="{ open: false, returnFocus: null, close(restoreFocus = true) { this.open = false; if (restoreFocus && this.returnFocus?.isConnected) this.returnFocus.focus(); this.returnFocus = null; } }"
     x-init="$watch('open', value => window.dispatchEvent(new CustomEvent('settings-panel', { detail: { open: value } })))"
-    x-on:open-settings.window="if (!open) returnFocus = document.activeElement; open = true; const section = $event.detail?.section; $nextTick(() => { $refs.close.focus(); if (section) $el.querySelector(`[data-settings-section='${section}']`)?.scrollIntoView({ block: 'start' }); })"
+    x-on:overlay-opened.window="if (open && $event.detail.name !== 'settings') { $event.detail.opener = returnFocus; close(false); }"
+    x-on:open-settings.window="if (!open) { const opened = { name: 'settings' }; window.dispatchEvent(new CustomEvent('overlay-opened', { detail: opened })); returnFocus = opened.opener || document.activeElement; } open = true; const section = $event.detail?.section; $nextTick(() => { $refs.close.focus(); if (section) $el.querySelector(`[data-settings-section='${section}']`)?.scrollIntoView({ block: 'start' }); })"
     x-on:keydown.escape.window="if (open) close()"
 >
     <!-- Backdrop -->

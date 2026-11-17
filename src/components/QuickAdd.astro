@@ -7,7 +7,7 @@ const field = 'block w-full rounded-lg border-gray-200 dark:border-slate-700 bg-
 const fieldLabel = 'block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1';
 ---
 
-<div x-data="quickAdd" x-on:open-quick-add.window="show($event.detail)" x-on:keydown.window="shortcut($event)">
+<div x-data="quickAdd" x-on:open-quick-add.window="show($event.detail)" x-on:overlay-opened.window="if (open && $event.detail.name !== 'quick-add') { $event.detail.opener = opener; close(false); }"x-on:keydown.window="shortcut($event)">
     <!-- Backdrop -->
     <div
         x-show="open"
@@ -163,7 +163,9 @@ const fieldLabel = 'block text-xs font-medium text-gray-500 dark:text-gray-400 m
                 this.dueDate = '';
                 this.startNow = false;
                 this.color = this.$store.todos.nextClusterColor();
-                this.opener = document.activeElement;
+                const opened = { name: 'quick-add' };
+                window.dispatchEvent(new CustomEvent('overlay-opened', { detail: opened }));
+                this.opener = opened.opener || document.activeElement;
                 this.open = true;
                 this.$nextTick(() => this.$refs.name.focus());
             },

@@ -11,6 +11,7 @@ const name = data.recapName;
 <div
     x-data="recap"
     x-on:open-recap.window="open($event.detail.month)"
+    x-on:overlay-opened.window="if (isOpen && $event.detail.name !== 'recap') { $event.detail.opener = returnFocus; close(false); }"
     x-on:keydown.window="onKey($event)"
 >
     <div
@@ -296,7 +297,9 @@ const name = data.recapName;
                 this.index = 0;
                 this.progress = 0;
                 this.paused = false;
-                this.returnFocus = document.activeElement;
+                const opened = { name: 'recap' };
+                window.dispatchEvent(new CustomEvent('overlay-opened', { detail: opened }));
+                this.returnFocus = opened.opener || document.activeElement;
                 this.isOpen = true;
                 this.$nextTick(() => this.$refs.story.focus());
 
@@ -312,10 +315,10 @@ const name = data.recapName;
                 }, 100);
             },
 
-            close() {
+            close(restoreFocus = true) {
                 this.isOpen = false;
                 clearInterval(this.timer);
-                this.returnFocus?.focus?.();
+                if (restoreFocus) this.returnFocus?.focus?.();
             },
 
             next() {
