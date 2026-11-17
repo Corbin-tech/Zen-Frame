@@ -8,7 +8,7 @@ interface Props {
 }
 
 const { id } = Astro.props;
-const panel = 'rounded-2xl bg-white/80 dark:bg-slate-800/70 backdrop-blur-sm shadow-sm ring-1 ring-black/5 dark:ring-white/10';
+const panel = 'panel';
 const panelTitle = 'text-base font-semibold text-gray-900 dark:text-white';
 const linkButton = 'text-sm font-medium text-teal-700 dark:text-teal-400 hover:text-teal-800 dark:hover:text-teal-300 transition-colors';
 const checkbox = 'w-4 h-4 shrink-0 rounded border-gray-300 dark:border-slate-500 text-teal-600 focus:ring-teal-500 dark:bg-slate-700 cursor-pointer';
@@ -171,7 +171,7 @@ const checkbox = 'w-4 h-4 shrink-0 rounded border-gray-300 dark:border-slate-500
                         <div
                             class="w-6 max-w-[70%] rounded-t-md transition-[height,opacity] duration-500"
                             x-bind:class="[
-                                day.isToday ? 'bg-gradient-to-t from-teal-700 to-teal-400 dark:from-teal-600 dark:to-teal-300 shadow-[0_0_16px_rgb(20_184_166/0.35)]' : 'bg-gradient-to-t from-teal-600/50 to-teal-400/50 dark:from-teal-500/40 dark:to-teal-300/50',
+                                day.isToday ? 'bg-teal-600 dark:bg-teal-400' : 'bg-teal-600/30 dark:bg-teal-400/30',
                                 hoveredDay && hoveredDay.date === day.date ? 'opacity-80' : ''
                             ]"
                             x-bind:style="`height: ${weekMax ? day.count / weekMax * 80 : 0}%;`"
@@ -193,11 +193,9 @@ const checkbox = 'w-4 h-4 shrink-0 rounded border-gray-300 dark:border-slate-500
 )}
 
 {id === 'upnext' && (
-    <section class="relative overflow-hidden isolate rounded-2xl p-5 shadow-lg shadow-teal-900/20 ring-1 ring-white/10 bg-gradient-to-br from-teal-600 via-teal-700 to-slate-800 text-white">
-        <!-- Decorative glows -->
-        <span class="up-next-glow absolute -z-10 -top-16 -right-10 w-48 h-48 rounded-full bg-teal-300/30 blur-3xl" aria-hidden="true"></span>
-        <span class="absolute -z-10 -bottom-20 -left-12 w-48 h-48 rounded-full bg-indigo-400/25 blur-3xl" aria-hidden="true"></span>
-        <p class="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-teal-100">
+    <section class="relative overflow-hidden isolate rounded-2xl p-5 ring-1 ring-inset ring-white/10 bg-teal-700 dark:bg-teal-800 text-white">
+        <span class="ripples text-white" aria-hidden="true"></span>
+        <p class="flex items-center gap-1.5 text-sm font-medium text-teal-100">
             <span x-show="nextTask?.startedAt" class="w-1.5 h-1.5 rounded-full bg-amber-300" aria-hidden="true"></span>
             <span x-text="nextTask?.startedAt ? 'In progress' : 'Up next'"></span>
         </p>
@@ -367,10 +365,10 @@ const checkbox = 'w-4 h-4 shrink-0 rounded border-gray-300 dark:border-slate-500
 )}
 
 {id === 'quote' && (
-    <section class="relative overflow-hidden isolate rounded-2xl p-5 bg-white/80 dark:bg-slate-800/70 backdrop-blur-sm shadow-sm ring-1 ring-black/5 dark:ring-white/10">
-        <span class="absolute -z-10 -top-10 -right-8 w-40 h-40 rounded-full bg-teal-400/15 blur-3xl" aria-hidden="true"></span>
-        <p class="text-xs font-semibold uppercase tracking-wider text-teal-700 dark:text-teal-400">Quote of the day</p>
-        <blockquote class="mt-2 text-lg font-medium leading-snug text-gray-900 dark:text-white text-balance" x-text="quoteOfDay.text"></blockquote>
+    <section class={`${panel} relative p-5 pl-12`}>
+        <span class="absolute left-4 top-3 font-serif text-5xl leading-none text-teal-600/60 dark:text-teal-400/60 select-none" aria-hidden="true">&ldquo;</span>
+        <h2 class="text-sm font-medium text-gray-500 dark:text-gray-400">Quote of the day</h2>
+        <blockquote class="mt-1.5 font-serif text-lg leading-snug text-gray-900 dark:text-white text-balance" x-text="quoteOfDay.text"></blockquote>
         <p x-show="quoteOfDay.author" class="mt-2 text-sm text-gray-500 dark:text-gray-400" x-text="quoteOfDay.author ? `— ${quoteOfDay.author}` : ''"></p>
     </section>
 )}
@@ -399,13 +397,4 @@ const checkbox = 'w-4 h-4 shrink-0 rounded border-gray-300 dark:border-slate-500
     </section>
 )}
 
-<style>
-    /* The Up next glow drifts slowly */
-    .up-next-glow {
-        animation: drift 9s ease-in-out infinite alternate;
-    }
 
-    @keyframes drift {
-        to { transform: translate(-1.5rem, 1.25rem) scale(1.15); }
-    }
-</style>

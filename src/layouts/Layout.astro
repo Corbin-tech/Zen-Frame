@@ -133,11 +133,11 @@ const contentSecurityPolicy = [
 				--task-bg: rgb(255, 255, 255);
 				--teal-primary: rgb(var(--accent-600));
 
-				/* Ambient page glow and the frosted header */
-				--glow-1: rgb(var(--accent-400) / 0.16);
-				--glow-2: rgb(99 102 241 / 0.10);
-				--grid-dot: rgb(15 23 42 / 0.07);
-				--glass: rgb(245 245 244 / 0.72);
+				/* Accent wash, ripple lines and grain behind the page, and the frosted header */
+				--glow-1: rgb(var(--accent-400) / 0.14);
+				--ripple: rgb(var(--accent-700) / 0.07);
+				--grain-opacity: 0.18;
+				--glass: rgb(245 245 244 / 0.78);
 
 				/* Cluster colors (see CLUSTER_COLORS in todoStore.ts) */
 				--c-teal: #14b8a6;
@@ -162,10 +162,10 @@ const contentSecurityPolicy = [
 				--task-bg: rgb(30, 41, 59);
 				--teal-primary: rgb(var(--accent-500));
 
-				--glow-1: rgb(var(--accent-500) / 0.16);
-				--glow-2: rgb(99 102 241 / 0.14);
-				--grid-dot: rgb(255 255 255 / 0.05);
-				--glass: rgb(15 23 42 / 0.7);
+				--glow-1: rgb(var(--accent-500) / 0.12);
+				--ripple: rgb(var(--accent-300) / 0.05);
+				--grain-opacity: 0.3;
+				--glass: rgb(15 23 42 / 0.78);
 
 				/* Darker steps keep the cluster colors in a readable band on dark surfaces */
 				--c-teal: #0d9488;
@@ -199,7 +199,7 @@ const contentSecurityPolicy = [
 				-moz-osx-font-smoothing: grayscale;
 			}
 
-			/* Soft color glows and a fading dot grid behind everything */
+			/* One soft wash of the accent color, with raked-sand ripples spreading from the top right */
 			body::before {
 				content: '';
 				position: fixed;
@@ -207,19 +207,20 @@ const contentSecurityPolicy = [
 				z-index: -1;
 				pointer-events: none;
 				background:
-					radial-gradient(40rem 28rem at 8% -6%, var(--glow-1), transparent 70%),
-					radial-gradient(36rem 26rem at 96% 4%, var(--glow-2), transparent 70%);
+					repeating-radial-gradient(circle at 100% 0%, transparent 0 27px, var(--ripple) 27px 28px),
+					radial-gradient(44rem 30rem at 10% -8%, var(--glow-1), transparent 70%);
+				-webkit-mask-image: linear-gradient(to bottom, black, transparent 75%);
+				mask-image: linear-gradient(to bottom, black, transparent 75%);
 			}
+			/* Fine paper grain over the page color, so flat areas don't look like a default */
 			body::after {
 				content: '';
 				position: fixed;
 				inset: 0;
 				z-index: -1;
 				pointer-events: none;
-				background-image: radial-gradient(var(--grid-dot) 1px, transparent 1px);
-				background-size: 22px 22px;
-				mask-image: linear-gradient(to bottom, black, transparent 60%);
-				-webkit-mask-image: linear-gradient(to bottom, black, transparent 60%);
+				opacity: var(--grain-opacity);
+				background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.6 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 			}
 
 			::selection {

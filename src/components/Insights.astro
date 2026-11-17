@@ -6,7 +6,7 @@ import data from '../data/site.json';
 // The monthly recap's name on screen
 const recapName = data.recapName;
 
-const panel = 'rounded-2xl bg-white/80 dark:bg-slate-800/70 backdrop-blur-sm shadow-sm ring-1 ring-black/5 dark:ring-white/10';
+const panel = 'panel';
 const panelTitle = 'text-base font-semibold text-gray-900 dark:text-white';
 const segmented = 'inline-flex flex-wrap p-1 rounded-xl bg-gray-900/[0.04] dark:bg-white/[0.06] ring-1 ring-black/5 dark:ring-white/10';
 const segment = 'px-3 py-1.5 rounded-lg text-sm font-medium transition-all';
@@ -36,12 +36,11 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
     </header>
 
     <!-- Monthly recap banner: shown until the chosen month's story has been watched to the end -->
-    <section x-show="!recapSeen" class="relative overflow-hidden isolate rounded-2xl p-5 sm:p-6 text-white shadow-lg shadow-teal-900/20 ring-1 ring-white/10 bg-gradient-to-br from-teal-600 via-indigo-700 to-fuchsia-800">
-        <span class="absolute -z-10 -top-16 -right-10 w-56 h-56 rounded-full bg-fuchsia-400/30 blur-3xl" aria-hidden="true"></span>
-        <span class="absolute -z-10 -bottom-20 -left-10 w-56 h-56 rounded-full bg-teal-300/30 blur-3xl" aria-hidden="true"></span>
+    <section x-show="!recapSeen" class="relative overflow-hidden isolate rounded-2xl p-5 sm:p-6 text-white ring-1 ring-inset ring-white/10 bg-teal-800 dark:bg-teal-900">
+        <span class="ripples text-white" aria-hidden="true"></span>
         <div class="flex flex-wrap items-center justify-between gap-4">
             <div>
-                <p class="text-xs font-semibold uppercase tracking-wider text-white/70">Monthly {recapName}</p>
+                <p class="text-sm font-medium text-white/75">Monthly {recapName}</p>
                 <p class="mt-1 text-2xl font-bold tracking-tight" x-text="`Your ${recapMonthName} in review`"></p>
                 <p class="mt-1 text-sm text-white/80" x-text="recapTeaser"></p>
             </div>
@@ -59,7 +58,7 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
                 <button
                     type="button"
                     x-on:click="$dispatch('open-recap', { month: recapMonth })"
-                    class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-white text-indigo-800 text-sm font-semibold shadow-sm hover:bg-indigo-50 transition-colors"
+                    class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-white text-teal-800 text-sm font-semibold shadow-sm hover:bg-teal-50 transition-colors"
                 >
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></svg>
                     Play {recapName}
@@ -70,7 +69,7 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
 
     <!-- Once watched, the banner shrinks to one row. Picking a month that hasn't been watched brings it back. -->
     <section x-show="recapSeen" x-cloak class={`${panel} flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5`}>
-        <span class="grid place-items-center w-8 h-8 shrink-0 rounded-lg text-white bg-gradient-to-br from-teal-600 via-indigo-700 to-fuchsia-800" aria-hidden="true">
+        <span class="grid place-items-center w-8 h-8 shrink-0 rounded-lg text-white bg-teal-700 dark:bg-teal-600" aria-hidden="true">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></svg>
         </span>
         <p class="flex-1 min-w-0 text-sm">
