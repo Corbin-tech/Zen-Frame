@@ -13,7 +13,11 @@ const BACKUP_KEYS = [
   "pomoSessions",
   "settings",
   "theme",
-  "activeTab"
+  "activeTab",
+  "boardCluster",
+  "boardSort",
+  "boardWipLimit",
+  "insightsRange"
 ] as const;
 
 type BackupKey = typeof BACKUP_KEYS[number];
@@ -29,7 +33,7 @@ const ARRAY_KEYS = new Set<BackupKey>([
 ]);
 
 const OBJECT_KEYS = new Set<BackupKey>(["planning", "checkIns", "pomoState", "settings"]);
-const STRING_KEYS = new Set<BackupKey>(["theme", "activeTab"]);
+const STRING_KEYS = new Set<BackupKey>(["theme", "activeTab", "boardCluster", "boardSort", "boardWipLimit", "insightsRange"]);
 
 export function loadJson<T>(key: string, fallback: T): T {
   try {
@@ -41,9 +45,22 @@ export function loadJson<T>(key: string, fallback: T): T {
   }
 }
 
-export function saveJson(key: string, value: unknown): boolean {
+// For plain string values (theme, activeTab, UI preferences) that aren't JSON
+export function loadString(key: string, fallback = ""): string {
   try {
-    localStorage.setItem(key, JSON.stringify(value));
+    return localStorage.getItem(key) ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+export function saveJson(key: string, value: unknown): boolean {
+  return saveString(key, JSON.stringify(value));
+}
+
+export function saveString(key: string, value: string): boolean {
+  try {
+    localStorage.setItem(key, value);
     return true;
   } catch (error) {
     console.error(`Could not save "${key}" to storage:`, error);
@@ -111,11 +128,20 @@ export function importBackup(raw: string): { ok: boolean; error?: string; count?
     entries.push([key, value]);
   }
 
+  // Keep the current values so a write that fails partway can be rolled back
+  const previous = entries.map(([key]) => [key, localStorage.getItem(key)] as const);
   for (const [key, value] of entries) {
-    if (STRING_KEYS.has(key)) {
-      localStorage.setItem(key, value as string);
-    } else if (!saveJson(key, value)) {
-      return { ok: false, error: "Your browser storage is full." };
+    const saved = STRING_KEYS.has(key) ? saveString(key, value as string) : saveJson(key, value);
+    if (!saved) {
+      for (const [oldKey, oldValue] of previous) {
+        try {
+          if (oldValue === null) localStorage.removeItem(oldKey);
+          else localStorage.setItem(oldKey, oldValue);
+        } catch {
+          // Best effort: the old value fit before, so this rarely fails
+        }
+      }
+      return { ok: false, error: "Your browser storage is full. Nothing was restored." };
     }
   }
 

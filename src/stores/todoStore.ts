@@ -117,12 +117,13 @@ function createTodosStore() {
       this.giveClustersDistinctColors();
     },
 
+    // Stops at the first failed write, so one full-storage error shows one toast
     saveTodos(): void {
-      saveJson("todos", this.items);
-      saveJson("skippedClusters", this.skippedClusters);
-      saveJson("scheduledItems", this.scheduledItems);
-      saveJson("planning", this.planning);
-      saveJson("history", this.history);
+      void (saveJson("todos", this.items)
+        && saveJson("skippedClusters", this.skippedClusters)
+        && saveJson("scheduledItems", this.scheduledItems)
+        && saveJson("planning", this.planning)
+        && saveJson("history", this.history));
     },
 
     // Completed tasks from before the history existed, so their stats aren't lost
@@ -358,6 +359,7 @@ function createTodosStore() {
       this.scheduledItems = this.scheduledItems.filter(entry => !ids.has(entry.taskId));
       this.skippedClusters = this.skippedClusters.filter(clusterId => !ids.has(clusterId));
       this.saveTodos();
+      (window.Alpine.store("goals") as { unlinkClusters?: (ids: Set<string>) => void } | undefined)?.unlinkClusters?.(ids);
     },
 
     toggleTodo(id: string): void {

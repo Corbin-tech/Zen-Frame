@@ -51,9 +51,7 @@ export function initGoalsStore() {
     },
 
     save(): void {
-      saveJson("goals", this.goals);
-      saveJson("checkIns", this.checkIns);
-      saveJson("notes", this.notes);
+      void (saveJson("goals", this.goals) && saveJson("checkIns", this.checkIns) && saveJson("notes", this.notes));
     },
 
     addGoal(title: string, fields: Partial<Goal> = {}): string {
@@ -68,6 +66,13 @@ export function initGoalsStore() {
 
     updateGoal(id: string, changes: Partial<Goal>): void {
       this.goals = this.goals.map(goal => goal.id === id ? { ...goal, ...changes } : goal);
+      this.save();
+    },
+
+    // Called by the todo store when clusters are deleted; goals fall back to manual progress
+    unlinkClusters(ids: Set<string>): void {
+      if (!this.goals.some(goal => goal.clusterId && ids.has(goal.clusterId))) return;
+      this.goals = this.goals.map(goal => goal.clusterId && ids.has(goal.clusterId) ? { ...goal, clusterId: null } : goal);
       this.save();
     },
 

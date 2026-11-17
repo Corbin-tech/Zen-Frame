@@ -45,12 +45,13 @@
 
 <script>
     import { QUOTES } from '../lib/quotes';
+    import { loadString, saveString } from '../lib/storage';
 
     const INDEX_KEY = 'quoteIndex';
 
     document.addEventListener('alpine:init', () => {
         window.Alpine.data('zenQuote', () => ({
-            index: Number(localStorage.getItem(INDEX_KEY)) % QUOTES.length || 0,
+            index: Number(loadString(INDEX_KEY)) % QUOTES.length || 0,
             visible: true,
 
             init() {
@@ -77,7 +78,7 @@
                     const figure = this.$refs.figure;
                     const from = figure.offsetHeight;
                     this.index = index;
-                    localStorage.setItem(INDEX_KEY, String(index));
+                    saveString(INDEX_KEY, String(index));
                     this.$nextTick(() => {
                         const to = figure.offsetHeight;
                         if (to !== from && !matchMedia('(prefers-reduced-motion: reduce)').matches) {

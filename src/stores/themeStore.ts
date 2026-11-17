@@ -1,3 +1,5 @@
+import { loadString, saveString } from '../lib/storage';
+
 export type Theme = 'light' | 'dark';
 
 interface ThemeStore {
@@ -22,7 +24,7 @@ export function initThemeStore(): ThemeStore {
 
             // Follow system preference changes only if the user hasn't picked a theme
             window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-                if (!localStorage.getItem('theme')) {
+                if (!loadString('theme')) {
                     this.current = e.matches ? 'dark' : 'light';
                     this.applyTheme(this.current);
                 }
@@ -42,7 +44,7 @@ export function initThemeStore(): ThemeStore {
 
         setTheme(theme: Theme) {
             this.current = theme;
-            localStorage.setItem('theme', theme);
+            saveString('theme', theme);
             this.applyTheme(theme);
         },
 
