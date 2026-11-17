@@ -486,6 +486,10 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
                 const file = input.files?.[0];
                 input.value = '';
                 if (!file) return;
+                if (file.size > 10 * 1024 * 1024) {
+                    this.error = 'That file is too large to be a Zen Frame backup.';
+                    return;
+                }
                 if (!confirm('Replace your current tasks, schedule, goals, and settings with this backup?')) return;
 
                 try {
