@@ -33,6 +33,59 @@ test("another tab loads saved tasks before adding its own", () => {
   expect(JSON.parse(storage.getItem("todos")!).map((task: Todo) => task.todo)).toEqual(["Task A", "Task B"]);
 });
 
+test("a pending local add survives a remote write before its timer flushes", () => {
+  const { a, b, storage } = sharedTabs();
+  b.store.addTodo("Pending B");
+  const flush = vi.mocked(window.setTimeout).mock.calls.at(-1)![0] as () => void;
+  a.store.addTodo("Saved A");
+  a.store.writeTodos();
+  b.dispatch("storage", { key: "todos", newValue: storage.getItem("todos"), storageArea: storage });
+  flush();
+  expect(JSON.parse(storage.getItem("todos")!).map((task: Todo) => task.todo)).toEqual(["Saved A", "Pending B"]);
+});
+
+test("dirty keyed lists merge local additions, edits, and deletions over remote changes", () => {
+  const { a, storage } = sharedTabs();
+  const cases = [
+    { key: "todos", field: "items", entries: ["keep", "edit", "delete"].map(id => ({ id, todo: id, completed: false, isCluster: false, isPinned: false, parentId: null, createdAt: "2026-01-01" })) },
+    { key: "scheduledItems", field: "scheduledItems", entries: ["keep", "edit", "delete"].map(id => ({ id, taskId: id })) },
+    { key: "history", field: "history", entries: ["keep", "edit", "delete"].map(taskId => ({ taskId, at: "2026-01-01", blockId: "block", title: taskId })) }
+  ];
+  for (const { key, field, entries: initial } of cases) {
+    let entries: any[] = initial;
+    storage.setItem(key, JSON.stringify(entries));
+    a.dispatch("storage", { key, storageArea: storage });
+    entries = a.store[field];
+    const added = { ...entries[0], id: "added", taskId: "added" };
+    a.store[field] = [entries[0], { ...entries[1], title: "local", todo: "local" }, added];
+    const remote = [{ ...entries[0], title: "remote", todo: "remote" }, entries[1], entries[2]];
+    storage.setItem(key, JSON.stringify(remote));
+    a.dispatch("storage", { key, storageArea: storage });
+    expect(a.store[field]).toEqual([remote[0], { ...entries[1], title: "local", todo: "local" }, added]);
+    expect(a.store.savedJson[key]).toBe(JSON.stringify(remote));
+  }
+});
+
+test("dirty skipped clusters merge as a set and dirty planning stays local", () => {
+  const { a, storage } = sharedTabs();
+  storage.setItem("skippedClusters", '["keep","delete"]');
+  a.dispatch("storage", { key: "skippedClusters", storageArea: storage });
+  a.store.skippedClusters = ["keep", "local"];
+  storage.setItem("skippedClusters", '["keep","delete","remote"]');
+  a.dispatch("storage", { key: "skippedClusters", storageArea: storage });
+  expect(a.store.skippedClusters).toEqual(["keep", "remote", "local"]);
+  a.store.planning.duration = 60;
+  storage.setItem("planning", '{"duration":30}');
+  a.dispatch("storage", { key: "planning", storageArea: storage });
+  expect(a.store.planning.duration).toBe(60);
+  a.store.writeTodos();
+  expect(JSON.parse(storage.getItem("planning")!).duration).toBe(60);
+  a.store.skippedClusters = [];
+  storage.setItem("skippedClusters", '["keep","remote","local","new"]');
+  a.dispatch("storage", { key: "skippedClusters", storageArea: storage });
+  expect(a.store.skippedClusters).toEqual(["new"]);
+});
+
 test("an unchanged stale tab does not overwrite another tab on unload", () => {
   const { a, b, storage } = sharedTabs();
   a.store.addTodo("Task A");

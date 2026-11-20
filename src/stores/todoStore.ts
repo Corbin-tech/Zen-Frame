@@ -80,6 +80,21 @@ const NEW_CLUSTER_NAME = "New Cluster";
 const PERSISTED_KEYS = ["todos", "skippedClusters", "scheduledItems", "planning", "history"] as const;
 type PersistedKey = typeof PERSISTED_KEYS[number];
 
+function mergeLists<T extends string | { id: string } | CompletionRecord>(base: T[], local: T[], remote: T[]): T[] {
+  const identity = (entry: string | { id: string } | CompletionRecord): string => typeof entry === "string" ? entry
+    : "id" in entry ? entry.id : JSON.stringify([entry.taskId, entry.at, entry.blockId]);
+  const before = new Map(base.map(entry => [identity(entry), JSON.stringify(entry)]));
+  const current = new Map(local.map(entry => [identity(entry), entry]));
+  const merged = new Map(remote.map(entry => [identity(entry), entry]));
+  for (const id of before.keys()) {
+    if (!current.has(id)) merged.delete(id);
+  }
+  for (const [id, entry] of current) {
+    if (before.get(id) !== JSON.stringify(entry)) merged.set(id, entry);
+  }
+  return [...merged.values()];
+}
+
 // Cluster colors, picked in this order for new clusters. Each key is a CSS variable
 // (--c-<key>) in Layout.astro with separate light and dark values. The order keeps
 // neighbors distinct for color-blind readers; check changes with a palette validator.
@@ -139,7 +154,7 @@ function createTodosStore() {
       window.addEventListener("storage", event => {
         if (event.storageArea !== localStorage) return;
         for (const key of PERSISTED_KEYS) {
-          if (event.key === null || event.key === key) this.loadList(key);
+          if (event.key === null || event.key === key) this.loadList(key, true);
         }
       });
       this.recordExistingCompletions();
@@ -155,15 +170,27 @@ function createTodosStore() {
       return key === "todos" ? this.items : this[key];
     },
 
-    loadList(key: PersistedKey): void {
+    loadList(key: PersistedKey, merge = false): void {
+      const local = this.persistedValue(key);
+      const base = this.savedJson[key];
+      const dirty = merge && base !== undefined && JSON.stringify(local) !== base;
+      const load = <T extends string | { id: string } | CompletionRecord>(remote: T[]): T[] => {
+        this.savedJson[key] = JSON.stringify(remote);
+        return dirty ? mergeLists<T>(JSON.parse(base!), local as T[], remote) : remote;
+      };
       switch (key) {
-        case "todos": this.items = loadJson<Todo[]>(key, []).map(normalizeLoadedTodo); break;
-        case "skippedClusters": this.skippedClusters = loadJson<string[]>(key, []); break;
-        case "scheduledItems": this.scheduledItems = loadJson<ScheduledItem[]>(key, []); break;
-        case "planning": this.planning = { ...DEFAULT_PLANNING, ...loadJson<Partial<Planning>>(key, {}) }; break;
-        case "history": this.history = loadJson<CompletionRecord[]>(key, []); break;
+        case "todos": this.items = load(loadJson<Todo[]>(key, []).map(normalizeLoadedTodo)); break;
+        case "skippedClusters": this.skippedClusters = load(loadJson<string[]>(key, [])); break;
+        case "scheduledItems": this.scheduledItems = load(loadJson<ScheduledItem[]>(key, [])); break;
+        case "planning": {
+          const remote = { ...DEFAULT_PLANNING, ...loadJson<Partial<Planning>>(key, {}) };
+          this.savedJson[key] = JSON.stringify(remote);
+          if (!dirty) this.planning = remote;
+          break;
+        }
+        case "history": this.history = load(loadJson<CompletionRecord[]>(key, [])); break;
       }
-      this.savedJson[key] = JSON.stringify(this.persistedValue(key));
+      if (dirty) this.saveTodos();
     },
 
     writeList(key: PersistedKey): boolean {
