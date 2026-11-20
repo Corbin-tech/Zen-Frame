@@ -1,6 +1,6 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
-import { args, parseCsv } from './core.ts';
+import { args, parseCsv, cliErrorMessage } from './core.ts';
 export function median(values: number[]) { const v = [...values].sort((a, b) => a - b); return v.length ? (v[Math.floor((v.length - 1) / 2)] + v[Math.ceil((v.length - 1) / 2)]) / 2 : null; }
 export function percentile90(values: number[]) { const v = [...values].sort((a, b) => a - b); return v.length ? v[Math.ceil(v.length * .9) - 1] : null; }
 export function summarize(data: any, ratings: Record<string, string>[]) {
@@ -56,4 +56,4 @@ async function main() {
   await writeFile(resolve(out, 'report.json'), JSON.stringify({ reports, verdict }, null, 2), { mode: 0o600 });
   console.log(`Report written for ${reports.length} model(s)`);
 }
-if (process.argv[1] && import.meta.url === new URL(`file://${resolve(process.argv[1])}`).href) main().catch(() => { console.error('Report failed: check matching results, completed ratings, and paths'); process.exitCode = 1; });
+if (process.argv[1] && import.meta.url === new URL(`file://${resolve(process.argv[1])}`).href) main().catch(error => { console.error(cliErrorMessage(error, 'Report failed: check matching results, completed ratings, and paths')); process.exitCode = 1; });

@@ -1,6 +1,6 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
-import { args, DETAIL_LEVELS, ratingsCsv } from './core.ts';
+import { args, DETAIL_LEVELS, ratingsCsv, cliErrorMessage } from './core.ts';
 export function precheck(row: any) {
   const steps = row.kind === 'breakdown' ? row.output?.steps : row.output?.clusters?.flatMap((c: any) => c.tasks);
   const present = row.status === 200 && Array.isArray(steps) && steps.length > 0;
@@ -19,4 +19,4 @@ async function main() {
   await writeFile(resolve(a.out ?? resolve(dirname(a.results), 'ratings-auto.csv')), ratingsCsv(rows), { mode: 0o600 });
   console.log(`Auto prechecked ${rows.length} items; NOT human ratings`);
 }
-if (process.argv[1] && import.meta.url === new URL(`file://${resolve(process.argv[1])}`).href) main().catch(() => { console.error('Autorating failed: check results and output paths'); process.exitCode = 1; });
+if (process.argv[1] && import.meta.url === new URL(`file://${resolve(process.argv[1])}`).href) main().catch(error => { console.error(cliErrorMessage(error, 'Autorating failed: check results and output paths')); process.exitCode = 1; });

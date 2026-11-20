@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import { readFile, mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { validateDataset, parseCsv, ratingsCsv, requestBody, DETAIL_LEVELS, args } from './core.ts';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import { validateDataset, parseCsv, ratingsCsv, requestBody, DETAIL_LEVELS, args, cliErrorMessage } from './core.ts';
 import { checkOutputDirectory } from './output.ts';
 import { mockModel } from './models/mock.ts';
 import { createOpenAIClient, strictSchema } from './models/openai.ts';
@@ -22,6 +24,15 @@ try {
     assert.equal(await readFile(join(outputTest, file), 'utf8'), 'preserve this');
     await rm(join(outputTest, file));
   }
+  assert.equal(cliErrorMessage(new Error('Invalid results'), 'fallback'), 'Invalid results');
+  assert.equal(cliErrorMessage(new SyntaxError('private text'), 'fallback'), 'fallback');
+  assert.equal(cliErrorMessage(Object.assign(new Error('private path'), { code: 'ENOENT' }), 'fallback'), 'fallback');
+  assert.equal(cliErrorMessage('private text', 'fallback'), 'fallback');
+  await writeFile(join(outputTest, 'ratings.csv'), ratingsCsv([]));
+  const report = spawnSync(process.execPath, [fileURLToPath(new URL('./report.ts', import.meta.url)), '--results', fileURLToPath(new URL('./datasets/sample.json', import.meta.url)), '--ratings', join(outputTest, 'ratings.csv')], { encoding: 'utf8' });
+  assert.equal(report.status, 1); assert.equal(report.stderr.trim(), 'Invalid results'); assert.equal(report.stdout, '');
+  const auto = spawnSync(process.execPath, [fileURLToPath(new URL('./autorate.ts', import.meta.url))], { encoding: 'utf8' });
+  assert.equal(auto.status, 1); assert.equal(auto.stderr.trim(), 'Use --results file [--out ratings.csv]'); assert.equal(auto.stdout, '');
 } finally { await rm(outputTest, { recursive: true }); }
 assert.equal(sample.items.length, 74);
 assert.throws(() => validateDataset({ ...sample, items: [{ kind: 'estimate', task: 'Wash a mug' }] }));

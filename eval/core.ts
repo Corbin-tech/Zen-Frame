@@ -32,6 +32,9 @@ export function args(argv = process.argv.slice(2)): Record<string, string> {
   return result;
 }
 export const csvCell = (v: unknown) => `"${String(v ?? '').replaceAll('"', '""')}"`;
+export function cliErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error && !(error instanceof SyntaxError) && !('code' in error) ? error.message : fallback;
+}
 export const ratingHeader = ['id', 'kind', 'useful', 'literal', 'one_action', 'realistic_minutes', 'notes', 'rater'];
 export function ratingsCsv(rows: Record<string, unknown>[]) { return [ratingHeader, ...rows.map(r => ratingHeader.map(k => r[k] ?? ''))].map(row => row.map(csvCell).join(',')).join('\n') + '\n'; }
 export function parseCsv(text: string): Record<string, string>[] {
