@@ -10,7 +10,8 @@ JSON shape:
 {"version":1,"consent":{"source":"synthetic","notes":"Invented examples"},"items":[{"id":"b1","kind":"breakdown","task":"Wash a mug","level":"few","context":"Optional context"},{"id":"c1","kind":"compile","text":"Wash mugs. Buy soap."},{"id":"e1","kind":"estimate","task":"Wash a mug"}]}
 ```
 Levels are frozen WS1 ids: `few`, `some`, `five`, `many`. IDs must be unique,
-safe identifiers (letters, digits, underscore, hyphen; 1–80 characters).
+safe identifiers (letters, digits, underscore, hyphen; 1–80 characters), starting
+with a letter or digit.
 Nonempty inputs are capped at 6000 characters. The validator rejects unknown item
 fields, invalid levels/kinds, duplicate IDs and missing consent. Empty datasets fail.
 The committed sample is invented: 52 breakdowns across all levels, 12 dumps, 10 estimates.

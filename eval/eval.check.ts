@@ -44,6 +44,8 @@ try {
   assert.equal(await readFile(join(outputTest, 'auto.csv'), 'utf8'), ratingsCsv([]));
 } finally { await rm(outputTest, { recursive: true }); }
 assert.equal(sample.items.length, 74);
+for (const id of ['-task', '_task', '', 'a'.repeat(81)]) assert.throws(() => validateDataset({ ...sample, items: [{ ...sample.items[0], id }] }), /dataset id/);
+for (const id of ['a', '0_task-1', 'a'.repeat(80)]) assert.equal(validateDataset({ ...sample, items: [{ ...sample.items[0], id }] }).items[0].id, id);
 assert.throws(() => validateDataset({ ...sample, items: [{ kind: 'estimate', task: 'Wash a mug' }] }));
 for (const invalid of [null, {}, { ...sample, items: [] }, { ...sample, consent: {} }, { ...sample, items: [sample.items[0], sample.items[0]] }, { ...sample, items: [{ ...sample.items[0], level: 'bad' }] }, { ...sample, items: [{ id: 'x', kind: 'compile', text: '' }] }, { ...sample, items: [{ id: 'x', kind: 'estimate', task: 1 }] }]) assert.throws(() => validateDataset(invalid));
 const input = { system: '', user: 'Split this task into steps.\nTask: Wash a mug', maxTokens: 100, signal: new AbortController().signal };

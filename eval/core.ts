@@ -15,7 +15,7 @@ export function validateDataset(value: any): Dataset {
   if (value?.version !== 1 || !['synthetic', 'contributed'].includes(value.consent?.source) || !text(value.consent?.notes) || !Array.isArray(value.items) || !value.items.length) throw new Error('Invalid dataset envelope or consent');
   const ids = new Set();
   for (const item of value.items) {
-    if (!item || typeof item.id !== 'string' || !/^[a-zA-Z0-9_-]{1,80}$/.test(item.id) || ids.has(item.id)) throw new Error('Invalid or duplicate dataset id');
+    if (!item || typeof item.id !== 'string' || !/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$/.test(item.id) || ids.has(item.id)) throw new Error('Invalid or duplicate dataset id');
     ids.add(item.id);
     const fields = item.kind === 'breakdown' ? ['id', 'kind', 'task', 'level', 'context'] : item.kind === 'compile' ? ['id', 'kind', 'text'] : item.kind === 'estimate' ? ['id', 'kind', 'task'] : [];
     if (!fields.length || Object.keys(item).some(k => !fields.includes(k)) || !text(item.kind === 'compile' ? item.text : item.task) || (item.kind === 'breakdown' && (!DETAIL_LEVELS.some(l => l.id === item.level) || (item.context !== undefined && (typeof item.context !== 'string' || item.context.length > 6000))))) throw new Error('Invalid dataset item');
