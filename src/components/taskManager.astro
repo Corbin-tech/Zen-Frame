@@ -23,6 +23,39 @@ const panel = 'panel';
                 })()"
             ></p>
         </div>
+
+        <!-- Search and sort, the same tools the Board header has -->
+        <div class="flex flex-wrap items-center gap-2">
+            <label for="tm-search" class="sr-only">Search tasks</label>
+            <div class="relative">
+                <svg class="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z" /></svg>
+                <input
+                    id="tm-search"
+                    name="tm-search"
+                    type="search"
+                    x-model="search"
+                    x-on:keydown.escape="search = ''"
+                    placeholder="Search tasks"
+                    class="w-44 sm:w-52 pl-8 pr-3 py-1.5 rounded-full border-0 ring-1 ring-black/10 dark:ring-white/10 bg-white dark:bg-slate-800 dark:text-white text-sm focus:ring-2 focus:ring-teal-500"
+                />
+            </div>
+            <!-- Sort: list order, or by due date with overdue tasks on top -->
+            <div class="inline-flex p-1 rounded-full bg-gray-900/[0.04] dark:bg-white/[0.06] ring-1 ring-black/5 dark:ring-white/10" role="group" aria-label="Sort tasks">
+                <template x-for="option in sortOptions" :key="option.id">
+                    <button
+                        type="button"
+                        x-on:click="sortBy = option.id"
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all"
+                        x-bind:class="sortBy === option.id
+                            ? 'bg-white text-gray-900 shadow-sm ring-1 ring-black/5 dark:bg-white/[0.14] dark:text-white dark:ring-white/10'
+                            : 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200'"
+                        x-bind:aria-pressed="sortBy === option.id"
+                    >
+                        <span x-text="option.label"></span>
+                    </button>
+                </template>
+            </div>
+        </div>
     </header>
 
     <div class={`${panel} p-4 sm:p-6`}>
@@ -33,9 +66,10 @@ const panel = 'panel';
 
     <!-- Clusters and Tasks -->
     <div class="space-y-6">
-        <!-- Clusters -->
+        <!-- Clusters. While searching, one with no matching tasks hides entirely -->
         <template x-for="cluster in $store.todos.clusters" :key="cluster.id">
-            <div 
+            <div
+                x-show="!searching || hasMatchesIn(cluster.id)"
                 class="cluster-card group relative rounded-xl shadow-sm ring-1 ring-black/5 dark:ring-white/5 transition-colors duration-300 ease-in-out"
                 x-bind:style="background-color: var(--cluster-bg);"
                 x-task-drop="taskMove($taskId, { clusterId: cluster.id })"
@@ -163,7 +197,7 @@ const panel = 'panel';
                 <!-- Cluster Content -->
                 <div class="p-2 sm:p-4">
                     <div class="p-1 sm:p-3 space-y-2 transition-colors duration-300 ease-in-out">
-                        <template x-for="task in $store.todos.items.filter(t => t.parentId === cluster.id && !t.completed)" :key="task.id">
+                        <template x-for="task in openTasksIn(cluster.id)" :key="task.id">
                             <TaskRow />
                         </template>
                     </div>
@@ -176,27 +210,28 @@ const panel = 'panel';
                         <span x-text="`Add a task to ${cluster.todo}`"></span>
                     </button>
 
-                    <!-- Finished tasks fold out of the way; Clear is their only destructive exit -->
+                    <!-- Finished tasks fold out of the way; Clear is their only destructive exit.
+                         While searching, matching finished tasks surface: the section opens itself. -->
                     <div
                         class="mt-1 ml-1 sm:ml-3"
                         x-data="{ doneOpen: false }"
-                        x-show="$store.todos.items.some(t => t.parentId === cluster.id && t.completed)"
+                        x-show="doneTasksIn(cluster.id).length"
                     >
                         <button
                             type="button"
                             x-on:click="doneOpen = !doneOpen"
                             class="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-sm text-gray-500 hover:text-gray-800 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-slate-700/50 transition-colors"
-                            x-bind:aria-expanded="doneOpen"
+                            x-bind:aria-expanded="doneOpen || searching"
                             x-bind:aria-controls="`done-${cluster.id}`"
                         >
                             <svg class="w-3.5 h-3.5 transition-transform duration-200" x-bind:class="doneOpen ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
                             </svg>
-                            <span class="tabular-nums" x-text="`Completed (${$store.todos.items.filter(t => t.parentId === cluster.id && t.completed).length})`"></span>
+                            <span class="tabular-nums" x-text="`Completed (${doneTasksIn(cluster.id).length})`"></span>
                         </button>
-                        <div x-show="doneOpen" x-cloak x-bind:id="`done-${cluster.id}`" class="mt-2 space-y-4 pl-1 sm:pl-3">
+                        <div x-show="doneOpen || searching" x-cloak x-bind:id="`done-${cluster.id}`" class="mt-2 space-y-4 pl-1 sm:pl-3">
                             <div class="space-y-2 transition-colors duration-300 ease-in-out">
-                                <template x-for="task in $store.todos.items.filter(t => t.parentId === cluster.id && t.completed)" :key="task.id">
+                                <template x-for="task in doneTasksIn(cluster.id)" :key="task.id">
                                     <TaskRow />
                                 </template>
                             </div>
@@ -212,20 +247,20 @@ const panel = 'panel';
         </template>
         
         <!-- Main Container - All Non-Clustered Tasks -->
-        <div class="flex-1 p-1 sm:p-4">
+        <div class="flex-1 p-1 sm:p-4" x-show="!searching || openTasksIn(null).length || doneTasksIn(null).length">
             <h2 class="text-xl font-semibold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-teal-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                 </svg>
                 Tasks
             </h2>
-            
+
             <div
                 class="space-y-2 transition-colors duration-300 ease-in-out"
                 id="mainContainer"
                 x-task-drop="taskMove($taskId, { clusterId: null })"
             >
-                <template x-for="task in $store.todos.items.filter(t => !t.parentId && !t.isCluster && !t.completed)" :key="task.id">
+                <template x-for="task in openTasksIn(null)" :key="task.id">
                     <TaskRow />
                 </template>
             </div>
@@ -234,23 +269,23 @@ const panel = 'panel';
             <div
                 class="mt-2"
                 x-data="{ doneOpen: false }"
-                x-show="$store.todos.items.some(t => !t.parentId && !t.isCluster && t.completed)"
+                x-show="doneTasksIn(null).length"
             >
                 <button
                     type="button"
                     x-on:click="doneOpen = !doneOpen"
                     class="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-sm text-gray-500 hover:text-gray-800 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-slate-700/50 transition-colors"
-                    x-bind:aria-expanded="doneOpen"
+                    x-bind:aria-expanded="doneOpen || searching"
                     aria-controls="done-loose"
                 >
                     <svg class="w-3.5 h-3.5 transition-transform duration-200" x-bind:class="doneOpen ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
                     </svg>
-                    <span class="tabular-nums" x-text="`Completed (${$store.todos.items.filter(t => !t.parentId && !t.isCluster && t.completed).length})`"></span>
+                    <span class="tabular-nums" x-text="`Completed (${doneTasksIn(null).length})`"></span>
                 </button>
-                <div x-show="doneOpen" x-cloak id="done-loose" class="mt-2 space-y-4">
+                <div x-show="doneOpen || searching" x-cloak id="done-loose" class="mt-2 space-y-4">
                     <div class="space-y-2 transition-colors duration-300 ease-in-out">
-                        <template x-for="task in $store.todos.items.filter(t => !t.parentId && !t.isCluster && t.completed)" :key="task.id">
+                        <template x-for="task in doneTasksIn(null)" :key="task.id">
                             <TaskRow />
                         </template>
                     </div>
@@ -289,12 +324,53 @@ const panel = 'panel';
 <script>
     import { estimatePicker, totalLabel } from '../lib/estimates';
     import { taskRow } from '../scripts/taskRow';
+    import { TASK_MANAGER_SORT_OPTIONS, sortTasksForDisplay, taskMatchesQuery } from '../lib/taskFilters';
 
     // Every drag-and-drop and keyboard move in the Task Manager funnels through one
     // helper, so the store call and the one line of screen-reader copy stay in sync.
     const taskManagerPage = () => ({
         // The last move's result, spoken by the aria-live region in the page
         moveAnnouncement: '',
+
+        // Header tools (spec item 14): Board's search and sort semantics.
+        // Ephemeral component state, like Board: nothing here persists.
+        search: '',
+        sortBy: 'manual',
+        sortOptions: TASK_MANAGER_SORT_OPTIONS,
+
+        get searching() {
+            return Boolean(this.search.trim());
+        },
+
+        // Board's card filter, verbatim: a case-insensitive match on the task's text
+        matchesSearch(task) {
+            return taskMatchesQuery(task, this.search);
+        },
+
+        // One cluster's (or, with null, the loose list's) matching open tasks,
+        // in the sort the header picks: list order, or most overdue first.
+        openTasksIn(clusterId) {
+            const open = this.$store.todos.items.filter(task =>
+                (task.parentId ?? null) === clusterId
+                && !task.isCluster
+                && !task.completed
+                && this.matchesSearch(task));
+            return sortTasksForDisplay(open, this.sortBy);
+        },
+
+        // Its matching finished tasks; the "Completed (n)" count reads this
+        doneTasksIn(clusterId) {
+            return this.$store.todos.items.filter(task =>
+                (task.parentId ?? null) === clusterId
+                && !task.isCluster
+                && task.completed
+                && this.matchesSearch(task));
+        },
+
+        // While searching, a list with no matches hides entirely
+        hasMatchesIn(clusterId) {
+            return this.openTasksIn(clusterId).length > 0 || this.doneTasksIn(clusterId).length > 0;
+        },
 
         // A dropped task move. The store decides whether it was a real move;
         // no-ops (same place, dropped on itself) stay silent.
