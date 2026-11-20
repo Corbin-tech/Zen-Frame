@@ -184,7 +184,7 @@ const pickerItem = 'w-full flex items-center gap-2.5 px-3 py-2 text-left rounded
                                 x-show="open"
                                 x-transition.opacity.duration.150ms
                                 x-cloak
-                                class="absolute left-0 top-full mt-2 z-30 p-2 rounded-xl bg-white dark:bg-slate-800 shadow-lg ring-1 ring-black/5 dark:ring-white/10 grid grid-cols-6 gap-2"
+                                class="absolute left-0 top-full mt-2 z-30 p-2 rounded-xl bg-white dark:bg-slate-800 shadow-lg ring-1 ring-black/5 dark:ring-white/10 grid grid-cols-[repeat(6,1.5rem)] gap-2"
                             >
                                 <template x-for="color in $store.todos.palette" :key="color">
                                     <button
