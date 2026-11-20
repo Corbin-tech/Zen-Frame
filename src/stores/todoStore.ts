@@ -581,13 +581,13 @@ function createTodosStore() {
       this.saveTodos();
     },
 
-    // Zen mode: move a task behind the other open tasks in its cluster
+    // Zen mode: move a task behind the other open tasks in its cluster or unclustered list
     skipTaskToEndOfCluster(taskId: string): void {
       const task = this.find(taskId);
-      if (!task?.parentId) return;
+      if (!task || task.isCluster || task.completed) return;
 
       const openSiblings = this.items.filter(item =>
-        item.parentId === task.parentId && !item.completed && item.id !== taskId
+        item.parentId === task.parentId && !item.isCluster && !item.completed && item.id !== taskId
       );
       if (openSiblings.length === 0) return;
 
