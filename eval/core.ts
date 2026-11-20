@@ -47,7 +47,7 @@ export function parseCsv(text: string): Record<string, string>[] {
     else cell += c;
   }
   if (quoted) throw new Error('Unclosed CSV quote');
-  if (cell || row.length) { row.push(cell); rows.push(row); }
+  if (cell || row.length) { row.push(cell.replace(/\r$/, '')); rows.push(row); }
   const header = rows.shift() ?? [];
   if (ratingHeader.some(k => !header.includes(k)) || new Set(header).size !== header.length) throw new Error('Invalid ratings header');
   return rows.filter(r => r.some(Boolean)).map(r => { if (r.length !== header.length) throw new Error('Invalid CSV row'); return Object.fromEntries(header.map((k, i) => [k, r[i]])); });

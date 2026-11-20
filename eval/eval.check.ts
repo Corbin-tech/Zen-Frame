@@ -66,6 +66,7 @@ assert.deepEqual(requestBody({ id: 'b', kind: 'breakdown', task: 'Wash mug', lev
 const rating = { id: 'b1', kind: 'breakdown', useful: 'y', literal: 'y', one_action: 'y', realistic_minutes: 'y', notes: 'comma, quote " and\nnewline', rater: 'human1' };
 assert.deepEqual(parseCsv(ratingsCsv([rating])), [rating]);
 assert.deepEqual(parseCsv('\uFEFF' + ratingsCsv([rating])), [rating]);
+assert.deepEqual(parseCsv(ratingsCsv([rating]).trimEnd() + '\r'), [rating]);
 assert.deepEqual(parseCsv(ratingsCsv([])), []); assert.throws(() => parseCsv('"unclosed'));
 assert.equal(median([4, 1, 3, 2]), 2.5); assert.equal(median([]), null); assert.equal(percentile90([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]), 9);
 const results = [...Array.from({ length: 50 }, (_, i) => ({ id: `b${i}`, kind: 'breakdown', level: 'few', status: 200, latencyMs: 100 })), ...Array.from({ length: 10 }, (_, i) => ({ id: `c${i}`, kind: 'compile', status: 200, latencyMs: 200 }))];
