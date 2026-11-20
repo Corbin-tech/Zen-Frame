@@ -108,6 +108,19 @@ describe("Pomodoro reload", () => {
     ]);
   });
 
+  it("does not restore cleared history when completing before the storage event arrives", () => {
+    const store = openPage();
+    store.completeTimer(+start, false);
+    localStorage.removeItem("pomoSessions");
+    store.toggleBreak();
+
+    store.completeTimer(+start + focusMs, false);
+
+    const expected = [{ completedAt: new Date(+start + focusMs).toISOString(), minutes: 25 }];
+    expect(store.sessions).toEqual(expected);
+    expect(JSON.parse(localStorage.getItem("pomoSessions")!)).toEqual(expected);
+  });
+
   it("keeps both in-tab completions when session storage reads throw", () => {
     const store = openPage();
     const getItem = localStorage.getItem.bind(localStorage);
