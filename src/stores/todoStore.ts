@@ -4,7 +4,6 @@ import { loadJson, saveJson } from "../lib/storage";
 import type { Milestone } from "./settingsStore";
 import { blockMinutes } from "../lib/estimates";
 import { cleanStepTotal } from "../lib/assist/sanitize";
-import { normalizeLoadedTodo } from "../lib/assist/todoLoad";
 
 export interface Todo {
   id: string;
@@ -132,7 +131,7 @@ function createTodosStore() {
 
     // Alpine calls init() when the store is registered
     init(): void {
-      this.items = loadJson<Todo[]>("todos", []).map(normalizeLoadedTodo);
+      this.items = loadJson<Todo[]>("todos", []);
       this.skippedClusters = loadJson<string[]>("skippedClusters", []);
       this.scheduledItems = loadJson<ScheduledItem[]>("scheduledItems", []);
       this.planning = { ...DEFAULT_PLANNING, ...loadJson<Partial<Planning>>("planning", {}) };

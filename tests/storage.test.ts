@@ -20,7 +20,9 @@ test('replacing an exported backup removes app keys absent from the backup', () 
   expect(importBackup(backup)).toEqual({ ok: true, count: 1 });
   expect(localStorage.getItem('goals')).toBe(null);
   expect(localStorage.getItem('theme')).toBe(null);
-  expect(localStorage.getItem('todos')).toBe('[{"id":"saved"}]');
+  expect(JSON.parse(localStorage.getItem('todos')!)).toEqual([
+    { id: 'saved', parentId: null, estimateMinutes: null }
+  ]);
   expect(localStorage.getItem('unrelated')).toBe('keep');
 });
 
@@ -39,6 +41,19 @@ test('invalid backups leave existing data untouched', () => {
     JSON.stringify({ app: 'zen-frame', version: 1, data: { todos: [], goals: 'invalid' } })]) {
     expect(importBackup(raw).ok).toBe(false);
     expect(localStorage.getItem('goals')).toBe('[]');
+  }
+});
+
+test('non-array todos and focus sessions are rejected before normalization', () => {
+  localStorage.setItem('todos', '[{"id":"existing"}]');
+  for (const key of ['todos', 'pomoSessions']) {
+    for (const value of [{}, 'x', null, 1]) {
+      expect(importBackup(JSON.stringify({ app: 'zen-frame', version: 1,
+        data: { [key]: value } }))).toEqual({
+        ok: false, error: `Invalid "${key}" data in backup.`
+      });
+      expect(localStorage.getItem('todos')).toBe('[{"id":"existing"}]');
+    }
   }
 });
 

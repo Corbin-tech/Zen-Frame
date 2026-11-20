@@ -182,7 +182,7 @@ export function initPomoStore() {
       if (!this.isBreak) {
         const completedAt = new Date(endsAt).toISOString();
         const saved = loadJson<FocusSession[]>("pomoSessions", this.sessions);
-        if (Array.isArray(saved)) this.sessions = saved;
+        this.sessions = saved;
         if (!this.sessions.some((session) => session?.completedAt === completedAt)) {
           this.sessions = [...this.sessions, { completedAt, minutes: this.totalTime / 60 }].slice(-500);
           saveJson("pomoSessions", this.sessions);
@@ -223,8 +223,7 @@ export function initPomoStore() {
       const state = loadJson<PomoSavedState>("pomoState", {}) ?? {};
       this.preset = state.preset && Object.hasOwn(POMO_DURATIONS, state.preset) ? state.preset as PomoPreset : "pomodoro";
       this.isBreak = Boolean(state.isBreak);
-      const sessions = loadJson<unknown>("pomoSessions", []);
-      this.sessions = Array.isArray(sessions) ? sessions : [];
+      this.sessions = loadJson<FocusSession[]>("pomoSessions", []);
     }
   };
 }
