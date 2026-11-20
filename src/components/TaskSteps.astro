@@ -66,6 +66,7 @@ const action = 'min-h-9 rounded-lg px-2 py-1 text-sm font-medium text-teal-800 h
     type StepTodos = {
         find(id: string): Todo | undefined;
         toggleStep(taskId: string, stepId: string): void;
+        toggleTodo(id: string): void;
         createCluster(name: string): string;
         addTodo(text: string, fields: Partial<Todo>): string;
     };
@@ -127,7 +128,8 @@ const action = 'min-h-9 rounded-lg px-2 py-1 text-sm font-medium text-teal-800 h
                 const store = todos();
                 const parentId = store.createCluster(task.todo);
                 for (const { text, minutes, completed } of steps) {
-                    store.addTodo(text, { parentId, estimateMinutes: minutes, completed });
+                    const id = store.addTodo(text, { parentId, estimateMinutes: minutes });
+                    if (completed) store.toggleTodo(id);
                 }
                 this.hidePromotion();
                 this.promotionMessage = 'Cluster created. The original checklist is unchanged.';
