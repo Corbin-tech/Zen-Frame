@@ -2,17 +2,27 @@
 import EstimatePicker from './EstimatePicker.astro';
 
 // One task row. Render it inside an Alpine x-for that provides `task`.
+// Touch screens and narrow windows keep the row quiet -- checkbox, title, the set
+// chips, and one "..." button that opens the full action sheet (spec item 13).
+// A task with Breakdown steps gets a "1/3" chip that expands its checklist inline (item 16).
+
+// The "..." sheet's entries: quiet, like the cluster swatch popovers
+const menuItem = 'w-full flex items-center gap-2.5 px-3 py-2 text-left rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-40 disabled:pointer-events-none transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500';
+const menuDanger = 'hover:!text-red-600 hover:!bg-red-50 dark:hover:!text-red-400 dark:hover:!bg-red-900/20';
 ---
 
 <div 
-    class="relative group/task flex flex-wrap sm:flex-nowrap items-center gap-x-2 pr-2 rounded-xl shadow-sm ring-1 ring-black/5 dark:ring-white/5 hover:ring-black/10 dark:hover:ring-white/10 transition-colors task-item focus:outline-none focus-visible:ring-2 focus-visible:!ring-teal-500"
+    class="relative group/task rounded-xl shadow-sm ring-1 ring-black/5 dark:ring-white/5 hover:ring-black/10 dark:hover:ring-white/10 transition-colors task-item focus:outline-none focus-visible:ring-2 focus-visible:!ring-teal-500"
     style="background-color: var(--task-bg);"
-    x-data="{ dropEdge: null }"
+    x-data="taskRow($store.todos)"
     x-drag-task="task.id"
     x-task-drop="taskMove($taskId, rowTarget(task, $clientY > $el.getBoundingClientRect().top + $el.offsetHeight / 2))"
     x-on:task-dragover="dropEdge = $event.detail.clientY > $el.getBoundingClientRect().top + $el.offsetHeight / 2 ? 'bottom' : 'top'"
     x-on:task-dragleave="dropEdge = null"
     x-on:keydown.self="rowKeydown($event, task)"
+    x-on:task-row-menu.window="if (menuOpen && $event.detail.id !== task.id) closeMenu(false)"
+    x-on:overlay-opened.window="if (menuOpen) closeMenu(false)"
+    x-on:keydown.escape.window="if (menuOpen) closeMenu()"
     x-bind:class="dropEdge ? `drop-${dropEdge}` : ''"
     x-bind:id="`item-${task.id}`"
     x-bind:data-task-id="task.id"
@@ -21,85 +31,202 @@ import EstimatePicker from './EstimatePicker.astro';
 >
     <!-- Cluster color along the left edge, like a board card -->
     <span class="absolute left-0 top-3 bottom-3 w-1 rounded-r-full" x-bind:style="`background-color: ${$store.todos.clusterColor(task.parentId)};`" aria-hidden="true"></span>
-    <!-- On small screens the due date and controls wrap to a second line -->
-    <div class="basis-full sm:basis-auto flex-1 min-w-0 py-3 pl-4">
-        <div class="flex items-center gap-2 sm:gap-3">
-            <div 
-                data-drag-handle
-                class="p-1 cursor-grab text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 flex items-center"
-                title="Drag to reorder and move between clusters"
-                aria-hidden="true"
-            >
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16" />
-                </svg>
+
+    <!-- The row itself. Chips that hold data stay; add-controls fold into the "..." sheet on touch -->
+    <div class="flex flex-wrap sm:flex-nowrap items-center gap-x-2 w-full min-w-0 pr-2">
+        <div class="flex-1 min-w-0 py-3 pl-4">
+            <div class="flex items-center gap-2 sm:gap-3 min-w-0">
+                <div 
+                    data-drag-handle
+                    class="row-drag p-1 cursor-grab text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 flex items-center"
+                    title="Drag to reorder and move between clusters"
+                    aria-hidden="true"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16" />
+                    </svg>
+                </div>
+                <input name="task-done" x-bind:aria-label="`Mark ${task.todo || 'task'} ${task.completed ? 'not done' : 'done'}`"
+                    type="checkbox"
+                    class="w-5 h-5 rounded-full border-gray-300 dark:border-slate-500 text-teal-600 dark:text-teal-400 focus:ring-teal-500 dark:focus:ring-teal-400 dark:bg-slate-700"
+                    x-bind:checked="task.completed"
+                    x-on:change="$store.todos.toggleTodo(task.id)"
+                />
+                <input name="task-name" x-ref="title" aria-label="Task name"
+                    type="text"
+                    x-model="task.todo"
+                    x-bind:readonly="task.completed"
+                    x-on:keydown.enter="$event.target.blur()"
+                    x-on:blur="$store.todos.updateTask(task.id, { todo: task.todo })"
+                    class="flex-1 min-w-0 bg-transparent border-none focus:ring-0 focus:outline-none"
+                    x-bind:class="{
+                        'line-through text-gray-500 dark:text-gray-400': task.completed,
+                        'text-gray-700 dark:text-gray-300': !task.completed
+                    }"
+                />
             </div>
-            <input name="task-done" x-bind:aria-label="`Mark ${task.todo || 'task'} ${task.completed ? 'not done' : 'done'}`"
-                type="checkbox"
-                class="w-5 h-5 rounded-full border-gray-300 dark:border-slate-500 text-teal-600 dark:text-teal-400 focus:ring-teal-500 dark:focus:ring-teal-400 dark:bg-slate-700"
-                x-bind:checked="task.completed"
-                x-on:change="$store.todos.toggleTodo(task.id)"
+        </div>
+
+        <!-- Estimate: the same picker chip, always present. On touch an unset
+             one folds into the sheet while the popover stays usable. -->
+        <div class="row-estimate relative shrink-0" x-bind:class="task.estimateMinutes ? '' : 'row-estimate-add'">
+            <EstimatePicker />
+        </div>
+
+        <!-- Meta chips: In progress, steps, due date. The date input under them
+             is the chip's picker, as on the board card's pencil form. -->
+        <div class="relative shrink-0 flex items-center gap-1.5">
+            <span
+                x-show="task.startedAt && !task.completed"
+                class="text-xs font-medium px-2 py-1 rounded-md bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+            >In progress</span>
+            <!-- Steps chip (item 16): real data, so it is always visible; it
+                 expands the task's checklist inline. -->
+            <button
+                type="button"
+                x-show="task.steps?.length"
+                x-on:click="stepsOpen = !stepsOpen"
+                x-bind:aria-expanded="stepsOpen"
+                x-bind:aria-controls="`steps-${task.id}`"
+                x-bind:aria-label="`Steps for ${task.todo || 'task'}: ${stepsProgress(task)}. ${stepsOpen ? 'Hide' : 'Show'} steps.`"
+                title="Checklist steps"
+                class="inline-flex items-center gap-1 touch-target text-xs font-medium px-2 py-1 rounded-md bg-gray-100 text-gray-600 dark:bg-slate-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors"
+            >
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m3 17 2 2 4-4m-6-8 2 2 4-4m6 5h2m0 6h2" />
+                </svg>
+                <span class="tabular-nums" x-text="`${stepsDone(task)}/${stepsTotal(task)}`"></span>
+            </button>
+            <!-- Due date: the chip opens the browser date picker. Tasks started on the board say so. -->
+            <button
+                type="button"
+                x-on:click="$refs.due.showPicker ? $refs.due.showPicker() : $refs.due.focus()"
+                class="flex items-center gap-1 touch-target text-xs font-medium px-2 py-1 rounded-md transition-opacity"
+                x-bind:class="task.dueDate
+                    ? $dates.dueClass(task.dueDate, task.completed)
+                    : 'row-due-add text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 sm:opacity-0 sm:group-hover/task:opacity-100 sm:group-focus-within/task:opacity-100 focus:opacity-100 [@media(hover:none)]:opacity-100'"
+                x-bind:title="task.dueDate ? 'Due ' + $dates.formatDate(task.dueDate, { weekday: 'long', month: 'long', day: 'numeric' }) : 'Set a due date'"
+                x-bind:aria-label="task.dueDate ? 'Due ' + $dates.dueLabel(task.dueDate) + '. Change due date' : 'Set a due date'"
+            >
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <span x-show="task.dueDate" x-text="task.dueDate ? $dates.dueLabel(task.dueDate) : ''"></span>
+            </button>
+            <input name="task-due-date"
+                type="date"
+                x-ref="due"
+                tabindex="-1"
+                aria-hidden="true"
+                class="absolute inset-0 w-full h-full opacity-0 pointer-events-none"
+                x-bind:value="task.dueDate ?? ''"
+                x-on:change="$store.todos.setDueDate(task.id, $event.target.value)"
             />
-            <input name="task-name" aria-label="Task name"
-                type="text"
-                x-model="task.todo"
-                x-bind:readonly="task.completed"
-                x-on:keydown.enter="$event.target.blur()"
-                x-on:blur="$store.todos.updateTask(task.id, { todo: task.todo })"
-                class="flex-1 min-w-0 bg-transparent border-none focus:ring-0 focus:outline-none"
-                x-bind:class="{
-                    'line-through text-gray-500 dark:text-gray-400': task.completed,
-                    'text-gray-700 dark:text-gray-300': !task.completed
-                }"
-            />
+        </div>
+
+        <!-- Task actions: inline on desktop, behind the "..." sheet on touch -->
+        <div class="row-inline shrink-0 ml-auto flex items-center gap-2 transition-opacity sm:opacity-0 sm:group-hover/task:opacity-100 sm:focus-within:opacity-100">
+            <!-- Delete button -->
+            <button 
+                x-on:click="$store.todos.deleteTodo(task.id)"
+                class="inline-flex items-center justify-center touch-target p-1 text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400 transition-colors"
+                aria-label="Delete task"
+            >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                </svg>
+            </button>
+        </div>
+
+        <!-- The "..." overflow button (item 13): touch screens and narrow windows -->
+        <div class="row-overflow shrink-0 ml-auto flex items-center">
+            <button type="button" x-ref="overflow"
+                x-on:click="toggleMenu(task)"
+                aria-haspopup="menu"
+                x-bind:aria-expanded="menuOpen"
+                title="Task actions"
+                x-bind:aria-label="`More actions for ${task.todo || 'task'}`"
+                class="inline-flex items-center justify-center touch-target p-1.5 rounded-md text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-slate-700 transition-colors"
+            >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 12h.01M12 12h.01M19 12h.01" />
+                </svg>
+            </button>
         </div>
     </div>
 
-    <EstimatePicker />
-
-    <!-- Due date: the chip opens the browser date picker. Tasks started on the board say so. -->
-    <div class="relative shrink-0 pl-14 sm:pl-0 pb-2 sm:pb-0 flex items-center gap-1.5" x-data>
-        <span
-            x-show="task.startedAt && !task.completed"
-            class="text-xs font-medium px-2 py-1 rounded-md bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
-        >In progress</span>
-        <button
-            type="button"
-            x-on:click="$refs.due.showPicker ? $refs.due.showPicker() : $refs.due.focus()"
-            class="flex items-center gap-1 touch-target text-xs font-medium px-2 py-1 rounded-md transition-opacity"
-            x-bind:class="task.dueDate
-                ? $dates.dueClass(task.dueDate, task.completed)
-                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 sm:opacity-0 sm:group-hover/task:opacity-100 sm:group-focus-within/task:opacity-100 focus:opacity-100 [@media(hover:none)]:opacity-100'"
-            x-bind:title="task.dueDate ? 'Due ' + $dates.formatDate(task.dueDate, { weekday: 'long', month: 'long', day: 'numeric' }) : 'Set a due date'"
-            x-bind:aria-label="task.dueDate ? 'Due ' + $dates.dueLabel(task.dueDate) + '. Change due date' : 'Set a due date'"
-        >
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-            <span x-show="task.dueDate" x-text="task.dueDate ? $dates.dueLabel(task.dueDate) : ''"></span>
-        </button>
-        <input name="task-due-date"
-            type="date"
-            x-ref="due"
-            tabindex="-1"
-            aria-hidden="true"
-            class="absolute inset-0 w-full h-full opacity-0 pointer-events-none"
-            x-bind:value="task.dueDate ?? ''"
-            x-on:change="$store.todos.setDueDate(task.id, $event.target.value)"
-        />
+    <!-- Checklist steps (item 16): the steps chip expands the task's Breakdown
+         checklist under the row, with real checkboxes and a progress read. -->
+    <div x-show="stepsOpen" x-cloak x-transition.opacity.duration.150ms
+        x-bind:id="`steps-${task.id}`"
+        class="mt-1 mb-2 ml-8 sm:ml-9 mr-2 rounded-lg border border-gray-200/80 dark:border-slate-600/60 bg-black/[0.02] dark:bg-white/[0.04] p-2.5 space-y-2"
+    >
+        <p class="px-1 text-xs font-medium text-gray-500 dark:text-gray-400" x-text="stepsProgress(task)"></p>
+        <ul class="space-y-0.5">
+            <template x-for="step in task.steps" :key="step.id">
+                <li>
+                    <label class="flex min-h-9 cursor-pointer items-center gap-2.5 text-sm text-gray-700 dark:text-gray-200">
+                        <input type="checkbox" name="task-step"
+                            x-bind:aria-label="`Mark step: ${step.text}`"
+                            x-bind:checked="step.done"
+                            x-on:change="$store.todos.toggleStep(task.id, step.id)"
+                            class="h-4 w-4 shrink-0 rounded border-gray-300 dark:border-slate-500 text-teal-600 dark:text-teal-400 focus:ring-teal-500 dark:bg-slate-700"
+                        />
+                        <span class="min-w-0 flex-1 break-words"
+                            x-bind:class="step.done ? 'line-through text-gray-500 dark:text-gray-400' : ''"
+                            x-text="step.text"
+                        ></span>
+                        <span x-show="step.minutes" class="shrink-0 text-xs text-gray-500 dark:text-gray-400 tabular-nums" x-text="step.minutes ? `${step.minutes} min` : ''"></span>
+                    </label>
+                </li>
+            </template>
+        </ul>
     </div>
-    
-    <!-- Task actions -->
-    <div class="shrink-0 ml-auto pb-2 sm:pb-0 flex items-center gap-2 transition-opacity sm:opacity-0 sm:group-hover/task:opacity-100 sm:focus-within:opacity-100 [@media(hover:none)]:opacity-100">
-        <!-- Delete button -->
-        <button 
-            x-on:click="$store.todos.deleteTodo(task.id)"
-            class="inline-flex items-center justify-center touch-target p-1 text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400 transition-colors"
-            aria-label="Delete task"
+
+    <!-- The "..." sheet (item 13): the same actions the row crowds in on touch -- set
+         due date, set estimate, edit, move, delete -- one tap deep. Solid panel, and
+         the row's other controls close it, so only one sheet is ever open. -->
+    <div x-show="menuOpen" x-cloak x-transition.opacity.duration.150ms
+        x-ref="menu"
+        role="menu"
+        x-bind:aria-label="`Actions for ${task.todo || 'task'}`"
+        x-on:keydown.escape.stop="closeMenu()"
+        x-on:keydown.down.prevent="menuFocus(1)"
+        x-on:keydown.up.prevent="menuFocus(-1)"
+        x-on:focusout="if (!$el.contains($event.relatedTarget)) closeMenu(false)"
+        class="absolute right-1 top-full mt-1 z-40 w-52 py-1.5 rounded-xl bg-white dark:bg-slate-800 shadow-lg ring-1 ring-black/10 dark:ring-white/10 text-sm text-gray-700 dark:text-gray-200"
+    >
+        <button type="button" role="menuitem" x-ref="menuEdit" x-on:click="editName()" class={menuItem}>
+            <svg class="w-4 h-4 shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+            <span>Edit name</span>
+        </button>
+        <button type="button" role="menuitem" x-on:click="pickDueDate()" class={menuItem}>
+            <svg class="w-4 h-4 shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+            <span x-text="task.dueDate ? 'Change due date' : 'Set due date'"></span>
+        </button>
+        <button type="button" role="menuitem" x-on:click="pickEstimate()" class={menuItem}>
+            <svg class="w-4 h-4 shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            <span x-text="task.estimateMinutes ? 'Change estimate' : 'Set estimate'"></span>
+        </button>
+        <button type="button" role="menuitem"
+            x-on:click="moveTask(task, -1, $event.currentTarget, () => announceMoveFor(task.id))"
+            x-bind:disabled="$store.todos.isFirstTask(task.id)"
+            class={menuItem}
         >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-            </svg>
+            <svg class="w-4 h-4 shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" /></svg>
+            <span>Move up</span>
+        </button>
+        <button type="button" role="menuitem"
+            x-on:click="moveTask(task, 1, $event.currentTarget, () => announceMoveFor(task.id))"
+            x-bind:disabled="$store.todos.isLastTask(task.id)"
+            class={menuItem}
+        >
+            <svg class="w-4 h-4 shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+            <span>Move down</span>
+        </button>
+        <button type="button" role="menuitem" x-on:click="deleteTask(task)" class={`${menuItem} ${menuDanger}`}>
+            <svg class="w-4 h-4 shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+            <span>Delete task</span>
         </button>
     </div>
 </div>
@@ -145,4 +272,21 @@ import EstimatePicker from './EstimatePicker.astro';
     }
     .task-item.drop-top::before { top: -6px; }
     .task-item.drop-bottom::after { bottom: -6px; }
+
+    /* Touch screens and narrow windows, the same media discipline as .touch-target:
+       the inline add-controls fold away and one "..." button opens the action sheet.
+       Chips that hold data -- a set date, a set estimate, the steps count -- stay. */
+    .row-overflow { display: none; }
+
+    @media (max-width: 639px), (pointer: coarse) {
+        .row-drag,
+        .row-inline { display: none; }
+        .row-overflow { display: flex; }
+        .row-due-add { display: none; }
+        /* The EstimatePicker's own box folds away so only its set chip shows on the
+           row; its popover anchors to our wrapper and opens from the sheet. */
+        .row-estimate > :global(div) { display: contents; }
+        .row-estimate.row-estimate-add > :global(div) > :global(button) { display: none; }
+        .row-estimate > :global(div) > :global(div) { left: auto; right: 0; }
+    }
 </style>
