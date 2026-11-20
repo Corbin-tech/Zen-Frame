@@ -82,12 +82,30 @@ try {
       assert.equal(url, 'https://api.anthropic.com/v1/messages');
       const headers = new Headers(init?.headers); assert.equal(headers.get('x-api-key'), 'fake-key'); assert.equal(headers.get('anthropic-version'), '2023-06-01');
       const body = JSON.parse(init?.body as string);
-      assert.deepEqual(body, { model: 'claude-haiku-5-5', max_tokens: 100, system: 'system', messages: [{ role: 'user', content: secretText }], thinking: { type: 'disabled' }, output_config: { effort: 'low', format: { type: 'json_schema', schema: SCHEMAS.breakdown } } });
+      assert.deepEqual(body, { model: 'claude-haiku-5-5', max_tokens: 100, system: 'system', messages: [{ role: 'user', content: secretText }], thinking: { type: 'disabled' }, output_config: { effort: 'low', format: { type: 'json_schema', schema: { type: 'object', properties: { steps: { type: 'array', items: { type: 'string' }, minItems: 1 } }, required: ['steps'], additionalProperties: false } } } });
       assert.equal('tools' in body, false);
       return Response.json({ stop_reason: 'end_turn', content: [{ type: 'text', text: '{"steps":["Start"]}' }] });
     };
     const client = createAnthropicClient('fake-key'); const arg = { system: 'system', user: secretText, schema: SCHEMAS.breakdown, maxTokens: 100, signal: new AbortController().signal };
     assert.deepEqual(await client.generate(arg), { kind: 'ok', json: { steps: ['Start'] } }); tests++;
+    const strictSchemas = JSON.stringify(SCHEMAS);
+    globalThis.fetch = async (_url, init) => {
+      const schema = JSON.parse(init?.body as string).output_config.format.schema;
+      function check(value: unknown) {
+        if (!value || typeof value !== 'object') return;
+        for (const [key, item] of Object.entries(value)) {
+          assert.ok(!['minLength', 'maxLength', 'minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum', 'multipleOf', 'maxItems'].includes(key));
+          if (key === 'minItems') assert.ok(item === 0 || item === 1);
+          check(item);
+        }
+      }
+      check(schema);
+      return Response.json({ stop_reason: 'end_turn', content: [{ type: 'text', text: '{}' }] });
+    };
+    for (const schema of [...Object.values(SCHEMAS), { type: 'array', minItems: 2, maxItems: 10, items: { type: 'number', minimum: 1, maximum: 10, exclusiveMinimum: 0, exclusiveMaximum: 11, multipleOf: 1 } }]) {
+      assert.equal((await client.generate({ ...arg, schema })).kind, 'ok'); tests++;
+    }
+    assert.equal(JSON.stringify(SCHEMAS), strictSchemas);
     for (const [response, kind] of [[new Response('fake-key', { status: 500 }), 'error'], [Response.json({ stop_reason: 'refusal' }), 'refusal'], [Response.json({ stop_reason: 'end_turn', content: [{ type: 'text', text: 'invalid' }] }), 'error']] as const) {
       globalThis.fetch = async () => response; assert.deepEqual(await client.generate(arg), { kind }); tests++;
     }
