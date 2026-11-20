@@ -504,6 +504,7 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
 <script>
     import { exportBackup, importBackup } from '../lib/storage';
     import { toDateKey } from '../lib/dates';
+    import { trapFocus } from '../lib/focusTrap';
 
     document.addEventListener('alpine:init', () => {
         window.Alpine.data('settingsPanel', () => ({
@@ -518,16 +519,7 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
 
             // aria-modal alone does not stop Tab from reaching the page behind, so wrap it inside the panel
             trap(event: KeyboardEvent) {
-                const panel = this.$refs.panel as HTMLElement;
-                const focusable = Array.from(panel.querySelectorAll<HTMLElement>('a[href], button, input, select, textarea, [tabindex]'))
-                    .filter(element => element.tabIndex >= 0 && !element.matches(':disabled') && element.getClientRects().length);
-                const first = focusable[0], last = focusable[focusable.length - 1];
-                if (!first) return;
-                const active = document.activeElement;
-                if (!panel.contains(active) || active === (event.shiftKey ? first : last)) {
-                    event.preventDefault();
-                    (event.shiftKey ? last : first).focus();
-                }
+                trapFocus(event, this.$refs.panel as HTMLElement);
             },
         }));
 
