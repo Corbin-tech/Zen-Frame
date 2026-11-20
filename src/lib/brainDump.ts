@@ -106,7 +106,10 @@ export function brainDump() {
       const count = acceptBrainDump(this.clusters, todos());
       assist().discard();
       this.text = '';
-      this.$nextTick(() => removeSession(KEY));
+      this.$nextTick(() => {
+        removeSession(KEY);
+        this.$refs.draft.focus();
+      });
       this.announcement = `Added ${count} tasks. Your draft is cleared.`;
     },
     discard() { assist().discard(); this.announcement = 'Preview discarded. Your draft is kept.'; }
