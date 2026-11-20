@@ -212,7 +212,8 @@ test("expired holds free capacity without a charge; Plus has a separate 1,000-an
     assert.equal((await issueEntitlement(f.env, { ...account, plus_until: 0 }, identity.sessionId, now)).trialRemaining, 19);
 });
 
-test("mock Stripe Checkout, cancel and retry, webhook reconciliation and customer portal", async () => {
+test("mock Stripe Checkout, cancel and retry, webhook reconciliation and customer portal", async (t) => {
+    t.mock.method(console, "error", () => {});
     const f = fixtures();
     const { headers } = await f.signIn();
     let state = "open";
@@ -301,4 +302,43 @@ test("mock Stripe Checkout, cancel and retry, webhook reconciliation and custome
     assert.equal((await billing("portal", {}, headers, {
         ...f.env, STRIPE_SECRET_KEY: ["sk", "live", "forbidden"].join("_")
     })).status, 503);
+});
+
+test("webhook logs only safe failure codes and keeps failure responses generic", async (t) => {
+    const log = t.mock.method(console, "error", () => {});
+    const f = fixtures();
+    await f.signIn();
+    f.sqlite.prepare("UPDATE plus_accounts SET stripe_customer = ? WHERE email = ?").run(customer, email);
+    const body = JSON.stringify({
+        type: "customer.subscription.updated", livemode: false, data: { object: { customer, email } }
+    });
+    const time = unixTime();
+    const signature = createHmac("sha256", f.env.STRIPE_WEBHOOK_SECRET).update(`${time}.${body}`).digest("hex");
+    const webhook = (env, signingHeader = `t=${time},v1=${signature}`) => handleBilling(
+        f.request("billing", "webhook", body, { Origin: "", "Stripe-Signature": signingHeader }),
+        "webhook", env, async () => { throw new Error("private Stripe response or credentials"); }
+    );
+
+    const malformedSecret = await webhook({ ...f.env, STRIPE_WEBHOOK_SECRET: "invalid private value" });
+    assert.equal(malformedSecret.status, 503);
+    assert.deepEqual(await malformedSecret.json(), { error: "plus_unavailable" });
+    assert.deepEqual(log.mock.calls[0].arguments, [
+        "Plus request failed", { scope: "stripe_webhook", reason: "stripe_webhook_not_configured" }
+    ]);
+
+    const wrongSecret = await webhook({ ...f.env, STRIPE_WEBHOOK_SECRET: "whsec_" + randomBytes(32).toString("hex") });
+    assert.equal(wrongSecret.status, 400);
+    assert.deepEqual(await wrongSecret.json(), { error: "invalid_stripe_signature" });
+    assert.deepEqual(log.mock.calls[1].arguments, [
+        "Plus request failed", { scope: "stripe_webhook", reason: "stripe_signature_mismatch" }
+    ]);
+
+    const reconciliation = await webhook(f.env);
+    assert.equal(reconciliation.status, 503);
+    assert.deepEqual(await reconciliation.json(), { error: "plus_unavailable" });
+    assert.deepEqual(log.mock.calls[2].arguments, [
+        "Plus request failed", { scope: "stripe_webhook", reason: "stripe_reconciliation_failed" }
+    ]);
+    assert.equal((await webhook(f.env, "")).status, 400);
+    assert.equal(log.mock.callCount(), 3);
 });

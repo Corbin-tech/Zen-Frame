@@ -1,6 +1,6 @@
 import { verifyHmac } from "../auth/crypto.ts";
 import { unixTime } from "../auth/db.ts";
-import { HttpError, readBody } from "../auth/http.ts";
+import { HttpError, logFailure, readBody, ServiceError } from "../auth/http.ts";
 
 export interface StripeEnv {
     STRIPE_SECRET_KEY?: string;
@@ -126,7 +126,7 @@ export function isCustomer(value: unknown): value is string {
 
 export async function verifyStripeEvent(request: Request, env: StripeEnv, now = unixTime()): Promise<StripeEvent> {
     const secret = env.STRIPE_WEBHOOK_SECRET;
-    if (!secret?.startsWith("whsec_")) throw new Error("Stripe webhook not configured");
+    if (!secret?.startsWith("whsec_") || secret.length < 32) throw new ServiceError("stripe_webhook_not_configured");
     const header = request.headers.get("Stripe-Signature");
     const invalid = new HttpError(400, "invalid_stripe_signature");
     if (!header || header.length > 4096) throw invalid;
@@ -152,7 +152,10 @@ export async function verifyStripeEvent(request: Request, env: StripeEnv, now = 
             break;
         }
     }
-    if (!verified) throw invalid;
+    if (!verified) {
+        if (signatures.length) logFailure("stripe_webhook", "stripe_signature_mismatch");
+        throw invalid;
+    }
     let event: Partial<StripeEvent> & { livemode?: boolean };
     try { event = JSON.parse(text); } catch { throw new HttpError(400, "invalid_stripe_event"); }
     if (!event || event.livemode !== false || typeof event.type !== "string" || !event.data?.object) {

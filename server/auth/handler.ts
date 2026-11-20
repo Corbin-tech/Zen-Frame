@@ -47,7 +47,7 @@ async function rateLimit(env: AccountEnv, request: Request, email: string, stage
 }
 
 export function handleAccount(request: Request, action: string, env: AccountEnv, mailer: Mailer = (to, code) => sendEmail(env, to, code)) {
-    return handlePost(request, async () => {
+    return handlePost(request, "account", async () => {
         const origin = appOrigin(request, env);
         requireSameOrigin(request, origin);
         const db = env.PLUS_DB;

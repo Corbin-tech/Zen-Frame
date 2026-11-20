@@ -1,7 +1,7 @@
 import { type Account, type PlusDatabase, unixTime } from "../auth/db.ts";
-import { appOrigin, handlePost, HttpError, json, type OriginEnv, readJson, requireSameOrigin } from "../auth/http.ts";
+import { appOrigin, handlePost, HttpError, json, type OriginEnv, readJson, requireSameOrigin, ServiceError } from "../auth/http.ts";
 import { requireSession } from "../auth/session.ts";
-import { createStripe, isCustomer, type Plan, type StripeEnv, verifyStripeEvent } from "./stripe.ts";
+import { createStripe, isCustomer, type Plan, type StripeEnv, type StripeEvent, verifyStripeEvent } from "./stripe.ts";
 
 export type BillingEnv = OriginEnv & StripeEnv & { PLUS_DB: PlusDatabase };
 
@@ -86,19 +86,18 @@ async function cancelCheckout(db: PlusDatabase, stripe: ReturnType<typeof create
     await clearCheckout(db, account.id, existing.checkout_id);
 }
 
-async function handleWebhook(request: Request, env: BillingEnv, transport: typeof fetch) {
-    const event = await verifyStripeEvent(request, env);
+async function reconcileStripeEvent(event: StripeEvent, env: BillingEnv, transport: typeof fetch) {
     const expired = event.type === "checkout.session.expired";
-    if (!expired && !SUBSCRIPTION_EVENTS.has(event.type)) return json({ ok: true });
+    if (!expired && !SUBSCRIPTION_EVENTS.has(event.type)) return;
     const { customer, client_reference_id: intent } = event.data.object;
-    if (!isCustomer(customer)) return json({ ok: true });
+    if (!isCustomer(customer)) return;
     const db = env.PLUS_DB;
     if (expired) {
         if (typeof intent === "string") {
             const account = await db.prepare("SELECT id FROM plus_accounts WHERE stripe_customer = ?").bind(customer).first<{ id: string }>();
             if (account) await clearCheckout(db, account.id, intent);
         }
-        return json({ ok: true });
+        return;
     }
 
     // Every relevant event reads the current Stripe state rather than applying a possibly stale event payload.
@@ -115,13 +114,20 @@ async function handleWebhook(request: Request, env: BillingEnv, transport: typeo
         `).bind(plusUntil, account.billing_sync_version, account.id).run();
         if (event.type.startsWith("checkout.session.") && typeof intent === "string") await clearCheckout(db, account.id, intent);
     }
-    return json({ ok: true });
 }
 
 export function handleBilling(request: Request, action: string, env: BillingEnv, transport = fetch) {
-    return handlePost(request, async () => {
+    return handlePost(request, action === "webhook" ? "stripe_webhook" : "billing", async () => {
         const origin = appOrigin(request, env);
-        if (action === "webhook") return handleWebhook(request, env, transport);
+        if (action === "webhook") {
+            const event = await verifyStripeEvent(request, env);
+            try {
+                await reconcileStripeEvent(event, env, transport);
+            } catch {
+                throw new ServiceError("stripe_reconciliation_failed");
+            }
+            return json({ ok: true });
+        }
         requireSameOrigin(request, origin);
         const account = await requireSession(env.PLUS_DB, request, origin);
         const stripe = createStripe(env, transport);

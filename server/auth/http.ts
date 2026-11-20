@@ -13,6 +13,23 @@ export class HttpError extends Error {
     }
 }
 
+type FailureScope = "account" | "billing" | "stripe_webhook";
+type FailureReason = "stripe_webhook_not_configured" | "stripe_signature_mismatch" | "stripe_reconciliation_failed" | "unexpected_error";
+
+export class ServiceError extends Error {
+    readonly reason: FailureReason;
+
+    constructor(reason: FailureReason) {
+        super(reason);
+        this.reason = reason;
+    }
+}
+
+export function logFailure(scope: FailureScope, reason: FailureReason) {
+    // Raw exceptions can contain database parameters, provider payloads, or credentials.
+    console.error("Plus request failed", { scope, reason });
+}
+
 export function appOrigin(request: Request, env: OriginEnv): URL {
     const origin = new URL(env.PLUS_ORIGIN);
     const isLoopback = ["localhost", "127.0.0.1", "[::1]"].includes(origin.hostname);
@@ -73,9 +90,14 @@ export function json(body: unknown, status = 200, headers?: HeadersInit) {
     return response;
 }
 
-export function handlePost(request: Request, run: () => Promise<Response>): Promise<Response> {
+export function handlePost(request: Request, scope: FailureScope, run: () => Promise<Response>): Promise<Response> {
     if (request.method !== "POST") return Promise.resolve(json({ error: "method_not_allowed" }, 405, { Allow: "POST" }));
-    return run().catch((error: unknown) => error instanceof HttpError
-        ? json({ error: error.code }, error.status)
-        : json({ error: "plus_unavailable" }, 503));
+    return run().catch((error: unknown) => {
+        if (!(error instanceof HttpError) || error.status >= 500) {
+            logFailure(scope, error instanceof ServiceError ? error.reason : "unexpected_error");
+        }
+        return error instanceof HttpError
+            ? json({ error: error.code }, error.status)
+            : json({ error: "plus_unavailable" }, 503);
+    });
 }
