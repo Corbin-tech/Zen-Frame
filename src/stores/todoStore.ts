@@ -3,6 +3,7 @@ import { planTasks, type AvailabilityWindow } from "../lib/autoPlan";
 import { loadJson, saveJson } from "../lib/storage";
 import type { Milestone } from "./settingsStore";
 import { blockMinutes } from "../lib/estimates";
+import { cleanStepTotal } from "../lib/assist/sanitize";
 import { normalizeLoadedTodo } from "../lib/assist/todoLoad";
 
 export interface Todo {
@@ -353,7 +354,7 @@ function createTodosStore() {
       const task = this.find(taskId);
       if (!task || task.isCluster) return;
       task.steps = steps.map(step => ({ id: crypto.randomUUID(), text: step.text.trim(), done: false, minutes: step.minutes ?? null }));
-      const total = task.steps.reduce((sum, step) => sum + (step.minutes ?? 0), 0);
+      const total = cleanStepTotal(task.steps);
       if (!task.estimateMinutes && total) task.estimateMinutes = total;
       task.updatedAt = new Date().toISOString();
       this.saveTodos();

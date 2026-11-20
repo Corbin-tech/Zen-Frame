@@ -1,6 +1,7 @@
 // @ts-expect-error Node provides assert at runtime; the browser app has no Node typings.
 import assert from "node:assert/strict";
 import type { Todo } from "../../stores/todoStore";
+import { cleanStepTotal } from "./sanitize.ts";
 import { normalizeLoadedTodo } from "./todoLoad.ts";
 
 const cases = [
@@ -21,5 +22,15 @@ for (const [minutes, expected] of cases) {
   assert.equal(loaded.estimateMinutes, expected);
   assert.equal(loaded.steps?.[0].minutes, expected);
 }
+
+const steps = [
+  { id: "first", text: "First step", done: false, minutes: 300 },
+  { id: "second", text: "Second step", done: false, minutes: 200 }
+];
+const estimateMinutes = cleanStepTotal(steps);
+assert.equal(estimateMinutes, 480);
+const loaded = normalizeLoadedTodo({ estimateMinutes, steps } as Todo);
+assert.equal(loaded.estimateMinutes, estimateMinutes);
+assert.deepEqual(loaded.steps, steps);
 
 console.log("todo load checks passed");
