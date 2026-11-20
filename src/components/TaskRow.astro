@@ -5,14 +5,15 @@ import EstimatePicker from './EstimatePicker.astro';
 ---
 
 <div 
-    class="relative group/task flex flex-wrap sm:flex-nowrap items-center gap-x-2 pr-2 border border-gray-100 dark:border-slate-600 rounded-lg shadow-sm hover:shadow-md transition-all duration-300 ease-in-out task-item"
+    class="relative group/task flex flex-wrap sm:flex-nowrap items-center gap-x-2 pr-2 rounded-xl shadow-sm ring-1 ring-black/5 dark:ring-white/5 hover:ring-black/10 dark:hover:ring-white/10 transition-colors task-item"
     style="background-color: var(--task-bg);"
-    x-bind:class="{'bg-green-50 dark:bg-green-900/10 border-green-100 dark:border-green-900/30': task.completed, 'hover:border-teal-300 dark:hover:border-teal-700': !task.completed}"
     x-drag-task="task.id"
     x-bind:id="`item-${task.id}`"
 >
+    <!-- Cluster color along the left edge, like a board card -->
+    <span class="absolute left-0 top-3 bottom-3 w-1 rounded-r-full" x-bind:style="`background-color: ${$store.todos.clusterColor(task.parentId)};`" aria-hidden="true"></span>
     <!-- On small screens the due date and controls wrap to a second line -->
-    <div class="basis-full sm:basis-auto flex-1 min-w-0 py-3 pl-2 sm:pl-3">
+    <div class="basis-full sm:basis-auto flex-1 min-w-0 py-3 pl-4">
         <div class="flex items-center gap-2 sm:gap-3">
             <div 
                 data-drag-handle
@@ -25,7 +26,7 @@ import EstimatePicker from './EstimatePicker.astro';
             </div>
             <input name="task-done" x-bind:aria-label="`Mark ${task.todo || 'task'} ${task.completed ? 'not done' : 'done'}`"
                 type="checkbox"
-                class="w-5 h-5 rounded border-gray-300 dark:border-slate-500 text-teal-600 dark:text-teal-400 focus:ring-teal-500 dark:focus:ring-teal-400 dark:bg-slate-700"
+                class="w-5 h-5 rounded-full border-gray-300 dark:border-slate-500 text-teal-600 dark:text-teal-400 focus:ring-teal-500 dark:focus:ring-teal-400 dark:bg-slate-700"
                 x-bind:checked="task.completed"
                 x-on:change="$store.todos.toggleTodo(task.id)"
             />
@@ -58,7 +59,7 @@ import EstimatePicker from './EstimatePicker.astro';
             class="flex items-center gap-1 touch-target text-xs font-medium px-2 py-1 rounded-md transition-opacity"
             x-bind:class="task.dueDate
                 ? $dates.dueClass(task.dueDate, task.completed)
-                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 sm:opacity-0 sm:group-hover/task:opacity-100 focus:opacity-100 [@media(hover:none)]:opacity-100'"
+                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 sm:opacity-0 sm:group-hover/task:opacity-100 sm:group-focus-within/task:opacity-100 focus:opacity-100 [@media(hover:none)]:opacity-100'"
             x-bind:title="task.dueDate ? 'Due ' + $dates.formatDate(task.dueDate, { weekday: 'long', month: 'long', day: 'numeric' }) : 'Set a due date'"
             x-bind:aria-label="task.dueDate ? 'Due ' + $dates.dueLabel(task.dueDate) + '. Change due date' : 'Set a due date'"
         >
@@ -127,14 +128,6 @@ import EstimatePicker from './EstimatePicker.astro';
     
     .task-item:last-child {
         margin-bottom: 0;
-    }
-
-    .task-item:hover {
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-    }
-    
-    :global(.dark) .task-item:hover {
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.1);
     }
 
     /* The task being dragged */
