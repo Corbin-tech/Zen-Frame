@@ -16,6 +16,7 @@ const field = 'w-full min-w-0 rounded-lg border border-gray-300 bg-white text-sm
     x-data={`breakdownPanel(() => ${taskId}, () => ${fallbackFocus})`}
     x-id="['breakdown-panel', 'breakdown-title']"
     x-on:breakdown-open.window="openFrom($event.detail)"
+    x-bind:class="{ 'mt-2': open }"
     class="w-full"
 >
     {inlineTrigger && (

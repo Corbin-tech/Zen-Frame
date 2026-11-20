@@ -1,4 +1,5 @@
 import { cleanMinutes, cleanText } from '../lib/assist';
+import { totalEstimate, totalLabel } from '../lib/estimates';
 import { canBreakDown } from './BreakdownPanel';
 import type { Todo, TodoStep } from '../stores/todoStore';
 
@@ -16,6 +17,7 @@ export function registerTaskSteps() {
     window.Alpine.data('taskSteps', (activeTaskId: () => string | undefined, zen = false) => ({
         breakdownOpen: false,
         confirming: false,
+        menuOpen: false,
         promotionMessage: '',
         get stepTaskId() { return activeTaskId(); },
         get stepTask(): Todo | undefined { return this.stepTaskId ? todos().find(this.stepTaskId) : undefined; },
@@ -30,9 +32,19 @@ export function registerTaskSteps() {
             return `${this.savedSteps.filter(step => step.done).length} of ${this.savedSteps.length} steps`;
         },
         get nextStep() { return this.savedSteps.find(step => !step.done); },
+        get stepPercent(): number {
+            const total = this.savedSteps.length;
+            return total ? Math.round(this.savedSteps.filter(step => step.done).length / total * 100) : 0;
+        },
+        // "About 35 min left" from the open steps that have minutes. Empty when none do.
+        get minutesLeft(): string {
+            const open = this.savedSteps.filter(step => !step.done && step.minutes).map(step => ({ estimateMinutes: step.minutes }));
+            return totalEstimate(open).minutes ? `${totalLabel(open)} left` : '';
+        },
         init() {
             this.$watch('stepTaskId', () => {
                 this.confirming = false;
+                this.menuOpen = false;
                 this.promotionMessage = '';
             });
         },
@@ -51,9 +63,14 @@ export function registerTaskSteps() {
             this.confirming = true;
             this.$nextTick(() => this.$refs.promoteCancel.focus());
         },
+        closeMenu() {
+            if (!this.menuOpen) return;
+            this.menuOpen = false;
+            this.$refs.stepMenu.focus();
+        },
         hidePromotion() {
             this.confirming = false;
-            this.$nextTick(() => this.$refs.promote.focus());
+            this.$nextTick(() => this.$refs.stepMenu.focus());
         },
         promote() {
             const task = this.stepTask;

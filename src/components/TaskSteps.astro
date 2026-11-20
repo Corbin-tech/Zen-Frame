@@ -17,14 +17,16 @@ const {
 const box = 'rounded-xl border border-gray-200 bg-white/85 p-3 text-left dark:border-slate-600 dark:bg-slate-900/70';
 const checkbox = 'h-5 w-5 shrink-0 rounded border-gray-400 text-teal-700 focus:ring-teal-500 dark:border-slate-500 dark:bg-slate-800';
 const action = 'min-h-9 rounded-lg px-2 py-1 text-sm font-medium text-teal-800 hover:bg-teal-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 dark:text-teal-300 dark:hover:bg-slate-700';
+const menuItem = 'touch-target flex w-full items-center gap-1 rounded-md px-3 py-2 text-left text-sm text-gray-800 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 dark:text-gray-100 dark:hover:bg-slate-700';
 ---
 
 <div
     x-data={`taskSteps(() => ${taskId}, ${zen})`}
+    x-id="['step-menu']"
     x-show="canShowSteps || breakdownOpen"
     x-on:breakdown-visibility.stop="breakdownOpen = $event.detail"
     x-cloak
-    class:list={['min-w-0 space-y-2', zen ? 'w-full max-w-xl' : 'w-full', className]}
+    class:list={['min-w-0', zen ? 'w-full max-w-xl' : 'w-full', className]}
 >
     {zen ? (
         <div x-show="savedSteps.length" class={box}>
@@ -40,35 +42,78 @@ const action = 'min-h-9 rounded-lg px-2 py-1 text-sm font-medium text-teal-800 h
             </label>
         </div>
     ) : (
-        <details x-show="savedSteps.length" class={box}>
-            <summary x-ref="checklistSummary" class="min-h-9 cursor-pointer py-1 text-sm font-semibold text-gray-800 dark:text-gray-100">
-                <span x-text="stepProgress"></span>
+        <details x-show="savedSteps.length" class="group/steps text-left">
+            <!-- Collapsed: one line with progress, the next open step, and the minutes left -->
+            <summary
+                x-ref="checklistSummary"
+                class="touch-target flex min-h-8 cursor-pointer list-none items-center gap-2 rounded-lg py-0.5 pr-1 text-sm hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 dark:hover:bg-slate-800/60 [&::-webkit-details-marker]:hidden"
+            >
+                <svg class="h-4 w-4 shrink-0 text-gray-500 transition-transform group-open/steps:rotate-90 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                </svg>
+                <span class="h-1.5 w-12 shrink-0 overflow-hidden rounded-full bg-gray-200 sm:w-16 dark:bg-slate-700" aria-hidden="true">
+                    <span class="block h-full rounded-full bg-teal-600 transition-[width] duration-300 dark:bg-teal-400" x-bind:style="`width: ${stepPercent}%`"></span>
+                </span>
+                <span class="min-w-0 flex-1 truncate">
+                    <span class="font-semibold text-gray-800 dark:text-gray-100" x-text="stepProgress"></span>
+                    <span
+                        x-bind:class="nextStep ? 'text-gray-600 dark:text-gray-300' : 'font-medium text-green-700 dark:text-green-400'"
+                        x-text="nextStep ? ` · Next: ${nextStep.text}` : ' · All done'"
+                    ></span>
+                </span>
+                <span x-show="minutesLeft" class="hidden shrink-0 text-xs text-gray-600 sm:inline dark:text-gray-300" x-text="minutesLeft"></span>
             </summary>
             <p role="status" class="sr-only" x-text="stepProgress"></p>
-            <ul class="space-y-1">
+            <ul class="mt-1 space-y-0.5 pl-6">
                 <template x-for="step in savedSteps" x-bind:key="step.id">
                     <li>
-                        <label class="flex min-h-9 cursor-pointer items-center gap-3 text-sm text-gray-900 dark:text-gray-100">
+                        <label class="touch-target flex cursor-pointer items-center gap-3 py-2 text-sm">
                             <input type="checkbox" class={checkbox} x-bind:checked="step.done" x-on:change="toggleSavedStep(step.id)" />
-                            <span class="min-w-0 flex-1 break-words" x-text="step.text"></span>
-                            <span x-show="step.minutes" class="shrink-0 text-xs text-gray-600 dark:text-gray-300" x-text="`${step.minutes} min`"></span>
+                            <span class="min-w-0 flex-1 break-words">
+                                <span
+                                    x-bind:class="step.done ? 'text-gray-400 line-through dark:text-gray-500' : 'text-gray-900 dark:text-gray-100'"
+                                    x-text="step.text"
+                                ></span>
+                                <span x-show="step.minutes" class="whitespace-nowrap text-xs text-gray-500 dark:text-gray-400" x-text="` · ${step.minutes} min`"></span>
+                            </span>
                         </label>
                     </li>
                 </template>
             </ul>
+            <!-- Checklist options: Redo with Plus, Promote to cluster -->
+            <div class="relative mt-1 pl-6" x-on:keydown.escape="if (menuOpen) { $event.stopPropagation(); closeMenu(); }" x-on:click.outside="menuOpen = false">
+                <button
+                    type="button"
+                    x-ref="stepMenu"
+                    x-on:click="menuOpen = !menuOpen"
+                    x-bind:aria-expanded="menuOpen"
+                    x-bind:aria-controls="$id('step-menu')"
+                    aria-label="Checklist options"
+                    class="touch-target inline-flex px-2 py-2 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 dark:text-gray-400 dark:hover:bg-slate-700 dark:hover:text-gray-100"
+                >
+                    <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <circle cx="5" cy="12" r="1.75" /><circle cx="12" cy="12" r="1.75" /><circle cx="19" cy="12" r="1.75" />
+                    </svg>
+                </button>
+                <div
+                    hidden
+                    x-bind:hidden="!menuOpen"
+                    x-bind:id="$id('step-menu')"
+                    class="absolute left-6 z-20 mt-1 w-60 rounded-lg border border-gray-200 bg-white p-1 shadow-lg dark:border-slate-600 dark:bg-slate-800"
+                >
+                    <button
+                        type="button"
+                        x-show="$canBreakDown(stepTask)"
+                        x-on:click="menuOpen = false; $dispatch('breakdown-open', { row: $root.closest('.task-item'), opener: $refs.stepMenu })"
+                        class={menuItem}
+                    >Redo steps <span class="text-xs font-semibold text-teal-700 dark:text-teal-300">Plus</span></button>
+                    <button type="button" x-on:click="menuOpen = false; showPromotion()" class={menuItem}>Promote steps to cluster</button>
+                </div>
+            </div>
         </details>
     )}
     {!zen && (
-        <div x-show="savedSteps.length" class="text-left">
-            <div x-bind:hidden="confirming" class="flex flex-wrap gap-x-1">
-                <button type="button" x-ref="promote" x-on:click="showPromotion()" class={action}>Promote steps to cluster</button>
-                <button
-                    type="button"
-                    x-show="$canBreakDown(stepTask)"
-                    x-on:click="$dispatch('breakdown-open', { row: $root.closest('.task-item'), opener: $el })"
-                    class={`${action} touch-target`}
-                >Redo steps <span class="text-xs font-semibold text-gray-500 dark:text-gray-400">Plus</span></button>
-            </div>
+        <div hidden x-bind:hidden="!confirming && !promotionMessage" class="mt-2 text-left">
             <div hidden x-bind:hidden="!confirming" x-on:keydown.escape.stop="hidePromotion()" class={box}>
                 <p class="text-sm text-gray-700 dark:text-gray-200">Each promotion creates a separate cluster and adds any checked steps to your completion history. The original task and checklist stay as they are.</p>
                 <div class="mt-2 flex flex-wrap gap-2">
