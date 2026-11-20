@@ -68,92 +68,95 @@ const menuDanger = 'hover:!text-red-600 hover:!bg-red-50 dark:hover:!text-red-40
             </div>
         </div>
 
-        <!-- Estimate: the same picker chip, always present. On touch an unset
-             one folds into the sheet while the popover stays usable. -->
-        <div class="row-estimate relative shrink-0 ml-14 sm:ml-0" x-bind:class="task.estimateMinutes ? '' : 'row-estimate-add'">
-            <EstimatePicker />
+        <div class="relative flex flex-1 flex-wrap items-center gap-2 pl-14 sm:contents">
+            <!-- Estimate: the same picker chip, always present. On touch an unset
+                 one folds into the sheet while the popover stays usable. -->
+            <div class="row-estimate contents sm:block relative shrink-0" x-bind:class="task.estimateMinutes ? '' : 'row-estimate-add'">
+                <EstimatePicker />
+            </div>
+
+            <!-- Meta chips: In progress, steps, due date. The date input under them
+                 is the chip's picker, as on the board card's pencil form. -->
+            <div class="relative shrink-0 flex items-center gap-1.5">
+                <span
+                    x-show="task.startedAt && !task.completed"
+                    class="text-xs font-medium px-2 py-1 rounded-md bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+                >In progress</span>
+                <!-- Steps chip (item 16): real data, so it is always visible; it
+                     expands the task's checklist inline. -->
+                <button
+                    type="button"
+                    x-show="task.steps?.length"
+                    x-on:click="stepsOpen = !stepsOpen"
+                    x-bind:aria-expanded="stepsOpen"
+                    x-bind:aria-controls="`steps-${task.id}`"
+                    x-bind:aria-label="`Steps for ${task.todo || 'task'}: ${stepsProgress(task)}. ${stepsOpen ? 'Hide' : 'Show'} steps.`"
+                    title="Checklist steps"
+                    class="inline-flex items-center gap-1 touch-target text-xs font-medium px-2 py-1 rounded-md bg-gray-100 text-gray-600 dark:bg-slate-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors"
+                >
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m3 17 2 2 4-4m-6-8 2 2 4-4m6 5h2m0 6h2" />
+                    </svg>
+                    <span class="tabular-nums" x-text="`${stepsDone(task)}/${stepsTotal(task)}`"></span>
+                </button>
+                <!-- Due date: the chip opens the browser date picker. Tasks started on the board say so. -->
+                <button
+                    type="button"
+                    x-on:click="$refs.due.showPicker ? $refs.due.showPicker() : $refs.due.focus()"
+                    class="flex items-center gap-1 touch-target text-xs font-medium px-2 py-1 rounded-md transition-opacity"
+                    x-bind:class="task.dueDate
+                        ? $dates.dueClass(task.dueDate, task.completed)
+                        : 'row-due-add text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 sm:opacity-0 sm:group-hover/task:opacity-100 sm:group-focus-within/task:opacity-100 focus:opacity-100 [@media(hover:none)]:opacity-100'"
+                    x-bind:title="task.dueDate ? 'Due ' + $dates.formatDate(task.dueDate, { weekday: 'long', month: 'long', day: 'numeric' }) : 'Set a due date'"
+                    x-bind:aria-label="task.dueDate ? 'Due ' + $dates.dueLabel(task.dueDate) + '. Change due date' : 'Set a due date'"
+                >
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <span x-show="task.dueDate" x-text="task.dueDate ? $dates.dueLabel(task.dueDate) : ''"></span>
+                </button>
+                <input name="task-due-date"
+                    type="date"
+                    x-ref="due"
+                    tabindex="-1"
+                    aria-hidden="true"
+                    class="absolute inset-0 w-full h-full opacity-0 pointer-events-none"
+                    x-bind:value="task.dueDate ?? ''"
+                    x-on:change="$store.todos.setDueDate(task.id, $event.target.value)"
+                />
+            </div>
+
+            <!-- Task actions: inline on desktop, behind the "..." sheet on touch -->
+            <div class="row-inline shrink-0 ml-auto flex items-center gap-2 transition-opacity sm:opacity-0 sm:group-hover/task:opacity-100 sm:focus-within:opacity-100">
+                <!-- Delete button -->
+                <button
+                    x-on:click="$store.todos.deleteTodo(task.id)"
+                    class="inline-flex items-center justify-center touch-target p-1 text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400 transition-colors"
+                    aria-label="Delete task"
+                >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- The "..." overflow button (item 13): touch screens and narrow windows -->
+            <div class="row-overflow shrink-0 ml-auto flex items-center">
+                <button type="button" x-ref="overflow"
+                    x-on:click="toggleMenu(task)"
+                    aria-haspopup="menu"
+                    x-bind:aria-expanded="menuOpen"
+                    title="Task actions"
+                    x-bind:aria-label="`More actions for ${task.todo || 'task'}`"
+                    class="inline-flex items-center justify-center touch-target p-1.5 rounded-md text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-slate-700 transition-colors"
+                >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 12h.01M12 12h.01M19 12h.01" />
+                    </svg>
+                </button>
+            </div>
         </div>
 
-        <!-- Meta chips: In progress, steps, due date. The date input under them
-             is the chip's picker, as on the board card's pencil form. -->
-        <div class="relative shrink-0 flex items-center gap-1.5">
-            <span
-                x-show="task.startedAt && !task.completed"
-                class="text-xs font-medium px-2 py-1 rounded-md bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
-            >In progress</span>
-            <!-- Steps chip (item 16): real data, so it is always visible; it
-                 expands the task's checklist inline. -->
-            <button
-                type="button"
-                x-show="task.steps?.length"
-                x-on:click="stepsOpen = !stepsOpen"
-                x-bind:aria-expanded="stepsOpen"
-                x-bind:aria-controls="`steps-${task.id}`"
-                x-bind:aria-label="`Steps for ${task.todo || 'task'}: ${stepsProgress(task)}. ${stepsOpen ? 'Hide' : 'Show'} steps.`"
-                title="Checklist steps"
-                class="inline-flex items-center gap-1 touch-target text-xs font-medium px-2 py-1 rounded-md bg-gray-100 text-gray-600 dark:bg-slate-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors"
-            >
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m3 17 2 2 4-4m-6-8 2 2 4-4m6 5h2m0 6h2" />
-                </svg>
-                <span class="tabular-nums" x-text="`${stepsDone(task)}/${stepsTotal(task)}`"></span>
-            </button>
-            <!-- Due date: the chip opens the browser date picker. Tasks started on the board say so. -->
-            <button
-                type="button"
-                x-on:click="$refs.due.showPicker ? $refs.due.showPicker() : $refs.due.focus()"
-                class="flex items-center gap-1 touch-target text-xs font-medium px-2 py-1 rounded-md transition-opacity"
-                x-bind:class="task.dueDate
-                    ? $dates.dueClass(task.dueDate, task.completed)
-                    : 'row-due-add text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 sm:opacity-0 sm:group-hover/task:opacity-100 sm:group-focus-within/task:opacity-100 focus:opacity-100 [@media(hover:none)]:opacity-100'"
-                x-bind:title="task.dueDate ? 'Due ' + $dates.formatDate(task.dueDate, { weekday: 'long', month: 'long', day: 'numeric' }) : 'Set a due date'"
-                x-bind:aria-label="task.dueDate ? 'Due ' + $dates.dueLabel(task.dueDate) + '. Change due date' : 'Set a due date'"
-            >
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                <span x-show="task.dueDate" x-text="task.dueDate ? $dates.dueLabel(task.dueDate) : ''"></span>
-            </button>
-            <input name="task-due-date"
-                type="date"
-                x-ref="due"
-                tabindex="-1"
-                aria-hidden="true"
-                class="absolute inset-0 w-full h-full opacity-0 pointer-events-none"
-                x-bind:value="task.dueDate ?? ''"
-                x-on:change="$store.todos.setDueDate(task.id, $event.target.value)"
-            />
-        </div>
-
-        <!-- Task actions: inline on desktop, behind the "..." sheet on touch -->
-        <div class="row-inline shrink-0 ml-auto flex items-center gap-2 transition-opacity sm:opacity-0 sm:group-hover/task:opacity-100 sm:focus-within:opacity-100">
-            <!-- Delete button -->
-            <button 
-                x-on:click="$store.todos.deleteTodo(task.id)"
-                class="inline-flex items-center justify-center touch-target p-1 text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400 transition-colors"
-                aria-label="Delete task"
-            >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                </svg>
-            </button>
-        </div>
-
-        <!-- The "..." overflow button (item 13): touch screens and narrow windows -->
-        <div class="row-overflow shrink-0 ml-auto flex items-center">
-            <button type="button" x-ref="overflow"
-                x-on:click="toggleMenu(task)"
-                aria-haspopup="menu"
-                x-bind:aria-expanded="menuOpen"
-                title="Task actions"
-                x-bind:aria-label="`More actions for ${task.todo || 'task'}`"
-                class="inline-flex items-center justify-center touch-target p-1.5 rounded-md text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-slate-700 transition-colors"
-            >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 12h.01M12 12h.01M19 12h.01" />
-                </svg>
-            </button>
-        </div>
     </div>
 
     <!-- Checklist steps (item 16): the steps chip expands the task's Breakdown
