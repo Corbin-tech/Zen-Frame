@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { initPomoStore } from "./pomoStore";
+import { initPomoStore } from "../src/stores/pomoStore";
 
 const start = new Date("2026-01-01T12:00:00Z");
 const focusMs = 25 * 60 * 1000;

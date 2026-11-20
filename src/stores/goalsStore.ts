@@ -70,9 +70,11 @@ export function initGoalsStore() {
     },
 
     // Called by the todo store when clusters are deleted; goals fall back to manual progress
-    unlinkClusters(ids: Set<string>): void {
-      if (!this.goals.some(goal => goal.clusterId && ids.has(goal.clusterId))) return;
-      this.goals = this.goals.map(goal => goal.clusterId && ids.has(goal.clusterId) ? { ...goal, clusterId: null } : goal);
+    unlinkClusters(progress: Map<string, { done: number; total: number }>): void {
+      if (!this.goals.some(goal => goal.clusterId && progress.has(goal.clusterId))) return;
+      this.goals = this.goals.map(goal => goal.clusterId && progress.has(goal.clusterId)
+        ? { ...goal, progress: this.goalProgress(goal, progress.get(goal.clusterId)!), clusterId: null }
+        : goal);
       this.save();
     },
 

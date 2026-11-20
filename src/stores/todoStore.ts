@@ -584,25 +584,32 @@ function createTodosStore() {
     // Removes items and everything that points at them. Severed goal links are the
     // one part of a removal that an undo snapshot cannot put back.
     removeItems(ids: Set<string>): void {
+      const progress = new Map(this.clusters.filter(cluster => ids.has(cluster.id))
+        .map(cluster => [cluster.id, this.clusterProgress(cluster.id)]));
       this.items = this.items.filter(item => !ids.has(item.id));
       this.scheduledItems = this.scheduledItems.filter(entry => !ids.has(entry.taskId));
       this.skippedClusters = this.skippedClusters.filter(clusterId => !ids.has(clusterId));
       this.saveTodos();
-      (window.Alpine.store("goals") as { unlinkClusters?: (ids: Set<string>) => void } | undefined)?.unlinkClusters?.(ids);
+      (window.Alpine.store("goals") as { unlinkClusters?: (progress: Map<string, { done: number; total: number }>) => void } | undefined)?.unlinkClusters?.(progress);
     },
 
-    toggleTodo(id: string): void {
+    toggleTodo(id: string, completionTime?: string): void {
       const todo = this.find(id);
       if (!todo) return;
 
       const now = new Date().toISOString();
+      const completedAt = completionTime ?? now;
       if (!todo.isCluster) {
-        this.history = todo.completed
-          ? this.history.filter(record => !(record.taskId === id && record.at === todo.completedAt))
-          : [...this.history, this.completionRecord(todo, now)].slice(-HISTORY_LIMIT);
+        if (todo.completed) {
+          this.history = this.history.filter(record => !(!record.blockId && record.taskId === id && record.at === todo.completedAt));
+        } else {
+          const history = [...this.history, this.completionRecord(todo, completedAt)];
+          if (completionTime) history.sort((a, b) => a.at.localeCompare(b.at));
+          this.history = history.slice(-HISTORY_LIMIT);
+        }
       }
       todo.completed = !todo.completed;
-      todo.completedAt = todo.completed ? now : undefined;
+      todo.completedAt = todo.completed ? completedAt : undefined;
       if (todo.completed) todo.startedAt = undefined;
       todo.updatedAt = now;
       this.saveTodos();
@@ -797,6 +804,7 @@ function createTodosStore() {
     saveScheduledItem(entry: ScheduledItem): void {
       const task = this.find(entry.taskId);
       const movesTask = !entry.repeat && Boolean(task) && !task!.isCluster && !task!.completed;
+      const previous = movesTask ? this.scheduledItems.find(item => item.id === entry.id && item.taskId === entry.taskId) : undefined;
       this.scheduledItems = [
         ...this.scheduledItems.filter(item => item.id !== entry.id
           && !(movesTask && item.taskId === entry.taskId && !item.repeat)),
@@ -805,6 +813,12 @@ function createTodosStore() {
       if (movesTask && task!.dueDate !== entry.date) {
         task!.dueDate = entry.date;
         task!.updatedAt = new Date().toISOString();
+      }
+      if (previous?.repeat?.doneDates.includes(entry.date)) {
+        const tick = this.history.find(record => record.blockId === previous.id && toDateKey(new Date(record.at)) === entry.date);
+        if (tick) this.history = this.history.filter(record => record !== tick);
+        this.toggleTodo(entry.taskId, tick?.at ?? this.tickRecord(previous, entry.date)?.at);
+        return;
       }
       this.saveTodos();
     },
