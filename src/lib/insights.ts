@@ -29,7 +29,7 @@ export interface DayRange {
   to: string;
 }
 
-export const dayOf = (iso: string): string => toDateKey(new Date(iso));
+const dayOf = (iso: string): string => toDateKey(new Date(iso));
 
 const inRange = (day: string, range: DayRange) => day >= range.from && day <= range.to;
 

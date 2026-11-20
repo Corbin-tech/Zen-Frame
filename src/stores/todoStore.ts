@@ -81,7 +81,7 @@ const NEW_CLUSTER_NAME = "New Cluster";
 // (--c-<key>) in Layout.astro with separate light and dark values. The order keeps
 // neighbors distinct for color-blind readers; check changes with a palette validator.
 // The last four extend the set so up to 12 clusters each get their own color.
-export const CLUSTER_COLORS = ["teal", "indigo", "amber", "sky", "rose", "violet", "emerald", "orange", "pink", "lime", "cyan", "fuchsia"];
+const CLUSTER_COLORS = ["teal", "indigo", "amber", "sky", "rose", "violet", "emerald", "orange", "pink", "lime", "cyan", "fuchsia"];
 
 function createTodosStore() {
   return {

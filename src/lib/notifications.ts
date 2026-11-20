@@ -13,7 +13,7 @@ const CHECK_EVERY_MS = 30 * 1000;
 
 type Alpine = { store: (name: string) => any };
 
-export function notificationsSupported(): boolean {
+function notificationsSupported(): boolean {
   return "Notification" in window;
 }
 

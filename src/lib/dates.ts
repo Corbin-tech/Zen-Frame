@@ -44,13 +44,13 @@ export function toTimeValue(totalMinutes: number): string {
   return `${String(Math.floor(totalMinutes / 60)).padStart(2, "0")}:${String(totalMinutes % 60).padStart(2, "0")}`;
 }
 
-export function fromTimeValue(value: string): number {
+function fromTimeValue(value: string): number {
   const [hours, minutes] = value.split(":").map(Number);
   return hours * 60 + minutes;
 }
 
 // 90 -> "1h 30m"
-export function formatDuration(minutes: number): string {
+function formatDuration(minutes: number): string {
   const hours = Math.floor(minutes / 60);
   const rest = minutes % 60;
   if (hours === 0) return `${rest}m`;
@@ -70,7 +70,7 @@ export function minutesNow(now: Date = new Date()): number {
   return now.getHours() * 60 + now.getMinutes();
 }
 
-export function dueTone(dueKey: string, todayKey: string = toDateKey()): DueTone {
+function dueTone(dueKey: string, todayKey: string = toDateKey()): DueTone {
   const days = daysBetween(todayKey, dueKey);
   if (days < 0) return "overdue";
   if (days === 0) return "today";
@@ -78,7 +78,7 @@ export function dueTone(dueKey: string, todayKey: string = toDateKey()): DueTone
 }
 
 // "Today", "Tomorrow", "In 3 days", "2 days overdue", or "Oct 30"
-export function dueLabel(dueKey: string, todayKey: string = toDateKey()): string {
+function dueLabel(dueKey: string, todayKey: string = toDateKey()): string {
   const days = daysBetween(todayKey, dueKey);
   if (days === 0) return "Today";
   if (days === 1) return "Tomorrow";
@@ -89,7 +89,7 @@ export function dueLabel(dueKey: string, todayKey: string = toDateKey()): string
 }
 
 // For sentences: "due today", "due tomorrow", "due in 3 days", "due Oct 30", "2 days overdue"
-export function dueText(dueKey: string, todayKey: string = toDateKey()): string {
+function dueText(dueKey: string, todayKey: string = toDateKey()): string {
   const days = daysBetween(todayKey, dueKey);
   if (days < 0) return dueLabel(dueKey, todayKey);
   if (days === 0) return "due today";
@@ -99,7 +99,7 @@ export function dueText(dueKey: string, todayKey: string = toDateKey()): string 
 }
 
 // "today", "yesterday", "3 days ago", or "Oct 30" after a week
-export function daysAgoText(key: string, todayKey: string = toDateKey()): string {
+function daysAgoText(key: string, todayKey: string = toDateKey()): string {
   const days = daysBetween(key, todayKey);
   if (days <= 0) return "today";
   if (days === 1) return "yesterday";
@@ -114,7 +114,7 @@ const DUE_TONE_CLASSES: Record<DueTone, string> = {
   later: "bg-gray-100 text-gray-600 dark:bg-slate-700 dark:text-gray-300"
 };
 
-export function dueClass(dueKey: string, completed = false, todayKey: string = toDateKey()): string {
+function dueClass(dueKey: string, completed = false, todayKey: string = toDateKey()): string {
   return DUE_TONE_CLASSES[completed ? "later" : dueTone(dueKey, todayKey)];
 }
 

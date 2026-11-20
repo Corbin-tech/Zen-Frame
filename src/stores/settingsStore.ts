@@ -7,7 +7,7 @@ import { applyAccentFavicon } from "../lib/favicon";
 // Layout.astro applies accent, font, and text size before the page paints;
 // the matching CSS lives in src/styles/preferences.css.
 
-export const ACCENTS = [
+const ACCENTS = [
   { id: "teal", label: "Teal", swatch: "#047481" },
   { id: "ocean", label: "Ocean", swatch: "#0284c7" },
   { id: "lavender", label: "Lavender", swatch: "#7c3aed" },
@@ -19,7 +19,7 @@ export const ACCENTS = [
   { id: "honey", label: "Honey", swatch: "#b45309" }
 ] as const;
 
-export const FONTS = [
+const FONTS = [
   { id: "inter", label: "Inter", sample: "'Inter Variable', system-ui, sans-serif" },
   { id: "system", label: "System", sample: "system-ui, sans-serif" },
   { id: "rounded", label: "Rounded", sample: "ui-rounded, 'SF Pro Rounded', system-ui, sans-serif" },
@@ -30,7 +30,7 @@ export const FONTS = [
   { id: "atkinson", label: "Atkinson", sample: "'Atkinson Hyperlegible Next Variable', system-ui, sans-serif" }
 ] as const;
 
-export const TEXT_SIZES = [
+const TEXT_SIZES = [
   { id: "sm", label: "Small" },
   { id: "md", label: "Default" },
   { id: "lg", label: "Large" },
@@ -38,13 +38,13 @@ export const TEXT_SIZES = [
 ] as const;
 
 // Where the tabs go. The sidebar shows on wide screens; narrow ones keep the top bar.
-export const NAV_LAYOUTS = [
+const NAV_LAYOUTS = [
   { id: "top", label: "Top bar" },
   { id: "side", label: "Sidebar" }
 ] as const;
 
 // Faces for the Pomodoro timer, drawn in TimerFaces.astro
-export const TIMER_STYLES = [
+const TIMER_STYLES = [
   { id: "classic", label: "Classic", hint: "Progress ring" },
   { id: "chess", label: "Chess clock", hint: "Focus against break" },
   { id: "apple", label: "Apple", hint: "Twist kitchen timer" },
@@ -87,7 +87,7 @@ const DEFAULT_DASHBOARD: DashboardLayout = {
 };
 
 // Zen mode extras, each a switch under Settings > Zen mode
-export const ZEN_OPTIONS = [
+const ZEN_OPTIONS = [
   { key: "zenShowCluster", label: "Cluster and position", hint: "Which cluster the task is in, and where" },
   { key: "zenShowDue", label: "Due date", hint: "When the task is due" },
   { key: "zenShowNext", label: "Up next", hint: "The two tasks after this one" },
@@ -97,7 +97,7 @@ export const ZEN_OPTIONS = [
 ] as const;
 
 // Moving scenes behind Zen mode, drawn in ZenBackdrop.astro. All are slow and still under reduced motion.
-export const ZEN_BACKGROUNDS = [
+const ZEN_BACKGROUNDS = [
   { id: "none", label: "None", hint: "Just the card" },
   { id: "glow", label: "Soft glow", hint: "Drifting colored light" },
   { id: "koi", label: "Koi pond", hint: "Koi under lily pads" },
@@ -122,7 +122,7 @@ export const CONFETTI_TRIGGERS = [
 const SEEN_MONTHS_KEPT = 24;
 
 // Minutes before a scheduled block starts that its reminder fires
-export const BLOCK_LEADS = [0, 5, 10, 15, 30];
+const BLOCK_LEADS = [0, 5, 10, 15, 30];
 
 type Accent = typeof ACCENTS[number]["id"];
 type Font = typeof FONTS[number]["id"];

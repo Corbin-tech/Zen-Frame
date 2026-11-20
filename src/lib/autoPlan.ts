@@ -76,7 +76,7 @@ function freeRanges(windows: Range[], busy: Range[], earliest: number, gap: numb
 }
 
 // Overdue and soonest due first, undated last; tasks already started come first among equals
-export function planOrder<T extends PlanTask>(tasks: T[]): T[] {
+function planOrder<T extends PlanTask>(tasks: T[]): T[] {
   return tasks
     .map((task, index) => ({ task, index }))
     .sort((a, b) =>
