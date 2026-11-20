@@ -28,6 +28,8 @@ const results = [...Array.from({ length: 50 }, (_, i) => ({ id: `b${i}`, kind: '
 const ratings = results.map(r => ({ ...rating, id: r.id, kind: r.kind }));
 const data = { model: 'anthropic', modelName: 'claude-haiku-5-5', consent: { source: 'contributed' }, results };
 const good = summarize(data, ratings); assert.equal(good.launchBar, true);
+assert.match(markdown([good]), /\| breakdown \| 50 \| 50 \| 0\.00 \| 100\.00/);
+assert.match(markdown([good]), /\| compile \| 10 \| 10 \|/);
 const badRatings = ratings.map((r, i) => ({ ...r, useful: i < 6 ? 'n' : 'y' }));
 const bad = summarize(data, badRatings); assert.equal(bad.helpers.breakdown.useful, 88); assert.equal(bad.quality, false);
 const alt = { ...good, model: 'openai', modelName: 'chosen-small-model' };
