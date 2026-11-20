@@ -57,6 +57,11 @@ schema, including step bounds; it accepts the handler's plain-text prompts.
 Requests include same-origin headers, JSON, and a local bearer token. Entitlement
 and rate limiting are intentionally allow-all eval fakes, never production adapters.
 
+The runner refuses an output directory containing `results.json` or `ratings.csv`
+before calling the model, protecting existing results and human ratings. Choose a
+new `--out` directory for each run. Only pass the standalone `--force` flag when
+you deliberately want to overwrite both files (including any human ratings).
+
 Real runs: set `ANTHROPIC_API_KEY` locally for `--model anthropic`; the WS2 client
 beside the selected handler calls `claude-haiku-5-5`. For `--model openai`, set
 `OPENAI_API_KEY` and **required** `OPENAI_EVAL_MODEL` (no default). Do not put keys

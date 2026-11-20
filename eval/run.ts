@@ -5,10 +5,13 @@ import { args, validateDataset, ratingsCsv, requestBody } from './core.ts';
 import type { ModelClient } from './core.ts';
 import { mockModel } from './models/mock.ts';
 import { createOpenAIClient } from './models/openai.ts';
+import { checkOutputDirectory } from './output.ts';
 async function main() {
   const a = args();
   if (!a.dataset || !['mock', 'anthropic', 'openai'].includes(a.model)) throw new Error('Usage: node eval/run.ts --dataset path --model mock|anthropic|openai');
-  if (Object.keys(a).some(k => !['dataset', 'model', 'handler', 'out', 'limit'].includes(k))) throw new Error('Unknown runner option');
+  if (Object.keys(a).some(k => !['dataset', 'model', 'handler', 'out', 'limit', 'force'].includes(k))) throw new Error('Unknown runner option');
+  const out = resolve(a.out ?? 'eval/out');
+  await checkOutputDirectory(out, a.force === 'true');
   if (a.model === 'anthropic' && !process.env.ANTHROPIC_API_KEY) throw new Error('ANTHROPIC_API_KEY is required (set locally)');
   if (a.model === 'openai' && (!process.env.OPENAI_API_KEY || !process.env.OPENAI_EVAL_MODEL)) throw new Error('OPENAI_API_KEY and OPENAI_EVAL_MODEL are required (set locally)');
   const handlerPath = resolve(a.handler ?? 'server/assist/handler.ts');
@@ -37,9 +40,9 @@ async function main() {
     results.push({ id: item.id, kind: item.kind, ...(item.kind === 'breakdown' ? { level: item.level } : {}), status, error, latencyMs, output });
     console.log(`${item.id} status=${status} latency_ms=${latencyMs}`);
   }
-  const out = resolve(a.out ?? 'eval/out'); await mkdir(out, { recursive: true, mode: 0o700 });
-  await writeFile(resolve(out, 'results.json'), JSON.stringify({ version: 1, model: a.model, modelName: a.model === 'anthropic' ? 'claude-haiku-5-5' : a.model === 'openai' ? process.env.OPENAI_EVAL_MODEL : 'mock', consent: dataset.consent, createdAt: new Date().toISOString(), results }, null, 2), { mode: 0o600 });
-  await writeFile(resolve(out, 'ratings.csv'), ratingsCsv(results.filter(r => r.kind !== 'estimate').map(r => ({ id: r.id, kind: r.kind }))), { mode: 0o600 });
+  await mkdir(out, { recursive: true, mode: 0o700 });
+  await writeFile(resolve(out, 'results.json'), JSON.stringify({ version: 1, model: a.model, modelName: a.model === 'anthropic' ? 'claude-haiku-5-5' : a.model === 'openai' ? process.env.OPENAI_EVAL_MODEL : 'mock', consent: dataset.consent, createdAt: new Date().toISOString(), results }, null, 2), { mode: 0o600, flag: a.force === 'true' ? 'w' : 'wx' });
+  await writeFile(resolve(out, 'ratings.csv'), ratingsCsv(results.filter(r => r.kind !== 'estimate').map(r => ({ id: r.id, kind: r.kind }))), { mode: 0o600, flag: a.force === 'true' ? 'w' : 'wx' });
   console.log(`Completed ${results.length} items`);
 }
 main().catch((error) => {

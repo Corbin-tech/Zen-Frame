@@ -25,6 +25,7 @@ export function validateDataset(value: any): Dataset {
 export function args(argv = process.argv.slice(2)): Record<string, string> {
   const result: Record<string, string> = {};
   for (let i = 0; i < argv.length; i += 2) {
+    if (argv[i] === '--force') { result.force = 'true'; i--; continue; }
     if (!argv[i].startsWith('--') || !argv[i + 1] || argv[i + 1].startsWith('--')) throw new Error('Expected --option value');
     result[argv[i].slice(2)] = argv[i + 1];
   }

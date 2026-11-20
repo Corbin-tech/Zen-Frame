@@ -1,12 +1,28 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
-import { validateDataset, parseCsv, ratingsCsv, requestBody, DETAIL_LEVELS } from './core.ts';
+import { readFile, mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
+import { validateDataset, parseCsv, ratingsCsv, requestBody, DETAIL_LEVELS, args } from './core.ts';
+import { checkOutputDirectory } from './output.ts';
 import { mockModel } from './models/mock.ts';
 import { createOpenAIClient, strictSchema } from './models/openai.ts';
 import { breakdownSchema, COMPILE_SCHEMA, ESTIMATE_SCHEMA } from '../src/lib/assist/api.ts';
 import { median, percentile90, summarize, switchVerdict, markdown } from './report.ts';
 import { precheck } from './autorate.ts';
 const sample = validateDataset(JSON.parse(await readFile(new URL('./datasets/sample.json', import.meta.url), 'utf8')));
+assert.deepEqual(args(['--force', '--out', 'private', '--model', 'mock']), { force: 'true', out: 'private', model: 'mock' });
+assert.deepEqual(args(['--out', 'private', '--force']), { out: 'private', force: 'true' });
+const outputTest = await mkdtemp(join(homedir(), 'ws7-output-check-'));
+try {
+  await checkOutputDirectory(outputTest, false);
+  for (const file of ['results.json', 'ratings.csv']) {
+    await writeFile(join(outputTest, file), 'preserve this');
+    await assert.rejects(checkOutputDirectory(outputTest, false), /Output already contains/);
+    await checkOutputDirectory(outputTest, true);
+    assert.equal(await readFile(join(outputTest, file), 'utf8'), 'preserve this');
+    await rm(join(outputTest, file));
+  }
+} finally { await rm(outputTest, { recursive: true }); }
 assert.equal(sample.items.length, 74);
 assert.throws(() => validateDataset({ ...sample, items: [{ kind: 'estimate', task: 'Wash a mug' }] }));
 for (const invalid of [null, {}, { ...sample, items: [] }, { ...sample, consent: {} }, { ...sample, items: [sample.items[0], sample.items[0]] }, { ...sample, items: [{ ...sample.items[0], level: 'bad' }] }, { ...sample, items: [{ id: 'x', kind: 'compile', text: '' }] }, { ...sample, items: [{ id: 'x', kind: 'estimate', task: 1 }] }]) assert.throws(() => validateDataset(invalid));
