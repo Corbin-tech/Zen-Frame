@@ -56,6 +56,15 @@ for (const path of ["load", "import"]) {
       { completedAt: 1, minutes: 25 }, { completedAt: "invalid", minutes: 25 },
       ...[NaN, Infinity, -1, 0, "25"].map(minutes => ({ completedAt: at, minutes })), good])).toEqual([good]);
   });
+  test(`${path}: keeps valid task links on sessions and drops bad ones`, () => {
+    const linked = { completedAt: at, minutes: 25, taskId: "t1", taskTitle: "Write", clusterId: null, clusterName: "Work" };
+    expect(read("pomoSessions", [linked])).toEqual([linked]);
+    expect(read("pomoSessions", [{ completedAt: at, minutes: 25, taskId: 5, taskTitle: { html: "<b>" },
+      clusterId: ["c"], clusterName: "x".repeat(500), extra: "dropped" }])).toEqual([
+      { completedAt: at, minutes: 25, clusterName: "x".repeat(200) }]);
+    expect(read("pomoSessions", [{ completedAt: at, minutes: 25, taskTitle: null }])).toEqual([
+      { completedAt: at, minutes: 25 }]);
+  });
   test(`${path}: normalizes existing todo fields and keeps valid values`, () => {
     const [todo] = read("todos", [{ id: "a", zenDeferredStart: at, estimateMinutes: -1,
       steps: [null, { text: "step", id: "s", done: "yes", minutes: -1 }] }]);

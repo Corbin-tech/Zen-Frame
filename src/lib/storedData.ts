@@ -9,6 +9,20 @@ function isTimestamp(value: unknown): value is string {
   return typeof value === "string" && value.trim() !== "" && Number.isFinite(Date.parse(value));
 }
 
+// Focus sessions can carry the task they were linked to. These fields render with x-text,
+// but a hand-edited or imported backup can hold any type, so keep only strings (ids may be null).
+const SESSION_TEXT_MAX = 200;
+
+function cleanSession(session: Record<string, unknown>): Record<string, unknown> {
+  const clean: Record<string, unknown> = { completedAt: session.completedAt, minutes: session.minutes };
+  for (const key of ["taskId", "taskTitle", "clusterId", "clusterName"]) {
+    const field = session[key];
+    if (typeof field === "string") clean[key] = field.slice(0, SESSION_TEXT_MAX);
+    else if (field === null && (key === "taskId" || key === "clusterId")) clean[key] = null;
+  }
+  return clean;
+}
+
 export function normalizeStoredData(key: string, value: unknown): unknown {
   switch (key) {
     case "todos":
@@ -28,7 +42,7 @@ export function normalizeStoredData(key: string, value: unknown): unknown {
     case "pomoSessions":
       return Array.isArray(value) ? value.filter(session => isObject(session)
         && isTimestamp(session.completedAt) && typeof session.minutes === "number"
-        && Number.isFinite(session.minutes) && session.minutes > 0) : [];
+        && Number.isFinite(session.minutes) && session.minutes > 0).map(cleanSession) : [];
     default:
       return value;
   }
