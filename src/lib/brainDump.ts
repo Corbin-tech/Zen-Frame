@@ -104,12 +104,10 @@ export function brainDump() {
     accept() {
       if (assist().busy || assist().preview?.kind !== 'compile') return;
       const count = acceptBrainDump(this.clusters, todos());
+      this.$refs.draft.focus();
       assist().discard();
       this.text = '';
-      this.$nextTick(() => {
-        removeSession(KEY);
-        this.$refs.draft.focus();
-      });
+      this.$nextTick(() => removeSession(KEY));
       this.announcement = `Added ${count} tasks. Your draft is cleared.`;
     },
     discard() { assist().discard(); this.announcement = 'Preview discarded. Your draft is kept.'; }
