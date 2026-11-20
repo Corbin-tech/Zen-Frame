@@ -60,8 +60,11 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-1 rou
                 x-bind:aria-pressed="clusterFilter === chip.id"
             >
                 <span x-show="chip.color" class="w-2 h-2 rounded-full" x-bind:style="`background-color: ${chip.color};`"></span>
-                <span x-text="chip.label"></span>
-                <span class="text-xs tabular-nums opacity-60" x-text="chip.count"></span>
+                <span class="text-left">
+                    <span x-text="chip.label"></span>
+                    <span class="ml-1 text-xs tabular-nums opacity-60" x-text="chip.count"></span>
+                    <span x-show="chip.estimate" class="block text-xs font-normal" x-text="chip.estimate"></span>
+                </span>
             </button>
         </template>
     </div>
@@ -325,6 +328,7 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-1 rou
 </div>
 
 <script>
+    import { totalLabel } from '../lib/estimates';
     import { loadString, saveString } from '../lib/storage';
 
     // Columns in order. A task's column comes from $store.todos.boardColumn().
@@ -414,12 +418,16 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-1 rou
                 const open = this.$store.todos.openTasks;
                 const chips = [
                     { id: 'all', label: 'All', color: '', count: open.length },
-                    ...this.$store.todos.clusters.map(cluster => ({
-                        id: cluster.id,
-                        label: cluster.todo,
-                        color: this.$store.todos.clusterColor(cluster.id),
-                        count: open.filter(task => task.parentId === cluster.id).length
-                    }))
+                    ...this.$store.todos.clusters.map(cluster => {
+                        const tasks = open.filter(task => task.parentId === cluster.id);
+                        return {
+                            id: cluster.id,
+                            label: cluster.todo,
+                            color: this.$store.todos.clusterColor(cluster.id),
+                            count: tasks.length,
+                            estimate: totalLabel(tasks)
+                        };
+                    })
                 ];
                 const loose = open.filter(task => !task.parentId).length;
                 if (loose) chips.push({ id: 'none', label: 'No cluster', color: 'var(--c-none)', count: loose });

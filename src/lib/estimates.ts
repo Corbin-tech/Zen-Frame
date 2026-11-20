@@ -1,5 +1,7 @@
-import { formatDuration } from "./dates";
 import { SLOT_MINUTES } from "./timeline";
+import { cleanEstimate } from "./assist/sanitize";
+import type { EstimateResult } from "./assist/types";
+import type { initAssistStore } from "../stores/assistStore";
 
 // Time estimates: totals for a cluster, a buffer for time blindness, rounding to the schedule
 // grid, and a personal factor learned from how long the user's tasks actually took.
@@ -21,11 +23,86 @@ export function totalEstimate(tasks: Estimated[]): { minutes: number; unestimate
   return { minutes, unestimated };
 }
 
-// "About 1 hr 30 min (2 tasks not estimated)"
 export function totalLabel(tasks: Estimated[]): string {
   const { minutes, unestimated } = totalEstimate(tasks);
-  const base = minutes ? `About ${formatDuration(minutes)}` : "No estimate yet";
-  return unestimated ? `${base} (${unestimated} not estimated)` : base;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  const duration = [hours ? `${hours} hr` : "", rest ? `${rest} min` : ""].filter(Boolean).join(" ");
+  const base = minutes ? `About ${duration}` : "No estimate yet";
+  return unestimated ? `${base} · ${unestimated} not estimated` : base;
+}
+
+type AssistStore = ReturnType<typeof initAssistStore>;
+
+export function estimatePicker(assist: AssistStore) {
+  return {
+    open: false,
+    editing: false,
+    minutes: null as number | null,
+    suggestion: null as EstimateResult | null,
+    pending: false,
+    request: 0,
+    error: "",
+
+    get canSuggest() {
+      return assist.aiStatus === "ready" && assist.source === "plus";
+    },
+
+    get canSave() {
+      return this.minutes !== null && Number.isSafeInteger(this.minutes) && this.minutes > 0;
+    },
+
+    startEditing(minutes: number | null) {
+      this.minutes = minutes;
+      this.suggestion = null;
+      this.editing = true;
+    },
+
+    async suggest(taskId: string) {
+      if (!this.canSuggest || assist.busy) return;
+      const request = ++this.request;
+      const previous = assist.preview;
+      this.pending = true;
+      this.error = "";
+      this.editing = false;
+      this.suggestion = null;
+      await assist.estimate(taskId);
+      const preview = assist.preview;
+      const ownPreview = preview?.kind === "estimate" && preview.taskId === taskId && preview !== previous;
+      if (ownPreview) assist.preview = null;
+      if (request !== this.request) return;
+
+      this.pending = false;
+      if (ownPreview && this.canSuggest) {
+        const result = cleanEstimate(preview.result);
+        if (result) {
+          this.startEditing(result.minutes);
+          this.suggestion = result;
+          return;
+        }
+      }
+      this.error = assist.error || "No estimate was suggested. You can still pick one by hand.";
+    },
+
+    cancel() {
+      if (!this.pending) return;
+      this.request++;
+      this.pending = false;
+      assist.cancel();
+    },
+
+    close() {
+      this.cancel();
+      this.open = false;
+      this.editing = false;
+      this.suggestion = null;
+      this.error = "";
+    },
+
+    destroy() {
+      this.cancel();
+    }
+  };
 }
 
 // The block length the schedule should suggest: estimate × buffer, rounded up to the grid
