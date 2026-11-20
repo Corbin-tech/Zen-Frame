@@ -12,32 +12,32 @@ const primary = "rounded-lg bg-teal-700 px-3 py-2 text-sm font-medium text-white
 
     <p x-show="$store.plus.error" x-text="$store.plus.error" role="alert" class="text-sm text-red-700 dark:text-red-300"></p>
 
-    <div x-show="!$store.plus.ready">
+    <div x-bind:hidden="$store.plus.ready">
         <p x-show="$store.plus.refreshing" role="status" class="text-sm">Checking your sign-in…</p>
         <button x-show="!$store.plus.refreshing" type="button" class={button} x-on:click="$store.plus.refresh()">Try again</button>
     </div>
 
-    <div x-show="$store.plus.ready && !$store.plus.account" class="max-w-sm space-y-3">
+    <div x-bind:hidden="!$store.plus.ready || !!$store.plus.account" class="max-w-sm space-y-3">
         <p class="text-sm">Sign in to get 20 free helper requests for your account. No card required.</p>
         <form
             class="space-y-2"
-            x-show="!$store.plus.challenge"
+            x-bind:hidden="!!$store.plus.challenge"
             x-on:submit.prevent="if (await $store.plus.requestCode()) $nextTick(() => $refs.code.focus())"
         >
             <label for="plus-email" class="block text-sm font-medium">Email address</label>
-            <input id="plus-email" x-ref="email" x-model="$store.plus.email" x-bind:disabled="!!$store.plus.busy" class={field}
+            <input id="plus-email" x-ref="email" x-model="$store.plus.email" x-bind:readonly="!!$store.plus.busy" class={field}
                 required type="email" autocomplete="email" maxlength="254" />
             <button type="submit" class={primary} x-bind:disabled="!!$store.plus.busy"
                 x-text="$store.plus.busy === 'code' ? 'Sending…' : 'Send sign-in code'"></button>
         </form>
         <form
             class="space-y-2"
-            x-show="$store.plus.challenge"
+            x-bind:hidden="!$store.plus.challenge"
             x-on:submit.prevent="if (await $store.plus.verifyCode()) $nextTick(() => $refs.title.focus())"
         >
             <p id="plus-code-help" class="text-sm">Check <span x-text="$store.plus.email"></span> for a six-digit code. It expires in 10 minutes.</p>
             <label for="plus-code" class="block text-sm font-medium">Sign-in code</label>
-            <input id="plus-code" x-ref="code" x-model="$store.plus.code" x-bind:disabled="!!$store.plus.busy" class={field}
+            <input id="plus-code" x-ref="code" x-model="$store.plus.code" x-bind:readonly="!!$store.plus.busy" class={field}
                 required type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}"
                 aria-describedby="plus-code-help" />
             <div class="flex flex-wrap gap-2">
@@ -51,7 +51,7 @@ const primary = "rounded-lg bg-teal-700 px-3 py-2 text-sm font-medium text-white
         </form>
     </div>
 
-    <div x-show="$store.plus.account" class="space-y-3">
+    <div x-bind:hidden="!$store.plus.account" class="space-y-3">
         <p class="text-sm">Signed in as <span x-text="$store.plus.account?.email ?? ''"></span>.</p>
         <div aria-live="polite" class="text-sm">
             <p x-show="$store.plus.account?.tier === 'trial'">
