@@ -35,6 +35,7 @@ export const csvCell = (v: unknown) => `"${String(v ?? '').replaceAll('"', '""')
 export const ratingHeader = ['id', 'kind', 'useful', 'literal', 'one_action', 'realistic_minutes', 'notes', 'rater'];
 export function ratingsCsv(rows: Record<string, unknown>[]) { return [ratingHeader, ...rows.map(r => ratingHeader.map(k => r[k] ?? ''))].map(row => row.map(csvCell).join(',')).join('\n') + '\n'; }
 export function parseCsv(text: string): Record<string, string>[] {
+  text = text.replace(/^\uFEFF/, '');
   const rows: string[][] = []; let row: string[] = [], cell = '', quoted = false;
   for (let i = 0; i < text.length; i++) {
     const c = text[i];
