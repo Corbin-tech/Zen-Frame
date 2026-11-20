@@ -1,5 +1,6 @@
 import { addDays, fromDateKey, toDateKey } from "../lib/dates";
 import { loadJson, saveJson } from "../lib/storage";
+import { mergeLists } from "../lib/mergeLists";
 
 // Goals, weekly check-ins, and notes. Saved in localStorage under "goals", "checkIns", and "notes".
 
@@ -31,6 +32,9 @@ export interface Note {
   updatedAt: string;
 }
 
+const PERSISTED_KEYS = ["goals", "checkIns", "notes"] as const;
+type PersistedKey = typeof PERSISTED_KEYS[number];
+
 // The Monday on or before a day
 export function weekOf(dateKey: string = toDateKey()): string {
   const weekday = fromDateKey(dateKey).getDay();
@@ -42,16 +46,54 @@ export function initGoalsStore() {
     goals: [] as Goal[],
     checkIns: {} as Record<string, CheckIn>,
     notes: [] as Note[],
+    savedJson: {} as Partial<Record<PersistedKey, string>>,
 
     // Alpine calls init() when the store is registered
     init(): void {
-      this.goals = loadJson<Goal[]>("goals", []);
-      this.checkIns = loadJson<Record<string, CheckIn>>("checkIns", {});
-      this.notes = loadJson<Note[]>("notes", []);
+      for (const key of PERSISTED_KEYS) this.loadList(key);
+      window.addEventListener("storage", event => {
+        if (event.storageArea !== localStorage) return;
+        for (const key of PERSISTED_KEYS) {
+          if (event.key === null || event.key === key) this.loadList(key, true);
+        }
+      });
+    },
+
+    loadList(key: PersistedKey, merge = false): void {
+      const base = this.savedJson[key];
+      const dirty = merge && base !== undefined && JSON.stringify(this[key]) !== base;
+      switch (key) {
+        case "goals": {
+          const remote = loadJson<Goal[]>(key, []);
+          this.savedJson[key] = JSON.stringify(remote);
+          this.goals = mergeLists(dirty ? JSON.parse(base!) : this.goals, this.goals, remote, goal => goal.id);
+          break;
+        }
+        case "checkIns": {
+          const remote = loadJson<Record<string, CheckIn>>(key, {});
+          this.savedJson[key] = JSON.stringify(remote);
+          const local = Object.values(this.checkIns);
+          const merged = mergeLists(dirty ? Object.values(JSON.parse(base!) as Record<string, CheckIn>) : local, local, Object.values(remote), checkIn => checkIn.week);
+          this.checkIns = Object.fromEntries(merged.map(checkIn => [checkIn.week, checkIn]));
+          break;
+        }
+        case "notes": {
+          const remote = loadJson<Note[]>(key, []);
+          this.savedJson[key] = JSON.stringify(remote);
+          this.notes = mergeLists(dirty ? JSON.parse(base!) : this.notes, this.notes, remote, note => note.id);
+          break;
+        }
+      }
+      if (dirty) this.save();
     },
 
     save(): void {
-      void (saveJson("goals", this.goals) && saveJson("checkIns", this.checkIns) && saveJson("notes", this.notes));
+      for (const key of PERSISTED_KEYS) {
+        const serialized = JSON.stringify(this[key]);
+        if (this.savedJson[key] === serialized) continue;
+        if (!saveJson(key, this[key])) break;
+        this.savedJson[key] = serialized;
+      }
     },
 
     addGoal(title: string, fields: Partial<Goal> = {}): string {
