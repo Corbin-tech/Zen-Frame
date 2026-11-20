@@ -4,13 +4,8 @@ import TaskSteps from './TaskSteps.astro';
 
 <script>
     import { celebrate } from '../lib/confetti';
-    import { registerBreakdownPanel } from './BreakdownPanel';
-    import { registerTaskSteps } from './TaskSteps';
 
     document.addEventListener('alpine:init', () => {
-        // Alpine mounts these from inert task templates; register them at the page level first.
-        registerBreakdownPanel();
-        registerTaskSteps();
         Alpine.data('zenTodoList', () => ({
             get tasks() {
                 return this.$store.todos.items.filter(item => !item.isCluster);
@@ -139,7 +134,9 @@ import TaskSteps from './TaskSteps.astro';
                             ></span>
                         </div>
                         
-                        <p 
+                        <p
+                            x-ref="currentTaskTitle"
+                            tabindex="-1"
                             class="text-2xl text-center text-gray-800 dark:text-gray-200" 
                             x-text="currentTodo?.todo"
                         ></p>
@@ -149,7 +146,7 @@ import TaskSteps from './TaskSteps.astro';
                             x-bind:class="currentTodo?.dueDate ? $dates.dueClass(currentTodo.dueDate) : ''"
                             x-text="currentTodo?.dueDate ? $dates.dueText(currentTodo.dueDate).replace(/^d/, 'D') : ''"
                         ></span>
-                        <TaskSteps taskId="currentTodo?.id" zen />
+                        <TaskSteps taskId="currentTodo?.id" fallbackFocus="$refs.currentTaskTitle" zen />
                         <button 
                             @click="completeCurrentTodo"
                             aria-label="Mark current task as complete"

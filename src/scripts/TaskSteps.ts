@@ -15,6 +15,7 @@ const assist = () => window.Alpine.store('assist') as unknown as ReturnType<type
 
 export function registerTaskSteps() {
     window.Alpine.data('taskSteps', (activeTaskId: () => string | undefined) => ({
+        breakdownOpen: false,
         confirming: false,
         promotionMessage: '',
         get stepTaskId() { return activeTaskId(); },

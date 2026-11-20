@@ -1,4 +1,4 @@
-import { cleanBreakdown, cleanBreakdownRequest, cleanText, DETAIL_LEVELS, type DetailLevel, type StepSuggestion } from '../lib/assist';
+import { cleanBreakdown, cleanBreakdownRequest, cleanText, DETAIL_LEVELS, type BreakdownResult, type DetailLevel, type StepSuggestion } from '../lib/assist';
 import type { initAssistStore } from '../stores/assistStore';
 import type { Todo } from '../stores/todoStore';
 
@@ -13,8 +13,23 @@ const assist = () => window.Alpine.store('assist') as unknown as ReturnType<type
 const todos = () => window.Alpine.store('todos') as unknown as BreakdownTodos;
 const retryMessage = 'Couldn’t find steps this time. Try again.';
 
+// Release the shared busy state even if a provider is slow to honor the abort.
+async function untilAborted(work: () => Promise<BreakdownResult>, signal: AbortSignal): Promise<BreakdownResult | null> {
+    if (signal.aborted) return null;
+    let abort: () => void;
+    const canceled = new Promise<null>(resolve => {
+        abort = () => resolve(null);
+        signal.addEventListener('abort', abort, { once: true });
+    });
+    try {
+        return await Promise.race([canceled, work()]);
+    } finally {
+        signal.removeEventListener('abort', abort);
+    }
+}
+
 export function registerBreakdownPanel() {
-    window.Alpine.data('breakdownPanel', (activeTaskId: () => string | undefined) => {
+    window.Alpine.data('breakdownPanel', (activeTaskId: () => string | undefined, fallbackFocus: () => HTMLElement | undefined) => {
         let request: AbortController | null = null;
         let nextKey = 0;
 
@@ -42,6 +57,7 @@ export function registerBreakdownPanel() {
             show() {
                 if (!this.canSuggest) return;
                 this.open = true;
+                this.$dispatch('breakdown-visibility', true);
                 this.level = assist().prefs.level;
                 this.announcement = '';
                 this.$nextTick(() => this.$refs.level.focus());
@@ -58,9 +74,7 @@ export function registerBreakdownPanel() {
                 });
             },
             cancel() {
-                this.stopRequest();
-                this.announcement = 'Step suggestions canceled.';
-                this.focusGenerate();
+                request?.abort();
             },
             close(restoreFocus = true) {
                 const wasOpen = this.open;
@@ -70,7 +84,11 @@ export function registerBreakdownPanel() {
                 this.draft = [];
                 this.error = '';
                 this.announcement = '';
-                if (restoreFocus && wasOpen) this.$nextTick(() => this.$refs.trigger.focus());
+                if (!wasOpen) return;
+                this.$dispatch('breakdown-visibility', false);
+                if (restoreFocus) this.$nextTick(() => {
+                    (this.canSuggest ? this.$refs.trigger : fallbackFocus())?.focus();
+                });
             },
             async generate() {
                 const store = assist();
@@ -91,16 +109,20 @@ export function registerBreakdownPanel() {
 
                 const result = await store.run(async (provider, signal) => {
                     const combined = AbortSignal.any([current.signal, signal]);
-                    try {
-                        const response = await provider.breakdown(input.task, input.level, input.context ?? '', combined);
-                        return combined.aborted ? null : cleanBreakdown(response);
-                    } catch (error) {
-                        if (!combined.aborted) throw error;
-                        return null;
-                    }
+                    const response = await untilAborted(
+                        () => provider.breakdown(input.task, input.level, input.context ?? '', combined),
+                        combined
+                    );
+                    return combined.aborted ? null : cleanBreakdown(response);
                 });
                 if (request !== current || task.id !== this.breakdownTaskId) return;
+                const canceled = current.signal.aborted;
                 this.stopRequest();
+                if (canceled) {
+                    this.announcement = 'Step suggestions canceled.';
+                    this.focusGenerate();
+                    return;
+                }
                 this.announcement = '';
                 if (!result?.steps.length) {
                     this.error = retryMessage;
