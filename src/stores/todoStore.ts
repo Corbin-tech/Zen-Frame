@@ -494,11 +494,13 @@ function createTodosStore() {
 
     // Removes items and everything that points at them
     removeItems(ids: Set<string>): void {
+      const progress = new Map(this.clusters.filter(cluster => ids.has(cluster.id))
+        .map(cluster => [cluster.id, this.clusterProgress(cluster.id)]));
       this.items = this.items.filter(item => !ids.has(item.id));
       this.scheduledItems = this.scheduledItems.filter(entry => !ids.has(entry.taskId));
       this.skippedClusters = this.skippedClusters.filter(clusterId => !ids.has(clusterId));
       this.saveTodos();
-      (window.Alpine.store("goals") as { unlinkClusters?: (ids: Set<string>) => void } | undefined)?.unlinkClusters?.(ids);
+      (window.Alpine.store("goals") as { unlinkClusters?: (progress: Map<string, { done: number; total: number }>) => void } | undefined)?.unlinkClusters?.(progress);
     },
 
     toggleTodo(id: string): void {
