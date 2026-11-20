@@ -19,6 +19,38 @@ interface PomoSavedState {
   isBreak?: boolean;
 }
 
+interface RunningTimer {
+  preset: PomoPreset;
+  isBreak: boolean;
+  endsAt: number;
+}
+
+// A countdown belongs to this tab and isn't part of an exported backup.
+const RUNNING_TIMER_KEY = "pomoRunningTimer";
+
+function loadRunningTimer(): RunningTimer | null {
+  try {
+    const timer: RunningTimer | null = JSON.parse(sessionStorage.getItem(RUNNING_TIMER_KEY) ?? "null");
+    if (typeof timer?.preset === "string" && Object.hasOwn(POMO_DURATIONS, timer.preset)
+      && typeof timer.isBreak === "boolean" && typeof timer.endsAt === "number"
+      && Number.isFinite(new Date(timer.endsAt).getTime()) && timer.endsAt > 0) {
+      return timer;
+    }
+  } catch {
+    // The timer still works when browser storage is unavailable.
+  }
+  return null;
+}
+
+function saveRunningTimer(timer: RunningTimer | null): void {
+  try {
+    if (timer) sessionStorage.setItem(RUNNING_TIMER_KEY, JSON.stringify(timer));
+    else sessionStorage.removeItem(RUNNING_TIMER_KEY);
+  } catch {
+    // The timer still works when browser storage is unavailable.
+  }
+}
+
 declare global {
   interface Window {
     notify?: (kind: string, title: string, body: string) => void;
@@ -38,7 +70,17 @@ export function initPomoStore() {
     // Alpine calls init() when the store is registered
     init(): void {
       this.loadState();
-      this.resetTimer();
+      const running = loadRunningTimer();
+      if (running) {
+        this.preset = running.preset;
+        this.isBreak = running.isBreak;
+      }
+      this.totalTime = this.phaseTime(this.isBreak);
+      this.timeLeft = this.totalTime;
+      if (running) {
+        if (running.endsAt <= Date.now()) this.completeTimer(running.endsAt, false);
+        else this.runTimer(running.endsAt);
+      }
 
       // Space starts or pauses the timer when on Pomodoro (or Zen Mode with its timer visible),
       // unless the user is typing, on a control, or a dialog is open
@@ -46,7 +88,7 @@ export function initPomoStore() {
         if (e.code !== "Space") return;
         const target = e.target as Element | null;
         if (target?.closest("input, textarea, select, button, [role='button'], [contenteditable], [role='dialog']")) return;
-        if (document.querySelector("[role='dialog']:not([style*='display: none'])")) return;
+        if (Array.from(document.querySelectorAll("[role='dialog']")).some(dialog => dialog.checkVisibility())) return;
         const activeTab = loadString("activeTab", "dashboard");
         const settings = window.Alpine.store("settings") as { zenShowTimer?: boolean } | undefined;
         const zenTimerActive = activeTab === "zenmode" && Boolean(settings?.zenShowTimer);
@@ -88,14 +130,22 @@ export function initPomoStore() {
     startTimer(): void {
       if (this.isRunning) return;
       if (this.timeLeft <= 0) this.resetTimer();
-      this.isRunning = true;
 
-      // Count down from a fixed end time so throttled background tabs stay accurate
       const endsAt = Date.now() + this.timeLeft * 1000;
-      this.timer = setInterval(() => {
-        this.timeLeft = Math.max(0, Math.round((endsAt - Date.now()) / 1000));
-        if (this.timeLeft === 0) this.completeTimer();
-      }, 1000);
+      saveRunningTimer({ endsAt, preset: this.preset, isBreak: this.isBreak });
+      this.runTimer(endsAt);
+    },
+
+    runTimer(endsAt: number): void {
+      // Keep the same deadline across reloads and throttled background ticks.
+      const tick = () => {
+        const remaining = Math.ceil((endsAt - Date.now()) / 1000);
+        this.timeLeft = Math.max(0, Math.min(this.totalTime, remaining));
+        if (this.timeLeft === 0) this.completeTimer(endsAt);
+      };
+      this.isRunning = true;
+      this.timer = setInterval(tick, 1000);
+      tick();
     },
 
     stopTimer(): void {
@@ -104,6 +154,7 @@ export function initPomoStore() {
         clearInterval(this.timer);
         this.timer = null;
       }
+      saveRunningTimer(null);
     },
 
     pauseTimer(): void {
@@ -126,14 +177,16 @@ export function initPomoStore() {
       this.startTimer();
     },
 
-    completeTimer(): void {
-      this.playAlarm();
+    completeTimer(endsAt: number, alert = true): void {
+      if (alert) this.playAlarm();
       if (!this.isBreak) {
-        this.sessions = [...this.sessions, {
-          completedAt: new Date().toISOString(),
-          minutes: this.totalTime / 60
-        }].slice(-500);
-        saveJson("pomoSessions", this.sessions);
+        const completedAt = new Date(endsAt).toISOString();
+        const saved = loadJson<FocusSession[]>("pomoSessions", this.sessions);
+        this.sessions = saved;
+        if (!this.sessions.some((session) => session?.completedAt === completedAt)) {
+          this.sessions = [...this.sessions, { completedAt, minutes: this.totalTime / 60 }].slice(-500);
+          saveJson("pomoSessions", this.sessions);
+        }
       }
       // Switch between work and break
       this.isBreak = !this.isBreak;
@@ -167,8 +220,8 @@ export function initPomoStore() {
     },
 
     loadState(): void {
-      const state = loadJson<PomoSavedState>("pomoState", {});
-      this.preset = state.preset && state.preset in POMO_DURATIONS ? state.preset as PomoPreset : "pomodoro";
+      const state = loadJson<PomoSavedState>("pomoState", {}) ?? {};
+      this.preset = state.preset && Object.hasOwn(POMO_DURATIONS, state.preset) ? state.preset as PomoPreset : "pomodoro";
       this.isBreak = Boolean(state.isBreak);
       this.sessions = loadJson<FocusSession[]>("pomoSessions", []);
     }

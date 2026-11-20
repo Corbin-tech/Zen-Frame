@@ -1,3 +1,7 @@
+---
+import TaskSteps from './TaskSteps.astro';
+---
+
 <script>
     import { celebrate } from '../lib/confetti';
 
@@ -41,8 +45,7 @@
             get upcoming() {
                 const todos = this.$store.todos;
                 const current = this.currentTodo;
-                return [...todos.openTasks]
-                    .sort((a, b) => Number(Boolean(b.startedAt)) - Number(Boolean(a.startedAt)))
+                return todos.zenTaskOrder
                     .filter(task => task.id !== current?.id && (!task.parentId || !todos.skippedClusters.includes(task.parentId)))
                     .slice(0, 2);
             },
@@ -130,7 +133,9 @@
                             ></span>
                         </div>
                         
-                        <p 
+                        <p
+                            x-ref="currentTaskTitle"
+                            tabindex="-1"
                             class="text-2xl text-center text-gray-800 dark:text-gray-200" 
                             x-text="currentTodo?.todo"
                         ></p>
@@ -140,6 +145,7 @@
                             x-bind:class="currentTodo?.dueDate ? $dates.dueClass(currentTodo.dueDate) : ''"
                             x-text="currentTodo?.dueDate ? $dates.dueText(currentTodo.dueDate).replace(/^d/, 'D') : ''"
                         ></span>
+                        <TaskSteps taskId="currentTodo?.id" fallbackFocus="$refs.currentTaskTitle" zen />
                         <button 
                             @click="completeCurrentTodo"
                             aria-label="Mark current task as complete"

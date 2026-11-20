@@ -1,0 +1,100 @@
+---
+const field = "w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-800";
+const button = "rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium hover:bg-gray-100 disabled:opacity-50 dark:border-slate-600 dark:hover:bg-slate-800";
+const primary = "rounded-lg bg-teal-700 px-3 py-2 text-sm font-medium text-white hover:bg-teal-800 disabled:opacity-50";
+---
+
+<section x-data x-cloak aria-labelledby="plus-title" class="space-y-4 rounded-xl border border-gray-200 p-5 text-gray-900 dark:border-slate-700 dark:text-white">
+    <header>
+        <h2 id="plus-title" class="text-lg font-semibold" tabindex="-1" x-ref="title">Zen Frame Plus</h2>
+        <p class="text-sm text-gray-600 dark:text-gray-300">AI task helpers for breaking down tasks, organizing a brain dump, and estimating time.</p>
+    </header>
+
+    <p x-show="$store.plus.error" x-text="$store.plus.error" role="alert" class="text-sm text-red-700 dark:text-red-300"></p>
+
+    <div x-bind:hidden="$store.plus.ready">
+        <p x-show="$store.plus.refreshing" role="status" class="text-sm">Checking your sign-in…</p>
+        <button x-show="!$store.plus.refreshing" type="button" class={button} x-on:click="$store.plus.refresh()">Try again</button>
+    </div>
+
+    <div x-bind:hidden="!$store.plus.ready || !!$store.plus.account" class="max-w-sm space-y-3">
+        <p class="text-sm">Sign in to get 20 free helper requests for your account. No card required.</p>
+        <form
+            class="space-y-2"
+            x-bind:hidden="!!$store.plus.challenge"
+            x-on:submit.prevent="if (await $store.plus.requestCode()) $nextTick(() => $refs.code.focus())"
+        >
+            <label for="plus-email" class="block text-sm font-medium">Email address</label>
+            <input id="plus-email" x-ref="email" x-model="$store.plus.email" x-bind:readonly="!!$store.plus.busy" class={field}
+                required type="email" autocomplete="email" maxlength="254" />
+            <button type="submit" class={primary} x-bind:disabled="!!$store.plus.busy"
+                x-text="$store.plus.busy === 'code' ? 'Sending…' : 'Send sign-in code'"></button>
+        </form>
+        <form
+            class="space-y-2"
+            x-bind:hidden="!$store.plus.challenge"
+            x-on:submit.prevent="if (await $store.plus.verifyCode()) $nextTick(() => $refs.title.focus())"
+        >
+            <p id="plus-code-help" class="text-sm">Check <span x-text="$store.plus.email"></span> for a six-digit code. It expires in 10 minutes.</p>
+            <label for="plus-code" class="block text-sm font-medium">Sign-in code</label>
+            <input id="plus-code" x-ref="code" x-model="$store.plus.code" x-bind:readonly="!!$store.plus.busy" class={field}
+                required type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}"
+                aria-describedby="plus-code-help" />
+            <div class="flex flex-wrap gap-2">
+                <button type="submit" class={primary} x-bind:disabled="!!$store.plus.busy"
+                    x-text="$store.plus.busy === 'verify' ? 'Signing in…' : 'Sign in'"></button>
+                <button type="button" class={button} x-bind:disabled="!!$store.plus.busy"
+                    x-on:click="if (await $store.plus.requestCode()) $nextTick(() => $refs.code.focus())">Send a new code</button>
+                <button type="button" class={button} x-bind:disabled="!!$store.plus.busy"
+                    x-on:click="$store.plus.editEmail(); $nextTick(() => $refs.email.focus())">Change email</button>
+            </div>
+        </form>
+    </div>
+
+    <div x-bind:hidden="!$store.plus.account" class="space-y-3">
+        <p class="text-sm">Signed in as <span x-text="$store.plus.account?.email ?? ''"></span>.</p>
+        <div aria-live="polite" class="text-sm">
+            <p x-show="$store.plus.account?.tier === 'trial'">
+                Free helper requests left: <strong x-text="$store.plus.account?.trialRemaining ?? 0"></strong>.
+            </p>
+            <p x-show="$store.plus.account?.tier === 'plus'">
+                Plus is active until <span x-text="$store.plus.plusUntilLabel"></span>.
+                This month’s helper requests left: <strong x-text="$store.plus.account?.monthlyRemaining ?? 0"></strong>.
+            </p>
+            <p x-show="$store.plus.checkoutReturn === 'paid' && $store.plus.account?.tier !== 'plus'">
+                If you completed checkout, refresh here once Stripe confirms your subscription.
+            </p>
+            <p x-show="$store.plus.checkoutPending && $store.plus.account?.tier !== 'plus'">
+                Choose the same plan to return to checkout, or cancel the pending checkout to pick another plan.
+            </p>
+        </div>
+        <div x-show="$store.plus.account?.tier === 'trial'" class="space-y-2">
+            <p class="text-sm">Plus includes up to 1,000 helper requests per calendar month (UTC). Prices are in USD.</p>
+            <p class="text-sm">Test checkout only. No real payments.</p>
+            <div class="flex flex-wrap gap-2">
+                <button type="button" class={primary} x-bind:disabled="!!$store.plus.busy"
+                    x-on:click="$store.plus.checkout('monthly')">Subscribe · $4.99/month</button>
+                <button type="button" class={primary} x-bind:disabled="!!$store.plus.busy"
+                    x-on:click="$store.plus.checkout('annual')">Subscribe · $39.99/year</button>
+                <button type="button" class={button} x-show="$store.plus.checkoutPending" x-bind:disabled="!!$store.plus.busy"
+                    x-on:click="$store.plus.cancelCheckout()">Cancel pending checkout</button>
+            </div>
+        </div>
+        <div class="flex flex-wrap gap-2">
+            <button type="button" class={button} x-show="$store.plus.account?.billingAvailable" x-bind:disabled="!!$store.plus.busy"
+                x-on:click="$store.plus.portal()">Manage billing</button>
+            <button type="button" class={button} x-bind:disabled="!!$store.plus.busy || $store.plus.refreshing"
+                x-on:click="$store.plus.refresh()" x-text="$store.plus.refreshing ? 'Refreshing…' : 'Refresh status'"></button>
+            <button type="button" class={button} x-bind:disabled="!!$store.plus.busy"
+                x-on:click="if (await $store.plus.signOut()) $nextTick(() => $refs.email.focus())">Sign out</button>
+        </div>
+    </div>
+</section>
+
+<script>
+    import { initPlusStore } from "../stores/plusStore";
+
+    document.addEventListener("alpine:init", () => {
+        if (!window.Alpine.store("plus")) window.Alpine.store("plus", initPlusStore());
+    });
+</script>

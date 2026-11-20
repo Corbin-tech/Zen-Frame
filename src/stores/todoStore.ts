@@ -2,6 +2,8 @@ import { toDateKey, fromDateKey, addDays, minutesNow } from "../lib/dates";
 import { planTasks, type AvailabilityWindow } from "../lib/autoPlan";
 import { loadJson, saveJson } from "../lib/storage";
 import type { Milestone } from "./settingsStore";
+import { blockMinutes } from "../lib/estimates";
+import { cleanStepTotal } from "../lib/assist/sanitize";
 
 export interface Todo {
   id: string;
@@ -15,7 +17,17 @@ export interface Todo {
   createdAt: string;
   updatedAt?: string;
   startedAt?: string; // Set while the task is in the board's In progress column
+  zenDeferredStart?: string; // The start timestamp that Skip Task deferred in Zen mode
   completedAt?: string;
+  estimateMinutes?: number | null; // From Estimate, Brain dump, or the user
+  steps?: TodoStep[]; // A checklist from Breakdown. Steps stay inside the task, so the board and schedule still see one task.
+}
+
+export interface TodoStep {
+  id: string;
+  text: string;
+  done: boolean;
+  minutes?: number | null;
 }
 
 // One finished task, kept after the task itself is cleared so Insights can count it
@@ -102,13 +114,16 @@ function createTodosStore() {
       return this.items.filter(item => !item.isCluster && !item.completed);
     },
 
-    // The task Zen mode shows: the first open task in list order, skipping clusters the user skipped.
-    // Tasks in progress on the board come first. When every open task is in a skipped cluster,
-    // fall back to the first open task.
+    get zenTaskOrder(): Todo[] {
+      const priority = (task: Todo) => Number(Boolean(task.startedAt && task.startedAt !== task.zenDeferredStart));
+      return this.openTasks.sort((a, b) => priority(b) - priority(a));
+    },
+
+    // The task Zen mode shows, skipping clusters the user skipped when possible.
     get nextTask(): Todo | null {
-      const openTasks = [...this.openTasks].sort((a, b) => Number(Boolean(b.startedAt)) - Number(Boolean(a.startedAt)));
-      return openTasks.find(task => !task.parentId || !this.skippedClusters.includes(task.parentId))
-        ?? openTasks[0]
+      const ordered = this.zenTaskOrder;
+      return ordered.find(task => !task.parentId || !this.skippedClusters.includes(task.parentId))
+        ?? ordered[0]
         ?? null;
     },
 
@@ -116,7 +131,7 @@ function createTodosStore() {
 
     // Alpine calls init() when the store is registered
     init(): void {
-      this.items = loadJson<Todo[]>("todos", []).map(item => ({ ...item, parentId: item.parentId ?? null }));
+      this.items = loadJson<Todo[]>("todos", []);
       this.skippedClusters = loadJson<string[]>("skippedClusters", []);
       this.scheduledItems = loadJson<ScheduledItem[]>("scheduledItems", []);
       this.planning = { ...DEFAULT_PLANNING, ...loadJson<Partial<Planning>>("planning", {}) };
@@ -325,6 +340,33 @@ function createTodosStore() {
         this.saveScheduledItem({ ...block, date: task.dueDate });
         return;
       }
+      this.saveTodos();
+    },
+
+    // Estimate in minutes, or null to clear it
+    setEstimate(taskId: string, minutes: number | null): void {
+      const task = this.find(taskId);
+      if (!task || task.isCluster) return;
+      task.estimateMinutes = minutes && minutes > 0 ? Math.round(minutes) : null;
+      task.updatedAt = new Date().toISOString();
+      this.saveTodos();
+    },
+
+    // Replaces the task's checklist. When no estimate is set yet, the steps' minutes add up to one.
+    setSteps(taskId: string, steps: Array<{ text: string; minutes?: number | null }>): void {
+      const task = this.find(taskId);
+      if (!task || task.isCluster) return;
+      task.steps = steps.map(step => ({ id: crypto.randomUUID(), text: step.text.trim(), done: false, minutes: step.minutes ?? null }));
+      const total = cleanStepTotal(task.steps);
+      if (!task.estimateMinutes && total) task.estimateMinutes = total;
+      task.updatedAt = new Date().toISOString();
+      this.saveTodos();
+    },
+
+    toggleStep(taskId: string, stepId: string): void {
+      const step = this.find(taskId)?.steps?.find(item => item.id === stepId);
+      if (!step) return;
+      step.done = !step.done;
       this.saveTodos();
     },
 
@@ -552,6 +594,7 @@ function createTodosStore() {
       const items = this.items.filter(item => item.id !== taskId);
       const lastIndex = items.findIndex(item => item.id === openSiblings[openSiblings.length - 1].id);
       items.splice(lastIndex + 1, 0, task);
+      if (task.startedAt) task.zenDeferredStart = task.startedAt;
       this.items = items;
       this.saveTodos();
     },
@@ -615,6 +658,8 @@ function createTodosStore() {
         busyOn: day => this.scheduledItemsOn(day).map(item => ({ start: item.startTimeMinutes, end: item.endTimeMinutes })),
         earliestOn: day => day === today ? minutesNow() : 0,
         duration: this.planning.duration,
+        // Estimated tasks get a block that fits the estimate; the rest keep the planning default
+        durationOf: task => task.estimateMinutes ? blockMinutes(task.estimateMinutes) : this.planning.duration,
         gap: this.planning.gap
       });
 

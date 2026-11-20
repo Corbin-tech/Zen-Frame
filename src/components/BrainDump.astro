@@ -1,0 +1,67 @@
+---
+const field = 'w-full rounded-lg border-gray-300 bg-white text-gray-900 focus:ring-teal-500 focus:border-teal-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white text-sm';
+const button = 'rounded-lg px-3 py-2 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-500';
+---
+
+<div x-data="brainDump" x-on:open-brain-dump.window="show($event.detail)" x-on:overlay-opened.window="if (open && $event.detail.name !== 'brain-dump') close()">
+    <div x-show="open" x-cloak class="fixed inset-0 z-50 bg-slate-900/40" x-on:click.self="close()">
+        <section x-ref="dialog" role="dialog" aria-modal="true" aria-labelledby="brain-dump-title" x-on:keydown.escape.stop="close()" x-on:keydown.tab="trap($event)" class="absolute inset-x-4 top-[5vh] mx-auto max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white p-5 shadow-xl dark:bg-slate-900 text-gray-900 dark:text-white space-y-4">
+            <header class="flex items-center justify-between gap-3">
+                <h2 id="brain-dump-title" class="text-xl font-semibold">Brain dump</h2>
+                <button type="button" class={button} x-on:click="close()">Close</button>
+            </header>
+            <p class="text-sm text-gray-500 dark:text-gray-400">Get it out of your head. Review and edit before adding anything.</p>
+            <label class="block text-sm font-medium">What's on your mind?
+                <textarea x-ref="draft" x-model="text" maxlength="6000" rows="4" class={`${field} mt-1`} placeholder="Things to do, errands, ideas…"></textarea>
+            </label>
+            <p id="brain-dump-gate" x-show="$store.assist.aiStatus !== 'ready'" class="text-sm text-gray-500 dark:text-gray-400">Brain dump is part of Plus (20 free requests to try it). You can still draft here.</p>
+            <div class="flex items-center gap-3">
+                <button type="button" class={`${button} bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50`} aria-describedby="brain-dump-gate" x-bind:disabled="$store.assist.aiStatus !== 'ready' || $store.assist.busy || !text.trim()" x-on:click="$store.assist.compile(text)">Sort it out</button>
+                <span x-show="$store.assist.busy" role="status" class="text-sm">Sorting…</span>
+                <button type="button" x-show="$store.assist.busy" class={button} x-on:click="$store.assist.cancel()">Cancel</button>
+            </div>
+            <p x-show="$store.assist.error" x-text="$store.assist.error" role="alert" class="text-sm text-red-600 dark:text-red-400"></p>
+            <template x-if="$store.assist.preview?.kind === 'compile'">
+                <div class="space-y-4">
+                    <h3 class="font-semibold">Review your tasks</h3>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Untick to skip. Drag a task to another cluster, or use Move to.</p>
+                    <p x-show="!clusters.length" class="text-sm">No tasks suggested. Edit your draft and try again.</p>
+                    <template x-for="cluster in clusters" :key="cluster.id">
+                        <section class="rounded-xl border border-gray-200 dark:border-slate-700 p-3 space-y-3" x-on:dragover.prevent x-on:drop.prevent="drop(cluster.id)">
+                            <label class="block text-sm font-medium">Cluster name
+                                <input type="text" maxlength="60" x-model="cluster.name" class={`${field} mt-1`} />
+                            </label>
+                            <p class="text-xs text-teal-700 dark:text-teal-300" x-show="existing(cluster.name)" x-text="existing(cluster.name)"></p>
+                            <template x-for="task in cluster.tasks" :key="task.id">
+                                <div class="rounded-lg bg-gray-50 dark:bg-slate-800/50 p-2 space-y-2">
+                                    <div class="flex items-center gap-2">
+                                        <label class="flex items-center gap-2 text-xs shrink-0"><input type="checkbox" x-model="task.included" class="rounded text-teal-600 focus:ring-teal-500" /> Keep</label>
+                                        <span draggable="true" x-on:dragstart="dragging = { cluster: cluster.id, task: task.id }; $event.dataTransfer.setData('text/plain', 'brain-dump-task')" x-on:dragend="dragging = null" class="cursor-grab text-xs text-gray-500 dark:text-gray-400" title="Drag task to a cluster">⠿ Drag</span>
+                                        <span class="text-sm truncate" x-text="task.text"></span>
+                                    </div>
+                                    <label class="block text-xs">Task text<input type="text" maxlength="200" x-model="task.text" x-on:change="normalize(task)" class={`${field} mt-1`} /></label>
+                                    <div class="grid grid-cols-2 gap-2">
+                                        <label class="text-xs">Minutes<input type="number" min="1" max="480" step="1" x-model="task.minutes" x-on:change="normalize(task)" class={`${field} mt-1`} /></label>
+                                        <label class="text-xs">Move to<select x-bind:id="'brain-move-' + task.id" x-bind:value="cluster.id" x-on:change="move(cluster.id, task.id, Number($event.target.value))" class={`${field} mt-1`}>
+                                            <template x-for="target in clusters" :key="target.id"><option x-bind:value="target.id" x-bind:selected="target.id === cluster.id" x-text="target.name"></option></template>
+                                        </select></label>
+                                    </div>
+                                </div>
+                            </template>
+                        </section>
+                    </template>
+                    <div class="flex gap-2">
+                        <button type="button" class={`${button} bg-teal-600 text-white disabled:opacity-50`} x-bind:disabled="!selected || $store.assist.busy" x-on:click="accept()">Accept</button>
+                        <button type="button" class={button} x-on:click="discard()">Discard</button>
+                    </div>
+                </div>
+            </template>
+            <p aria-live="polite" aria-atomic="true" class="text-sm text-teal-700 dark:text-teal-300" x-text="announcement"></p>
+        </section>
+    </div>
+</div>
+
+<script>
+    import { brainDump } from '../lib/brainDump';
+    document.addEventListener('alpine:init', () => window.Alpine.data('brainDump', brainDump));
+</script>

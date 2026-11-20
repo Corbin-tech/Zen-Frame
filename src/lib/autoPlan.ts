@@ -19,6 +19,7 @@ export interface PlanTask {
   id: string;
   dueDate?: string | null;
   startedAt?: string;
+  estimateMinutes?: number | null;
 }
 
 export interface PlannedBlock {
@@ -34,6 +35,7 @@ interface PlanInput {
   availability: AvailabilityWindow[];
   busyOn: (dateKey: string) => Range[]; // Blocks already on that day
   duration: number; // Minutes per task
+  durationOf?: (task: PlanTask) => number; // Per-task minutes, such as from an estimate. Falls back to duration.
   gap: number; // Minutes left free after each task
   earliestOn: (dateKey: string) => number; // For today: now, so nothing lands in the past
 }
@@ -55,11 +57,13 @@ export function windowsOn(availability: AvailabilityWindow[], dateKey: string): 
   }, []);
 }
 
-// Free ranges: the windows minus busy ranges, starting no earlier than `earliest`
-function freeRanges(windows: Range[], busy: Range[], earliest: number): Range[] {
+// Free ranges: the windows minus busy ranges, starting no earlier than `earliest`.
+// Each busy range also takes the `gap` before it, so a task placed there keeps its break.
+function freeRanges(windows: Range[], busy: Range[], earliest: number, gap: number): Range[] {
   let free = windows.map(range => ({ start: Math.max(range.start, roundUp(earliest)), end: range.end }))
     .filter(range => range.end > range.start);
-  for (const taken of busy) {
+  for (const { start, end } of busy) {
+    const taken = { start: start - gap, end };
     free = free.flatMap(range => {
       if (taken.end <= range.start || taken.start >= range.end) return [range];
       return [
@@ -87,16 +91,17 @@ export function planTasks(input: PlanInput): PlannedBlock[] {
   const planned: PlannedBlock[] = [];
   const free = new Map(input.days.map(day => [
     day,
-    freeRanges(windowsOn(input.availability, day), input.busyOn(day), input.earliestOn(day))
+    freeRanges(windowsOn(input.availability, day), input.busyOn(day), input.earliestOn(day), input.gap)
   ]));
 
   for (const task of planOrder(input.tasks)) {
+    const duration = input.durationOf?.(task) || input.duration;
     for (const day of input.days) {
       const ranges = free.get(day)!;
-      const slot = ranges.find(range => range.end - range.start >= input.duration);
+      const slot = ranges.find(range => range.end - range.start >= duration);
       if (!slot) continue;
       const start = slot.start;
-      const end = start + input.duration;
+      const end = start + duration;
       planned.push({ taskId: task.id, date: day, start, end });
       slot.start = Math.min(slot.end, roundUp(end + input.gap));
       break;

@@ -56,7 +56,7 @@ const panel = 'panel';
                 x-bind:id="`item-${cluster.id}`"
             >
                 <!-- Cluster Header -->
-                <div class="group/header flex items-center justify-between gap-2 p-3 sm:p-4 border-b border-gray-100 dark:border-slate-600 transition-colors duration-300 ease-in-out"
+                <div class="group/header flex flex-wrap items-center justify-between gap-x-2 p-3 sm:p-4 border-b border-gray-100 dark:border-slate-600 transition-colors duration-300 ease-in-out"
                      x-bind:class="{'bg-teal-50 dark:bg-teal-900/20': cluster.isPinned}">
                     <div class="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
                         <!-- Cluster color: the icon opens a swatch picker -->
@@ -164,6 +164,11 @@ const panel = 'panel';
                             </svg>
                         </button>
                     </div>
+                    <p
+                        x-data="clusterEstimate"
+                        class="basis-full pl-12 text-xs text-gray-600 dark:text-gray-300"
+                        x-text="totalLabel($store.todos.openTasks.filter(task => task.parentId === cluster.id))"
+                    ></p>
                 </div>
 
                 <!-- Cluster Content -->
@@ -218,3 +223,12 @@ const panel = 'panel';
         background-color: color-mix(in srgb, var(--teal-primary) 5%, transparent) !important;
     }
 </style>
+
+<script>
+    import { estimatePicker, totalLabel } from '../lib/estimates';
+
+    document.addEventListener('alpine:init', () => {
+        window.Alpine.data('estimatePicker', estimatePicker);
+        window.Alpine.data('clusterEstimate', () => ({ totalLabel }));
+    });
+</script>
