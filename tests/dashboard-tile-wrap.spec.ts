@@ -10,7 +10,7 @@ for (const populated of [true, false]) {
       localStorage.clear();
       localStorage.setItem('activeTab', 'dashboard');
       localStorage.setItem('todos', JSON.stringify(populated ? [{
-        id: 'task', todo: 'Review the quarterly product strategy with the design team',
+        id: 'task', todo: 'Review quarterlyproductstrategyfinalv2.pdf with the design team',
         completed: false, isCluster: false, isPinned: false, parentId: null,
         createdAt: '2026-11-20T09:00:00.000Z', dueDate: '2026-11-19',
       }] : []));
@@ -25,14 +25,15 @@ for (const populated of [true, false]) {
     await expect(details).toHaveCount(4);
     await expect(details.last()).toHaveText('0 sessions in the last 7 days');
     await expect(details.nth(2)).toHaveText(populated
-      ? 'Next: Review the quarterly product strategy with the design team at 3:00 PM'
+      ? 'Next: Review quarterlyproductstrategyfinalv2.pdf with the design team at 3:00 PM'
       : 'No blocks yet');
     for (const detail of await details.all()) {
       await expect(detail).toBeVisible();
       expect(await detail.evaluate(el => ({
         fits: el.scrollWidth <= el.clientWidth && el.scrollHeight <= el.clientHeight,
         overflow: getComputedStyle(el).textOverflow,
-      }))).toEqual({ fits: true, overflow: 'clip' });
+        contained: el.getBoundingClientRect().right <= el.closest('button')!.getBoundingClientRect().right,
+      }))).toEqual({ fits: true, overflow: 'clip', contained: true });
     }
     const tiles = dashboard.locator('[x-for="tile in tiles"]').locator('..').locator('button');
     const boxes = await tiles.evaluateAll(els => els.map(el => el.getBoundingClientRect().toJSON()));
