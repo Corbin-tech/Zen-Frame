@@ -1,5 +1,5 @@
 import { SLOT_MINUTES } from "./timeline";
-import { cleanEstimate } from "./assist/sanitize";
+import { cleanEstimate, cleanMinutes } from "./assist/sanitize";
 import type { EstimateResult } from "./assist/types";
 import type { initAssistStore } from "../stores/assistStore";
 
@@ -48,8 +48,8 @@ export function estimatePicker(assist: AssistStore) {
       return assist.aiStatus === "ready" && assist.source === "plus";
     },
 
-    get canSave() {
-      return this.minutes !== null && Number.isSafeInteger(this.minutes) && this.minutes > 0;
+    get saveMinutes() {
+      return Number.isSafeInteger(this.minutes) ? cleanMinutes(this.minutes) : null;
     },
 
     startEditing(minutes: number | null) {
