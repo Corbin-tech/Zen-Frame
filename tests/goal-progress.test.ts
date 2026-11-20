@@ -12,7 +12,7 @@ test.each([
   const goals = initGoalsStore();
   vi.spyOn(goals, "save").mockImplementation(() => {});
   let todos: any;
-  vi.stubGlobal("window", { Alpine: { store: (name: string, value?: unknown) => {
+  vi.stubGlobal("window", { dispatchEvent: () => true, Alpine: { store: (name: string, value?: unknown) => {
     if (value) todos = value;
     return name === "goals" ? goals : todos;
   } } });
