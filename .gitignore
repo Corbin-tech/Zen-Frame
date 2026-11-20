@@ -1,6 +1,8 @@
 node_modules/
 dist/
 .env
+.dev.vars*
+.wrangler/
 .DS_Store
 .astro/
 .claude/
