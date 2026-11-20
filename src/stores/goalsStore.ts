@@ -34,6 +34,14 @@ export interface Note {
 const PERSISTED_KEYS = ["goals", "checkIns", "notes"] as const;
 type PersistedKey = typeof PERSISTED_KEYS[number];
 
+function retainUnchanged<T extends { id: string }>(local: T[], remote: T[]): T[] {
+  const current = new Map(local.map(entry => [entry.id, entry]));
+  return remote.map(entry => {
+    const previous = current.get(entry.id);
+    return previous && JSON.stringify(previous) === JSON.stringify(entry) ? previous : entry;
+  });
+}
+
 // The Monday on or before a day
 export function weekOf(dateKey: string = toDateKey()): string {
   const weekday = fromDateKey(dateKey).getDay();
@@ -60,9 +68,9 @@ export function initGoalsStore() {
 
     loadList(key: PersistedKey): void {
       switch (key) {
-        case "goals": this.goals = loadJson<Goal[]>(key, []); break;
+        case "goals": this.goals = retainUnchanged(this.goals, loadJson<Goal[]>(key, [])); break;
         case "checkIns": this.checkIns = loadJson<Record<string, CheckIn>>(key, {}); break;
-        case "notes": this.notes = loadJson<Note[]>(key, []); break;
+        case "notes": this.notes = retainUnchanged(this.notes, loadJson<Note[]>(key, [])); break;
       }
       this.savedJson[key] = JSON.stringify(this[key]);
     },
