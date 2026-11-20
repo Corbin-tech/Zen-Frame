@@ -28,7 +28,7 @@ export function daysBetween(from: string, to: string): number {
   return Math.round((fromDateKey(to).getTime() - fromDateKey(from).getTime()) / DAY_MS);
 }
 
-function formatDate(key: string, options: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" }): string {
+export function formatDate(key: string, options: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" }): string {
   return fromDateKey(key).toLocaleDateString(undefined, options);
 }
 
