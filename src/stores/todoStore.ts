@@ -639,7 +639,7 @@ function createTodosStore() {
     },
 
     // Plans open tasks into free availability on `dayCount` days from `fromDate`.
-    // Skips tasks that already have a block today or later, and routines (repeating blocks).
+    // Skips tasks with a one-off block today or later, or a routine that hasn't ended.
     // Like saveScheduledItem, a planned task moves to its new day: its past one-off blocks go
     // and its due date becomes that day. Returns what changed so undoAutoPlan can put it back.
     autoPlan(fromDate: string, dayCount: number): AutoPlanResult {
@@ -647,7 +647,7 @@ function createTodosStore() {
       const start = fromDate < today ? today : fromDate;
       const days = Array.from({ length: dayCount }, (_, i) => addDays(start, i));
       const planned = new Set(this.scheduledItems
-        .filter(item => item.repeat || item.date >= today)
+        .filter(({ repeat, date }) => repeat ? !repeat.until || repeat.until >= today : date >= today)
         .map(item => item.taskId));
       const tasks = this.openTasks.filter(task => task.todo.trim() && !planned.has(task.id));
 
