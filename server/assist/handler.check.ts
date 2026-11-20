@@ -7,8 +7,10 @@ import { DETAIL_LEVELS } from '../../src/lib/assist/types.ts';
 import { cleanAnswer } from './validation.ts';
 import { createAnthropicClient } from './anthropic.ts';
 import { createCloudProvider, AssistError } from '../../src/lib/assist/cloudProvider.ts';
-import { onRequest } from '../../functions/api/assist/[endpoint].ts';
+import { onRequest, selectAssistRateLimiter } from '../../functions/api/assist/[endpoint].ts';
 import type { ModelClient } from './ports.ts';
+import { ASSIST_RATE_LIMIT, ASSIST_RATE_WINDOW_SECONDS, createD1RateLimiter } from './rateLimit.ts';
+import type { AssistDatabase } from './rateLimit.ts';
 
 const secretText = 'private-input-check';
 const SCHEMAS = { breakdown: breakdownSchema(DETAIL_LEVELS[0]), compile: COMPILE_SCHEMA, estimate: ESTIMATE_SCHEMA };
@@ -19,11 +21,61 @@ function request(endpoint = 'breakdown', body: unknown = inputs.breakdown, heade
 function setup(model = mockModel(), entitlement = mockEntitlement(), limit = 100) {
   return { model, entitlement, rateLimit: memoryRateLimiter(limit) };
 }
+function fakeD1() {
+  const rows = new Map<string, { window: number; count: number }>();
+  const calls: { sql: string; values: (string | number | null)[] }[] = [];
+  const db: AssistDatabase = { prepare(sql) {
+    assert.match(sql, /INSERT INTO assist_rate_limits/);
+    assert.match(sql, /ON CONFLICT \(account_id\) DO UPDATE/);
+    assert.match(sql, /RETURNING count/);
+    return { bind(...values) {
+      calls.push({ sql, values });
+      this.first = async <T>() => {
+        const [accountId, window, cap] = values as [string, number, number];
+        const old = rows.get(accountId);
+        if (old && old.window > window) return null;
+        const row = { window, count: !old || old.window < window ? 1 : Math.min(old.count + 1, cap) };
+        rows.set(accountId, row);
+        return { count: row.count } as T;
+      };
+      return this;
+    }, async first<T>(): Promise<T | null> { throw new Error('unbound statement'); } };
+  } };
+  return { db, rows, calls };
+}
 let tests = 0;
 const originalConsole = { ...console };
 const logged: unknown[][] = [];
 for (const name of ['log', 'error', 'warn', 'info', 'debug'] as const) console[name] = (...args: unknown[]) => { logged.push(args); };
 try {
+  const database = fakeD1(); let clock = 0;
+  const rateLimit = createD1RateLimiter(database.db, () => clock);
+  const d1Deps = { ...setup(), rateLimit };
+  for (let i = 0; i < ASSIST_RATE_LIMIT; i++) {
+    assert.equal((await handleAssist(request(), d1Deps)).status, 200); tests++;
+  }
+  const limited = await handleAssist(request(), d1Deps);
+  assert.equal(limited.status, 429); assert.deepEqual(await limited.json(), { error: 'rate_limited' });
+  assert.equal(d1Deps.entitlement.counts.reserved, ASSIST_RATE_LIMIT); tests++;
+  assert.equal(await rateLimit.limit('other-account'), true); tests++;
+  clock = ASSIST_RATE_WINDOW_SECONDS * 1000 - 1;
+  assert.equal(await rateLimit.limit('test-account'), false); tests++;
+  clock++;
+  assert.equal(await rateLimit.limit('test-account'), true);
+  assert.equal(database.rows.get('test-account')?.count, 1); assert.equal(database.rows.size, 2); tests++;
+  clock = 0; assert.equal(await rateLimit.limit('test-account'), false); tests++;
+  assert.ok(database.calls.every(call => !call.sql.includes('test-account')));
+  let bindingCalls = 0;
+  const selected = selectAssistRateLimiter({ PLUS_DB: database.db, ASSIST_RATE_LIMITER: { async limit({ key }) { assert.equal(key, 'chosen-account'); bindingCalls++; return { success: false }; } } });
+  const dbCalls = database.calls.length;
+  assert.equal(await selected?.limit('chosen-account'), false); assert.equal(bindingCalls, 1); assert.equal(database.calls.length, dbCalls); tests++;
+  assert.equal(await selectAssistRateLimiter({ PLUS_DB: database.db })?.limit('db-account'), true);
+  assert.equal(database.calls.length, dbCalls + 1); assert.equal(selectAssistRateLimiter({}), null); tests++;
+  assert.equal((await onRequest({ request: request(), env: { ANTHROPIC_API_KEY: 'fake-key', PLUS_DB: database.db } })).status, 401); tests++;
+  assert.equal((await onRequest({ request: request(), env: { ANTHROPIC_API_KEY: 'fake-key' } })).status, 503); tests++;
+  const brokenDb: AssistDatabase = { prepare() { throw new Error('unavailable'); } };
+  const dbFailure = { ...setup(), rateLimit: createD1RateLimiter(brokenDb) };
+  assert.equal((await handleAssist(request(), dbFailure)).status, 503); assert.equal(dbFailure.entitlement.counts.reserved, 0); tests++;
   for (const endpoint of ['breakdown', 'compile', 'estimate'] as const) {
     const deps = setup(); const result = await handleAssist(request(endpoint, inputs[endpoint]), deps);
     assert.equal(result.status, 200); assert.ok(cleanAnswer(endpoint, await result.json()));
