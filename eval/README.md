@@ -71,6 +71,8 @@ Runner writes `results.json` (metadata, ids/kinds/levels, status, error, latency
 normalized output; no source task/dump) and a blank `ratings.csv` for breakdown and
 compile. Failed calls remain in results and must be rated not useful. Autorate
 writes a separate `ratings-auto.csv`; it cannot judge semantic usefulness.
+Autorate also refuses an existing output file (including its default
+`ratings-auto.csv`); choose a new `--out file.csv` or pass `--force` deliberately.
 Humans use RUBRIC.md and fill the original CSV, including their anonymous rater id.
 
 ```sh

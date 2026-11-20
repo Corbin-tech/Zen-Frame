@@ -1,6 +1,7 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
 import { args, DETAIL_LEVELS, ratingsCsv, cliErrorMessage } from './core.ts';
+import { checkOutputFile } from './output.ts';
 export function precheck(row: any) {
   const steps = row.kind === 'breakdown' ? row.output?.steps : row.output?.clusters?.flatMap((c: any) => c.tasks);
   const present = row.status === 200 && Array.isArray(steps) && steps.length > 0;
@@ -13,10 +14,12 @@ export function precheck(row: any) {
   return { id: row.id, kind: row.kind, useful: action && minutes && count ? 'y' : 'n', literal: literal ? 'y' : 'n', one_action: action ? 'y' : 'n', realistic_minutes: minutes ? 'y' : 'n', notes: `Heuristic only; step_count=${count ? 'pass' : 'fail'}; human review required`, rater: 'auto' };
 }
 async function main() {
-  const a = args(); if (!a.results) throw new Error('Use --results file [--out ratings.csv]');
+  const a = args(); if (!a.results) throw new Error('Use --results file [--out ratings.csv] [--force]');
+  const out = resolve(a.out ?? resolve(dirname(a.results), 'ratings-auto.csv'));
+  await checkOutputFile(out, a.force === 'true');
   const data = JSON.parse(await readFile(a.results, 'utf8'));
   const rows = data.results.filter((r: any) => r.kind !== 'estimate').map(precheck);
-  await writeFile(resolve(a.out ?? resolve(dirname(a.results), 'ratings-auto.csv')), ratingsCsv(rows), { mode: 0o600 });
+  await writeFile(out, ratingsCsv(rows), { mode: 0o600, flag: a.force === 'true' ? 'w' : 'wx' });
   console.log(`Auto prechecked ${rows.length} items; NOT human ratings`);
 }
 if (process.argv[1] && import.meta.url === new URL(`file://${resolve(process.argv[1])}`).href) main().catch(error => { console.error(cliErrorMessage(error, 'Autorating failed: check results and output paths')); process.exitCode = 1; });

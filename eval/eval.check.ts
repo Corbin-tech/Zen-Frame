@@ -32,7 +32,16 @@ try {
   const report = spawnSync(process.execPath, [fileURLToPath(new URL('./report.ts', import.meta.url)), '--results', fileURLToPath(new URL('./datasets/sample.json', import.meta.url)), '--ratings', join(outputTest, 'ratings.csv')], { encoding: 'utf8' });
   assert.equal(report.status, 1); assert.equal(report.stderr.trim(), 'Invalid results'); assert.equal(report.stdout, '');
   const auto = spawnSync(process.execPath, [fileURLToPath(new URL('./autorate.ts', import.meta.url))], { encoding: 'utf8' });
-  assert.equal(auto.status, 1); assert.equal(auto.stderr.trim(), 'Use --results file [--out ratings.csv]'); assert.equal(auto.stdout, '');
+  assert.equal(auto.status, 1); assert.equal(auto.stderr.trim(), 'Use --results file [--out ratings.csv] [--force]'); assert.equal(auto.stdout, '');
+  await writeFile(join(outputTest, 'results.json'), JSON.stringify({ results: [] }));
+  const autoArgs = [fileURLToPath(new URL('./autorate.ts', import.meta.url)), '--results', join(outputTest, 'results.json'), '--out', join(outputTest, 'auto.csv')];
+  assert.equal(spawnSync(process.execPath, autoArgs).status, 0);
+  await writeFile(join(outputTest, 'auto.csv'), 'human ratings to preserve');
+  const refusedAuto = spawnSync(process.execPath, autoArgs, { encoding: 'utf8' });
+  assert.equal(refusedAuto.status, 1); assert.match(refusedAuto.stderr, /Output file already exists/);
+  assert.equal(await readFile(join(outputTest, 'auto.csv'), 'utf8'), 'human ratings to preserve');
+  assert.equal(spawnSync(process.execPath, [...autoArgs, '--force']).status, 0);
+  assert.equal(await readFile(join(outputTest, 'auto.csv'), 'utf8'), ratingsCsv([]));
 } finally { await rm(outputTest, { recursive: true }); }
 assert.equal(sample.items.length, 74);
 assert.throws(() => validateDataset({ ...sample, items: [{ kind: 'estimate', task: 'Wash a mug' }] }));
