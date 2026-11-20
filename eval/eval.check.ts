@@ -90,6 +90,7 @@ const badRatings = ratings.map((r, i) => ({ ...r, useful: i < 6 ? 'n' : 'y' }));
 const bad = summarize(data, badRatings); assert.equal(bad.helpers.breakdown.useful, 88); assert.equal(bad.quality, false);
 const alt = { ...good, model: 'openai', modelName: 'chosen-small-model' };
 assert.match(switchVerdict(bad, alt), /^SWITCH/); assert.match(switchVerdict(good, alt), /^KEEP/);
+assert.match(switchVerdict({ ...bad, modelName: 'another-haiku-id' }, alt), /^SWITCH/);
 assert.match(markdown([good, alt], switchVerdict(good, alt)), /Side-by-side comparison/);
 assert.equal(summarize({ ...data, model: 'mock' }, ratings).launchBar, false);
 assert.equal(summarize(data, ratings.map(r => ({ ...r, rater: 'auto' }))).notLaunch, true);

@@ -30,7 +30,7 @@ export function summarize(data: any, ratings: Record<string, string>[]) {
   return { model: data.model, modelName: data.modelName, consent: data.consent, auto, helpers, quality, latency, sample, notLaunch, launchBar: quality && latency && sample && !notLaunch };
 }
 export function switchVerdict(a: any, b: any) {
-  const haiku = [a, b].find(v => v.model === 'anthropic' && v.modelName === 'claude-haiku-5-5');
+  const haiku = [a, b].find(v => v.model === 'anthropic');
   const alternative = [a, b].find(v => v.model === 'openai');
   if (!haiku || !alternative || [a, b].some(v => v.notLaunch || !v.sample)) return 'INCONCLUSIVE: requires Haiku and OpenAI, consented real data, adequate human ratings.';
   return (!haiku.quality || !haiku.latency) && alternative.quality && alternative.latency ? 'SWITCH: Haiku misses useful or latency bar; OpenAI meets both.' : 'KEEP HAIKU under decision 4 switch rule (this does not authorize launch).';

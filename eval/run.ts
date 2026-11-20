@@ -20,9 +20,14 @@ async function main() {
   try { handler = await import(pathToFileURL(handlerPath).href); } catch { throw new Error('Handler import failed; check its dependencies and Node 24 type-stripping compatibility'); }
   if (typeof handler.handleAssist !== 'function') throw new Error('Handler must export handleAssist');
   let model: ModelClient = mockModel;
+  let modelName = a.model === 'openai' ? process.env.OPENAI_EVAL_MODEL : 'mock';
   if (a.model === 'openai') model = createOpenAIClient(process.env.OPENAI_API_KEY!, process.env.OPENAI_EVAL_MODEL!);
   if (a.model === 'anthropic') {
-    try { const client = await import(pathToFileURL(resolve(dirname(handlerPath), 'anthropic.ts')).href); model = client.createAnthropicClient(process.env.ANTHROPIC_API_KEY); } catch { throw new Error('Could not load WS2 Anthropic client beside handler'); }
+    try {
+      const client = await import(pathToFileURL(resolve(dirname(handlerPath), 'anthropic.ts')).href);
+      model = client.createAnthropicClient(process.env.ANTHROPIC_API_KEY);
+      modelName = [client.ANTHROPIC_MODEL_ID, client.ANTHROPIC_MODEL, client.MODEL_ID, client.MODEL].find(v => typeof v === 'string' && v.trim()) ?? 'claude-haiku-5-5';
+    } catch { throw new Error('Could not load WS2 Anthropic client beside handler'); }
   }
   const dataset = validateDataset(JSON.parse(await readFile(resolve(a.dataset), 'utf8')));
   const limit = a.limit === undefined ? dataset.items.length : Number(a.limit);
@@ -41,7 +46,7 @@ async function main() {
     console.log(`${item.id} status=${status} latency_ms=${latencyMs}`);
   }
   await mkdir(out, { recursive: true, mode: 0o700 });
-  await writeFile(resolve(out, 'results.json'), JSON.stringify({ version: 1, model: a.model, modelName: a.model === 'anthropic' ? 'claude-haiku-5-5' : a.model === 'openai' ? process.env.OPENAI_EVAL_MODEL : 'mock', consent: dataset.consent, createdAt: new Date().toISOString(), results }, null, 2), { mode: 0o600, flag: a.force === 'true' ? 'w' : 'wx' });
+  await writeFile(resolve(out, 'results.json'), JSON.stringify({ version: 1, model: a.model, modelName, consent: dataset.consent, createdAt: new Date().toISOString(), results }, null, 2), { mode: 0o600, flag: a.force === 'true' ? 'w' : 'wx' });
   await writeFile(resolve(out, 'ratings.csv'), ratingsCsv(results.filter(r => r.kind !== 'estimate').map(r => ({ id: r.id, kind: r.kind }))), { mode: 0o600, flag: a.force === 'true' ? 'w' : 'wx' });
   console.log(`Completed ${results.length} items`);
 }

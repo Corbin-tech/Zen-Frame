@@ -63,7 +63,11 @@ new `--out` directory for each run. Only pass the standalone `--force` flag when
 you deliberately want to overwrite both files (including any human ratings).
 
 Real runs: set `ANTHROPIC_API_KEY` locally for `--model anthropic`; the WS2 client
-beside the selected handler calls `claude-haiku-5-5`. For `--model openai`, set
+beside the selected handler makes the provider call. Model metadata uses an exported
+`ANTHROPIC_MODEL_ID`, `ANTHROPIC_MODEL`, `MODEL_ID`, or `MODEL` string when present;
+the current WS2 client exports none, so the recorded fallback is the decisions.md
+name `claude-haiku-5-5`. Comparison identifies the Anthropic side by provider kind,
+not this name. For `--model openai`, set
 `OPENAI_API_KEY` and **required** `OPENAI_EVAL_MODEL` (no default). Do not put keys
 in commands, tracked files, or logs. Both clients have 10-second timeouts.
 
