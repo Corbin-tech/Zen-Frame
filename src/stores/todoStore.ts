@@ -2,6 +2,7 @@ import { toDateKey, fromDateKey, addDays, minutesNow } from "../lib/dates";
 import { planTasks, type AvailabilityWindow } from "../lib/autoPlan";
 import { loadJson, saveJson } from "../lib/storage";
 import type { Milestone } from "./settingsStore";
+import { blockMinutes } from "../lib/estimates";
 
 export interface Todo {
   id: string;
@@ -16,6 +17,15 @@ export interface Todo {
   updatedAt?: string;
   startedAt?: string; // Set while the task is in the board's In progress column
   completedAt?: string;
+  estimateMinutes?: number | null; // From Estimate, Brain dump, or the user
+  steps?: TodoStep[]; // A checklist from Breakdown. Steps stay inside the task, so the board and schedule still see one task.
+}
+
+export interface TodoStep {
+  id: string;
+  text: string;
+  done: boolean;
+  minutes?: number | null;
 }
 
 // One finished task, kept after the task itself is cleared so Insights can count it
@@ -116,7 +126,20 @@ function createTodosStore() {
 
     // Alpine calls init() when the store is registered
     init(): void {
-      this.items = loadJson<Todo[]>("todos", []).map(item => ({ ...item, parentId: item.parentId ?? null }));
+      this.items = loadJson<Todo[]>("todos", []).map(item => ({
+        ...item,
+        parentId: item.parentId ?? null,
+        // A restored backup may carry anything here, so keep only well-formed values
+        estimateMinutes: Number.isFinite(item.estimateMinutes) && item.estimateMinutes > 0 ? item.estimateMinutes : null,
+        steps: Array.isArray(item.steps)
+          ? item.steps.filter(step => step && typeof step.text === "string").map(step => ({
+              id: typeof step.id === "string" ? step.id : crypto.randomUUID(),
+              text: step.text.slice(0, 200),
+              done: step.done === true,
+              minutes: Number.isFinite(step.minutes) ? step.minutes : null
+            }))
+          : undefined
+      }));
       this.skippedClusters = loadJson<string[]>("skippedClusters", []);
       this.scheduledItems = loadJson<ScheduledItem[]>("scheduledItems", []);
       this.planning = { ...DEFAULT_PLANNING, ...loadJson<Partial<Planning>>("planning", {}) };
@@ -325,6 +348,33 @@ function createTodosStore() {
         this.saveScheduledItem({ ...block, date: task.dueDate });
         return;
       }
+      this.saveTodos();
+    },
+
+    // Estimate in minutes, or null to clear it
+    setEstimate(taskId: string, minutes: number | null): void {
+      const task = this.find(taskId);
+      if (!task || task.isCluster) return;
+      task.estimateMinutes = minutes && minutes > 0 ? Math.round(minutes) : null;
+      task.updatedAt = new Date().toISOString();
+      this.saveTodos();
+    },
+
+    // Replaces the task's checklist. When no estimate is set yet, the steps' minutes add up to one.
+    setSteps(taskId: string, steps: Array<{ text: string; minutes?: number | null }>): void {
+      const task = this.find(taskId);
+      if (!task || task.isCluster) return;
+      task.steps = steps.map(step => ({ id: crypto.randomUUID(), text: step.text.trim(), done: false, minutes: step.minutes ?? null }));
+      const total = task.steps.reduce((sum, step) => sum + (step.minutes ?? 0), 0);
+      if (!task.estimateMinutes && total) task.estimateMinutes = total;
+      task.updatedAt = new Date().toISOString();
+      this.saveTodos();
+    },
+
+    toggleStep(taskId: string, stepId: string): void {
+      const step = this.find(taskId)?.steps?.find(item => item.id === stepId);
+      if (!step) return;
+      step.done = !step.done;
       this.saveTodos();
     },
 
@@ -615,6 +665,8 @@ function createTodosStore() {
         busyOn: day => this.scheduledItemsOn(day).map(item => ({ start: item.startTimeMinutes, end: item.endTimeMinutes })),
         earliestOn: day => day === today ? minutesNow() : 0,
         duration: this.planning.duration,
+        // Estimated tasks get a block that fits the estimate; the rest keep the planning default
+        durationOf: task => task.estimateMinutes ? blockMinutes(task.estimateMinutes) : this.planning.duration,
         gap: this.planning.gap
       });
 
