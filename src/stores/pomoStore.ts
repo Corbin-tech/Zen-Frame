@@ -152,6 +152,10 @@ export function initPomoStore() {
     // Alpine calls init() when the store is registered
     init(): void {
       this.loadState();
+      window.addEventListener("storage", event => {
+        if (event.storageArea !== localStorage) return;
+        if (event.key === null || event.key === "pomoSessions") this.loadSessions();
+      });
       const running = loadRunningTimer();
       if (running) {
         this.preset = running.preset;
@@ -385,8 +389,7 @@ export function initPomoStore() {
       const finishedMinutes = Math.round(this.totalTime / 60);
       if (!finishedWasBreak) {
         const completedAt = new Date(endsAt).toISOString();
-        const saved = loadJson<FocusSession[]>("pomoSessions", this.sessions);
-        this.sessions = Array.isArray(saved) ? saved : [];
+        this.loadSessions();
         if (!this.sessions.some((session) => session?.completedAt === completedAt)) {
           const task = this.focusTask === undefined ? this.activeTask : this.focusTask;
           const todos = window.Alpine.store("todos") as PomoTodosApi | undefined;
@@ -517,8 +520,13 @@ export function initPomoStore() {
         : 0;
       this.isLongBreak = Boolean(state.isLongBreak && this.isBreak);
       this.selectedTaskId = typeof state.selectedTaskId === "string" ? state.selectedTaskId : null;
-      const savedSessions = loadJson<FocusSession[]>("pomoSessions", []);
-      this.sessions = Array.isArray(savedSessions) ? savedSessions : [];
+      this.loadSessions([]);
+    },
+
+    // A missing key means the history was cleared (here or in another tab), so it is empty.
+    // A failed read keeps `fallback`, which is the in-memory history unless the caller passes one.
+    loadSessions(fallback?: FocusSession[]): void {
+      this.sessions = loadJson<FocusSession[]>("pomoSessions", fallback ?? this.sessions, []);
     }
   };
 }

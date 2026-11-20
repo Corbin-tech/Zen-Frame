@@ -35,7 +35,7 @@ describe("Pomodoro reload", () => {
     vi.stubGlobal("localStorage", storage());
     vi.stubGlobal("sessionStorage", storage());
     vi.stubGlobal("document", { addEventListener: vi.fn() });
-    vi.stubGlobal("window", { Alpine: { store: vi.fn() }, notify });
+    vi.stubGlobal("window", { addEventListener: vi.fn(), Alpine: { store: vi.fn() }, notify });
     notify.mockClear();
   });
 
@@ -93,6 +93,54 @@ describe("Pomodoro reload", () => {
     expect(openPage().sessions).toEqual([
       { completedAt: new Date(+start + focusMs).toISOString(), minutes: 25 }
     ]);
+  });
+
+  it("re-reads other tabs' sessions before saving even if their storage event has not arrived", () => {
+    const store = openPage();
+    store.startTimer();
+    const remote = { completedAt: new Date(+start - 1000).toISOString(), minutes: 50 };
+    localStorage.setItem("pomoSessions", JSON.stringify([remote]));
+
+    vi.advanceTimersByTime(focusMs);
+
+    expect(JSON.parse(localStorage.getItem("pomoSessions")!)).toEqual([
+      remote, { completedAt: new Date(+start + focusMs).toISOString(), minutes: 25 }
+    ]);
+  });
+
+  it("does not restore cleared history when completing before the storage event arrives", () => {
+    const store = openPage();
+    store.completeTimer(+start, false);
+    localStorage.removeItem("pomoSessions");
+    store.toggleBreak();
+
+    store.completeTimer(+start + focusMs, false);
+
+    const expected = [{ completedAt: new Date(+start + focusMs).toISOString(), minutes: 25 }];
+    expect(store.sessions).toEqual(expected);
+    expect(JSON.parse(localStorage.getItem("pomoSessions")!)).toEqual(expected);
+  });
+
+  it("keeps both in-tab completions when session storage reads throw", () => {
+    const store = openPage();
+    const getItem = localStorage.getItem.bind(localStorage);
+    vi.spyOn(localStorage, "getItem").mockImplementation(key => {
+      if (key === "pomoSessions") throw new Error("Storage unavailable");
+      return getItem(key);
+    });
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      store.completeTimer(+start, false);
+      store.toggleBreak();
+      store.completeTimer(+start + focusMs, false);
+
+      expect(store.sessions).toEqual([
+        { completedAt: start.toISOString(), minutes: 25 },
+        { completedAt: new Date(+start + focusMs).toISOString(), minutes: 25 }
+      ]);
+    } finally {
+      errors.mockRestore();
+    }
   });
 
   it("restores the current tab's break without recording focus or picking up another tab's preset", () => {
