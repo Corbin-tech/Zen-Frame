@@ -57,6 +57,9 @@ request/response contract is supported. The mock shapes answers from the supplie
 schema, including step bounds; it accepts the handler's plain-text prompts.
 Requests include same-origin headers, JSON, and a local bearer token. Entitlement
 and rate limiting are intentionally allow-all eval fakes, never production adapters.
+Mock runs also supply a documentation-only IP address and an in-memory pre-auth IP
+limiter sized to the requested item count, so the real handler's IP gate is exercised
+without throttling the offline dataset. These IP inputs are supplied only for `--model mock`.
 
 The runner refuses an output directory containing `results.json` or `ratings.csv`
 before calling the model, protecting existing results and human ratings. Choose a

@@ -42,6 +42,13 @@ try {
   assert.equal(await readFile(join(outputTest, 'auto.csv'), 'utf8'), 'human ratings to preserve');
   assert.equal(spawnSync(process.execPath, [...autoArgs, '--force']).status, 0);
   assert.equal(await readFile(join(outputTest, 'auto.csv'), 'utf8'), ratingsCsv([]));
+  const runOut = join(outputTest, 'mock-run');
+  const run = spawnSync(process.execPath, [fileURLToPath(new URL('./run.ts', import.meta.url)), '--dataset', fileURLToPath(new URL('./datasets/sample.json', import.meta.url)), '--model', 'mock', '--limit', '1', '--out', runOut], { encoding: 'utf8' });
+  assert.equal(run.status, 0, run.stderr);
+  const mockResults = JSON.parse(await readFile(join(runOut, 'results.json'), 'utf8'));
+  assert.equal(mockResults.results.length, 1);
+  assert.equal(mockResults.results[0].status, 200);
+  assert.equal(mockResults.results[0].error, null);
 } finally { await rm(outputTest, { recursive: true }); }
 assert.equal(sample.items.length, 74);
 for (const id of ['-task', '_task', '', 'a'.repeat(81)]) assert.throws(() => validateDataset({ ...sample, items: [{ ...sample.items[0], id }] }), /dataset id/);
