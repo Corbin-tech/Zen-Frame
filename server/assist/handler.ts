@@ -6,6 +6,7 @@ import type { AssistErrorCode, AssistRequestMap } from '../../src/lib/assist/api
 import { cleanAnswer } from './validation.ts';
 import type { Endpoint } from './validation.ts';
 import type { EntitlementGate, ModelClient, RateLimiter } from './ports.ts';
+import { hashIp } from './rateLimit.ts';
 export const BODY_LIMIT = 32_768;
 export const jsonResponse = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } });
 const fail = (error: AssistErrorCode) => jsonResponse(ASSIST_ERROR_STATUS[error], { error });
@@ -40,16 +41,19 @@ function modelInput(endpoint: Endpoint, input: AssistRequestMap[Endpoint]) {
   const { task, level, context } = input as AssistRequestMap['breakdown'];
   return { user: breakdownPrompt(task, detailLevel(level), context ?? ''), schema: breakdownSchema(detailLevel(level)) };
 }
-export async function handleAssist(request: Request, deps: { model: ModelClient; entitlement: EntitlementGate; rateLimit: RateLimiter }): Promise<Response> {
+export async function handleAssist(request: Request, deps: { model: ModelClient; entitlement: EntitlementGate; rateLimit: RateLimiter; ipRateLimit: RateLimiter | null }): Promise<Response> {
   const url = new URL(request.url);
   const match = /^\/api\/assist\/(breakdown|compile|estimate)$/.exec(url.pathname);
   if (!match) return jsonResponse(404, { error: 'not_found' });
   if (request.method !== 'POST') return jsonResponse(405, { error: 'method_not_allowed' });
   if (request.headers.get('origin') !== url.origin || (request.headers.has('sec-fetch-site') && request.headers.get('sec-fetch-site') !== 'same-origin')) return jsonResponse(403, { error: 'forbidden' });
   if (request.headers.get('content-type')?.split(';')[0].trim().toLowerCase() !== 'application/json') return jsonResponse(415, { error: 'unsupported_media_type' });
-  const token = /^Bearer ([^\s]+)$/.exec(request.headers.get('authorization') ?? '')?.[1];
-  if (!token) return fail('unauthorized');
   try {
+    const ip = request.headers.get('cf-connecting-ip')?.trim();
+    if (!ip || !deps.ipRateLimit) return fail('unavailable');
+    if (!await deps.ipRateLimit.limit(await hashIp(ip))) return fail('rate_limited');
+    const token = /^Bearer ([^\s]+)$/.exec(request.headers.get('authorization') ?? '')?.[1];
+    if (!token) return fail('unauthorized');
     const identity = await deps.entitlement.authenticate(token);
     if (!identity) return fail('unauthorized');
     if (!await deps.rateLimit.limit(identity.accountId)) return fail('rate_limited');

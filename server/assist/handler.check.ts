@@ -8,34 +8,35 @@ import { cleanAnswer } from './validation.ts';
 import { createAnthropicClient } from './anthropic.ts';
 import { createCloudProvider, AssistError } from '../../src/lib/assist/cloudProvider.ts';
 import { onRequest, selectAssistRateLimiter } from '../../functions/api/assist/[endpoint].ts';
-import type { ModelClient } from './ports.ts';
-import { ASSIST_RATE_LIMIT, ASSIST_RATE_WINDOW_SECONDS, createD1RateLimiter } from './rateLimit.ts';
+import type { ModelClient, RateLimiter } from './ports.ts';
+import { ASSIST_IP_RATE_LIMIT, ASSIST_RATE_LIMIT, ASSIST_RATE_WINDOW_SECONDS, createD1RateLimiter, hashIp } from './rateLimit.ts';
 import type { AssistDatabase } from './rateLimit.ts';
 
 const secretText = 'private-input-check';
 const SCHEMAS = { breakdown: breakdownSchema(DETAIL_LEVELS[0]), compile: COMPILE_SCHEMA, estimate: ESTIMATE_SCHEMA };
 const inputs = { breakdown: { task: secretText, level: 'few' }, compile: { text: secretText }, estimate: { task: secretText } };
 function request(endpoint = 'breakdown', body: unknown = inputs.breakdown, headers: Record<string, string> = {}, method = 'POST', signal?: AbortSignal) {
-  return new Request(`https://zen.test/api/assist/${endpoint}`, { method, headers: { Origin: 'https://zen.test', 'Content-Type': 'application/json', Authorization: 'Bearer test-token', ...headers }, ...(method === 'POST' ? { body: JSON.stringify(body) } : {}), signal });
+  return new Request(`https://zen.test/api/assist/${endpoint}`, { method, headers: { Origin: 'https://zen.test', 'Content-Type': 'application/json', Authorization: 'Bearer test-token', 'CF-Connecting-IP': '192.0.2.1', ...headers }, ...(method === 'POST' ? { body: JSON.stringify(body) } : {}), signal });
 }
 function setup(model = mockModel(), entitlement = mockEntitlement(), limit = 100) {
-  return { model, entitlement, rateLimit: memoryRateLimiter(limit) };
+  return { model, entitlement, rateLimit: memoryRateLimiter(limit), ipRateLimit: memoryRateLimiter(1000) as RateLimiter | null };
 }
 function fakeD1() {
   const rows = new Map<string, { window: number; count: number }>();
   const calls: { sql: string; values: (string | number | null)[] }[] = [];
   const db: AssistDatabase = { prepare(sql) {
-    assert.match(sql, /INSERT INTO assist_rate_limits/);
-    assert.match(sql, /ON CONFLICT \(account_id\) DO UPDATE/);
+    assert.match(sql, /INSERT INTO assist_(?:ip_)?rate_limits/);
+    assert.match(sql, /ON CONFLICT \((?:account_id|ip_hash)\) DO UPDATE/);
     assert.match(sql, /RETURNING count/);
     return { bind(...values) {
       calls.push({ sql, values });
       this.first = async <T>() => {
         const [accountId, window, cap] = values as [string, number, number];
-        const old = rows.get(accountId);
+        const rowKey = sql.includes('assist_ip_rate_limits') ? `ip-table:${accountId}` : accountId;
+        const old = rows.get(rowKey);
         if (old && old.window > window) return null;
         const row = { window, count: !old || old.window < window ? 1 : Math.min(old.count + 1, cap) };
-        rows.set(accountId, row);
+        rows.set(rowKey, row);
         return { count: row.count } as T;
       };
       return this;
@@ -48,6 +49,78 @@ const originalConsole = { ...console };
 const logged: unknown[][] = [];
 for (const name of ['log', 'error', 'warn', 'info', 'debug'] as const) console[name] = (...args: unknown[]) => { logged.push(args); };
 try {
+  const ipAddress = '192.0.2.1';
+  const digest = await hashIp(ipAddress);
+  assert.match(digest, /^ip:[a-f0-9]{64}$/); assert.ok(!digest.includes(ipAddress)); tests++;
+  function observed() {
+    const deps = setup(); const calls = { authenticate: 0, accountLimit: 0, model: 0 };
+    const authenticate = deps.entitlement.authenticate;
+    deps.entitlement.authenticate = async token => { calls.authenticate++; return authenticate(token); };
+    const generate = deps.model.generate;
+    deps.model.generate = async input => { calls.model++; return generate(input); };
+    deps.rateLimit = { limit() { calls.accountLimit++; return true; } };
+    return { deps, calls };
+  }
+  const guarded = observed(); guarded.deps.ipRateLimit = memoryRateLimiter(2);
+  assert.equal((await handleAssist(request(), guarded.deps)).status, 200);
+  assert.equal((await handleAssist(request('compile', inputs.compile), guarded.deps)).status, 200);
+  const ipBlocked = await handleAssist(request('estimate', inputs.estimate), guarded.deps);
+  assert.equal(ipBlocked.status, 429); assert.deepEqual(await ipBlocked.json(), { error: 'rate_limited' });
+  assert.deepEqual(guarded.calls, { authenticate: 2, accountLimit: 2, model: 2 });
+  assert.deepEqual(guarded.deps.entitlement.counts, { reserved: 2, completed: 2, released: 0 }); tests++;
+  assert.equal((await handleAssist(request('estimate', inputs.estimate, { 'CF-Connecting-IP': '192.0.2.2' }), guarded.deps)).status, 200); tests++;
+  for (const mode of ['missing-header', 'blank-header', 'missing-limiter', 'limiter-error', 'blocked-without-token'] as const) {
+    const { deps, calls } = observed();
+    const req = request();
+    if (mode === 'missing-header') req.headers.delete('CF-Connecting-IP');
+    if (mode === 'blank-header') req.headers.set('CF-Connecting-IP', ' ');
+    if (mode === 'missing-limiter') deps.ipRateLimit = null;
+    if (mode === 'limiter-error') deps.ipRateLimit = { async limit() { throw new Error('unavailable'); } };
+    if (mode === 'blocked-without-token') { req.headers.delete('Authorization'); deps.ipRateLimit = memoryRateLimiter(0); }
+    const response = await handleAssist(req, deps);
+    assert.equal(response.status, mode === 'blocked-without-token' ? 429 : 503);
+    assert.deepEqual(await response.json(), { error: mode === 'blocked-without-token' ? 'rate_limited' : 'unavailable' });
+    assert.deepEqual(calls, { authenticate: 0, accountLimit: 0, model: 0 });
+    assert.deepEqual(deps.entitlement.counts, { reserved: 0, completed: 0, released: 0 }); tests++;
+  }
+  const ipDb = fakeD1(); let ipClock = 0;
+  const dbIpLimiter = createD1RateLimiter(ipDb.db, () => ipClock, 'ip');
+  const ipOnly = observed(); ipOnly.deps.ipRateLimit = dbIpLimiter;
+  for (let i = 0; i < ASSIST_IP_RATE_LIMIT; i++) {
+    assert.equal((await handleAssist(request('breakdown', inputs.breakdown, { Authorization: '' }), ipOnly.deps)).status, 401);
+  }
+  assert.equal((await handleAssist(request(), ipOnly.deps)).status, 429);
+  assert.deepEqual(ipOnly.calls, { authenticate: 0, accountLimit: 0, model: 0 });
+  assert.deepEqual(ipOnly.deps.entitlement.counts, { reserved: 0, completed: 0, released: 0 }); tests++;
+  const sameKeyAccountLimiter = createD1RateLimiter(ipDb.db, () => ipClock);
+  for (let i = 0; i < ASSIST_RATE_LIMIT; i++) assert.equal(await sameKeyAccountLimiter.limit(digest), true);
+  assert.equal(await sameKeyAccountLimiter.limit(digest), false);
+  assert.equal(await dbIpLimiter.limit(await hashIp('192.0.2.2')), true);
+  assert.equal(await dbIpLimiter.limit(digest), false); tests++;
+  ipClock = ASSIST_RATE_WINDOW_SECONDS * 1000;
+  assert.equal(await dbIpLimiter.limit(digest), true);
+  assert.ok(ipDb.calls.every(call => !JSON.stringify(call).includes(ipAddress))); tests++;
+  const separateDb = fakeD1();
+  const independentIp = createD1RateLimiter(separateDb.db, () => 0, 'ip');
+  const independentAccount = createD1RateLimiter(separateDb.db, () => 0);
+  for (let i = 0; i < ASSIST_RATE_LIMIT; i++) assert.equal(await independentAccount.limit(digest), true);
+  assert.equal(await independentAccount.limit(digest), false);
+  assert.equal(await independentIp.limit(digest), true); tests++;
+  let ipBindingCalls = 0;
+  const boundIp = selectAssistRateLimiter({ PLUS_DB: separateDb.db, ASSIST_IP_RATE_LIMITER: { async limit({ key }) { assert.equal(key, digest); ipBindingCalls++; return { success: true }; } } }, 'ip');
+  const priorIpDbCalls = separateDb.calls.length;
+  assert.equal(await boundIp?.limit(digest), true); assert.equal(ipBindingCalls, 1); assert.equal(separateDb.calls.length, priorIpDbCalls); tests++;
+  assert.equal(await selectAssistRateLimiter({ PLUS_DB: separateDb.db }, 'ip')?.limit(await hashIp('192.0.2.3')), true);
+  assert.equal(selectAssistRateLimiter({ ASSIST_RATE_LIMITER: { async limit() { return { success: true }; } } }, 'ip'), null); tests++;
+  for (const binding of [false, 'error'] as const) {
+    const { deps, calls } = observed();
+    deps.ipRateLimit = selectAssistRateLimiter({ PLUS_DB: separateDb.db, ASSIST_IP_RATE_LIMITER: { async limit() { if (binding === 'error') throw new Error('unavailable'); return { success: false }; } } }, 'ip');
+    const dbCallsBefore = separateDb.calls.length;
+    assert.equal((await handleAssist(request(), deps)).status, binding === false ? 429 : 503);
+    assert.equal(separateDb.calls.length, dbCallsBefore);
+    assert.deepEqual(calls, { authenticate: 0, accountLimit: 0, model: 0 });
+    assert.deepEqual(deps.entitlement.counts, { reserved: 0, completed: 0, released: 0 }); tests++;
+  }
   const database = fakeD1(); let clock = 0;
   const rateLimit = createD1RateLimiter(database.db, () => clock);
   const d1Deps = { ...setup(), rateLimit };
@@ -124,7 +197,7 @@ try {
     [request('breakdown', { task: 'a', level: 'bad' }), 400],
     [request('compile', undefined, { 'Content-Type': 'text/plain' }), 415],
     [new Request('https://zen.test/api/assist/compile', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer test-token' }, body: '{}' }), 403],
-    [new Request('https://zen.test/api/assist/compile', { method: 'POST', headers: { Origin: 'https://zen.test', 'Content-Type': 'application/json', Authorization: 'Bearer test-token' }, body: '{' }), 400],
+    [new Request('https://zen.test/api/assist/compile', { method: 'POST', headers: { Origin: 'https://zen.test', 'Content-Type': 'application/json', Authorization: 'Bearer test-token', 'CF-Connecting-IP': '192.0.2.1' }, body: '{' }), 400],
   ] as const) {
     const deps = setup(); const response = await handleAssist(req, deps); assert.equal(response.status, status);
     assert.equal(response.headers.get('access-control-allow-origin'), null);
@@ -243,7 +316,7 @@ try {
     await assert.rejects(cloud.breakdown('a', 'few', ''), AssistError); tests++;
   } finally { globalThis.fetch = realFetch; }
   assert.equal((await onRequest({ request: request(), env: {} })).status, 503);
-  assert.equal((await onRequest({ request: request(), env: { ANTHROPIC_API_KEY: 'fake-key', ASSIST_RATE_LIMITER: { async limit() { return { success: true }; } } } })).status, 401); tests++;
+  assert.equal((await onRequest({ request: request(), env: { ANTHROPIC_API_KEY: 'fake-key', ASSIST_RATE_LIMITER: { async limit() { return { success: true }; } }, ASSIST_IP_RATE_LIMITER: { async limit() { return { success: true }; } } } })).status, 401); tests++;
   assert.equal(JSON.stringify(logged).includes(secretText), false);
   assert.equal(logged.length, 0); tests++;
 } finally { Object.assign(console, originalConsole); }

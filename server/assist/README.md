@@ -9,8 +9,10 @@ WS3 integration is deliberately fail closed: the Pages adapter rejects all token
 ## Owner configuration
 
 - Secret: `ANTHROPIC_API_KEY` (server only).
-- Optional Workers rate-limiting binding: `ASSIST_RATE_LIMITER` (not documented for Pages; see findings below).
-- D1 binding: `PLUS_DB` (used for rate limiting when the optional binding is absent).
+- Optional Workers rate-limiting bindings: `ASSIST_RATE_LIMITER` (account) and
+  `ASSIST_IP_RATE_LIMITER` (pre-auth IP), each with a distinct namespace ID
+  (not documented for Pages; see findings below).
+- D1 binding: `PLUS_DB` (used independently for either rate limiter when its binding is absent).
 - WS3 integration secret: `PLUS_SIGNING_KEY`.
 - Human gates: provision accounts/secrets, confirm provider zero data retention, deploy.
 
@@ -45,8 +47,9 @@ No live deployment was attempted to independently test platform acceptance.
 
 ## Rate limiting and migration
 
-The adapter prefers `ASSIST_RATE_LIMITER` if supplied by a supported host. Otherwise it uses
-`PLUS_DB` with `createD1RateLimiter`; without either binding, or without the model key, it returns 503.
+The adapter prefers `ASSIST_RATE_LIMITER` for accounts and `ASSIST_IP_RATE_LIMITER` for IPs
+if supplied by a supported host. Each independently falls back to `PLUS_DB` with
+`createD1RateLimiter`; if either limiter has neither its binding nor D1, or the model key is absent, it returns 503.
 Binding errors fail closed rather than silently switching to a separate counter.
 
 Both paths are configured for **10 requests per account per 60 seconds**, shared across all
@@ -59,20 +62,52 @@ The Workers API is approximate/per-location; D1 serializes this counter globally
 windows can permit up to 20 calls straddling a boundary. Rate limits count authenticated
 attempts, independently of the trial reservation which counts only usable answers.
 
-Apply `server/assist/migrations/0001_assist_rate_limits.sql` to the same database bound as
-`PLUS_DB`, in both preview and production, before enabling the fallback. It follows WS3's
-`server/auth/migrations/0001_plus.sql` convention, but stays in the WS2-owned migration
+### Pre-auth IP gate
+
+Order: exact route, POST method, same-origin and JSON content-type checks →
+pre-auth IP limit → bearer parsing → authenticate → account limit → input validation
+→ usage reservation → model → answer validation → complete. Cheap protocol rejects run
+first to avoid unnecessary hashing/database writes; all syntactically eligible requests,
+including missing/invalid bearer tokens, consume the IP counter before any entitlement call.
+
+The IP limit is **60 attempts per IP per 60 seconds**, across all three endpoints,
+looser than the account limit to accommodate shared networks. Configure the optional
+`ASSIST_IP_RATE_LIMITER` with `simple.limit = 60`, `simple.period = 60` and a namespace ID
+different from `ASSIST_RATE_LIMITER`; never reuse the 10/minute binding for IPs.
+The D1 path uses a separate `assist_ip_rate_limits` table, saturating at 61. It allows
+up to 120 attempts across a fixed-window boundary. Account and IP counters cannot collide.
+
+Only Cloudflare's `CF-Connecting-IP` is used, never a client-supplied forwarding chain.
+SHA-256 is computed before invoking either limiter; keys are `ip:` plus the digest, so
+no raw IP is persisted or logged. Hashes are pseudonymous, not anonymous (IPv4 can be
+enumerated); the table retains one row per observed hash, and the owner should include
+expired IP rows in routine data-retention cleanup. Raw headers must not be trusted if
+this code is moved behind an untrusted proxy. Production requests must traverse Cloudflare;
+local mock requests need an explicit test header.
+
+Missing/blank `CF-Connecting-IP`, missing limiter, hashing failure, and limiter errors
+return fixed `503 unavailable`; an exhausted IP counter returns `429 rate_limited`.
+All these blocks occur before authenticate/reserve/complete/release or model generation,
+so they never consume trial quota. The production entitlement placeholder remains fail closed.
+
+Apply `server/assist/migrations/0001_assist_rate_limits.sql` and then
+`server/assist/migrations/0002_assist_ip_rate_limits.sql` to the same database bound as
+`PLUS_DB`, in both preview and production, before enabling the fallback. They follow WS3's
+`server/auth/migrations/0001_plus.sql` convention, but stay in the WS2-owned migration
 directory. No WS3 migration or table is changed. With an already-installed Wrangler CLI
 and configured `PLUS_DB` binding, the owner can apply it explicitly:
 
 ```sh
 wrangler d1 execute PLUS_DB --local --file=server/assist/migrations/0001_assist_rate_limits.sql
 wrangler d1 execute PLUS_DB --remote --file=server/assist/migrations/0001_assist_rate_limits.sql
+wrangler d1 execute PLUS_DB --local --file=server/assist/migrations/0002_assist_ip_rate_limits.sql
+wrangler d1 execute PLUS_DB --remote --file=server/assist/migrations/0002_assist_ip_rate_limits.sql
 ```
 
 Run each migration once per target database; the remote command is a human deployment action,
-not part of local verification. The table stores only account identifiers, window numbers
-and counters, never task text. Its lifecycle can follow account deletion during WS3 integration.
+not part of local verification. The tables store only account identifiers or IP digests,
+window numbers and counters, never task text. Account-row lifecycle can follow account
+deletion during WS3 integration.
 
 ## Checks
 
@@ -89,6 +124,7 @@ Also run the brief's forbidden-pattern git search; it should produce no matches 
 
 - Met: key is adapter-injected, sent only in server-to-provider headers, never returned/logged.
 - Met: 32,768-byte streaming body limit, 6,000-character text limit, bounded schemas and same-user rate limit.
+- Met: hashed pre-auth IP gate, separate 60/minute counter, fail closed before any entitlement or model call.
 - Met: authenticated account reservation before inference; complete only on validated output; release on every unsuccessful outcome.
 - Met: no request/response text logging or storage; fixed error codes only.
 - Met: exact Origin required; cross-site fetch metadata rejected; no CORS headers, including OPTIONS.
