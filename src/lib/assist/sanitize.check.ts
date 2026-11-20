@@ -65,4 +65,8 @@ assert.deepEqual(cleanCompile({ clusters: [{ name: markup, tasks: [markup] }] })
   { clusters: [{ name: markup, tasks: [{ text: markup, minutes: null }] }] });
 assert.equal(cleanText({ toString: () => markup }), "");
 
+assert.equal(cleanMinutes({ toString: null }), null);
+assert.deepEqual(cleanBreakdown({ steps: [{ text: "Open the laptop", minutes: { toString: null } }] }),
+  { steps: [{ text: "Open the laptop", minutes: null }] });
+
 console.log("sanitize checks passed");

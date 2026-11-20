@@ -57,7 +57,7 @@ export function cleanText(value: unknown, max = MAX_TEXT): string {
 }
 
 export function cleanMinutes(value: unknown): number | null {
-  const minutes = typeof value === "number" ? value : Number.parseFloat(String(value));
+  const minutes = typeof value === "number" ? value : typeof value === "string" ? Number.parseFloat(value) : NaN;
   if (!Number.isFinite(minutes) || minutes <= 0) return null;
   return Math.min(MAX_MINUTES, Math.max(1, Math.round(minutes)));
 }
