@@ -503,7 +503,11 @@ function createTodosStore() {
         }
         return restored;
       };
-      this.items = putBack(this.items, snapshot.items);
+      // A restored task whose cluster has since been deleted comes back as a loose task,
+      // so it stays visible instead of pointing at a cluster that no longer exists
+      const restored = putBack(this.items, snapshot.items);
+      const clusterIds = new Set(restored.filter(item => item.isCluster).map(item => item.id));
+      this.items = restored.map(item => item.parentId && !clusterIds.has(item.parentId) ? { ...item, parentId: null } : item);
       this.scheduledItems = putBack(this.scheduledItems, snapshot.scheduledItems);
       this.skippedClusters = putBack(this.skippedClusters, snapshot.skippedClusters);
       this.saveTodos();

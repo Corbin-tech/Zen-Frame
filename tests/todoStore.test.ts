@@ -703,3 +703,20 @@ test("a new cluster defaults to the sentence-case 'New cluster'", () => {
   expect(store.items[0].todo).toBe("New cluster");
   expect(store.saveTodos).toHaveBeenCalled();
 });
+
+test("Undo for a task whose cluster was deleted since brings it back as a loose task", () => {
+  const { store, toasts } = undoStore();
+  const cluster = made({ id: "cluster", todo: "Errands", isCluster: true });
+  const task = made({ id: "task", todo: "Buy stamps", parentId: "cluster" });
+  const sibling = made({ id: "sibling", todo: "Post the letter", parentId: "cluster" });
+  store.items = [cluster, task, sibling];
+
+  store.deleteTodo(task.id);
+  store.deleteTodo(cluster.id);
+  expect(store.items).toEqual([]);
+
+  toasts[0].onAction!(); // Undo on the task's toast, still in the stack
+
+  expect(store.items.map(item => item.id)).toEqual(["task"]);
+  expect(store.items[0].parentId).toBeNull();
+});
