@@ -175,13 +175,19 @@ const name = data.recapName;
             });
         }
 
-        if (stats.byCluster.length && stats.tasks) {
+        if (stats.byCluster.length && (stats.tasks || stats.focusMinutes)) {
             const top = stats.byCluster[0];
             slides.push({
                 eyebrow: 'Where your effort went',
                 value: clusterName(top) || 'No cluster',
-                label: `${plural(top.count, 'task')}, ${Math.round(top.count / stats.tasks * 100)}% of the month`,
-                list: stats.byCluster.slice(0, 3).map(entry => ({ name: clusterName(entry) || 'No cluster', color: clusterColor(entry), value: entry.count }))
+                label: top.count && stats.tasks
+                    ? `${plural(top.count, 'task')}, ${Math.round(top.count / stats.tasks * 100)}% of the month`
+                    : `${dates.formatDuration(top.focusMinutes)} of focus`,
+                list: stats.byCluster.slice(0, 3).map(entry => ({
+                    name: clusterName(entry) || 'No cluster',
+                    color: clusterColor(entry),
+                    value: [entry.count ? String(entry.count) : '', entry.focusMinutes ? dates.formatDuration(entry.focusMinutes) : ''].filter(Boolean).join(' · ')
+                }))
             });
         }
 

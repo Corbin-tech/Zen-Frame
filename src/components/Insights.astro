@@ -173,14 +173,14 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
         <!-- By cluster -->
         <section class={`${panel} p-5`}>
             <h2 class={`${panelTitle} mb-1`}>By cluster</h2>
-            <p class="text-sm text-gray-500 dark:text-gray-400 mb-4" x-text="view.summary.tasks ? `${view.summary.tasks} tasks in ${rangeLabel}` : `Nothing finished in ${rangeLabel}`"></p>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-4" x-text="view.clusters.length ? `${view.summary.tasks} tasks in ${rangeLabel}` : `Nothing finished in ${rangeLabel}`"></p>
             <ul class="space-y-3" x-show="view.clusters.length">
                 <template x-for="cluster in view.clusters" :key="cluster.key">
                     <li>
                         <div class="flex items-center gap-2 text-sm">
                             <span class="w-2.5 h-2.5 rounded-full shrink-0" x-bind:style="`background-color: ${cluster.color};`"></span>
                             <span class="flex-1 min-w-0 truncate text-gray-800 dark:text-gray-100" x-text="cluster.name"></span>
-                            <span class="tabular-nums font-medium text-gray-600 dark:text-gray-300" x-text="cluster.count"></span>
+                            <span class="tabular-nums font-medium text-gray-600 dark:text-gray-300" x-text="cluster.detail"></span>
                         </div>
                         <div class="mt-1.5 h-1.5 rounded-full overflow-hidden" x-bind:style="`background-color: color-mix(in srgb, ${cluster.color} 16%, transparent);`">
                             <div class="h-full rounded-full transition-[width] duration-700" x-bind:style="`width: ${cluster.percent}%; background-color: ${cluster.color};`"></div>
@@ -370,11 +370,13 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
                     : 'Finish a few tasks to see when you work best.';
 
                 const topCount = summary.byCluster[0]?.count ?? 0;
+                const topFocus = Math.max(0, ...summary.byCluster.map(entry => entry.focusMinutes));
                 const clusters = summary.byCluster.slice(0, 6).map(entry => ({
                     key: entry.clusterId ?? 'none',
                     name: (entry.clusterId && todos.find(entry.clusterId)?.todo) || entry.name,
                     count: entry.count,
-                    percent: topCount ? Math.round(entry.count / topCount * 100) : 0,
+                    detail: [entry.count ? String(entry.count) : '', entry.focusMinutes ? dates.formatDuration(entry.focusMinutes) : ''].filter(Boolean).join(' · ') || '0',
+                    percent: topCount ? Math.round(entry.count / topCount * 100) : (topFocus ? Math.round(entry.focusMinutes / topFocus * 100) : 0),
                     color: entry.clusterId && todos.find(entry.clusterId) ? todos.clusterColor(entry.clusterId) : 'var(--c-none)'
                 }));
 
