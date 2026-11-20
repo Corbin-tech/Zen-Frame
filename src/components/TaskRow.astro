@@ -5,10 +5,19 @@ import EstimatePicker from './EstimatePicker.astro';
 ---
 
 <div 
-    class="relative group/task flex flex-wrap sm:flex-nowrap items-center gap-x-2 pr-2 rounded-xl shadow-sm ring-1 ring-black/5 dark:ring-white/5 hover:ring-black/10 dark:hover:ring-white/10 transition-colors task-item"
+    class="relative group/task flex flex-wrap sm:flex-nowrap items-center gap-x-2 pr-2 rounded-xl shadow-sm ring-1 ring-black/5 dark:ring-white/5 hover:ring-black/10 dark:hover:ring-white/10 transition-colors task-item focus:outline-none focus-visible:ring-2 focus-visible:!ring-teal-500"
     style="background-color: var(--task-bg);"
+    x-data="{ dropEdge: null }"
     x-drag-task="task.id"
+    x-task-drop="taskMove($taskId, rowTarget(task, $clientY > $el.getBoundingClientRect().top + $el.offsetHeight / 2))"
+    x-on:task-dragover="dropEdge = $event.detail.clientY > $el.getBoundingClientRect().top + $el.offsetHeight / 2 ? 'bottom' : 'top'"
+    x-on:task-dragleave="dropEdge = null"
+    x-on:keydown.self="rowKeydown($event, task)"
+    x-bind:class="dropEdge ? `drop-${dropEdge}` : ''"
     x-bind:id="`item-${task.id}`"
+    x-bind:data-task-id="task.id"
+    tabindex="0"
+    x-bind:aria-label="`${task.todo || 'Task'}. Press Alt with an up or down arrow to move it.`"
 >
     <!-- Cluster color along the left edge, like a board card -->
     <span class="absolute left-0 top-3 bottom-3 w-1 rounded-r-full" x-bind:style="`background-color: ${$store.todos.clusterColor(task.parentId)};`" aria-hidden="true"></span>
@@ -18,7 +27,8 @@ import EstimatePicker from './EstimatePicker.astro';
             <div 
                 data-drag-handle
                 class="p-1 cursor-grab text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 flex items-center"
-                title="Drag to add to a cluster"
+                title="Drag to reorder and move between clusters"
+                aria-hidden="true"
             >
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16" />
@@ -79,34 +89,8 @@ import EstimatePicker from './EstimatePicker.astro';
         />
     </div>
     
-    <!-- Task ordering and actions -->
+    <!-- Task actions -->
     <div class="shrink-0 ml-auto pb-2 sm:pb-0 flex items-center gap-2 transition-opacity sm:opacity-0 sm:group-hover/task:opacity-100 sm:focus-within:opacity-100 [@media(hover:none)]:opacity-100">
-        <!-- Up/down controls: stacked with a mouse, side by side where they are 44px touch targets -->
-        <div class="flex sm:flex-col sm:gap-1 [@media(pointer:coarse)]:flex-row">
-            <button 
-                @click="$store.todos.shiftTask(task.id, -1)"
-                class="inline-flex items-center justify-center touch-target p-0.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
-                :disabled="$store.todos.isFirstTask(task.id)"
-                :class="$store.todos.isFirstTask(task.id) ? 'opacity-30 cursor-not-allowed' : ''"
-                aria-label="Move task up"
-            >
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
-                </svg>
-            </button>
-            <button 
-                @click="$store.todos.shiftTask(task.id, 1)"
-                class="inline-flex items-center justify-center touch-target p-0.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
-                :disabled="$store.todos.isLastTask(task.id)"
-                :class="$store.todos.isLastTask(task.id) ? 'opacity-30 cursor-not-allowed' : ''"
-                aria-label="Move task down"
-            >
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                </svg>
-            </button>
-        </div>
-        
         <!-- Delete button -->
         <button 
             x-on:click="$store.todos.deleteTodo(task.id)"
@@ -143,8 +127,22 @@ import EstimatePicker from './EstimatePicker.astro';
     [data-drag-handle] {
         cursor: grab;
     }
-    
+
     [data-drag-handle]:active {
         cursor: grabbing;
     }
+
+    /* Where a dropped row will land, like a board card */
+    .task-item.drop-top::before,
+    .task-item.drop-bottom::after {
+        content: '';
+        position: absolute;
+        left: 0.5rem;
+        right: 0.5rem;
+        height: 3px;
+        border-radius: 9999px;
+        background-color: var(--teal-primary);
+    }
+    .task-item.drop-top::before { top: -6px; }
+    .task-item.drop-bottom::after { bottom: -6px; }
 </style>

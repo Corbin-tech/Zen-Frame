@@ -5,7 +5,9 @@ import TaskRow from './TaskRow.astro';
 const panel = 'panel';
 ---
 
-<div class="space-y-6">
+<div class="space-y-6" x-data="taskManagerPage">
+    <!-- One line about the latest move, spoken by screen readers -->
+    <p class="sr-only" role="status" aria-live="polite" x-text="moveAnnouncement"></p>
     <!-- Header -->
     <header class="flex flex-wrap items-end justify-between gap-4">
         <div>
@@ -21,22 +23,6 @@ const panel = 'panel';
                 })()"
             ></p>
         </div>
-        <button 
-            x-on:click="$store.todos.deleteCompleted()"
-            x-show="$store.todos.hasCompletedTasks"
-            x-transition:enter="transition ease-out duration-300"
-            x-transition:enter-start="opacity-0 transform scale-90"
-            x-transition:enter-end="opacity-100 transform scale-100"
-            x-transition:leave="transition ease-in duration-200"
-            x-transition:leave-start="opacity-100 transform scale-100"
-            x-transition:leave-end="opacity-0 transform scale-90"
-            class="flex items-center gap-1.5 px-2 py-1 text-sm text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400 rounded-lg transition-colors duration-200"
-        >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
-            Delete completed
-        </button>
     </header>
 
     <div class={`${panel} p-4 sm:p-6`}>
@@ -52,7 +38,7 @@ const panel = 'panel';
             <div 
                 class="cluster-card group relative rounded-xl shadow-sm ring-1 ring-black/5 dark:ring-white/5 transition-colors duration-300 ease-in-out"
                 x-bind:style="background-color: var(--cluster-bg);"
-                x-task-drop="$store.todos.moveTask($taskId, cluster.id)"
+                x-task-drop="taskMove($taskId, { clusterId: cluster.id })"
                 x-bind:id="`item-${cluster.id}`"
             >
                 <!-- Cluster color along the left edge, like a board card -->
@@ -177,7 +163,7 @@ const panel = 'panel';
                 <!-- Cluster Content -->
                 <div class="p-2 sm:p-4">
                     <div class="p-1 sm:p-3 space-y-2 transition-colors duration-300 ease-in-out">
-                        <template x-for="task in $store.todos.items.filter(t => t.parentId === cluster.id)" :key="task.id">
+                        <template x-for="task in $store.todos.items.filter(t => t.parentId === cluster.id && !t.completed)" :key="task.id">
                             <TaskRow />
                         </template>
                     </div>
@@ -189,6 +175,38 @@ const panel = 'panel';
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
                         <span x-text="`Add a task to ${cluster.todo}`"></span>
                     </button>
+
+                    <!-- Finished tasks fold out of the way; Clear is their only destructive exit -->
+                    <div
+                        class="mt-1 ml-1 sm:ml-3"
+                        x-data="{ doneOpen: false }"
+                        x-show="$store.todos.items.some(t => t.parentId === cluster.id && t.completed)"
+                    >
+                        <button
+                            type="button"
+                            x-on:click="doneOpen = !doneOpen"
+                            class="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-sm text-gray-500 hover:text-gray-800 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-slate-700/50 transition-colors"
+                            x-bind:aria-expanded="doneOpen"
+                            x-bind:aria-controls="`done-${cluster.id}`"
+                        >
+                            <svg class="w-3.5 h-3.5 transition-transform duration-200" x-bind:class="doneOpen ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                            </svg>
+                            <span class="tabular-nums" x-text="`Completed (${$store.todos.items.filter(t => t.parentId === cluster.id && t.completed).length})`"></span>
+                        </button>
+                        <div x-show="doneOpen" x-cloak x-bind:id="`done-${cluster.id}`" class="mt-2 space-y-4 pl-1 sm:pl-3">
+                            <div class="space-y-2 transition-colors duration-300 ease-in-out">
+                                <template x-for="task in $store.todos.items.filter(t => t.parentId === cluster.id && t.completed)" :key="task.id">
+                                    <TaskRow />
+                                </template>
+                            </div>
+                            <button
+                                type="button"
+                                x-on:click="$store.todos.clearClusterCompleted(cluster.id)"
+                                class="px-2 py-1 rounded-lg text-sm text-gray-500 hover:text-red-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-red-400 dark:hover:bg-slate-700/50 transition-colors"
+                            >Clear completed</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </template>
@@ -202,10 +220,46 @@ const panel = 'panel';
                 Tasks
             </h2>
             
-            <div class="space-y-2 transition-colors duration-300 ease-in-out" id="mainContainer">
-                <template x-for="task in $store.todos.items.filter(t => !t.parentId && !t.isCluster)" :key="task.id">
+            <div
+                class="space-y-2 transition-colors duration-300 ease-in-out"
+                id="mainContainer"
+                x-task-drop="taskMove($taskId, { clusterId: null })"
+            >
+                <template x-for="task in $store.todos.items.filter(t => !t.parentId && !t.isCluster && !t.completed)" :key="task.id">
                     <TaskRow />
                 </template>
+            </div>
+
+            <!-- Finished loose tasks fold away under the same quiet toggle -->
+            <div
+                class="mt-2"
+                x-data="{ doneOpen: false }"
+                x-show="$store.todos.items.some(t => !t.parentId && !t.isCluster && t.completed)"
+            >
+                <button
+                    type="button"
+                    x-on:click="doneOpen = !doneOpen"
+                    class="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-sm text-gray-500 hover:text-gray-800 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-slate-700/50 transition-colors"
+                    x-bind:aria-expanded="doneOpen"
+                    aria-controls="done-loose"
+                >
+                    <svg class="w-3.5 h-3.5 transition-transform duration-200" x-bind:class="doneOpen ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                    <span class="tabular-nums" x-text="`Completed (${$store.todos.items.filter(t => !t.parentId && !t.isCluster && t.completed).length})`"></span>
+                </button>
+                <div x-show="doneOpen" x-cloak id="done-loose" class="mt-2 space-y-4">
+                    <div class="space-y-2 transition-colors duration-300 ease-in-out">
+                        <template x-for="task in $store.todos.items.filter(t => !t.parentId && !t.isCluster && t.completed)" :key="task.id">
+                            <TaskRow />
+                        </template>
+                    </div>
+                    <button
+                        type="button"
+                        x-on:click="$store.todos.clearClusterCompleted(null)"
+                        class="px-2 py-1 rounded-lg text-sm text-gray-500 hover:text-red-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-red-400 dark:hover:bg-slate-700/50 transition-colors"
+                    >Clear completed</button>
+                </div>
             </div>
         </div>
     </div>
@@ -224,13 +278,69 @@ const panel = 'panel';
         box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--teal-primary) 45%, transparent);
         background-color: color-mix(in srgb, var(--teal-primary) 5%, transparent) !important;
     }
+
+    /* A task is being dragged over the loose tasks list */
+    #mainContainer[data-drop-active] {
+        border-radius: 1rem;
+        box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--teal-primary) 45%, transparent);
+    }
 </style>
 
 <script>
     import { estimatePicker, totalLabel } from '../lib/estimates';
 
+    // Every drag-and-drop and keyboard move in the Task Manager funnels through one
+    // helper, so the store call and the one line of screen-reader copy stay in sync.
+    const taskManagerPage = () => ({
+        // The last move's result, spoken by the aria-live region in the page
+        moveAnnouncement: '',
+
+        // A dropped task move. The store decides whether it was a real move;
+        // no-ops (same place, dropped on itself) stay silent.
+        taskMove(taskId, target) {
+            const todos = this.$store.todos;
+            if (!todos.moveTaskTo(taskId, target)) return;
+            this.announceMoveFor(taskId);
+        },
+
+        // Alt + an arrow on a focused row swaps it with the sibling above or below
+        rowKeydown(event, task) {
+            if (!event.altKey || (event.key !== 'ArrowUp' && event.key !== 'ArrowDown')) return;
+            event.preventDefault();
+            const todos = this.$store.todos;
+            const before = todos.getTaskPosition(task.id);
+            todos.shiftTask(task.id, event.key === 'ArrowUp' ? -1 : 1);
+            if (todos.getTaskPosition(task.id) !== before) this.announceMoveFor(task.id);
+        },
+
+        // Where a drop on a row lands: just above it (after false) or just below it
+        rowTarget(target, after) {
+            return { clusterId: target.parentId ?? null, [after ? 'afterId' : 'beforeId']: target.id };
+        },
+
+        // One line describing where a task now sits, for the aria-live region.
+        // Pure: a later wave can reuse it for its own move entry points.
+        moveAnnouncementFor(taskId) {
+            const todos = this.$store.todos;
+            const task = todos.find(taskId);
+            if (!task) return '';
+            const where = task.parentId ? todos.clusterName(task.parentId) : 'loose tasks';
+            return `Moved to position ${todos.getTaskPosition(taskId)} of ${todos.siblingsOf(task).length} in ${where}`;
+        },
+
+        // Clear then set on the next tick, so an identical result (say "position 2 of 2"
+        // twice in a row) is announced again.
+        announceMoveFor(taskId) {
+            const message = this.moveAnnouncementFor(taskId);
+            if (!message) return;
+            this.moveAnnouncement = '';
+            this.$nextTick(() => { this.moveAnnouncement = message; });
+        }
+    });
+
     document.addEventListener('alpine:init', () => {
         window.Alpine.data('estimatePicker', estimatePicker);
         window.Alpine.data('clusterEstimate', () => ({ totalLabel }));
+        window.Alpine.data('taskManagerPage', taskManagerPage);
     });
 </script>
