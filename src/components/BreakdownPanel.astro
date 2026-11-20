@@ -13,7 +13,8 @@ const field = 'w-full min-w-0 rounded-lg border border-gray-300 bg-white text-sm
 
 <div x-data={`breakdownPanel(() => ${taskId}, () => ${fallbackFocus})`} x-id="['breakdown-panel', 'breakdown-title']" class="w-full">
     <button
-        x-show="canSuggest && !open"
+        hidden
+        x-bind:hidden="!canSuggest || open"
         x-ref="trigger"
         type="button"
         x-bind:aria-controls="$id('breakdown-panel')"
@@ -24,7 +25,8 @@ const field = 'w-full min-w-0 rounded-lg border border-gray-300 bg-white text-sm
 
     <p role="status" class="sr-only" x-text="announcement"></p>
     <section
-        x-show="open"
+        hidden
+        x-bind:hidden="!open"
         x-bind:id="$id('breakdown-panel')"
         x-bind:aria-labelledby="$id('breakdown-title')"
         x-on:keydown.escape.stop="close()"
@@ -34,7 +36,7 @@ const field = 'w-full min-w-0 rounded-lg border border-gray-300 bg-white text-sm
             <h3 x-bind:id="$id('breakdown-title')" class="font-semibold text-gray-900 dark:text-gray-100">Break down task</h3>
             <p class="mt-1 text-sm text-gray-600 dark:text-gray-300" x-text="task?.todo"></p>
         </div>
-        <div x-show="!editing" class="space-y-3">
+        <div x-bind:hidden="editing" class="space-y-3">
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">
                 Detail level
                 <select x-ref="level" x-model="level" x-bind:disabled="working" class={`${field} mt-1 min-h-10 max-w-xs`}>
@@ -48,7 +50,7 @@ const field = 'w-full min-w-0 rounded-lg border border-gray-300 bg-white text-sm
             <p x-show="open && !canSuggest && !working" class="text-sm text-gray-600 dark:text-gray-300">Plus suggestions are unavailable.</p>
             <div class="flex flex-wrap gap-2">
                 <button
-                    x-show="!working"
+                    x-bind:hidden="working"
                     x-ref="generate"
                     type="button"
                     x-bind:disabled="!canSuggest || $store.assist.busy"
@@ -56,10 +58,10 @@ const field = 'w-full min-w-0 rounded-lg border border-gray-300 bg-white text-sm
                     class={primary}
                     x-text="error ? 'Try again' : 'Find steps'"
                 ></button>
-                <button x-show="working" x-ref="cancel" type="button" x-on:click="cancel()" class={quiet}>Cancel</button>
+                <button hidden x-bind:hidden="!working" x-ref="cancel" type="button" x-on:click="cancel()" class={quiet}>Cancel</button>
             </div>
         </div>
-        <div x-show="editing" class="space-y-3">
+        <div hidden x-bind:hidden="!editing" class="space-y-3">
             <p class="text-sm text-gray-600 dark:text-gray-300">Edit, move or remove any step before saving.</p>
             <p x-show="task?.steps?.length" class="text-sm text-gray-600 dark:text-gray-300">Accept replaces the existing checklist and resets its progress.</p>
             <ol class="space-y-3">

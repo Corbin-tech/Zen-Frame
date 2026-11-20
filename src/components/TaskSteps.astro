@@ -57,8 +57,8 @@ const action = 'min-h-9 rounded-lg px-2 py-1 text-sm font-medium text-teal-800 h
         </details>
     )}
     <div x-show="savedSteps.length" class="text-left">
-        <button x-show="!confirming" type="button" x-ref="promote" x-on:click="showPromotion()" class={action}>Promote steps to cluster</button>
-        <div x-show="confirming" x-on:keydown.escape.stop="hidePromotion()" class={box}>
+        <button x-bind:hidden="confirming" type="button" x-ref="promote" x-on:click="showPromotion()" class={action}>Promote steps to cluster</button>
+        <div hidden x-bind:hidden="!confirming" x-on:keydown.escape.stop="hidePromotion()" class={box}>
             <p class="text-sm text-gray-700 dark:text-gray-200">Each promotion creates a separate cluster and adds any checked steps to your completion history. The original task and checklist stay as they are.</p>
             <div class="mt-2 flex flex-wrap gap-2">
                 <button type="button" x-ref="promoteCancel" x-on:click="hidePromotion()" class={action}>Cancel</button>
