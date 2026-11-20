@@ -256,7 +256,6 @@ export function initSettingsStore() {
     confettiTriggers: CONFETTI_TRIGGERS,
     navLayouts: NAV_LAYOUTS,
     timerStyles: TIMER_STYLES,
-    dashboardWidgets: DASHBOARD_WIDGETS,
     zenOptions: ZEN_OPTIONS,
     zenBackgrounds: ZEN_BACKGROUNDS,
     alarmSounds: ALARM_SOUNDS,
