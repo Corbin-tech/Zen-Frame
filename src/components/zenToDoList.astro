@@ -72,7 +72,7 @@ import TaskSteps from './TaskSteps.astro';
             },
             
             skipTask() {
-                if (this.currentTodo?.parentId) {
+                if (this.currentTodo) {
                     this.$store.todos.skipTaskToEndOfCluster(this.currentTodo.id);
                 }
             },
@@ -175,7 +175,6 @@ import TaskSteps from './TaskSteps.astro';
         >
             <button 
                 @click="skipTask"
-                x-show="currentTodo?.parentId"
                 aria-label="Skip this task for now"
                 class="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg ring-1 bg-white text-gray-700 ring-black/10 hover:bg-gray-50 dark:bg-slate-800 dark:text-gray-200 dark:ring-white/10 dark:hover:bg-slate-700 transition-colors"
             >
