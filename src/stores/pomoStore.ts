@@ -51,6 +51,11 @@ interface RunningTimer {
   isBreak: boolean;
   isLongBreak?: boolean;
   endsAt: number;
+  focusTask?: FocusTask | null;
+}
+
+interface FocusTask extends PomoLinkedTask {
+  clusterName: string;
 }
 
 interface PomoLinkedTask {
@@ -68,6 +73,7 @@ interface PomoTodosApi {
 }
 
 interface PomoSnapshot {
+  focusTask?: FocusTask | null;
   preset: PomoPreset;
   isBreak: boolean;
   cycle: number;
@@ -139,6 +145,7 @@ export function initPomoStore() {
     lastCompleted: null as CompletedPhase | null,
     // null follows $store.todos.nextTask; "" means general focus (no task); string pins a task id
     selectedTaskId: null as string | null,
+    focusTask: undefined as FocusTask | null | undefined,
 
     // Alpine calls init() when the store is registered
     init(): void {
@@ -147,6 +154,7 @@ export function initPomoStore() {
       if (running) {
         this.preset = running.preset;
         this.isBreak = running.isBreak;
+        this.focusTask = running.focusTask;
       }
       this.totalTime = this.phaseTime(this.isBreak);
       this.timeLeft = this.totalTime;
@@ -195,6 +203,7 @@ export function initPomoStore() {
     },
 
     get activeTask(): PomoLinkedTask | null {
+      if (!this.isBreak && this.focusTask !== undefined) return this.focusTask;
       if (this.selectedTaskId === "") return null;
       const todos = window.Alpine.store("todos") as PomoTodosApi | undefined;
       if (this.selectedTaskId) {
@@ -248,9 +257,14 @@ export function initPomoStore() {
       if (this.isRunning) return;
       this.lastCompleted = null;
       if (this.timeLeft <= 0) this.resetTimer();
+      if (!this.isBreak && this.focusTask === undefined) {
+        const task = this.activeTask;
+        const todos = window.Alpine.store("todos") as PomoTodosApi | undefined;
+        this.focusTask = task ? { ...task, clusterName: todos?.clusterName?.(task.parentId) ?? "" } : null;
+      }
 
       const endsAt = Date.now() + this.timeLeft * 1000;
-      saveRunningTimer({ endsAt, preset: this.preset, isBreak: this.isBreak, isLongBreak: this.isLongBreak });
+      saveRunningTimer({ endsAt, preset: this.preset, isBreak: this.isBreak, isLongBreak: this.isLongBreak, focusTask: this.focusTask });
       this.runTimer(endsAt);
     },
 
@@ -291,6 +305,7 @@ export function initPomoStore() {
 
     offerUndo(title: string): void {
       const snapshot: PomoSnapshot = {
+        focusTask: this.focusTask,
         preset: this.preset,
         isBreak: this.isBreak,
         cycle: this.cycle,
@@ -328,6 +343,7 @@ export function initPomoStore() {
       this.custom = { ...target.custom };
       this.totalTime = target.totalTime;
       this.timeLeft = target.timeLeft;
+      this.focusTask = target.focusTask;
       this.saveState();
       if (target.wasRunning) this.startTimer();
     },
@@ -336,6 +352,7 @@ export function initPomoStore() {
       if (announceUndo) this.lastCompleted = null;
       if (announceUndo && this.started) this.offerUndo("Timer reset");
       this.stopTimer();
+      this.focusTask = undefined;
       this.totalTime = this.phaseTime(this.isBreak, this.isLongBreak);
       this.timeLeft = this.totalTime;
       this.saveState();
@@ -365,7 +382,7 @@ export function initPomoStore() {
         const saved = loadJson<FocusSession[]>("pomoSessions", this.sessions);
         this.sessions = Array.isArray(saved) ? saved : [];
         if (!this.sessions.some((session) => session?.completedAt === completedAt)) {
-          const task = this.activeTask;
+          const task = this.focusTask === undefined ? this.activeTask : this.focusTask;
           const todos = window.Alpine.store("todos") as PomoTodosApi | undefined;
           const session: FocusSession = {
             completedAt,
@@ -374,7 +391,7 @@ export function initPomoStore() {
               taskId: task.id,
               taskTitle: task.todo,
               clusterId: task.parentId ?? null,
-              clusterName: todos?.clusterName?.(task.parentId ?? null) ?? ""
+              clusterName: this.focusTask?.clusterName ?? todos?.clusterName?.(task.parentId ?? null) ?? ""
             } : {})
           };
           this.sessions = [...this.sessions, session].slice(-500);

@@ -1,7 +1,45 @@
 import { afterEach, expect, test, vi } from "vitest";
 import { initPomoStore } from "../src/stores/pomoStore";
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers(); });
+
+test.each(["completed", "deleted", "paused", "reloaded", "expired", "reset", "general", "undo"])("focus attribution when %s", (scenario) => {
+  vi.useFakeTimers();
+  const data = new Map<string, string>();
+  const storage = { getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, value: string) => data.set(key, value), removeItem: (key: string) => data.delete(key) };
+  vi.stubGlobal("localStorage", storage);
+  vi.stubGlobal("sessionStorage", storage);
+  const taskA = { id: "a", todo: "Task A", parentId: "cluster-a", completed: false };
+  const taskB = { id: "b", todo: "Task B", parentId: "cluster-b", completed: false };
+  const todos = { nextTask: taskA, find: (id: string) => [taskA, taskB].find(task => task.id === id), clusterName: (id: string) => id };
+  vi.stubGlobal("window", { Alpine: { store: (name: string) => name === "todos" ? todos : {} }, dispatchEvent: vi.fn() });
+  vi.stubGlobal("CustomEvent", class {});
+  vi.stubGlobal("document", { addEventListener: vi.fn() });
+  let store = initPomoStore();
+  store.setTask(scenario === "general" ? "" : "a");
+  store.startTimer();
+  vi.advanceTimersByTime(1000);
+  taskA.completed = true;
+  todos.nextTask = taskB;
+  if (scenario === "deleted") todos.find = () => undefined;
+  if (scenario === "paused") { store.pauseTimer(); store.startTimer(); }
+  if (scenario === "undo") { store.resetTimer(true); store.restoreSnapshot(); }
+  if (scenario === "reset") { store.resetTimer(); store.startTimer(); }
+  if (scenario === "reloaded" || scenario === "expired") {
+    vi.clearAllTimers();
+    if (scenario === "expired") vi.setSystemTime(Date.now() + store.totalTime * 1000);
+    store = initPomoStore();
+    store.init();
+  }
+  if (scenario !== "reset") expect(store.activeTaskId).toBe(scenario === "general" || scenario === "expired" ? (scenario === "general" ? "" : "b") : "a");
+  vi.advanceTimersByTime(store.totalTime * 1000);
+  if (scenario === "general") {
+    expect(store.sessions).toEqual([{ completedAt: expect.any(String), minutes: 25 }]);
+  } else {
+    const id = scenario === "reset" ? "b" : "a";
+    expect(store.sessions).toEqual([expect.objectContaining({ taskId: id, clusterId: `cluster-${id}`, minutes: 25 })]);
+  }
+});
 
 test.each([
   { name: "dialog hidden by its backdrop", visible: false, tab: "pomodoro", starts: true },
