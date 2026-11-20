@@ -44,6 +44,19 @@ test('invalid backups leave existing data untouched', () => {
   }
 });
 
+test('non-array todos and focus sessions are rejected before normalization', () => {
+  localStorage.setItem('todos', '[{"id":"existing"}]');
+  for (const key of ['todos', 'pomoSessions']) {
+    for (const value of [{}, 'x', null, 1]) {
+      expect(importBackup(JSON.stringify({ app: 'zen-frame', version: 1,
+        data: { [key]: value } }))).toEqual({
+        ok: false, error: `Invalid "${key}" data in backup.`
+      });
+      expect(localStorage.getItem('todos')).toBe('[{"id":"existing"}]');
+    }
+  }
+});
+
 test('a failed write rolls back overwritten and removed keys', () => {
   localStorage.setItem('todos', '["original"]');
   localStorage.setItem('goals', '["new"]');

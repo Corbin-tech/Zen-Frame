@@ -40,6 +40,13 @@ for (const path of ["load", "import"]) {
   }
   for (const bad of [null, {}, "sessions", 1]) {
     test(`${path}: defaults non-array sessions ${JSON.stringify(bad)}`, () => {
+      if (path === "import") {
+        expect(importBackup(JSON.stringify({ app: "zen-frame", version: 1,
+          data: { pomoSessions: bad } }))).toEqual({
+          ok: false, error: 'Invalid "pomoSessions" data in backup.'
+        });
+        return;
+      }
       expect(read("pomoSessions", bad)).toEqual([]);
     });
   }

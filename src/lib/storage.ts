@@ -147,7 +147,7 @@ export function importBackup(raw: string): { ok: boolean; error?: string; count?
   const entries: Array<[BackupKey, unknown]> = [];
   for (const key of BACKUP_KEYS) {
     if (!(key in parsed.data)) continue;
-    const value = normalizeStoredData(key, parsed.data[key]);
+    const value = parsed.data[key];
     if (ARRAY_KEYS.has(key) && !Array.isArray(value)) {
       return { ok: false, error: `Invalid "${key}" data in backup.` };
     }
@@ -157,7 +157,7 @@ export function importBackup(raw: string): { ok: boolean; error?: string; count?
     if (STRING_KEYS.has(key) && typeof value !== "string") {
       return { ok: false, error: `Invalid "${key}" data in backup.` };
     }
-    entries.push([key, value]);
+    entries.push([key, normalizeStoredData(key, value)]);
   }
 
   // Keep the current values so a write that fails partway can be rolled back
