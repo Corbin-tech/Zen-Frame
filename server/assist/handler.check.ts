@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { handleAssist, BODY_LIMIT } from './handler.ts';
 import { mockModel, mockEntitlement, memoryRateLimiter } from './mocks.ts';
-import { breakdownSchema, COMPILE_SCHEMA, ESTIMATE_SCHEMA } from '../../src/lib/assist/api.ts';
+import { ASSIST_ERROR_STATUS, breakdownSchema, COMPILE_SCHEMA, ESTIMATE_SCHEMA } from '../../src/lib/assist/api.ts';
 import { DETAIL_LEVELS } from '../../src/lib/assist/types.ts';
 import { cleanAnswer } from './validation.ts';
 import { createAnthropicClient } from './anthropic.ts';
@@ -82,7 +82,8 @@ try {
   assert.equal((await handleAssist(request(), denied)).status, 429); tests++;
   for (const mode of ['invalid', 'refusal', 'timeout', 'throw'] as const) {
     const deps = setup(mockModel(mode)); const response = await handleAssist(request(), deps);
-    assert.equal(response.status, mode === 'timeout' ? 504 : mode === 'throw' ? 503 : 502);
+    assert.equal(response.status, mode === 'timeout' || mode === 'throw' ? 503 : 502);
+    assert.deepEqual(await response.json(), { error: mode === 'timeout' || mode === 'throw' ? 'unavailable' : 'model_error' });
     assert.deepEqual(deps.entitlement.counts, { reserved: 1, completed: 0, released: 1 }); tests++;
   }
   for (const options of [{ complete: false }, { throws: true }]) {
@@ -91,7 +92,11 @@ try {
     assert.deepEqual(deps.entitlement.counts, { reserved: 1, completed: 1, released: 1 }); tests++;
   }
   const quota = setup(mockModel(), mockEntitlement({ quota: false }));
-  assert.equal((await handleAssist(request(), quota)).status, 402); assert.equal(quota.entitlement.counts.completed, 0); tests++;
+  const quotaResponse = await handleAssist(request(), quota);
+  assert.equal(quotaResponse.status, ASSIST_ERROR_STATUS.trial_exhausted);
+  assert.deepEqual(await quotaResponse.json(), { error: 'trial_exhausted' }); assert.equal(quota.entitlement.counts.completed, 0); tests++;
+  const badInput = await handleAssist(request('estimate', { task: '' }), setup());
+  assert.equal(badInput.status, ASSIST_ERROR_STATUS.bad_request); assert.deepEqual(await badInput.json(), { error: 'bad_request' }); tests++;
   const controller = new AbortController();
   const abortModel: ModelClient = { async generate() { controller.abort(); return { kind: 'ok', json: { steps: ['Done'] } }; } };
   const aborted = setup(abortModel); assert.equal((await handleAssist(request('breakdown', inputs.breakdown, {}, 'POST', controller.signal), aborted)).status, 503);
@@ -156,8 +161,8 @@ try {
     assert.deepEqual(await cloud.breakdown(secretText, 'few', 'Home'), { steps: [{ text: 'Start', minutes: 10 }] }); tests++;
     globalThis.fetch = async () => Response.json({ clusters: [] });
     assert.deepEqual(await cloud.compile('Only feelings, no actions'), { clusters: [] }); tests++;
-    for (const [status, code] of [[401, 'unauthorized'], [429, 'rate_limited'], [413, 'too_long'], [503, 'unavailable'], [400, 'invalid']] as const) {
-      globalThis.fetch = async () => new Response('{}', { status });
+    for (const [code, status] of Object.entries(ASSIST_ERROR_STATUS)) {
+      globalThis.fetch = async () => Response.json({ error: code }, { status });
       await assert.rejects(cloud.breakdown('a', 'few', ''), (e: unknown) => e instanceof AssistError && e.code === code); tests++;
     }
     globalThis.fetch = async () => Response.json({ steps: [] });
