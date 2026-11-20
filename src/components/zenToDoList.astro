@@ -4,8 +4,13 @@ import TaskSteps from './TaskSteps.astro';
 
 <script>
     import { celebrate } from '../lib/confetti';
+    import { registerBreakdownPanel } from './BreakdownPanel';
+    import { registerTaskSteps } from './TaskSteps';
 
     document.addEventListener('alpine:init', () => {
+        // Alpine mounts these from inert task templates; register them at the page level first.
+        registerBreakdownPanel();
+        registerTaskSteps();
         Alpine.data('zenTodoList', () => ({
             get tasks() {
                 return this.$store.todos.items.filter(item => !item.isCluster);
