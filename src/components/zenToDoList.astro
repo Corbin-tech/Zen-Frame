@@ -45,8 +45,7 @@ import TaskSteps from './TaskSteps.astro';
             get upcoming() {
                 const todos = this.$store.todos;
                 const current = this.currentTodo;
-                return [...todos.openTasks]
-                    .sort((a, b) => Number(Boolean(b.startedAt)) - Number(Boolean(a.startedAt)))
+                return todos.zenTaskOrder
                     .filter(task => task.id !== current?.id && (!task.parentId || !todos.skippedClusters.includes(task.parentId)))
                     .slice(0, 2);
             },

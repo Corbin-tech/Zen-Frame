@@ -18,6 +18,7 @@ export interface Todo {
   createdAt: string;
   updatedAt?: string;
   startedAt?: string; // Set while the task is in the board's In progress column
+  zenDeferredStart?: string; // The start timestamp that Skip Task deferred in Zen mode
   completedAt?: string;
   estimateMinutes?: number | null; // From Estimate, Brain dump, or the user
   steps?: TodoStep[]; // A checklist from Breakdown. Steps stay inside the task, so the board and schedule still see one task.
@@ -114,13 +115,16 @@ function createTodosStore() {
       return this.items.filter(item => !item.isCluster && !item.completed);
     },
 
-    // The task Zen mode shows: the first open task in list order, skipping clusters the user skipped.
-    // Tasks in progress on the board come first. When every open task is in a skipped cluster,
-    // fall back to the first open task.
+    get zenTaskOrder(): Todo[] {
+      const priority = (task: Todo) => Number(Boolean(task.startedAt && task.startedAt !== task.zenDeferredStart));
+      return this.openTasks.sort((a, b) => priority(b) - priority(a));
+    },
+
+    // The task Zen mode shows, skipping clusters the user skipped when possible.
     get nextTask(): Todo | null {
-      const openTasks = [...this.openTasks].sort((a, b) => Number(Boolean(b.startedAt)) - Number(Boolean(a.startedAt)));
-      return openTasks.find(task => !task.parentId || !this.skippedClusters.includes(task.parentId))
-        ?? openTasks[0]
+      const ordered = this.zenTaskOrder;
+      return ordered.find(task => !task.parentId || !this.skippedClusters.includes(task.parentId))
+        ?? ordered[0]
         ?? null;
     },
 
@@ -591,6 +595,7 @@ function createTodosStore() {
       const items = this.items.filter(item => item.id !== taskId);
       const lastIndex = items.findIndex(item => item.id === openSiblings[openSiblings.length - 1].id);
       items.splice(lastIndex + 1, 0, task);
+      if (task.startedAt) task.zenDeferredStart = task.startedAt;
       this.items = items;
       this.saveTodos();
     },
