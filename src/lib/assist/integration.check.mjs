@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { registerHooks } from 'node:module';
 import { pickProvider } from './index.ts';
 import { initAssistStore } from '../../stores/assistStore.ts';
 import { exportBackup } from '../storage.ts';
@@ -70,4 +71,95 @@ await assist.refresh();
 assert.equal(assist.aiStatus, 'needs-plus');
 await assert.rejects(() => stale.compile('fixture'), { code: 'unauthorized' });
 assert.equal(tokens, previousTokens);
-console.log('Assist integration checks passed (status, consent, async token, allowance, errors, backup exclusion).');
+
+const panelUrl = new URL('../../scripts/BreakdownPanel.ts', import.meta.url);
+const hooks = registerHooks({ resolve(specifier, context, nextResolve) {
+  return nextResolve(specifier === '../lib/assist' && context.parentURL === panelUrl.href
+    ? new URL('./index.ts', import.meta.url).href : specifier, context);
+} });
+let registerBreakdownPanel;
+try { ({ registerBreakdownPanel } = await import(panelUrl.href)); }
+finally { hooks.deregister(); }
+let panelFactory;
+window.Alpine.data = (name, factory) => {
+  assert.equal(name, 'breakdownPanel');
+  panelFactory = factory;
+};
+registerBreakdownPanel();
+const task = { id: 'fixture', todo: 'Fixture task', parentId: null, steps: [{ text: 'Existing step', minutes: 1 }] };
+let writes = 0;
+const stores = { plus, assist, todos: {
+  find: () => task, clusterName: () => '', setSteps: () => { writes++; }
+} };
+window.Alpine.store = name => stores[name];
+plus.account = { email: 'fixture@example.com' };
+await assist.refresh();
+const answer = { steps: Array.from({ length: 4 }, (_, i) => ({ text: `Step ${i + 1}`, minutes: 1 })) };
+const deferred = () => {
+  let resolve;
+  const promise = new Promise(done => { resolve = done; });
+  return { promise, resolve };
+};
+for (const mode of ['success', 'error', 'abort', 'late-response']) {
+  const started = deferred();
+  const late = deferred();
+  let fetchSignal;
+  globalThis.fetch = async (url, options) => {
+    assert.equal(url, '/api/assist/breakdown');
+    fetchSignal = options.signal;
+    assert.ok(fetchSignal instanceof AbortSignal);
+    started.resolve();
+    if (mode === 'abort') await new Promise((_, reject) => {
+      fetchSignal.addEventListener('abort', () => reject(fetchSignal.reason), { once: true });
+    });
+    if (mode === 'late-response') await late.promise;
+    return mode === 'error' ? Response.json({ error: 'model_error' }, { status: 502 }) : Response.json(answer);
+  };
+  const focus = () => {};
+  const panel = Object.assign(panelFactory(() => task.id, () => undefined), {
+    $dispatch() {}, $nextTick: fn => fn(),
+    $refs: { level: { focus }, cancel: { focus }, generate: { focus }, add: { focus } },
+    $root: { querySelector: () => ({ focus }) }
+  });
+  panel.show();
+  const beforeRefresh = refreshes;
+  const running = panel.generate();
+  await started.promise;
+  assert.equal(panel.working, true);
+  assert.equal(assist.busy, true);
+  if (mode === 'abort' || mode === 'late-response') {
+    panel.cancel();
+    assert.equal(fetchSignal.aborted, true);
+  }
+  let timeout;
+  try {
+    await Promise.race([running, new Promise((_, reject) => {
+      timeout = setTimeout(() => reject(new Error('Breakdown busy state did not settle')), 1000);
+    })]);
+  } finally { clearTimeout(timeout); }
+  assert.equal(panel.working, false);
+  assert.equal(assist.busy, false);
+  assert.equal(assist.preview, null);
+  assert.equal(writes, 0);
+  assert.deepEqual(task.steps, [{ text: 'Existing step', minutes: 1 }]);
+  if (mode === 'success') {
+    assert.equal(panel.editing, true);
+    assert.equal(panel.draft.length, 4);
+    assert.equal(refreshes, beforeRefresh + 1);
+  } else {
+    assert.equal(panel.editing, false);
+    assert.deepEqual(panel.draft, []);
+    assert.equal(refreshes, beforeRefresh);
+    assert.equal(Boolean(panel.error), mode === 'error');
+  }
+  late.resolve();
+  await new Promise(resolve => setImmediate(resolve));
+  if (mode === 'late-response') {
+    assert.deepEqual(panel.draft, []);
+    assert.equal(panel.editing, false);
+    assert.equal(panel.announcement, 'Step suggestions canceled.');
+    assert.equal(assist.preview, null);
+    assert.equal(writes, 0);
+  }
+}
+console.log('Assist integration checks passed (status, consent, async token, allowance, errors, backup exclusion, Breakdown cancel/late response).');
