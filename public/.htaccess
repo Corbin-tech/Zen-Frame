@@ -12,3 +12,8 @@
   Header always set Cross-Origin-Resource-Policy "same-origin"
   Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
 </IfModule>
+
+# The web app manifest. With nosniff set above, a wrong MIME type makes the browser ignore it.
+<IfModule mod_mime.c>
+  AddType application/manifest+json .webmanifest
+</IfModule>
