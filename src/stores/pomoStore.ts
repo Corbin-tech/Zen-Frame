@@ -1,6 +1,5 @@
 import { formatTime, minutesNow } from "../lib/dates.ts";
 import { loadJson, loadString, saveJson } from "../lib/storage.ts";
-import { normalizeStoredData } from "../lib/storedData.ts";
 import { UNDO_TOAST_MS } from "../lib/notifications.ts";
 
 export const CYCLE_LENGTH = 4;
@@ -524,13 +523,10 @@ export function initPomoStore() {
       this.loadSessions([]);
     },
 
-    loadSessions(fallback: FocusSession[] = this.sessions): void {
-      try {
-        const saved = JSON.parse(localStorage.getItem("pomoSessions") ?? "[]");
-        this.sessions = normalizeStoredData("pomoSessions", saved) as FocusSession[];
-      } catch {
-        this.sessions = fallback;
-      }
+    // A missing key means the history was cleared (here or in another tab), so it is empty.
+    // A failed read keeps `fallback`, which is the in-memory history unless the caller passes one.
+    loadSessions(fallback?: FocusSession[]): void {
+      this.sessions = loadJson<FocusSession[]>("pomoSessions", fallback ?? this.sessions, []);
     }
   };
 }
