@@ -221,6 +221,12 @@ try {
       globalThis.fetch = async () => Response.json({ error: code }, { status });
       await assert.rejects(cloud.breakdown('a', 'few', ''), (e: unknown) => e instanceof AssistError && e.code === code); tests++;
     }
+    for (const response of [Response.json({ error: 'forbidden' }, { status: 403 }), Response.json({}, { status: 403 }), new Response('invalid JSON', { status: 403 })]) {
+      globalThis.fetch = async () => response;
+      await assert.rejects(cloud.estimate('a'), (e: unknown) => e instanceof AssistError && e.code === 'bad_request'); tests++;
+    }
+    globalThis.fetch = async () => Response.json({ error: 'needs_plus' }, { status: 500 });
+    await assert.rejects(cloud.estimate('a'), (e: unknown) => e instanceof AssistError && e.code === 'unavailable'); tests++;
     globalThis.fetch = async () => Response.json({ steps: [] });
     await assert.rejects(cloud.breakdown('a', 'few', ''), AssistError); tests++;
   } finally { globalThis.fetch = realFetch; }

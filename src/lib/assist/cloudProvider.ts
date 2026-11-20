@@ -14,7 +14,7 @@ export function createCloudProvider({ getToken }: { getToken: () => string | nul
     try { response = await fetch(ASSIST_ENDPOINTS[endpoint], { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(input), signal }); }
     catch (error) { if (signal?.aborted) throw error; throw new AssistError('unavailable'); }
     if (!response.ok) {
-      let code: AssistErrorCode = response.status === 401 ? 'unauthorized' : response.status === 403 ? 'needs_plus' : response.status === 429 ? 'rate_limited' : response.status === 413 ? 'too_long' : response.status === 502 ? 'model_error' : response.status >= 500 ? 'unavailable' : 'bad_request';
+      let code: AssistErrorCode = response.status === 401 ? 'unauthorized' : response.status === 429 ? 'rate_limited' : response.status === 413 ? 'too_long' : response.status === 502 ? 'model_error' : response.status >= 500 ? 'unavailable' : 'bad_request';
       try {
         const body = await response.json();
         if (body && typeof body.error === 'string' && Object.hasOwn(ASSIST_ERROR_STATUS, body.error) && ASSIST_ERROR_STATUS[body.error as AssistErrorCode] === response.status) code = body.error;
