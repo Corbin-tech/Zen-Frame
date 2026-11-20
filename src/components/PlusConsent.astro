@@ -1,0 +1,52 @@
+---
+// Consent for the Plus task helpers. Shown in Settings once someone is signed in to Plus.
+// Nothing is sent to /api/assist/* until $store.assist.consent is true (see pickProvider).
+//
+// DRAFT COPY, pending the owner's legal sign-off (docs/legal/README.md).
+// Set zeroRetentionConfirmed to true only after Anthropic confirms zero data retention for
+// the account (decisions.md, decision 4). Until then the copy must not say "Nothing is stored."
+const zeroRetentionConfirmed = false;
+
+const button = "rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 dark:border-slate-600 dark:hover:bg-slate-800";
+const primary = "rounded-lg bg-teal-700 px-3 py-2 text-sm font-medium text-white hover:bg-teal-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500";
+---
+
+<section x-data x-cloak x-show="$store.plus?.account" aria-labelledby="plus-consent-title"
+    class="space-y-3 rounded-xl border border-gray-200 p-5 text-gray-900 dark:border-slate-700 dark:text-white">
+    <h2 id="plus-consent-title" class="text-lg font-semibold"
+        x-text="$store.assist.consent ? 'Task helpers are on' : 'Before you use the task helpers'"></h2>
+
+    <p class="text-sm">Plus sends the text you give a helper to Zen Frame’s server and our AI provider, Anthropic.</p>
+    {zeroRetentionConfirmed ? (
+        <p class="text-sm">Nothing is stored.</p>
+    ) : (
+        <p class="text-sm">Zen Frame doesn’t save or log that text. Anthropic may keep it for a limited time under its API data policy.</p>
+    )}
+
+    <details class="text-sm">
+        <summary class="cursor-pointer font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 rounded">What gets sent</summary>
+        <ul class="mt-2 list-disc space-y-1 pl-5 text-gray-700 dark:text-gray-300">
+            <li>Breakdown: the task’s text, the detail level you pick, and its cluster name.</li>
+            <li>Brain dump: the text you type, up to 6,000 characters.</li>
+            <li>Estimate: the task’s text.</li>
+            <li>Nothing else from your planner leaves this device. Your tasks stay in this browser.</li>
+            <li>Suggestions only appear as a preview. Nothing changes until you choose Accept.</li>
+        </ul>
+    </details>
+
+    <p class="text-sm text-gray-600 dark:text-gray-300" x-show="!$store.assist.consent">
+        You can turn the helpers off again here at any time.
+    </p>
+    <p class="text-sm text-gray-600 dark:text-gray-300" x-show="$store.assist.consent">
+        Turning them off stops sending right away and clears any suggestion you haven’t accepted.
+    </p>
+
+    <div class="flex flex-wrap gap-2">
+        <button type="button" x-ref="consentOn" class={primary} x-show="!$store.assist.consent"
+            x-on:click="$store.assist.giveConsent(); $nextTick(() => $refs.consentOff.focus())">Turn on task helpers</button>
+        <button type="button" x-ref="consentOff" class={button} x-show="$store.assist.consent"
+            x-on:click="$store.assist.withdrawConsent(); $nextTick(() => $refs.consentOn.focus())">Turn off task helpers</button>
+    </div>
+
+    <p role="status" class="sr-only" x-text="$store.assist.consent ? 'Task helpers are on.' : 'Task helpers are off.'"></p>
+</section>
