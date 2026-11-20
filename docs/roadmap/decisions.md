@@ -150,6 +150,14 @@ Decision / status: **The owner does these in test mode first. Nothing is set up 
 4. Turn on Stripe Tax, with registrations as the accountant advises.
 5. Put the test-mode secret key and the webhook signing secret into the Cloudflare Pages project's secrets (decision 3), never the repo. Live keys come only at WS9 go-live.
 
+## 7. Approved runtime dependency: pragmatic-drag-and-drop
+
+Decision: **Approve `@atlaskit/pragmatic-drag-and-drop` (`^1.5.0` in `package.json`) as a runtime dependency, pinned to the 1.x major, on 2026-11-20.**
+
+- Why: it powers the Kanban/board drag and drop and predates the dependency rules.
+- Updates: Dependabot ignores semver-major updates; minor and patch updates remain allowed within 1.x.
+- A major upgrade needs migration evidence and its own decision.
+
 ---
 
 ## What each decision unblocks
