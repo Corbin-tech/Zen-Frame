@@ -12,11 +12,12 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
 ---
 
 <div
-    x-data="{ open: false, returnFocus: null, close(restoreFocus = true) { this.open = false; if (restoreFocus && this.returnFocus?.isConnected) this.returnFocus.focus(); this.returnFocus = null; } }"
+    x-data="settingsPanel"
     x-init="$watch('open', value => window.dispatchEvent(new CustomEvent('settings-panel', { detail: { open: value } })))"
     x-on:overlay-opened.window="if (open && $event.detail.name !== 'settings') { $event.detail.opener = returnFocus; close(false); }"
     x-on:open-settings.window="if (!open) { const opened = { name: 'settings' }; window.dispatchEvent(new CustomEvent('overlay-opened', { detail: opened })); returnFocus = opened.opener || document.activeElement; } open = true; const section = $event.detail?.section; $nextTick(() => { $refs.close.focus(); if (section && /^[a-z0-9-]+$/i.test(section)) $el.querySelector(`[data-settings-section='${section}']`)?.scrollIntoView({ block: 'start' }); })"
     x-on:keydown.escape.window="if (open) close()"
+    x-on:keydown.tab.window="if (open) trap($event)"
 >
     <!-- Backdrop -->
     <div
@@ -39,6 +40,7 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
         x-transition:leave-start="translate-x-0"
         x-transition:leave-end="translate-x-full"
         class="fixed inset-y-0 right-0 z-50 w-full sm:max-w-md flex flex-col bg-white dark:bg-slate-900 shadow-2xl ring-1 ring-black/5 dark:ring-white/10"
+        x-ref="panel"
         role="dialog"
         aria-modal="true"
         aria-labelledby="settings-title"
@@ -474,6 +476,7 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
                     <input
                         type="file"
                         x-ref="file"
+                        tabindex="-1"
                         accept="application/json,.json"
                         class="sr-only"
                         x-on:change="restore($event)"
@@ -503,6 +506,31 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
     import { toDateKey } from '../lib/dates';
 
     document.addEventListener('alpine:init', () => {
+        window.Alpine.data('settingsPanel', () => ({
+            open: false,
+            returnFocus: null as HTMLElement | null,
+
+            close(restoreFocus = true) {
+                this.open = false;
+                if (restoreFocus && this.returnFocus?.isConnected) this.returnFocus.focus();
+                this.returnFocus = null;
+            },
+
+            // aria-modal alone does not stop Tab from reaching the page behind, so wrap it inside the panel
+            trap(event: KeyboardEvent) {
+                const panel = this.$refs.panel as HTMLElement;
+                const focusable = Array.from(panel.querySelectorAll<HTMLElement>('a[href], button, input, select, textarea, [tabindex]'))
+                    .filter(element => element.tabIndex >= 0 && !element.matches(':disabled') && element.getClientRects().length);
+                const first = focusable[0], last = focusable[focusable.length - 1];
+                if (!first) return;
+                const active = document.activeElement;
+                if (!panel.contains(active) || active === (event.shiftKey ? first : last)) {
+                    event.preventDefault();
+                    (event.shiftKey ? last : first).focus();
+                }
+            },
+        }));
+
         window.Alpine.data('backupPanel', () => ({
             error: '',
 
