@@ -84,17 +84,13 @@ export function handleAccount(request: Request, action: string, env: AccountEnv,
                     || typeof code !== "string" || !/^\d{6}$/.test(code)) throw new HttpError(400, "invalid_code");
                 await rateLimit(env, request, email, "verify", now);
                 const digest = await codeDigest(env.PLUS_SIGNING_KEY, email, challenge, code);
-                const consumed = await db.prepare(`
-                    DELETE FROM plus_codes WHERE email = ?1 AND challenge = ?2 AND digest = ?3 AND expires_at > ?4 AND attempts > 0
-                    RETURNING email
-                `).bind(email, challenge, digest, now).first();
-                if (!consumed) {
-                    await db.prepare(`
-                        UPDATE plus_codes SET attempts = attempts - 1
-                        WHERE email = ?1 AND challenge = ?2 AND digest <> ?3 AND expires_at > ?4 AND attempts > 0
-                    `).bind(email, challenge, digest, now).run();
-                    throw new HttpError(401, "invalid_code");
-                }
+                const attempt = await db.prepare(`
+                    UPDATE plus_codes SET attempts = CASE WHEN digest = ?3 THEN 0 ELSE attempts - 1 END
+                    WHERE email = ?1 AND challenge = ?2 AND expires_at > ?4 AND attempts > 0
+                    RETURNING digest = ?3 AS verified
+                `).bind(email, challenge, digest, now).first<{ verified: number }>();
+                if (!attempt?.verified) throw new HttpError(401, "invalid_code");
+                await db.prepare("DELETE FROM plus_codes WHERE email = ? AND challenge = ?").bind(email, challenge).run();
                 const account = await db.prepare(`
                     INSERT INTO plus_accounts (id, email) VALUES (?, ?)
                     ON CONFLICT(email) DO UPDATE SET email = excluded.email

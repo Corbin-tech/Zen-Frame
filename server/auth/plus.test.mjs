@@ -19,6 +19,7 @@ const portalUrl = "https://billing.stripe.com/p/session/fixture";
 
 function database() {
     const sqlite = new DatabaseSync(":memory:");
+    let afterFirst = async () => {};
     sqlite.exec(readFileSync(new URL("./migrations/0001_plus.sql", import.meta.url), "utf8"));
     const d1 = {
         prepare(query) {
@@ -31,16 +32,20 @@ function database() {
                         : values;
                     return this;
                 },
-                async first() { return statement.get(...args) ?? null; },
+                async first() {
+                    const result = statement.get(...args) ?? null;
+                    await afterFirst(query);
+                    return result;
+                },
                 async run() { return statement.run(...args); }
             };
         }
     };
-    return { sqlite, d1 };
+    return { sqlite, d1, interceptFirst(handler) { afterFirst = handler; } };
 }
 
 function fixtures() {
-    const { sqlite, d1 } = database();
+    const { sqlite, d1, interceptFirst } = database();
     const env = {
         PLUS_DB: d1, PLUS_ORIGIN: origin, PLUS_SIGNING_KEY: randomBytes(32).toString("hex"),
         STRIPE_SECRET_KEY: ["sk", "test", "fixture"].join("_"),
@@ -75,7 +80,7 @@ function fixtures() {
         return { session: await response.json(), headers: { Cookie: cookie.split(";")[0] }, payload };
     }
 
-    return { sqlite, env, account, getCode, signIn, request };
+    return { sqlite, env, account, getCode, signIn, request, interceptFirst };
 }
 
 test("codes are one-use, expire after ten minutes, and lock after five wrong attempts", async () => {
@@ -114,6 +119,30 @@ test("account HTTP rejects cross-origin requests and limits sends by email and I
         assert.equal((await f.account("code", { email: `reader${i}@example.com` }, headers)).status, 200);
     }
     assert.equal((await f.account("code", { email: "extra@example.com" }, headers)).status, 429);
+});
+
+test("a concurrent verification cannot reuse the last failed attempt", async () => {
+    const f = fixtures();
+    const valid = await f.getCode();
+    const invalid = { ...valid, code: valid.code === "000000" ? "000001" : "000000" };
+    for (let i = 0; i < 4; i++) assert.equal((await f.account("verify", invalid)).status, 401);
+    const mutation = Promise.withResolvers();
+    const resume = Promise.withResolvers();
+    f.interceptFirst(async (sql) => {
+        if (/plus_codes.*[\s\S]*RETURNING/i.test(sql)) {
+            f.interceptFirst(async () => {});
+            mutation.resolve();
+            await resume.promise;
+        }
+    });
+    const lastAttempt = f.account("verify", invalid);
+    try {
+        await Promise.race([mutation.promise, lastAttempt]);
+        assert.equal((await f.account("verify", valid)).status, 401);
+    } finally {
+        resume.resolve();
+    }
+    assert.equal((await lastAttempt).status, 401);
 });
 
 test("signed bearer authenticates, but payload and signature tampering, expiry and logout all reject", async () => {
