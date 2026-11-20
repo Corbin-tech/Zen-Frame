@@ -97,6 +97,31 @@ plus.account = { email: 'other@example.com' };
 await reloaded.refresh();
 assert.equal(reloaded.consent, false);
 assert.equal(saved.get('assistConsent'), 'false');
+plus.account = { email: 'fixture@example.com' };
+assist.giveConsent();
+saved.set('assistConsent', 'false'); // Another tab signed out
+await assist.refresh();
+assert.equal(assist.consent, false);
+saved.set('assistConsent', 'true');
+const outage = initAssistStore(); // Loaded while the Plus session check failed
+plus.account = null;
+plus.ready = false;
+await outage.refresh();
+assert.equal(outage.consent, true);
+saved.set('assistConsent', 'false'); // Meanwhile another tab: A signs out, B signs in
+plus.account = { email: 'other@example.com' };
+await outage.refresh();
+assert.equal(outage.consent, false);
+plus.ready = true;
+plus.account = { email: 'fixture@example.com' };
+assist.giveConsent();
+await assist.refresh();
+const gated = (await pickProvider(true)).provider;
+plus.account = { email: 'other@example.com' }; // Account switch, no refresh yet
+const tokensBeforeSwitch = tokens;
+await assert.rejects(() => gated.compile('fixture'), { code: 'unauthorized' });
+assert.equal(tokens, tokensBeforeSwitch);
+assert.equal(assist.consent, false);
 delete plus.ready;
 plus.account = { email: 'fixture@example.com' };
 assist.giveConsent();

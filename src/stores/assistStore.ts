@@ -88,11 +88,15 @@ export function initAssistStore() {
       this.discard();
     },
 
-    // Consent belongs to the person who gave it. Clear it when Plus confirms that nobody is
-    // signed in (sign-out or expired session), or when a different account is signed in,
-    // so the next person on this browser sees the consent card again.
+    // Consent belongs to the person who gave it. Clear it when another tab cleared it, when
+    // Plus confirms that nobody is signed in (sign-out or expired session), or when a different
+    // account is signed in, so the next person on this browser sees the consent card again.
     checkConsentOwner(): void {
       if (!this.consent) return;
+      if (loadJson<unknown>('assistConsent', false) !== true) {
+        this.clearConsent();
+        return;
+      }
       const plus = plusStore();
       if (plus?.account) {
         consentAccount ??= plus.account.email;
