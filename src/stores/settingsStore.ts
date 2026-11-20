@@ -257,6 +257,7 @@ function loadSettings(): Settings {
 export function initSettingsStore() {
   return {
     ...DEFAULTS,
+    savedJson: {} as Partial<Record<keyof Settings, string>>,
     accents: ACCENTS,
     fonts: FONTS,
     textSizes: TEXT_SIZES,
@@ -272,9 +273,14 @@ export function initSettingsStore() {
 
     // Alpine calls init() when the store is registered
     init(): void {
-      Object.assign(this, loadSettings());
+      this.load();
       this.notificationPermission = permission();
       this.apply();
+      window.addEventListener("storage", event => {
+        if (event.storageArea !== localStorage || (event.key !== null && event.key !== "settings")) return;
+        this.load();
+        this.apply();
+      });
     },
 
     get firstName(): string {
@@ -306,9 +312,25 @@ export function initSettingsStore() {
       this.setDashboardLayout(structuredClone(DEFAULT_DASHBOARD));
     },
 
-    save(this: Settings): void {
+    load(): void {
+      const remote = loadSettings();
+      for (const key of Object.keys(DEFAULTS) as (keyof Settings)[]) {
+        const base = this.savedJson[key];
+        if (base === undefined || JSON.stringify(this[key]) === base) {
+          Object.assign(this, { [key]: remote[key] });
+        }
+        this.savedJson[key] = JSON.stringify(remote[key]);
+      }
+    },
+
+    save(): void {
+      this.load();
       const saved = Object.fromEntries(Object.keys(DEFAULTS).map(key => [key, this[key as keyof Settings]]));
-      saveJson("settings", saved);
+      const dirty = (Object.keys(DEFAULTS) as (keyof Settings)[]).some(key => JSON.stringify(this[key]) !== this.savedJson[key]);
+      if (dirty && saveJson("settings", saved)) {
+        for (const key of Object.keys(DEFAULTS) as (keyof Settings)[]) this.savedJson[key] = JSON.stringify(this[key]);
+      }
+      this.apply();
     },
 
     // Turning reminders on asks the browser for permission (it must follow a click).
