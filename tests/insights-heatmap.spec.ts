@@ -40,6 +40,8 @@ for (const populated of [true, false]) {
       await expect(days.nth(index)).toHaveAttribute('aria-label', label);
       await expect(heatmap.locator('[tabindex="0"]')).toHaveCount(1);
     }
+    await page.keyboard.press('Control+End');
+    await expect(days.nth(0)).toBeFocused();
     await page.keyboard.press('Tab');
     await expect(chart).toBeFocused();
   });
