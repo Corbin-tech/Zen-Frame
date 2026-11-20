@@ -3,7 +3,7 @@ import { initPomoStore } from "../src/stores/pomoStore";
 
 afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers(); });
 
-test.each(["completed", "deleted", "paused", "reloaded", "expired", "reset", "general", "undo"])("focus attribution when %s", (scenario) => {
+test.each(["completed", "deleted", "paused", "reloaded", "expired", "reset", "general", "undo", "switch", "same-task", "switch-undo", "switch-general"])("focus attribution when %s", (scenario) => {
   vi.useFakeTimers();
   const data = new Map<string, string>();
   const storage = { getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, value: string) => data.set(key, value), removeItem: (key: string) => data.delete(key) };
@@ -21,6 +21,12 @@ test.each(["completed", "deleted", "paused", "reloaded", "expired", "reset", "ge
   vi.advanceTimersByTime(1000);
   taskA.completed = true;
   todos.nextTask = taskB;
+  if (["switch", "same-task", "switch-undo", "switch-general"].includes(scenario)) {
+    store.pauseTimer();
+    store.startFocus(scenario === "same-task" ? "a" : scenario === "switch-general" ? "" : "b");
+    expect(store.timeLeft).toBe(scenario === "same-task" ? store.totalTime - 1 : store.totalTime);
+    if (scenario === "switch-undo") store.restoreSnapshot();
+  }
   if (scenario === "deleted") todos.find = () => undefined;
   if (scenario === "paused") { store.pauseTimer(); store.startTimer(); }
   if (scenario === "undo") { store.resetTimer(true); store.restoreSnapshot(); }
@@ -31,12 +37,15 @@ test.each(["completed", "deleted", "paused", "reloaded", "expired", "reset", "ge
     store = initPomoStore();
     store.init();
   }
-  if (scenario !== "reset") expect(store.activeTaskId).toBe(scenario === "general" || scenario === "expired" ? (scenario === "general" ? "" : "b") : "a");
+  const general = scenario === "general" || scenario === "switch-general";
+  const switched = scenario === "reset" || scenario === "switch";
+  if (scenario !== "expired") expect(store.activeTaskId).toBe(general ? "" : switched ? "b" : "a");
+  if (scenario === "switch-undo") store.startTimer();
   vi.advanceTimersByTime(store.totalTime * 1000);
-  if (scenario === "general") {
+  if (general) {
     expect(store.sessions).toEqual([{ completedAt: expect.any(String), minutes: 25 }]);
   } else {
-    const id = scenario === "reset" ? "b" : "a";
+    const id = switched ? "b" : "a";
     expect(store.sessions).toEqual([expect.objectContaining({ taskId: id, clusterId: `cluster-${id}`, minutes: 25 })]);
   }
 });

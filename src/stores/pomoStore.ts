@@ -361,6 +361,10 @@ export function initPomoStore() {
     // Start or resume a focus session, leaving a break if one is set
     startFocus(taskId?: string): void {
       this.lastCompleted = null;
+      if (!this.isBreak && taskId !== undefined && this.focusTask !== undefined
+        && taskId !== (this.focusTask?.id ?? "")) {
+        this.resetTimer(true);
+      }
       if (taskId !== undefined) this.selectedTaskId = taskId;
       if (this.isBreak) {
         this.isBreak = false;
