@@ -108,6 +108,7 @@ const name = data.recapName;
 
 <script>
     import { dates } from '../lib/dates';
+    import { trapFocus } from '../lib/focusTrap';
     import { averageEnergy, formatMonth, monthRange, partOfDay, percentChange, previousMonth, summarize } from '../lib/insights';
     import site from '../data/site.json';
 
@@ -346,6 +347,10 @@ const name = data.recapName;
 
             onKey(event) {
                 if (!this.isOpen) return;
+                if (event.key === 'Tab') {
+                    trapFocus(event, this.$refs.story);
+                    return;
+                }
                 if (event.key === 'Escape') this.close();
                 else if (event.key === 'ArrowRight') this.next();
                 else if (event.key === 'ArrowLeft') this.previous();
