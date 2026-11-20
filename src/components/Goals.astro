@@ -208,7 +208,7 @@ const prompts = [
                                 name="note-text"
                                 aria-label="Note"
                                 rows="1"
-                                x-init="$el.style.height = $el.scrollHeight + 'px'"
+                                x-effect="if (activeTab === 'goals') { note.text; $nextTick(() => { $el.style.height = 'auto'; $el.style.height = $el.scrollHeight + 'px' }) }"
                                 x-on:input="$el.style.height = 'auto'; $el.style.height = $el.scrollHeight + 'px'"
                                 x-bind:value="note.text"
                                 x-on:change="$event.target.value.trim() ? $store.goals.updateNote(note.id, { text: $event.target.value }) : $store.goals.removeNote(note.id)"
