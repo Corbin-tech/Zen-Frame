@@ -23,6 +23,7 @@ export type StripeEvent = {
 };
 
 const STRIPE_API_VERSION = "2025-04-30.basil";
+const MAX_WEBHOOK_SIGNATURES = 4;
 
 export function createStripe(env: StripeEnv, transport = fetch) {
     const { STRIPE_SECRET_KEY: key, STRIPE_MONTHLY_PRICE: monthly, STRIPE_ANNUAL_PRICE: annual } = env;
@@ -134,6 +135,8 @@ export async function verifyStripeEvent(request: Request, env: StripeEnv, now = 
     const timestamps = parts.filter((part) => part.startsWith("t="));
     const timestamp = timestamps.length === 1 && /^t=\d{1,12}$/.test(timestamps[0]) ? timestamps[0].slice(2) : "";
     if (!timestamp || Math.abs(now - Number(timestamp)) > 300) throw invalid;
+    const signatures = parts.filter((part) => part.startsWith("v1="));
+    if (!signatures.length || signatures.length > MAX_WEBHOOK_SIGNATURES) throw invalid;
 
     let text: string;
     try {
@@ -143,11 +146,12 @@ export async function verifyStripeEvent(request: Request, env: StripeEnv, now = 
         if (error instanceof HttpError) throw error;
         throw invalid;
     }
-    const signatures = parts.filter((part) => /^v1=[a-fA-F0-9]{64}$/.test(part));
+    const message = timestamp + "." + text;
     let verified = false;
     for (const signature of signatures) {
+        if (!/^v1=[a-fA-F0-9]{64}$/.test(signature)) continue;
         const bytes = Uint8Array.from(signature.slice(3).match(/../g)!, (byte) => parseInt(byte, 16));
-        if (await verifyHmac(secret, timestamp + "." + text, bytes)) {
+        if (await verifyHmac(secret, message, bytes)) {
             verified = true;
             break;
         }

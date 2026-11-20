@@ -1,4 +1,4 @@
-import { base64url, hmac } from "./crypto.ts";
+import { base64url, hmac, unbase64url, verifyHmac } from "./crypto.ts";
 import { type Account, type EntitlementEnv, unixTime } from "./db.ts";
 import { type EmailEnv, sendEmail } from "./email.ts";
 import { issueEntitlement } from "./entitlement.ts";
@@ -10,6 +10,7 @@ type Mailer = (to: string, code: string) => Promise<void>;
 
 const CODE_SECONDS = 600;
 const CODE_ATTEMPTS = 5;
+const CODE_CLEANUP_BATCH = 100;
 
 function normalizeEmail(raw: unknown): string {
     const email = typeof raw === "string" ? raw.trim().toLowerCase() : "";
@@ -25,8 +26,8 @@ function makeCode(): string {
     return (value[0] % 1_000_000).toString().padStart(6, "0");
 }
 
-async function codeDigest(secret: string, email: string, challenge: string, code: string): Promise<string> {
-    return base64url(await hmac(secret, `zen-frame/sign-in-code/v1:\n${email}\n${challenge}\n${code}`));
+function codeMessage(email: string, challenge: string, code: string): string {
+    return `zen-frame/sign-in-code/v1:\n${email}\n${challenge}\n${code}`;
 }
 
 async function rateLimit(env: AccountEnv, request: Request, email: string, stage: "send" | "verify", now: number) {
@@ -58,9 +59,14 @@ export function handleAccount(request: Request, action: string, env: AccountEnv,
                 const { email: raw } = await readJson(request);
                 const email = normalizeEmail(raw);
                 await rateLimit(env, request, email, "send", now);
+                await db.prepare(`
+                    DELETE FROM plus_codes WHERE email IN (
+                        SELECT email FROM plus_codes WHERE expires_at <= ? ORDER BY expires_at LIMIT ?
+                    )
+                `).bind(now, CODE_CLEANUP_BATCH).run();
                 const code = makeCode();
                 const challenge = crypto.randomUUID();
-                const digest = await codeDigest(env.PLUS_SIGNING_KEY, email, challenge, code);
+                const digest = base64url(await hmac(env.PLUS_SIGNING_KEY, codeMessage(email, challenge, code)));
                 const saved = await db.prepare(`
                     INSERT INTO plus_codes (email, challenge, digest, sent_at, expires_at, attempts)
                     VALUES (?1, ?2, ?3, ?4, ?5, ?6)
@@ -83,14 +89,19 @@ export function handleAccount(request: Request, action: string, env: AccountEnv,
                 if (typeof challenge !== "string" || !/^[0-9a-f-]{36}$/.test(challenge)
                     || typeof code !== "string" || !/^\d{6}$/.test(code)) throw new HttpError(400, "invalid_code");
                 await rateLimit(env, request, email, "verify", now);
-                const digest = await codeDigest(env.PLUS_SIGNING_KEY, email, challenge, code);
+                // Debit first so concurrent guesses can't exceed the limit.
                 const attempt = await db.prepare(`
-                    UPDATE plus_codes SET attempts = CASE WHEN digest = ?3 THEN 0 ELSE attempts - 1 END
-                    WHERE email = ?1 AND challenge = ?2 AND expires_at > ?4 AND attempts > 0
-                    RETURNING digest = ?3 AS verified
-                `).bind(email, challenge, digest, now).first<{ verified: number }>();
-                if (!attempt?.verified) throw new HttpError(401, "invalid_code");
-                await db.prepare("DELETE FROM plus_codes WHERE email = ? AND challenge = ?").bind(email, challenge).run();
+                    UPDATE plus_codes SET attempts = attempts - 1
+                    WHERE email = ? AND challenge = ? AND expires_at > ? AND attempts > 0
+                    RETURNING digest
+                `).bind(email, challenge, unixTime()).first<{ digest: string }>();
+                if (!attempt || !await verifyHmac(env.PLUS_SIGNING_KEY, codeMessage(email, challenge, code), unbase64url(attempt.digest))) {
+                    throw new HttpError(401, "invalid_code");
+                }
+                const redeemed = await db.prepare(`
+                    DELETE FROM plus_codes WHERE email = ? AND challenge = ? AND expires_at > ? RETURNING challenge
+                `).bind(email, challenge, unixTime()).first();
+                if (!redeemed) throw new HttpError(401, "invalid_code");
                 const account = await db.prepare(`
                     INSERT INTO plus_accounts (id, email) VALUES (?, ?)
                     ON CONFLICT(email) DO UPDATE SET email = excluded.email

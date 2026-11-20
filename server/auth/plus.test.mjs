@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHmac, randomBytes } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import { test } from "node:test";
 import { onRequest as accountRoute } from "../../functions/api/assist/account/[action].ts";
@@ -20,7 +20,10 @@ const portalUrl = "https://billing.stripe.com/p/session/fixture";
 function database() {
     const sqlite = new DatabaseSync(":memory:");
     let afterFirst = async () => {};
-    sqlite.exec(readFileSync(new URL("./migrations/0001_plus.sql", import.meta.url), "utf8"));
+    const migrations = new URL("./migrations/", import.meta.url);
+    for (const file of readdirSync(migrations).filter((name) => name.endsWith(".sql")).sort()) {
+        sqlite.exec(readFileSync(new URL(file, migrations), "utf8"));
+    }
     const d1 = {
         prepare(query) {
             const statement = sqlite.prepare(query);
@@ -121,6 +124,20 @@ test("account HTTP rejects cross-origin requests and limits sends by email and I
     assert.equal((await f.account("code", { email: "extra@example.com" }, headers)).status, 429);
 });
 
+test("requesting a code deletes expired rows in bounded batches without touching active codes", async () => {
+    const f = fixtures();
+    const live = await f.getCode();
+    const now = unixTime();
+    const seed = f.sqlite.prepare("INSERT INTO plus_codes VALUES (?, 'fixture', 'fixture', ?, ?, 5)");
+    for (let i = 0; i < 101; i++) seed.run(`expired${i}@example.com`, now - 600, now);
+    const expiredCount = () => f.sqlite.prepare("SELECT COUNT(*) AS count FROM plus_codes WHERE expires_at <= ?").get(now).count;
+    await f.getCode("next@example.com");
+    assert.equal(expiredCount(), 1);
+    await f.getCode("later@example.com");
+    assert.equal(expiredCount(), 0);
+    assert.equal((await f.account("verify", live)).status, 200);
+});
+
 test("a concurrent verification cannot reuse the last failed attempt", async () => {
     const f = fixtures();
     const valid = await f.getCode();
@@ -143,6 +160,29 @@ test("a concurrent verification cannot reuse the last failed attempt", async () 
         resume.resolve();
     }
     assert.equal((await lastAttempt).status, 401);
+});
+
+test("only one of two concurrent correct verifications can redeem the code", async () => {
+    const f = fixtures();
+    const valid = await f.getCode();
+    const debited = Promise.withResolvers();
+    const resume = Promise.withResolvers();
+    f.interceptFirst(async (sql) => {
+        if (sql.includes("UPDATE plus_codes")) {
+            f.interceptFirst(async () => {});
+            debited.resolve();
+            await resume.promise;
+        }
+    });
+    const paused = f.account("verify", valid);
+    try {
+        await Promise.race([debited.promise, paused]);
+        assert.equal((await f.account("verify", valid)).status, 200);
+    } finally {
+        resume.resolve();
+    }
+    assert.equal((await paused).status, 401);
+    assert.equal(f.sqlite.prepare("SELECT COUNT(*) AS count FROM plus_sessions").get().count, 1);
 });
 
 test("signed bearer authenticates, but payload and signature tampering, expiry and logout all reject", async () => {
@@ -339,4 +379,26 @@ test("webhook logs only safe failure codes and keeps failure responses generic",
     ]);
     assert.equal((await webhook(f.env, "")).status, 400);
     assert.equal(log.mock.callCount(), 2);
+});
+
+test("webhooks cap v1 candidates before reading the body and still accept overlapping signatures", async () => {
+    const f = fixtures();
+    const time = unixTime();
+    const body = JSON.stringify({ type: "fixture", livemode: false, data: { object: {} } });
+    const valid = "v1=" + createHmac("sha256", f.env.STRIPE_WEBHOOK_SECRET).update(`${time}.${body}`).digest("hex");
+    const other = "v1=" + "0".repeat(64);
+    function webhook(...candidates) {
+        const request = f.request("billing", "webhook", body, {
+            Origin: "", "Stripe-Signature": [`t=${time}`, ...candidates].join(",")
+        });
+        return { request, response: handleBilling(request, "webhook", f.env, async () => assert.fail("Unexpected Stripe call")) };
+    }
+    assert.equal((await webhook(other, other, other, valid).response).status, 200);
+    for (const extra of [other, "v1=malformed"]) {
+        const { request, response } = webhook(valid, other, other, other, extra);
+        const result = await response;
+        assert.equal(result.status, 400);
+        assert.deepEqual(await result.json(), { error: "invalid_stripe_signature" });
+        assert.equal(request.bodyUsed, false);
+    }
 });

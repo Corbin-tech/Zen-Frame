@@ -15,20 +15,20 @@ node --disable-warning=ExperimentalWarning --test server/auth/plus.test.mjs
   'functions/api/assist/account/[action].ts' 'functions/api/assist/billing/[action].ts'
 ```
 
-The suite runs the actual handlers and migration against SQLite, with an in-process mailer and mocked Stripe API. It does not prove delivery, redirects through Stripe, or that Stripe can reach the webhook. The Pages adapters own only the nested account and billing routes; WS2 owns the helper routes.
+The suite runs the actual handlers and migrations against SQLite, with an in-process mailer and mocked Stripe API. It does not prove delivery, redirects through Stripe, or that Stripe can reach the webhook. The Pages adapters own only the nested account and billing routes; WS2 owns the helper routes.
 
 ## Owner setup for a real sandbox run
 
 1. Create a sandbox [Stripe Product and Prices](https://dashboard.stripe.com/test/products): Zen Frame Plus, USD 4.99 monthly and USD 39.99 annually. Configure the [sandbox customer portal](https://dashboard.stripe.com/test/settings/billing/portal) to update payment methods, switch between the two plans, and cancel at period end. No live keys or payments.
 2. Configure a verified sending domain with SPF/DKIM in Postmark or Resend. Select that vendor in the bindings; neither is enabled by default.
-3. In the Cloudflare Pages project, bind a D1 database as `PLUS_DB`. Apply the migration in [migrations/0001_plus.sql](migrations/0001_plus.sql); use local D1 or a dedicated sandbox/preview database, not a production database.
+3. In the Cloudflare Pages project, bind a D1 database as `PLUS_DB`. Apply the [migrations](migrations/) in numeric order; use local D1 or a dedicated sandbox/preview database, not a production database.
 4. Set non-secret bindings `PLUS_ORIGIN` (canonical URL, with no path), `PLUS_EMAIL_PROVIDER` (`postmark` or `resend`), `PLUS_EMAIL_FROM` (verified sender), `STRIPE_MONTHLY_PRICE` and `STRIPE_ANNUAL_PRICE`. If sandbox Stripe Tax is configured, set `STRIPE_AUTOMATIC_TAX=true`; the owner must enable it and resolve registration/terms before go-live.
 5. Set secrets in Cloudflare's secret store (or an **untracked** `.dev.vars` for local-only Pages development): `PLUS_SIGNING_KEY` (random, at least 32 bytes; e.g. output of `openssl rand -hex 32`), `PLUS_EMAIL_KEY`, `STRIPE_SECRET_KEY` (sandbox only), and `STRIPE_WEBHOOK_SECRET`. Never share values in chat, Vite variables, or git.
 6. Register the Stripe webhook at `<origin>/api/assist/billing/webhook`. Subscribe to `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.expired`, and `customer.subscription.created`, `updated`, `deleted`, `paused`, `resumed`. Locally, use [Stripe CLI forwarding](https://docs.stripe.com/stripe-cli/use-cli#forward-events-to-a-local-endpoint) and the listener's signing secret, not the dashboard endpoint secret.
 
-For local Pages development, run `npm run build`, then run Wrangler from the repo root with a local config binding `PLUS_DB`, and matching `PLUS_ORIGIN` (e.g. `http://localhost:8788`). Apply the migration with `wrangler d1 execute PLUS_DB --local --file=server/auth/migrations/0001_plus.sql`, then run `wrangler pages dev dist --port 8788` so the functions and app share an origin. Do not use `astro dev` alone for real API calls. With the panel mounted, get a code, sign in and check the free allowance; finish sandbox Checkout, refresh Plus after Stripe delivers the webhook, then switch plans or cancel through Manage billing. Deleting site data and signing in again must preserve usage.
+For local Pages development, run `npm run build`, then run Wrangler from the repo root with a local config binding `PLUS_DB`, and matching `PLUS_ORIGIN` (e.g. `http://localhost:8788`). For each pending SQL migration, run `wrangler d1 execute PLUS_DB --local --file=<migration-path>`. Then run `wrangler pages dev dist --port 8788` so the functions and app share an origin. Do not use `astro dev` alone for real API calls. With the panel mounted, get a code, sign in and check the free allowance; finish sandbox Checkout, refresh Plus after Stripe delivers the webhook, then switch plans or cancel through Manage billing. Deleting site data and signing in again must preserve usage.
 
-Run behind Cloudflare in staging; the IP limit uses its `CF-Connecting-IP` header. Include periodic D1 cleanup of expired codes, sessions and usage holds and past-hour auth limit buckets in the launch runbook. Never clean up the lifetime trial meter while its account exists.
+Run behind Cloudflare in staging; the IP limit uses its `CF-Connecting-IP` header. New code requests clean up expired codes in bounded batches. Include periodic D1 cleanup of expired codes, sessions and usage holds and past-hour auth limit buckets in the launch runbook. Never clean up the lifetime trial meter while its account exists.
 
 ## WS2 and WS8 integration
 
