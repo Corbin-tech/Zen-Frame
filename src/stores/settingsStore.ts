@@ -11,7 +11,7 @@ const ACCENTS = [
   { id: "teal", label: "Teal", swatch: "#036672" },
   { id: "ocean", label: "Ocean", swatch: "#0284c7" },
   { id: "lavender", label: "Lavender", swatch: "#7c3aed" },
-  { id: "rose", label: "Rose", swatch: "#e11d48" },
+  { id: "rose", label: "Rose", swatch: "#be123c" },
   { id: "sunset", label: "Sunset", swatch: "#ea580c" },
   { id: "forest", label: "Forest", swatch: "#059669" },
   { id: "midnight", label: "Midnight", swatch: "#4f46e5" },
