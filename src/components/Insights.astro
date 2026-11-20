@@ -17,8 +17,8 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
 <div x-data="insights" x-effect="compute()" class="space-y-6">
     <header class="flex flex-wrap items-end justify-between gap-4">
         <div>
-            <p class="text-sm font-medium text-teal-700 dark:text-teal-400">Insights</p>
-            <h1 class="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900 dark:text-white">How you've been doing</h1>
+            <p class="eyebrow">Insights</p>
+            <h1 class="page-title">How you've been doing</h1>
             <p class="mt-1 text-gray-500 dark:text-gray-400">Finished tasks and focus time. Clearing completed tasks keeps their history here.</p>
         </div>
         <div class={segmented} role="group" aria-label="Time range">
@@ -41,7 +41,7 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
         <div class="flex flex-wrap items-center justify-between gap-4">
             <div>
                 <p class="text-sm font-medium text-white/75">Monthly {recapName}</p>
-                <p class="mt-1 text-2xl font-bold tracking-tight" x-text="`Your ${recapMonthName} in review`"></p>
+                <p class="editorial mt-1 text-2xl sm:text-3xl font-normal tracking-tight" x-text="`Your ${recapMonthName} in review`"></p>
                 <p class="mt-1 text-sm text-white/80" x-text="recapTeaser"></p>
             </div>
             <div class="flex flex-wrap items-center gap-2">

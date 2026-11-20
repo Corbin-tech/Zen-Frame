@@ -141,6 +141,12 @@
 :root[data-font="lexend"] { font-family: 'Lexend Variable', system-ui, sans-serif; }
 :root[data-font="atkinson"] { font-family: 'Atkinson Hyperlegible Next Variable', system-ui, sans-serif; }
 
+/* Respect the user's font choice in Settings: non-default fonts override Newsreader on titles and reflective copy */
+:root[data-font]:not([data-font="inter"]) .page-title,
+:root[data-font]:not([data-font="inter"]) .editorial {
+	font-family: inherit;
+}
+
 /* Sidebar navigation (1280px and wider; xl in Tailwind). The page makes room for it. */
 :root { --sidebar-w: 14rem; }
 :root[data-sidebar="collapsed"] { --sidebar-w: 4rem; }
