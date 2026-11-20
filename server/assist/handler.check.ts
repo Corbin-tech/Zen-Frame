@@ -98,7 +98,12 @@ try {
   assert.equal(aborted.entitlement.counts.released, 1); tests++;
   assert.deepEqual(cleanAnswer('breakdown', { steps: [{ text: ' \u0000' + 'a'.repeat(400), minutes: 10 }], id: 'bad' }), { steps: [{ text: 'a'.repeat(200), minutes: 10 }] });
   assert.equal(cleanAnswer('breakdown', { steps: [] }), null);
-  assert.equal(cleanAnswer('compile', { clusters: [] }), null);
+  assert.deepEqual(cleanAnswer('compile', { clusters: [] }), { clusters: [] });
+  for (const raw of [null, 'invalid JSON', {}, { clusters: null }]) assert.equal(cleanAnswer('compile', raw), null);
+  const emptyCompile = setup({ async generate() { return { kind: 'ok', json: { clusters: [] } }; } });
+  const emptyResponse = await handleAssist(request('compile', { text: 'Only feelings, no actions' }), emptyCompile);
+  assert.equal(emptyResponse.status, 200); assert.deepEqual(await emptyResponse.json(), { clusters: [] });
+  assert.deepEqual(emptyCompile.entitlement.counts, { reserved: 1, completed: 1, released: 0 }); tests++;
   assert.equal(cleanAnswer('estimate', { minutes: 0, low: 1, high: 5 }), null);
   assert.deepEqual(cleanAnswer('estimate', { minutes: 10, low: 20, high: 30, id: 'bad' }), { minutes: 10, low: 10, high: 30 });
   const cluster = cleanAnswer('compile', { clusters: [{ name: 'x'.repeat(150), color: 'red', tasks: [{ text: 'y'.repeat(500), minutes: 10, url: 'bad' }] }] });
@@ -149,6 +154,8 @@ try {
     const cloud = createCloudProvider({ getToken: () => 'test-token' });
     assert.equal(cloud.id, 'plus'); assert.equal(await cloud.status(), 'ready');
     assert.deepEqual(await cloud.breakdown(secretText, 'few', 'Home'), { steps: [{ text: 'Start', minutes: 10 }] }); tests++;
+    globalThis.fetch = async () => Response.json({ clusters: [] });
+    assert.deepEqual(await cloud.compile('Only feelings, no actions'), { clusters: [] }); tests++;
     for (const [status, code] of [[401, 'unauthorized'], [429, 'rate_limited'], [413, 'too_long'], [503, 'unavailable'], [400, 'invalid']] as const) {
       globalThis.fetch = async () => new Response('{}', { status });
       await assert.rejects(cloud.breakdown('a', 'few', ''), (e: unknown) => e instanceof AssistError && e.code === code); tests++;

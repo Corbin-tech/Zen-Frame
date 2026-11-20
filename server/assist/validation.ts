@@ -5,8 +5,9 @@ import type { DetailLevel } from '../../src/lib/assist/types.ts';
 export type Endpoint = keyof AssistRequestMap;
 export function cleanAnswer<K extends Endpoint>(endpoint: K, raw: unknown, level?: DetailLevel): AssistResponseMap[K] | null {
   try {
+    if (endpoint === 'compile' && (!raw || typeof raw !== 'object' || !Array.isArray((raw as { clusters?: unknown }).clusters))) return null;
     const result = endpoint === 'breakdown' ? cleanBreakdown(raw) : endpoint === 'compile' ? cleanCompile(raw) : cleanEstimate(raw);
-    if (!result || ('steps' in result && !result.steps.length) || ('clusters' in result && !result.clusters.length)) return null;
+    if (!result || ('steps' in result && !result.steps.length)) return null;
     if ('steps' in result && level) {
       const { min, max } = detailLevel(level);
       if (result.steps.length < min || result.steps.length > max) return null;
