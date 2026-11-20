@@ -12,6 +12,7 @@ const BACKUP_KEYS = [
   "pomoState",
   "pomoSessions",
   "settings",
+  "assist",
   "theme",
   "activeTab",
   "boardCluster",
@@ -32,8 +33,35 @@ const ARRAY_KEYS = new Set<BackupKey>([
   "pomoSessions"
 ]);
 
-const OBJECT_KEYS = new Set<BackupKey>(["planning", "checkIns", "pomoState", "settings"]);
+const OBJECT_KEYS = new Set<BackupKey>(["planning", "checkIns", "pomoState", "settings", "assist"]);
 const STRING_KEYS = new Set<BackupKey>(["theme", "activeTab", "boardCluster", "boardSort", "boardWipLimit", "insightsRange"]);
+
+export function loadSessionJson<T>(key: string, fallback: T): T {
+  try {
+    const saved = sessionStorage.getItem(key);
+    return saved ? JSON.parse(saved) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+export function saveSessionJson(key: string, value: unknown): boolean {
+  try {
+    sessionStorage.setItem(key, JSON.stringify(value));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function removeSession(key: string): boolean {
+  try {
+    sessionStorage.removeItem(key);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 export function loadJson<T>(key: string, fallback: T): T {
   try {

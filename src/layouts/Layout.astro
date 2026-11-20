@@ -79,6 +79,7 @@ const contentSecurityPolicy = [
 			import { initSettingsStore } from '../stores/settingsStore';
 			import { initGoalsStore } from '../stores/goalsStore';
 			import { initPomoStore } from '../stores/pomoStore';
+			import { initAssistStore } from '../stores/assistStore';
 			import { notify, startReminders } from '../lib/notifications';
 			import { registerTaskDragDrop } from '../scripts/taskDragDrop.js';
 			import { dates } from '../lib/dates';
@@ -89,6 +90,8 @@ const contentSecurityPolicy = [
 				window.Alpine.store('goals', initGoalsStore());
 				window.Alpine.store('pomoState', initPomoStore());
 				initStores();
+				// Breakdown, Brain dump, and Estimate helpers (Plus integration pending)
+				window.Alpine.store('assist', initAssistStore());
 				registerTaskDragDrop(window.Alpine);
 				// $dates in templates: date and time helpers from src/lib/dates.ts
 				window.Alpine.magic('dates', () => dates);
