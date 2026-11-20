@@ -44,6 +44,12 @@ describe("Pomodoro reload", () => {
     vi.unstubAllGlobals();
   });
 
+  it.each([null, {}, "corrupted", 42])("starts with no focus history when storage contains %j", (saved) => {
+    localStorage.setItem("pomoSessions", JSON.stringify(saved));
+
+    expect(openPage().sessions).toEqual([]);
+  });
+
   it("keeps counting down from the original deadline and saves the completed focus", () => {
     const first = openPage();
     first.startTimer();

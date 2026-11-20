@@ -223,7 +223,8 @@ export function initPomoStore() {
       const state = loadJson<PomoSavedState>("pomoState", {}) ?? {};
       this.preset = state.preset && Object.hasOwn(POMO_DURATIONS, state.preset) ? state.preset as PomoPreset : "pomodoro";
       this.isBreak = Boolean(state.isBreak);
-      this.sessions = loadJson<FocusSession[]>("pomoSessions", []);
+      const sessions = loadJson<unknown>("pomoSessions", []);
+      this.sessions = Array.isArray(sessions) ? sessions : [];
     }
   };
 }
