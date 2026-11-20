@@ -145,6 +145,7 @@ const select = 'rounded-lg border-gray-200 dark:border-slate-600 bg-white dark:b
 
 <script>
     import { formatWeekdays } from '../lib/dates';
+    import { plan, undo } from '../lib/autoPlanPanel';
 
     const DEFAULT_WINDOW = { weekdays: [1, 2, 3, 4, 5], start: 18 * 60, end: 21 * 60 };
 
@@ -198,20 +199,8 @@ const select = 'rounded-lg border-gray-200 dark:border-slate-600 bg-white dark:b
             },
 
             // Plans from the day shown on the timeline (or today, if that's in the past)
-            plan(dayCount) {
-                this.lastPlan = this.$store.todos.autoPlan(this.selectedDate, dayCount);
-                const count = this.lastPlan.blocks.length;
-                const days = new Set(this.lastPlan.blocks.map(item => item.date)).size;
-                this.result = count
-                    ? `Planned ${count} ${count === 1 ? 'task' : 'tasks'}${dayCount > 1 ? ` over ${days} ${days === 1 ? 'day' : 'days'}` : ''}.`
-                    : 'Nothing to plan: no free time left, or every open task already has a block.';
-            },
-
-            undo() {
-                const removed = this.$store.todos.undoAutoPlan(this.lastPlan);
-                this.result = `Removed ${removed} planned ${removed === 1 ? 'block' : 'blocks'}.`;
-                this.lastPlan = null;
-            }
+            plan,
+            undo
         }));
     });
 </script>
