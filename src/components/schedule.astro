@@ -313,8 +313,7 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-2 rou
                         <input id="block-editor-done" name="block-editor-done"
                             type="checkbox"
                             class="w-4 h-4 rounded border-gray-300 dark:border-slate-500 text-teal-600 focus:ring-teal-500 dark:bg-slate-700"
-                            x-bind:checked="editingItem && $store.todos.isBlockDone(editingItem, selectedDate)"
-                            x-on:change="$store.todos.toggleBlockDone(editingItem, selectedDate)"
+                            x-model="blockDone"
                         />
                         Done
                     </label>
@@ -536,6 +535,8 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-2 rou
             // Block editor
             showModal: false,
             editingItemId: null,
+            initialBlockDone: false,
+            blockDone: false,
             opener: null, // Element to focus again when the editor closes
             taskMode: 'existing',
             selectedTaskId: '',
@@ -961,6 +962,7 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-2 rou
                 window.dispatchEvent(new CustomEvent('overlay-opened', { detail: opened }));
                 this.opener = opened.opener || document.activeElement;
                 this.editingItemId = item?.id ?? null;
+                this.initialBlockDone = this.blockDone = item ? this.$store.todos.isBlockDone(item, this.selectedDate) : false;
                 this.taskMode = 'existing';
                 this.selectedTaskId = item?.taskId ?? '';
                 this.query = '';
@@ -1023,6 +1025,11 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-2 rou
             saveBlock() {
                 if (!this.canSave) return;
 
+                const item = this.editingItem;
+                if (item && this.blockDone !== this.initialBlockDone) {
+                    this.$store.todos.setBlockDone(item, this.selectedDate, this.blockDone);
+                }
+
                 let taskId = this.selectedTaskId;
                 if (this.taskMode === 'new') {
                     taskId = this.$store.todos.addTodo(this.query.trim(), {
@@ -1038,7 +1045,7 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-2 rou
                     startTimeMinutes: this.startMinutes,
                     endTimeMinutes: this.startMinutes + this.duration,
                     repeat: this.repeats
-                        ? { weekdays: [...this.repeatDays], until: this.repeatUntil || null, doneDates: this.editingItem?.repeat?.doneDates ?? [] }
+                        ? { weekdays: [...this.repeatDays], until: this.repeatUntil || null, doneDates: item?.repeat?.doneDates ?? [] }
                         : undefined
                 });
                 this.closeModal();

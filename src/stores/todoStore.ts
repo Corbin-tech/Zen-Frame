@@ -442,17 +442,21 @@ function createTodosStore() {
     },
 
     toggleBlockDone(item: ScheduledItem, dateKey: string): void {
+      this.setBlockDone(item, dateKey, !this.isBlockDone(item, dateKey));
+    },
+
+    setBlockDone(item: ScheduledItem, dateKey: string, done: boolean): void {
+      if (this.isBlockDone(item, dateKey) === done) return;
       if (!item.repeat) {
         this.toggleTodo(item.taskId);
         return;
       }
       const { doneDates } = item.repeat;
-      const wasDone = doneDates.includes(dateKey);
-      item.repeat.doneDates = wasDone ? doneDates.filter(day => day !== dateKey) : [...doneDates, dateKey];
+      item.repeat.doneDates = done ? [...doneDates, dateKey] : doneDates.filter(day => day !== dateKey);
 
       // Each ticked day is one history entry, so routines count in Insights and streaks.
       // Unticking takes that day's entry out again.
-      const record = wasDone ? null : this.tickRecord(item, dateKey);
+      const record = done ? this.tickRecord(item, dateKey) : null;
       this.history = this.history.filter(entry => !(entry.blockId === item.id && toDateKey(new Date(entry.at)) === dateKey));
       if (record) this.history = [...this.history, record].sort((a, b) => a.at.localeCompare(b.at)).slice(-HISTORY_LIMIT);
       this.saveTodos();
