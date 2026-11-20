@@ -154,7 +154,7 @@ const checkbox = 'w-4 h-4 shrink-0 rounded border-gray-300 dark:border-slate-500
                 class="absolute -top-2 z-10 -translate-x-1/2 -translate-y-full px-2.5 py-1.5 rounded-lg bg-gray-900 dark:bg-slate-950 text-white shadow-lg pointer-events-none whitespace-nowrap"
                 x-bind:style="hoveredDay ? `left: ${(hoveredDay.index + 0.5) / weekActivity.length * 100}%;` : ''"
             >
-                <p class="text-sm font-semibold" x-text="hoveredDay ? `${hoveredDay.count} ${hoveredDay.count === 1 ? 'task' : 'tasks'}` : ''"></p>
+                <p class="text-sm font-semibold" x-text="hoveredDay ? $plural(hoveredDay.count, 'task') : ''"></p>
                 <p class="text-xs text-gray-300" x-text="hoveredDay ? $dates.formatDate(hoveredDay.date, { weekday: 'short', month: 'short', day: 'numeric' }) : ''"></p>
             </div>
 
@@ -165,7 +165,7 @@ const checkbox = 'w-4 h-4 shrink-0 rounded border-gray-300 dark:border-slate-500
                         class="flex-1 h-full flex flex-col items-center justify-end gap-1 cursor-default rounded-t focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
                         tabindex="0"
                         role="img"
-                        x-bind:aria-label="`${$dates.formatDate(day.date, { weekday: 'long', month: 'short', day: 'numeric' })}: ${day.count} ${day.count === 1 ? 'task' : 'tasks'} completed`"
+                        x-bind:aria-label="`${$dates.formatDate(day.date, { weekday: 'long', month: 'short', day: 'numeric' })}: ${$plural(day.count, 'task')} completed`"
                         x-on:mouseenter="hoveredDay = day"
                         x-on:focus="hoveredDay = day"
                         x-on:blur="hoveredDay = null"
@@ -387,8 +387,8 @@ const checkbox = 'w-4 h-4 shrink-0 rounded border-gray-300 dark:border-slate-500
             <h2 class={panelTitle}>Streak</h2>
             <button type="button" class={linkButton} x-on:click="$dispatch('change-tab', { tab: 'insights' })">Insights →</button>
         </div>
-        <p class="text-3xl font-semibold tracking-tight tabular-nums text-gray-900 dark:text-white" x-text="`${streak.current} ${streak.current === 1 ? 'day' : 'days'}`"></p>
-        <p class="text-sm text-gray-500 dark:text-gray-400" x-text="streak.current ? `In a row. Longest: ${streak.longest} days.` : 'Finish a task or a focus session to start one.'"></p>
+        <p class="text-3xl font-semibold tracking-tight tabular-nums text-gray-900 dark:text-white" x-text="$plural(streak.current, 'day')"></p>
+        <p class="text-sm text-gray-500 dark:text-gray-400" x-text="streak.current ? `In a row. Longest: ${$plural(streak.longest, 'day')}.` : 'Finish a task or a focus session to start one.'"></p>
         <!-- The last 14 days: filled when something got done -->
         <ol class="mt-4 grid grid-cols-7 gap-1.5">
             <template x-for="day in streak.days" :key="day.date">

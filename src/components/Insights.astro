@@ -116,7 +116,7 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
             <div class="flex flex-wrap items-baseline justify-between gap-2 mb-4">
                 <div>
                     <h2 class={panelTitle}>Activity</h2>
-                    <p class="text-sm text-gray-500 dark:text-gray-400" x-text="`Last 26 weeks · ${view.heatmapActiveDays} active days`"></p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400" x-text="`Last 26 weeks · ${$plural(view.heatmapActiveDays, 'active day')}`"></p>
                 </div>
                 <div class="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400" aria-hidden="true">
                     Less
@@ -186,7 +186,7 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
         <!-- By cluster -->
         <section class={`${panel} p-5`}>
             <h2 class={`${panelTitle} mb-1`}>By cluster</h2>
-            <p class="text-sm text-gray-500 dark:text-gray-400 mb-4" x-text="view.clusters.length ? `${view.summary.tasks} tasks in ${rangeLabel}` : `Nothing finished in ${rangeLabel}`"></p>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-4" x-text="view.clusters.length ? `${$plural(view.summary.tasks, 'task')} in ${rangeLabel}` : `Nothing finished in ${rangeLabel}`"></p>
             <ul class="space-y-3" x-show="view.clusters.length">
                 <template x-for="cluster in view.clusters" :key="cluster.key">
                     <li>
@@ -225,6 +225,7 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
 
 <script>
     import { dates } from '../lib/dates';
+    import { plural } from '../lib/plural';
     import { loadString, saveString } from '../lib/storage';
     import {
         activeDays, dailyActivity, formatMonth, lastDays, monthOf, monthRange, monthsWithActivity,
@@ -241,7 +242,6 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
     // January 4, 2026 is a Sunday
     const weekdayName = (day, style = 'short') => new Date(2026, 0, 4 + day).toLocaleDateString(undefined, { weekday: style });
     const hourLabel = (hour) => `${hour % 12 || 12}${hour < 12 ? 'a' : 'p'}`;
-    const plural = (count, word) => `${count} ${word}${count === 1 ? '' : 's'}`;
 
     function rangeFor(id, today) {
         if (id === '12m') {
