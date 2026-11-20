@@ -274,7 +274,7 @@ const checkbox = 'w-4 h-4 shrink-0 rounded border-gray-300 dark:border-slate-500
                         progress: status === 'now' ? Math.round((nowMinutes - start) / (end - start) * 100) : 0,
                         title: task?.todo || 'Deleted task',
                         isCluster,
-                        completed: this.$store.todos.isBlockDone(item, this.todayKey),
+                        completed: !isCluster && this.$store.todos.isBlockDone(item, this.todayKey),
                         detail: isCluster
                             ? (item.repeat ? `Repeats ${dates.formatWeekdays(item.repeat.weekdays)}` : 'Cluster')
                             : this.$store.todos.clusterName(task?.parentId ?? null) || 'No cluster',
@@ -290,8 +290,26 @@ const checkbox = 'w-4 h-4 shrink-0 rounded border-gray-300 dark:border-slate-500
             get planSummary() {
                 const blocks = this.todayBlocks;
                 if (!blocks.length) return 'No blocks yet';
-                const done = blocks.filter(block => block.completed).length;
-                return `${blocks.length} ${blocks.length === 1 ? 'block' : 'blocks'} · ${dates.formatDuration(this.plannedMinutes)} · ${done} done`;
+                const taskBlocks = blocks.filter(block => !block.isCluster);
+                const summary = `${blocks.length} ${blocks.length === 1 ? 'block' : 'blocks'} · ${dates.formatDuration(this.plannedMinutes)}`;
+                if (!taskBlocks.length) return summary;
+                const done = taskBlocks.filter(block => block.completed).length;
+                return `${summary} · ${done} of ${taskBlocks.length} done`;
+            },
+
+            get plannedDetail() {
+                const blocks = this.todayBlocks;
+                if (!blocks.length) return 'No blocks yet';
+                const nextBlock = blocks.find(block => block.status !== 'past' && !block.completed);
+                if (nextBlock) {
+                    return nextBlock.status === 'now'
+                        ? `Now: ${nextBlock.title}`
+                        : `Next: ${nextBlock.title} at ${dates.formatTime(nextBlock.start)}`;
+                }
+                const taskBlocks = blocks.filter(block => !block.isCluster);
+                if (!taskBlocks.length) return 'All blocks ended';
+                if (taskBlocks.some(block => !block.completed)) return 'Ended with tasks left';
+                return taskBlocks.length === blocks.length ? 'All blocks finished' : 'All tasks done';
             },
 
             // --- Focus sessions (Pomodoro) ---
@@ -312,7 +330,6 @@ const checkbox = 'w-4 h-4 shrink-0 rounded border-gray-300 dark:border-slate-500
             get tiles() {
                 const open = this.$store.todos.openTasks.length;
                 const dueToday = this.$store.todos.openTasks.filter(task => task.dueDate === this.todayKey).length;
-                const nextBlock = this.todayBlocks.find(block => block.status !== 'past' && !block.completed);
                 const sessions = this.focusSessionsThisWeek;
 
                 return [
@@ -336,9 +353,7 @@ const checkbox = 'w-4 h-4 shrink-0 rounded border-gray-300 dark:border-slate-500
                     {
                         label: 'Planned today',
                         value: dates.formatDuration(this.plannedMinutes),
-                        detail: nextBlock
-                            ? `${nextBlock.status === 'now' ? 'Now' : 'Next'}: ${nextBlock.title}${nextBlock.status === 'now' ? '' : ` at ${dates.formatTime(nextBlock.start)}`}`
-                            : this.todayBlocks.length ? 'All blocks finished' : 'No blocks yet',
+                        detail: this.plannedDetail,
                         icon: ICONS.calendar,
                         tab: 'schedule',
                         tabLabel: 'Schedule'
