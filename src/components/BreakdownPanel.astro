@@ -1,0 +1,96 @@
+---
+interface Props {
+    taskId?: string; // Alpine expression in the containing task's scope
+    fallbackFocus?: string; // Task control to focus if the Plus trigger disappears
+}
+
+const { taskId = 'task.id', fallbackFocus = 'undefined' } = Astro.props;
+const button = 'min-h-9 rounded-lg px-3 py-1.5 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500';
+const quiet = `${button} text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-slate-700`;
+const primary = `${button} bg-teal-700 text-white hover:bg-teal-800 disabled:opacity-50`;
+const field = 'w-full min-w-0 rounded-lg border border-gray-300 bg-white text-sm text-gray-900 focus:border-teal-500 focus:ring-teal-500 dark:border-slate-600 dark:bg-slate-800 dark:text-gray-100';
+---
+
+<div x-data={`breakdownPanel(() => ${taskId}, () => ${fallbackFocus})`} x-id="['breakdown-panel', 'breakdown-title']" class="w-full">
+    <button
+        hidden
+        x-bind:hidden="!canSuggest || open"
+        x-ref="trigger"
+        type="button"
+        x-bind:aria-controls="$id('breakdown-panel')"
+        x-bind:aria-expanded="open"
+        x-on:click="show()"
+        class={`${quiet} border border-gray-200 dark:border-slate-600`}
+    >Break down task <span class="ml-1 text-xs font-semibold text-teal-700 dark:text-teal-300">Plus</span></button>
+
+    <p role="status" class="sr-only" x-text="announcement"></p>
+    <section
+        hidden
+        x-bind:hidden="!open"
+        x-bind:id="$id('breakdown-panel')"
+        x-bind:aria-labelledby="$id('breakdown-title')"
+        x-on:keydown.escape.stop="close()"
+        class="space-y-4 rounded-xl border border-gray-200 bg-white p-4 text-left dark:border-slate-600 dark:bg-slate-800"
+    >
+        <div>
+            <h3 x-bind:id="$id('breakdown-title')" class="font-semibold text-gray-900 dark:text-gray-100">Break down task</h3>
+            <p class="mt-1 text-sm text-gray-600 dark:text-gray-300" x-text="task?.todo"></p>
+        </div>
+        <div x-bind:hidden="editing" class="space-y-3">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">
+                Detail level
+                <select x-ref="level" x-model="level" x-bind:disabled="working" class={`${field} mt-1 min-h-10 max-w-xs`}>
+                    <template x-for="option in detailLevels" x-bind:key="option.id">
+                        <option x-bind:value="option.id" x-text="option.label"></option>
+                    </template>
+                </select>
+            </label>
+            <p x-show="working" class="text-sm text-gray-600 dark:text-gray-300">Finding steps…</p>
+            <p x-show="error" role="alert" class="text-sm text-red-700 dark:text-red-300" x-text="error"></p>
+            <p x-show="open && !canSuggest && !working" class="text-sm text-gray-600 dark:text-gray-300">Plus suggestions are unavailable.</p>
+            <div class="flex flex-wrap gap-2">
+                <button
+                    x-bind:hidden="working"
+                    x-ref="generate"
+                    type="button"
+                    x-bind:disabled="!canSuggest || $store.assist.busy"
+                    x-on:click="generate()"
+                    class={primary}
+                    x-text="error ? 'Try again' : 'Find steps'"
+                ></button>
+                <button hidden x-bind:hidden="!working" x-ref="cancel" type="button" x-on:click="cancel()" class={quiet}>Cancel</button>
+            </div>
+        </div>
+        <div hidden x-bind:hidden="!editing" class="space-y-3">
+            <p class="text-sm text-gray-600 dark:text-gray-300">Edit, move or remove any step before saving.</p>
+            <p x-show="task?.steps?.length" class="text-sm text-gray-600 dark:text-gray-300">Accept replaces the existing checklist and resets its progress.</p>
+            <ol class="space-y-3">
+                <template x-for="(step, index) in draft" x-bind:key="step.key">
+                    <li x-bind:data-draft-step="step.key" class="space-y-1 rounded-lg border border-gray-200 p-2 dark:border-slate-600">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">
+                            <span x-text="`Step ${index + 1}`"></span>
+                            <textarea
+                                rows="2"
+                                maxlength="200"
+                                x-model="step.text"
+                                class={`${field} mt-1 block`}
+                            ></textarea>
+                        </label>
+                        <div class="flex flex-wrap items-center gap-1">
+                            <button type="button" x-bind:disabled="index === 0" x-bind:aria-label="`Move step ${index + 1} up`" x-on:click="move(index, -1)" class={`${quiet} disabled:opacity-40`}>Up</button>
+                            <button type="button" x-bind:disabled="index === draft.length - 1" x-bind:aria-label="`Move step ${index + 1} down`" x-on:click="move(index, 1)" class={`${quiet} disabled:opacity-40`}>Down</button>
+                            <button type="button" x-bind:aria-label="`Remove step ${index + 1}`" x-on:click="remove(index)" class={quiet}>Remove</button>
+                            <span x-show="step.minutes" class="ml-auto px-2 text-xs text-gray-600 dark:text-gray-300" x-text="`${step.minutes} min`"></span>
+                        </div>
+                    </li>
+                </template>
+            </ol>
+            <button x-ref="add" type="button" x-on:click="add()" x-bind:disabled="draft.length >= maxSteps" class={`${quiet} disabled:opacity-40`}>Add step</button>
+            <p x-show="draft.length >= maxSteps" class="text-xs text-gray-600 dark:text-gray-300">This checklist can have up to 12 steps.</p>
+        </div>
+        <div class="flex flex-wrap justify-end gap-2 border-t border-gray-100 pt-3 dark:border-slate-700">
+            <button type="button" x-on:click="close()" class={quiet}>Discard</button>
+            <button x-show="editing" type="button" x-on:click="accept()" x-bind:disabled="!hasValidStep" class={primary}>Accept</button>
+        </div>
+    </section>
+</div>
