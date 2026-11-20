@@ -108,6 +108,28 @@ describe("Pomodoro reload", () => {
     ]);
   });
 
+  it("keeps both in-tab completions when session storage reads throw", () => {
+    const store = openPage();
+    const getItem = localStorage.getItem.bind(localStorage);
+    vi.spyOn(localStorage, "getItem").mockImplementation(key => {
+      if (key === "pomoSessions") throw new Error("Storage unavailable");
+      return getItem(key);
+    });
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      store.completeTimer(+start, false);
+      store.toggleBreak();
+      store.completeTimer(+start + focusMs, false);
+
+      expect(store.sessions).toEqual([
+        { completedAt: start.toISOString(), minutes: 25 },
+        { completedAt: new Date(+start + focusMs).toISOString(), minutes: 25 }
+      ]);
+    } finally {
+      errors.mockRestore();
+    }
+  });
+
   it("restores the current tab's break without recording focus or picking up another tab's preset", () => {
     const first = openPage();
     first.setPreset("long");

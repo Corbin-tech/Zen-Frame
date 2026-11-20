@@ -154,7 +154,9 @@ export function initPomoStore() {
       this.loadState();
       window.addEventListener("storage", event => {
         if (event.storageArea !== localStorage) return;
-        if (event.key === null || event.key === "pomoSessions") this.loadSessions();
+        if (event.key === null || event.key === "pomoSessions") {
+          this.loadSessions(event.newValue === null ? [] : this.sessions);
+        }
       });
       const running = loadRunningTimer();
       if (running) {
@@ -389,7 +391,7 @@ export function initPomoStore() {
       const finishedMinutes = Math.round(this.totalTime / 60);
       if (!finishedWasBreak) {
         const completedAt = new Date(endsAt).toISOString();
-        this.loadSessions();
+        this.loadSessions(this.sessions);
         if (!this.sessions.some((session) => session?.completedAt === completedAt)) {
           const task = this.focusTask === undefined ? this.activeTask : this.focusTask;
           const todos = window.Alpine.store("todos") as PomoTodosApi | undefined;
@@ -523,8 +525,8 @@ export function initPomoStore() {
       this.loadSessions();
     },
 
-    loadSessions(): void {
-      const savedSessions = loadJson<FocusSession[]>("pomoSessions", []);
+    loadSessions(fallback: FocusSession[] = []): void {
+      const savedSessions = loadJson<FocusSession[]>("pomoSessions", fallback);
       this.sessions = Array.isArray(savedSessions) ? savedSessions : [];
     }
   };
