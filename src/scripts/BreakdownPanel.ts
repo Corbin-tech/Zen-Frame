@@ -71,7 +71,7 @@ export function registerBreakdownPanel() {
             openFrom(detail: { row?: Element | null; opener?: HTMLElement } | undefined) {
                 const row = this.$root.closest('.task-item');
                 if (!row || detail?.row !== row) return;
-                opener = detail.opener ?? null;
+                opener = detail.opener instanceof HTMLElement ? detail.opener : null;
                 this.show();
             },
             show() {
