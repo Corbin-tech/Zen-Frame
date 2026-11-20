@@ -18,11 +18,11 @@ export function createCloudProvider({ getToken }: { getToken: () => string | nul
       try {
         const body = await response.json();
         if (body && typeof body.error === 'string' && Object.hasOwn(ASSIST_ERROR_STATUS, body.error) && ASSIST_ERROR_STATUS[body.error as AssistErrorCode] === response.status) code = body.error;
-      } catch { /* Keep the status-based fallback. */ }
+      } catch (error) { if (signal?.aborted) throw error; }
       throw new AssistError(code);
     }
     try { const result = cleanAnswer(endpoint, await response.json(), endpoint === 'breakdown' ? (input as AssistRequestMap['breakdown']).level : undefined); if (!result) throw new AssistError('model_error'); return result; }
-    catch { throw new AssistError('model_error'); }
+    catch (error) { if (signal?.aborted) throw error; throw new AssistError('model_error'); }
   }
   return {
     id: 'plus',

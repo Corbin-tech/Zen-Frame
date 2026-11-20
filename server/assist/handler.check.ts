@@ -227,6 +227,18 @@ try {
     }
     globalThis.fetch = async () => Response.json({ error: 'needs_plus' }, { status: 500 });
     await assert.rejects(cloud.estimate('a'), (e: unknown) => e instanceof AssistError && e.code === 'unavailable'); tests++;
+    for (const stage of ['fetch', 'success-body', 'error-body'] as const) {
+      const abort = new AbortController();
+      const reason = new DOMException('Cancelled', 'AbortError');
+      globalThis.fetch = async (_url, init) => {
+        assert.equal(init?.signal, abort.signal);
+        if (stage === 'fetch') { abort.abort(reason); throw reason; }
+        const response = new Response('', { status: stage === 'success-body' ? 200 : 403 });
+        response.json = async () => { abort.abort(reason); throw reason; };
+        return response;
+      };
+      await assert.rejects(cloud.estimate('a', abort.signal), (e: unknown) => e === reason); tests++;
+    }
     globalThis.fetch = async () => Response.json({ steps: [] });
     await assert.rejects(cloud.breakdown('a', 'few', ''), AssistError); tests++;
   } finally { globalThis.fetch = realFetch; }
