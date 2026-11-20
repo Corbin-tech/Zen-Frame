@@ -27,10 +27,12 @@ const pickerItem = 'w-full flex items-center gap-2.5 px-3 py-2 text-left rounded
                     const open = $store.todos.openTasks.length;
                     const clusters = $store.todos.clusters.length;
                     if (!$store.todos.items.length) return 'Add a task or a cluster to get started.';
-                    // Board's no-results idiom, mirrored quietly (spec item 20)
+                    // Board's no-results idiom, mirrored quietly (spec item 20).
+                    // Completed matches count too: their folds open while searching.
                     if (searching) {
-                        const matches = openTasksIn(null).length
-                            + $store.todos.clusters.reduce((sum, cluster) => sum + openTasksIn(cluster.id).length, 0);
+                        const matches = openTasksIn(null).length + doneTasksIn(null).length
+                            + $store.todos.clusters.reduce((sum, cluster) =>
+                                sum + openTasksIn(cluster.id).length + doneTasksIn(cluster.id).length, 0);
                         if (!matches) return `No tasks match &quot;${search.trim()}&quot;.`;
                     }
                     return `${open} open ${open === 1 ? 'task' : 'tasks'} · ${clusters} ${clusters === 1 ? 'cluster' : 'clusters'}`;
