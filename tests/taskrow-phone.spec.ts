@@ -41,6 +41,10 @@ for (const width of [390, 1280]) {
       expect(Math.abs(titleBox!.y + titleBox!.height / 2 - estimateBox!.y - estimateBox!.height / 2)).toBeLessThan(2);
     } else {
       expect(estimateBox!.y).toBeGreaterThanOrEqual(titleBox!.y + titleBox!.height);
+      const titlePadding = await title.evaluate(el => parseFloat(getComputedStyle(el).paddingLeft));
+      expect(estimateBox!.x).toBe(titleBox!.x + titlePadding);
+      const rowBox = await rows.first().boundingBox();
+      expect(rowBox!.y + rowBox!.height - estimateBox!.y - estimateBox!.height).toBe(12);
     }
   });
 }
