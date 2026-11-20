@@ -1,0 +1,87 @@
+---
+import { MAX_MINUTES } from '../lib/assist/sanitize';
+
+const button = 'touch-target rounded-md border border-gray-200 dark:border-slate-600 px-2.5 py-1 text-xs font-medium hover:border-teal-500 hover:text-teal-700 dark:hover:text-teal-300 focus-visible:ring-2 focus-visible:ring-teal-500 disabled:opacity-50';
+---
+
+<div
+    x-data="estimatePicker($store.assist)"
+    x-id="['estimate-options', 'estimate-minutes']"
+    x-on:keydown.escape.stop="if (open) { close(); $refs.chip.focus() }"
+    x-on:focusout="if (open && !$el.contains($event.relatedTarget)) close()"
+    x-on:click.outside="if (open) close()"
+    class="relative shrink-0 pl-14 sm:pl-0 pb-2 sm:pb-0"
+>
+    <button
+        type="button"
+        x-ref="chip"
+        x-on:click="if (open) close(); else { open = true; $nextTick(() => $refs.firstPick.focus()) }"
+        x-bind:aria-expanded="open"
+        x-bind:aria-controls="$id('estimate-options')"
+        x-bind:aria-label="task.estimateMinutes ? `Change estimate for ${task.todo || 'task'}: ${task.estimateMinutes} minutes` : `Set estimate for ${task.todo || 'task'}`"
+        x-bind:class="task.estimateMinutes
+            ? 'border-transparent bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300'
+            : 'border-dashed border-gray-300 text-gray-600 dark:border-slate-500 dark:text-gray-300'"
+        class="touch-target rounded-md border px-2 py-1 text-xs font-medium hover:border-teal-500 focus-visible:ring-2 focus-visible:ring-teal-500"
+        x-text="task.estimateMinutes ? `${task.estimateMinutes} min` : '+ Estimate'"
+    ></button>
+
+    <div
+        x-bind:class="{ hidden: !open }"
+        x-cloak
+        x-bind:id="$id('estimate-options')"
+        role="group"
+        aria-label="Estimate options"
+        class="absolute left-0 sm:left-auto sm:right-0 top-full z-30 w-56 space-y-2 rounded-lg border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-2.5 shadow-lg text-gray-700 dark:text-gray-200"
+    >
+        <div class="grid grid-cols-3 gap-1">
+            {[5, 15, 25, 45, 60, 90].map((minutes, index) => (
+                <button
+                    type="button"
+                    x-ref={index === 0 ? 'firstPick' : undefined}
+                    class={button}
+                    x-on:click={`$store.todos.setEstimate(task.id, ${minutes}); close(); $refs.chip.focus()`}
+                >{minutes} min</button>
+            ))}
+        </div>
+        <div class="flex flex-wrap gap-1">
+            <button type="button" class={button} x-on:click="cancel(); startEditing(task.estimateMinutes ?? null); error = ''; $nextTick(() => $refs.minutes.focus())">Custom</button>
+            <button type="button" class={button} x-on:click="$store.todos.setEstimate(task.id, null); close(); $refs.chip.focus()">Clear</button>
+            <button
+                type="button"
+                x-ref="suggest"
+                x-show="canSuggest"
+                class={button}
+                x-bind:aria-disabled="$store.assist.busy || !task.todo.trim()"
+                x-on:click="if (!$store.assist.busy && task.todo.trim()) await suggest(task.id)"
+            >Suggest</button>
+        </div>
+        <div x-show="pending" class="flex items-center justify-between text-xs">
+            <span role="status">Suggesting…</span>
+            <button type="button" class={button} x-on:click="cancel(); $refs.suggest.focus()">Cancel</button>
+        </div>
+        <p x-show="error" role="status" class="text-xs" x-text="error"></p>
+        <form
+            x-bind:class="{ hidden: !editing }"
+            x-on:submit.prevent="if (saveMinutes !== null) { $store.todos.setEstimate(task.id, saveMinutes); close(); $refs.chip.focus() }"
+            class="space-y-1"
+        >
+            <p x-show="suggestion" role="status" class="text-xs" x-text="suggestion ? `About ${suggestion.minutes} min (${suggestion.low}–${suggestion.high})` : ''"></p>
+            <label x-bind:for="$id('estimate-minutes')" class="text-xs font-medium">Minutes</label>
+            <div class="flex items-center gap-1">
+                <input
+                    x-bind:id="$id('estimate-minutes')"
+                    x-ref="minutes"
+                    x-model.number="minutes"
+                    type="number"
+                    min="1"
+                    max={MAX_MINUTES}
+                    step="1"
+                    required
+                    class="min-w-0 w-full rounded-md border-gray-300 dark:border-slate-600 dark:bg-slate-700 px-2 py-1 text-sm focus:ring-teal-500"
+                />
+                <button type="submit" class={button} x-bind:disabled="saveMinutes === null" x-text="suggestion ? 'Accept' : 'Save'"></button>
+            </div>
+        </form>
+    </div>
+</div>

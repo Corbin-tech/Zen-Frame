@@ -1,4 +1,6 @@
 ---
+import EstimatePicker from './EstimatePicker.astro';
+
 // One task row. Render it inside an Alpine x-for that provides `task`.
 ---
 
@@ -41,6 +43,8 @@
             />
         </div>
     </div>
+
+    <EstimatePicker />
 
     <!-- Due date: the chip opens the browser date picker. Tasks started on the board say so. -->
     <div class="relative shrink-0 pl-14 sm:pl-0 pb-2 sm:pb-0 flex items-center gap-1.5" x-data>

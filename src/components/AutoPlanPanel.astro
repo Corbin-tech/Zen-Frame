@@ -103,7 +103,7 @@ const select = 'rounded-lg border-gray-200 dark:border-slate-600 bg-white dark:b
 
         <div class="grid grid-cols-2 gap-2">
             <label class="block text-xs text-gray-500 dark:text-gray-400">
-                Time per task
+                Time for tasks without estimates
                 <select class={`${select} mt-1 w-full`} x-on:change="$store.todos.updatePlanning({ duration: Number($event.target.value) })">
                     {[15, 30, 45, 60, 90, 120].map((minutes) => (
                         <option value={minutes} x-bind:selected={`$store.todos.planning.duration === ${minutes}`}>{minutes < 60 ? `${minutes} min` : `${minutes / 60} hr`}</option>

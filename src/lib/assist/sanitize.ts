@@ -62,6 +62,10 @@ export function cleanMinutes(value: unknown): number | null {
   return Math.min(MAX_MINUTES, Math.max(1, Math.round(minutes)));
 }
 
+export function cleanStepTotal(steps: ReadonlyArray<{ minutes?: number | null }>): number | null {
+  return cleanMinutes(steps.reduce((sum, step) => sum + (step.minutes ?? 0), 0));
+}
+
 function parse(raw: unknown): unknown {
   if (typeof raw !== "string") return raw;
   try {

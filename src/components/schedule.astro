@@ -338,7 +338,7 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-2 rou
                             <li>
                                 <button
                                     type="button"
-                                    x-on:click="taskMode = 'existing'; selectedTaskId = task.id"
+                                    x-on:click="selectBlockTarget(task.id)"
                                     class="w-full flex items-center gap-2 px-3 py-2 text-left text-sm transition-colors"
                                     x-bind:class="taskMode === 'existing' && selectedTaskId === task.id ? 'bg-teal-50 dark:bg-teal-900/30 text-teal-800 dark:text-teal-200' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-700/60'"
                                     x-bind:aria-pressed="taskMode === 'existing' && selectedTaskId === task.id"
@@ -361,7 +361,7 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-2 rou
                             <li>
                                 <button
                                     type="button"
-                                    x-on:click="taskMode = 'existing'; selectedTaskId = cluster.id"
+                                    x-on:click="selectBlockTarget(cluster.id)"
                                     class="w-full flex items-center gap-2 px-3 py-2 text-left text-sm transition-colors"
                                     x-bind:class="taskMode === 'existing' && selectedTaskId === cluster.id ? 'bg-teal-50 dark:bg-teal-900/30 text-teal-800 dark:text-teal-200' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-700/60'"
                                     x-bind:aria-pressed="taskMode === 'existing' && selectedTaskId === cluster.id"
@@ -376,7 +376,7 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-2 rou
                         <li x-show="canCreateFromQuery">
                             <button
                                 type="button"
-                                x-on:click="taskMode = 'new'; selectedTaskId = ''"
+                                x-on:click="selectBlockTarget('')"
                                 class="w-full flex items-center gap-2 px-3 py-2 text-left text-sm transition-colors"
                                 x-bind:class="taskMode === 'new' ? 'bg-teal-50 dark:bg-teal-900/30 text-teal-800 dark:text-teal-200' : 'text-teal-700 dark:text-teal-300 hover:bg-gray-50 dark:hover:bg-slate-700/60'"
                             >
@@ -417,7 +417,7 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-2 rou
                         </div>
                         <div>
                             <label for="block-end" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">End</label>
-                            <select id="block-end" x-model="endTime" x-on:change="length = duration" class="block w-full rounded-lg border-gray-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-sm focus:border-teal-500 focus:ring-teal-500">
+                            <select id="block-end" x-model="endTime" x-on:change="length = unestimatedLength = duration" class="block w-full rounded-lg border-gray-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-sm focus:border-teal-500 focus:ring-teal-500">
                                 {endOptions.map((option) => <option value={option.value}>{option.label}</option>)}
                             </select>
                         </div>
@@ -426,7 +426,7 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-2 rou
                         <template x-for="minutes in [30, 45, 60, 90, 120]" :key="minutes">
                             <button
                                 type="button"
-                                x-on:click="setDuration(minutes)"
+                                x-on:click="setDuration(unestimatedLength = minutes)"
                                 class="px-2.5 py-1 text-xs font-medium rounded-full border transition-colors"
                                 x-bind:class="duration === minutes
                                     ? 'border-teal-600 bg-teal-600 text-white'
@@ -511,6 +511,7 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-2 rou
 
 <script>
     import { dates } from '../lib/dates';
+    import { blockMinutes } from '../lib/estimates';
     import { DAY_START, DAY_END, HOUR_HEIGHT, SLOT_MINUTES } from '../lib/timeline';
     import { windowsOn } from '../lib/autoPlan';
 
@@ -544,6 +545,7 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-2 rou
             startTime: '',
             endTime: '',
             length: DEFAULT_LENGTH, // Minutes the block keeps when its start moves
+            unestimatedLength: DEFAULT_LENGTH,
             repeats: false,
             repeatDays: [],
             repeatUntil: '',
@@ -960,13 +962,14 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-2 rou
                 this.opener = opened.opener || document.activeElement;
                 this.editingItemId = item?.id ?? null;
                 this.taskMode = 'existing';
-                this.selectedTaskId = item?.taskId ?? taskId ?? '';
+                this.selectedTaskId = item?.taskId ?? '';
                 this.query = '';
                 this.newTaskClusterId = '';
                 this.newTaskDueDate = '';
                 this.startTime = dates.toTimeValue(start);
                 this.endTime = dates.toTimeValue(end);
-                this.length = end - start;
+                this.length = this.unestimatedLength = end - start;
+                if (!item && taskId) this.selectBlockTarget(taskId);
                 this.repeats = Boolean(item?.repeat);
                 this.repeatDays = item?.repeat ? [...item.repeat.weekdays] : [dates.fromDateKey(this.selectedDate).getDay()];
                 this.repeatUntil = item?.repeat?.until ?? '';
@@ -994,13 +997,16 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-2 rou
 
             pickFirstMatch() {
                 const match = this.pickerTasks[0] ?? this.pickerClusters[0];
-                if (match) {
-                    this.taskMode = 'existing';
-                    this.selectedTaskId = match.id;
-                } else if (this.canCreateFromQuery) {
-                    this.taskMode = 'new';
-                    this.selectedTaskId = '';
-                }
+                if (match) this.selectBlockTarget(match.id);
+                else if (this.canCreateFromQuery) this.selectBlockTarget('');
+            },
+
+            selectBlockTarget(taskId) {
+                if (taskId && this.selectedTaskId === taskId && this.taskMode === 'existing') return;
+                this.taskMode = taskId ? 'existing' : 'new';
+                this.selectedTaskId = taskId;
+                const estimate = this.selectedTask?.estimateMinutes;
+                this.setDuration(estimate ? blockMinutes(estimate) : this.unestimatedLength);
             },
 
             setDuration(minutes) {
