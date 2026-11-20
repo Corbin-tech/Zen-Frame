@@ -96,9 +96,9 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-1 rou
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" /></svg>
                         </button>
                         <div x-show="open" x-cloak x-transition.opacity class="absolute left-0 top-full mt-1 z-20 w-56 rounded-xl bg-white dark:bg-slate-800 shadow-lg ring-1 ring-black/10 dark:ring-white/10 p-3">
-                            <label for="board-wip" class="block text-xs font-semibold text-gray-900 dark:text-white">Limit in progress</label>
+                            <label x-bind:for="`board-wip-${column.id}`" class="block text-xs font-semibold text-gray-900 dark:text-white">Limit in progress</label>
                             <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5 mb-2">Finishing beats starting. The column turns amber past this.</p>
-                            <select id="board-wip" class={`${field} w-full`} x-on:change="setWipLimit(Number($event.target.value))">
+                            <select x-bind:id="`board-wip-${column.id}`" class={`${field} w-full`} x-on:change="setWipLimit(Number($event.target.value))">
                                 <option value="0" x-bind:selected="!wipLimit">No limit</option>
                                 <template x-for="n in [1, 2, 3, 4, 5, 6, 8, 10]" :key="n">
                                     <option x-bind:value="n" x-bind:selected="wipLimit === n" x-text="`${n} at a time`"></option>
@@ -234,6 +234,7 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-1 rou
                                         Due
                                         <input
                                             type="date"
+                                            name="board-task-due"
                                             class={`${field} mt-0.5 block w-full`}
                                             x-bind:value="task.dueDate || ''"
                                             x-on:change="$store.todos.setDueDate(task.id, $event.target.value)"
@@ -241,7 +242,7 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-1 rou
                                     </label>
                                     <label class="text-[11px] font-medium text-gray-500 dark:text-gray-400">
                                         Cluster
-                                        <select class={`${field} mt-0.5 block w-full`} x-on:change="$store.todos.updateTask(task.id, { parentId: $event.target.value || null })">
+                                        <select name="board-task-cluster" class={`${field} mt-0.5 block w-full`} x-on:change="$store.todos.updateTask(task.id, { parentId: $event.target.value || null })">
                                             <option value="" x-bind:selected="!task.parentId">No cluster</option>
                                             <template x-for="cluster in $store.todos.clusters" :key="cluster.id">
                                                 <option x-bind:value="cluster.id" x-bind:selected="task.parentId === cluster.id" x-text="cluster.todo"></option>

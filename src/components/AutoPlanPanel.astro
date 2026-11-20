@@ -68,13 +68,13 @@ const select = 'rounded-lg border-gray-200 dark:border-slate-600 bg-white dark:b
                     ))}
                 </div>
                 <div class="flex items-center gap-1.5">
-                    <select class={select} aria-label="From" x-on:change="setTime(hours, 'start', $event.target.value)">
+                    <select name="plan-hours-start" class={select} aria-label="From" x-on:change="setTime(hours, 'start', $event.target.value)">
                         {times.slice(0, -1).map((time) => (
                             <option value={time.value} x-bind:selected={`hours.start === ${time.value}`}>{time.label}</option>
                         ))}
                     </select>
                     <span class="text-xs text-gray-500 dark:text-gray-400">to</span>
-                    <select class={select} aria-label="To" x-on:change="setTime(hours, 'end', $event.target.value)">
+                    <select name="plan-hours-end" class={select} aria-label="To" x-on:change="setTime(hours, 'end', $event.target.value)">
                         {times.slice(1).map((time) => (
                             <option value={time.value} x-bind:selected={`hours.end === ${time.value}`}>{time.label}</option>
                         ))}
@@ -104,7 +104,7 @@ const select = 'rounded-lg border-gray-200 dark:border-slate-600 bg-white dark:b
         <div class="grid grid-cols-2 gap-2">
             <label class="block text-xs text-gray-500 dark:text-gray-400">
                 Time for tasks without estimates
-                <select class={`${select} mt-1 w-full`} x-on:change="$store.todos.updatePlanning({ duration: Number($event.target.value) })">
+                <select name="plan-duration" class={`${select} mt-1 w-full`} x-on:change="$store.todos.updatePlanning({ duration: Number($event.target.value) })">
                     {[15, 30, 45, 60, 90, 120].map((minutes) => (
                         <option value={minutes} x-bind:selected={`$store.todos.planning.duration === ${minutes}`}>{minutes < 60 ? `${minutes} min` : `${minutes / 60} hr`}</option>
                     ))}
@@ -112,7 +112,7 @@ const select = 'rounded-lg border-gray-200 dark:border-slate-600 bg-white dark:b
             </label>
             <label class="block text-xs text-gray-500 dark:text-gray-400">
                 Break after
-                <select class={`${select} mt-1 w-full`} x-on:change="$store.todos.updatePlanning({ gap: Number($event.target.value) })">
+                <select name="plan-gap" class={`${select} mt-1 w-full`} x-on:change="$store.todos.updatePlanning({ gap: Number($event.target.value) })">
                     {[0, 5, 10, 15, 30].map((minutes) => (
                         <option value={minutes} x-bind:selected={`$store.todos.planning.gap === ${minutes}`}>{minutes ? `${minutes} min` : 'None'}</option>
                     ))}

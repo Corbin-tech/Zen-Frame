@@ -32,7 +32,7 @@ const action = 'min-h-9 rounded-lg px-2 py-1 text-sm font-medium text-teal-800 h
                 <p class="text-gray-600 dark:text-gray-300" x-text="stepProgress"></p>
             </div>
             <label x-show="nextStep" class="mt-1 flex min-h-10 cursor-pointer items-center gap-3 text-gray-900 dark:text-gray-100">
-                <input type="checkbox" class={checkbox} x-bind:checked="false" x-on:change="finishNextStep($event.currentTarget)" />
+                <input type="checkbox" name="task-next-step" class={checkbox} x-bind:checked="false" x-on:change="finishNextStep($event.currentTarget)" />
                 <span class="min-w-0 flex-1 break-words" x-text="nextStep?.text"></span>
                 <span x-show="nextStep?.minutes" class="shrink-0 text-xs text-gray-600 dark:text-gray-300" x-text="`${nextStep?.minutes} min`"></span>
             </label>
@@ -47,7 +47,7 @@ const action = 'min-h-9 rounded-lg px-2 py-1 text-sm font-medium text-teal-800 h
                 <template x-for="step in savedSteps" x-bind:key="step.id">
                     <li>
                         <label class="flex min-h-9 cursor-pointer items-center gap-3 text-sm text-gray-900 dark:text-gray-100">
-                            <input type="checkbox" class={checkbox} x-bind:checked="step.done" x-on:change="toggleSavedStep(step.id)" />
+                            <input type="checkbox" name="task-saved-step" class={checkbox} x-bind:checked="step.done" x-on:change="toggleSavedStep(step.id)" />
                             <span class="min-w-0 flex-1 break-words" x-text="step.text"></span>
                             <span x-show="step.minutes" class="shrink-0 text-xs text-gray-600 dark:text-gray-300" x-text="`${step.minutes} min`"></span>
                         </label>
