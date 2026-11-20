@@ -75,7 +75,7 @@ const tabs = [
     >
         <div class="flex items-center gap-2 px-1 pt-1" x-bind:class="collapsed && 'flex-col'">
             <button type="button" x-on:click="activeTab = 'dashboard'" class="flex items-center gap-2 min-w-0 rounded-lg" aria-label="Zen Frame, go to the dashboard">
-                <span class="grid place-items-center w-8 h-8 shrink-0 rounded-[0.7rem] bg-teal-700 dark:bg-teal-600 ring-1 ring-inset ring-white/15">
+                <span class="grid place-items-center w-8 h-8 shrink-0 rounded-[0.7rem] bg-teal-600 ring-1 ring-inset ring-white/15">
                     <svg class="w-5 h-5 text-white" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="2.4" d="M16.6 5.4A7.6 7.6 0 1 0 19.4 10" /><circle cx="16.6" cy="5.4" r="1.7" fill="currentColor" stroke="none" /></svg>
                 </span>
                 <span x-show="!collapsed" class="text-base font-semibold tracking-tight text-gray-900 dark:text-white truncate">Zen Frame</span>
@@ -172,7 +172,7 @@ const tabs = [
         class="sticky top-3 z-40 mt-3 mb-6 pl-2 pr-1.5 py-1.5 rounded-2xl backdrop-blur-xl backdrop-saturate-150 ring-1 ring-black/5 dark:ring-white/10 shadow-lg shadow-slate-900/[0.04] dark:shadow-black/20" style="background-color: var(--glass);">
         <div class="flex items-center gap-2 sm:gap-3">
             <button type="button" x-on:click="activeTab = 'dashboard'" class="hidden sm:flex items-center gap-2 shrink-0 rounded-lg" aria-label="Zen Frame, go to the dashboard">
-                <span class="grid place-items-center w-8 h-8 rounded-[0.7rem] bg-teal-700 dark:bg-teal-600 ring-1 ring-inset ring-white/15">
+                <span class="grid place-items-center w-8 h-8 rounded-[0.7rem] bg-teal-600 ring-1 ring-inset ring-white/15">
                     <svg class="w-5 h-5 text-white" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="2.4" d="M16.6 5.4A7.6 7.6 0 1 0 19.4 10" /><circle cx="16.6" cy="5.4" r="1.7" fill="currentColor" stroke="none" /></svg>
                 </span>
                 <span class="hidden xl:block text-base font-semibold tracking-tight text-gray-900 dark:text-white">Zen Frame</span>
