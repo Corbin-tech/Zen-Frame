@@ -13,7 +13,7 @@ test.each(["completed", "deleted", "paused", "reloaded", "expired", "reset", "ge
   const taskA = { id: "a", todo: "Task A", parentId: "cluster-a", completed: false };
   const taskB = { id: "b", todo: "Task B", parentId: "cluster-b", completed: false };
   const todos = { nextTask: taskA, find: (id: string) => [taskA, taskB].find(task => task.id === id), clusterName: (id: string) => id };
-  vi.stubGlobal("window", { Alpine: { store: (name: string) => name === "todos" ? todos : {} }, dispatchEvent: vi.fn() });
+  vi.stubGlobal("window", { addEventListener: vi.fn(), Alpine: { store: (name: string) => name === "todos" ? todos : {} }, dispatchEvent: vi.fn() });
   vi.stubGlobal("CustomEvent", class {});
   vi.stubGlobal("document", { addEventListener: vi.fn() });
   let store = initPomoStore();
@@ -67,7 +67,7 @@ test.each([
   });
   vi.stubGlobal("localStorage", { getItem: (key: string) => key === "activeTab" ? tab : null });
   vi.stubGlobal("sessionStorage", { getItem: () => null });
-  vi.stubGlobal("window", { Alpine: { store: () => ({ zenShowTimer: true }) } });
+  vi.stubGlobal("window", { addEventListener: vi.fn(), Alpine: { store: () => ({ zenShowTimer: true }) } });
   const store = initPomoStore();
   const start = vi.spyOn(store, "startTimer").mockImplementation(() => {});
   const pause = vi.spyOn(store, "pauseTimer").mockImplementation(() => {});
@@ -89,7 +89,7 @@ test("Undo stays available for as long as the toast shows its button", () => {
   const storage = { getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, value: string) => data.set(key, value), removeItem: (key: string) => data.delete(key) };
   vi.stubGlobal("localStorage", storage);
   vi.stubGlobal("sessionStorage", storage);
-  vi.stubGlobal("window", { Alpine: { store: () => ({}) }, dispatchEvent: vi.fn() });
+  vi.stubGlobal("window", { addEventListener: vi.fn(), Alpine: { store: () => ({}) }, dispatchEvent: vi.fn() });
   vi.stubGlobal("CustomEvent", class {});
   const store = initPomoStore();
   store.skipPhase();

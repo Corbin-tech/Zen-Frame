@@ -35,7 +35,7 @@ describe("Pomodoro reload", () => {
     vi.stubGlobal("localStorage", storage());
     vi.stubGlobal("sessionStorage", storage());
     vi.stubGlobal("document", { addEventListener: vi.fn() });
-    vi.stubGlobal("window", { Alpine: { store: vi.fn() }, notify });
+    vi.stubGlobal("window", { addEventListener: vi.fn(), Alpine: { store: vi.fn() }, notify });
     notify.mockClear();
   });
 
@@ -92,6 +92,19 @@ describe("Pomodoro reload", () => {
 
     expect(openPage().sessions).toEqual([
       { completedAt: new Date(+start + focusMs).toISOString(), minutes: 25 }
+    ]);
+  });
+
+  it("re-reads other tabs' sessions before saving even if their storage event has not arrived", () => {
+    const store = openPage();
+    store.startTimer();
+    const remote = { completedAt: new Date(+start - 1000).toISOString(), minutes: 50 };
+    localStorage.setItem("pomoSessions", JSON.stringify([remote]));
+
+    vi.advanceTimersByTime(focusMs);
+
+    expect(JSON.parse(localStorage.getItem("pomoSessions")!)).toEqual([
+      remote, { completedAt: new Date(+start + focusMs).toISOString(), minutes: 25 }
     ]);
   });
 
