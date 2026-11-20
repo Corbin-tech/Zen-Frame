@@ -1,6 +1,6 @@
 # Plus tier decisions (WS0 options memo)
 
-Status: **open — awaiting owner decisions.** This memo lists options and trade-offs only; nothing here is decided. Record each decision in the "Decision" line of its section (owner only).
+Status: **decided on 2026-11-19 by the owner.** Each section's Decision line records the pick and the reason. The options stay below for reference.
 
 Context: the swarm brief (`docs/roadmap/neuro-tools-swarm.md`, not on `main` yet) needs six human decisions before WS2 (AI server) and WS3 (accounts and entitlement) can deploy, and before WS9 can launch. Hard constraints from the brief that every option below must satisfy:
 
@@ -30,7 +30,12 @@ Cost notes:
 
 Questions for the owner: price point(s); currency/regions; whether to collect sales tax/VAT (Stripe Tax is an extra fee).
 
-Decision: _(owner)_
+Decision: **B. Monthly + annual, in USD: $4.99 a month or $39.99 a year (33% off).**
+
+- Why: the model cost is tiny next to the price. Decision 4 puts it under $0.001 per request, so even 1,000 requests a month costs under $1. That makes Stripe's fixed 30¢ the main cost: about 9.6% of a $4.99 charge, but about 4.4% of a $39.99 one. So annual is offered, at a discount.
+- Fair use: a server-side cap of 1,000 helper requests per account per month, shown in the Plus panel. That's far above normal use.
+- Tax: turn on Stripe Tax before go-live. Which tax registrations to file is for the owner's accountant (WS9 gate).
+- The prices live only in Stripe and in the Plus panel copy, so they can change before launch without code changes.
 
 ## 2. Free trial allowance
 
@@ -43,7 +48,12 @@ Decision: _(owner)_
 
 Notes: any option except D needs sign-in before the first request (ties to decision 5). Count a request when the server calls the model, not on validation failures, so errors don't burn the allowance.
 
-Decision: _(owner)_
+Decision: **A. 20 free helper requests per account, for life, with no card required.**
+
+- Sign-in comes first (decision 5). The counter lives on the server (D1, decision 3), so clearing the browser doesn't reset it.
+- A request counts only when the server returns a usable answer. Rejected input, timeouts, refusals and answers that fail validation don't use the allowance.
+- Manual estimate picks (WS4) stay free for everyone and don't count.
+- A trial account costs under 2¢ in model use, so the allowance can grow later if conversion data says so.
 
 ## 3. Host for the server functions
 
@@ -61,7 +71,13 @@ The site is a static Astro build (`output: 'static'`) and `public/_headers` is a
 
 Notes: the brief requires a host-agnostic `server/assist/handler.ts` with a thin adapter, so switching later costs one adapter folder plus whatever storage was used. Cloudflare's per-request rate limiting and a durable counter are available in-platform; on Netlify an atomic counter may need an external store. If the site is already deployed somewhere, staying there is the cheapest path — owner to confirm where it is hosted today.
 
-Decision: _(owner)_
+Decision: **Cloudflare Pages with Pages Functions.**
+
+- `public/.htaccess` suggests the site may be on Apache shared hosting today (Namecheap or similar), which can't run the server functions. So the site moves to Cloudflare Pages, with the functions beside it. The domain can stay registered where it is; only its DNS points to Pages. `public/_headers` already works there.
+- Storage: D1 for accounts, sign-in codes, trial counters and subscription state. The trial counter uses one atomic SQL update. Per-user limits use the Workers rate-limiting binding.
+- Plan: start on Workers Free, since waiting on the model's response doesn't count toward the 10 ms CPU limit. Move to Workers Paid (currently $5 a month; re-check) before go-live, for headroom.
+- Lock-in stays small: `server/assist/handler.ts` is host-agnostic, and only `functions/**` and the D1 and rate-limit bindings are specific to Cloudflare.
+- Owner action (human gate): create the Cloudflare account and Pages project, and connect the GitHub repo.
 
 ## 4. AI provider and model
 
@@ -87,7 +103,14 @@ Options (all offer REST APIs callable with `fetch`; verify current models, price
 
 Suggestion for process (not a pick): let WS7 run the same 50-task set against 2 shortlisted models with the mock-free runner before the owner locks this in; the 90% usefulness bar and latency are measurable there.
 
-Decision: _(owner)_
+Decision: **B. Anthropic API with Claude Haiku 5.5 (`claude-haiku-5-5`)**, checked against one alternative in WS7 before launch.
+
+- It meets every constraint. The server calls the Messages API with plain `fetch`. JSON-schema output comes through `output_config.format`, which uses no tools. Under zero data retention, prompts and outputs aren't stored; only the JSON schema is cached, for up to 24 hours after last use.
+- Cost: $0.10 per million input tokens and $0.50 per million output tokens for prompts up to 100K tokens (checked 2026-11-19). That's under $0.001 for a request capped at 6,000 characters.
+- Latency: send `thinking: {type: "disabled"}` with `output_config.effort: "low"` (Haiku 5.5 allows disabling thinking at `high` effort or below). WS7 measures the 3-second median.
+- Retention: zero data retention is an arrangement with Anthropic, not the default. The owner requests it before WS9. Until it's confirmed, the consent copy must not say "Nothing is stored".
+- Check: WS7 runs the 50-task set on Haiku 5.5 and on one alternative (a small OpenAI model). If Haiku misses the 90% usefulness bar or the latency target and the alternative meets both, switch. The handler keeps the provider call in one function to make that cheap.
+- Disclosure: this pick was drafted with Claude, an Anthropic model. The WS7 comparison guards against that bias.
 
 ## 5. Sign-in method
 
@@ -103,7 +126,11 @@ Sign-in is needed to tie a subscription and the trial counter to a person across
 
 Notes: options A/B keep everything same-origin. Whatever is picked, WS3 issues its own short-lived signed entitlement token, so the sign-in method only affects WS3's `server/auth/**`.
 
-Decision: _(owner)_
+Decision: **B. Email one-time code.** Passkeys may come later as an optional extra.
+
+- The user stays in the tab. There's no switching to an email app and back through a link, which matters for the people this is built for.
+- Everything stays same-origin, with no client SDK. The Worker sends a 6-digit code through a transactional email API called with `fetch`. The code expires after 10 minutes and allows 5 attempts, with rate limits per email address and per IP.
+- Owner action (human gate): choose and set up the email-sending account (for example Postmark or Resend), plus the SPF and DKIM records for the sending domain. WS3 builds against a small `sendEmail()` function so the vendor can change.
 
 ## 6. Stripe account setup
 
@@ -115,7 +142,13 @@ Not a choice between options but a set of owner-only actions (agents never creat
 4. Decide on Stripe Tax.
 5. Provide **test-mode** keys and a webhook signing secret to WS3 through the host's secret store (never in the repo); live keys only at WS9 go-live.
 
-Decision / status: _(owner)_
+Decision / status: **The owner does these in test mode first. Nothing is set up yet.**
+
+1. Create the Stripe account, enter the business details, and accept Stripe's terms.
+2. Create the Product "Zen Frame Plus" with two Prices: $4.99 monthly and $39.99 yearly (decision 1).
+3. Turn on the customer portal: cancel at the end of the period, update the card, and switch between monthly and yearly.
+4. Turn on Stripe Tax, with registrations as the accountant advises.
+5. Put the test-mode secret key and the webhook signing secret into the Cloudflare Pages project's secrets (decision 3), never the repo. Live keys come only at WS9 go-live.
 
 ---
 
