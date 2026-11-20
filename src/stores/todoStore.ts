@@ -1,10 +1,10 @@
 import { toDateKey, fromDateKey, addDays, minutesNow } from "../lib/dates";
 import { planTasks, type AvailabilityWindow } from "../lib/autoPlan";
 import { loadJson, saveJson } from "../lib/storage";
+import { dispatchToast } from "../lib/notifications";
 import type { Milestone } from "./settingsStore";
 import { blockMinutes } from "../lib/estimates";
 import { cleanStepTotal } from "../lib/assist/sanitize";
-import { normalizeLoadedTodo } from "../lib/assist/todoLoad";
 
 export interface Todo {
   id: string;
@@ -18,6 +18,7 @@ export interface Todo {
   createdAt: string;
   updatedAt?: string;
   startedAt?: string; // Set while the task is in the board's In progress column
+  zenDeferredStart?: string; // The start timestamp that Skip Task deferred in Zen mode
   completedAt?: string;
   estimateMinutes?: number | null; // From Estimate, Brain dump, or the user
   steps?: TodoStep[]; // A checklist from Breakdown. Steps stay inside the task, so the board and schedule still see one task.
@@ -75,13 +76,46 @@ export interface AutoPlanResult {
   dueDates: { taskId: string; dueDate: string | null }[]; // Due dates before the plan
 }
 
-const NEW_CLUSTER_NAME = "New Cluster";
+// One entry a destructive action took out of a list, and where it sat, so an
+// Undo can put it back at its original position.
+export interface RemovedEntry<Entry> {
+  entry: Entry;
+  index: number;
+}
+
+// Everything a destructive action removed from the store's lists: the items
+// themselves (with their cluster membership, since parentId travels with them),
+// the blocks that pointed at them, and any Zen-mode skip flags.
+export interface RemovalSnapshot {
+  items: RemovedEntry<Todo>[];
+  scheduledItems: RemovedEntry<ScheduledItem>[];
+  skippedClusters: RemovedEntry<string>[];
+}
+
+const NEW_CLUSTER_NAME = "New cluster";
+const PERSISTED_KEYS = ["todos", "skippedClusters", "scheduledItems", "planning", "history"] as const;
+type PersistedKey = typeof PERSISTED_KEYS[number];
+
+function mergeLists<T extends string | { id: string } | CompletionRecord>(base: T[], local: T[], remote: T[]): T[] {
+  const identity = (entry: string | { id: string } | CompletionRecord): string => typeof entry === "string" ? entry
+    : "id" in entry ? entry.id : JSON.stringify([entry.taskId, entry.at, entry.blockId]);
+  const before = new Map(base.map(entry => [identity(entry), JSON.stringify(entry)]));
+  const current = new Map(local.map(entry => [identity(entry), entry]));
+  const merged = new Map(remote.map(entry => [identity(entry), entry]));
+  for (const id of before.keys()) {
+    if (!current.has(id)) merged.delete(id);
+  }
+  for (const [id, entry] of current) {
+    if (before.get(id) !== JSON.stringify(entry)) merged.set(id, entry);
+  }
+  return [...merged.values()];
+}
 
 // Cluster colors, picked in this order for new clusters. Each key is a CSS variable
 // (--c-<key>) in Layout.astro with separate light and dark values. The order keeps
 // neighbors distinct for color-blind readers; check changes with a palette validator.
 // The last four extend the set so up to 12 clusters each get their own color.
-export const CLUSTER_COLORS = ["teal", "indigo", "amber", "sky", "rose", "violet", "emerald", "orange", "pink", "lime", "cyan", "fuchsia"];
+const CLUSTER_COLORS = ["teal", "indigo", "amber", "sky", "rose", "violet", "emerald", "orange", "pink", "lime", "cyan", "fuchsia"];
 
 function createTodosStore() {
   return {
@@ -92,6 +126,7 @@ function createTodosStore() {
     history: [] as CompletionRecord[],
     saveTimer: undefined as ReturnType<typeof window.setTimeout> | undefined,
     writesSuspended: false,
+    savedJson: {} as Partial<Record<PersistedKey, string>>,
 
     get clusters(): Todo[] {
       return this.items.filter(item => item.isCluster);
@@ -114,13 +149,16 @@ function createTodosStore() {
       return this.items.filter(item => !item.isCluster && !item.completed);
     },
 
-    // The task Zen mode shows: the first open task in list order, skipping clusters the user skipped.
-    // Tasks in progress on the board come first. When every open task is in a skipped cluster,
-    // fall back to the first open task.
+    get zenTaskOrder(): Todo[] {
+      const priority = (task: Todo) => Number(Boolean(task.startedAt && task.startedAt !== task.zenDeferredStart));
+      return this.openTasks.sort((a, b) => priority(b) - priority(a));
+    },
+
+    // The task Zen mode shows, skipping clusters the user skipped when possible.
     get nextTask(): Todo | null {
-      const openTasks = [...this.openTasks].sort((a, b) => Number(Boolean(b.startedAt)) - Number(Boolean(a.startedAt)));
-      return openTasks.find(task => !task.parentId || !this.skippedClusters.includes(task.parentId))
-        ?? openTasks[0]
+      const ordered = this.zenTaskOrder;
+      return ordered.find(task => !task.parentId || !this.skippedClusters.includes(task.parentId))
+        ?? ordered[0]
         ?? null;
     },
 
@@ -128,18 +166,57 @@ function createTodosStore() {
 
     // Alpine calls init() when the store is registered
     init(): void {
-      this.items = loadJson<Todo[]>("todos", []).map(normalizeLoadedTodo);
-      this.skippedClusters = loadJson<string[]>("skippedClusters", []);
-      this.scheduledItems = loadJson<ScheduledItem[]>("scheduledItems", []);
-      this.planning = { ...DEFAULT_PLANNING, ...loadJson<Partial<Planning>>("planning", {}) };
-      this.history = loadJson<CompletionRecord[]>("history", []);
+      for (const key of PERSISTED_KEYS) this.loadList(key);
+      window.addEventListener("storage", event => {
+        if (event.storageArea !== localStorage) return;
+        for (const key of PERSISTED_KEYS) {
+          if (event.key === null || event.key === key) this.loadList(key, true);
+        }
+      });
       this.recordExistingCompletions();
       this.recordExistingTicks();
       // A write that is waiting when the tab is hidden or closed lands before it really goes
       window.addEventListener("pagehide", () => this.writeTodos());
       document.addEventListener("visibilitychange", () => { if (document.hidden) this.writeTodos(); });
-      // Last: it may save, and saving writes every list, so all of them must be loaded first
+      // Last: it may save, so all lists must be loaded first
       this.giveClustersDistinctColors();
+    },
+
+    persistedValue(key: PersistedKey): unknown {
+      return key === "todos" ? this.items : this[key];
+    },
+
+    loadList(key: PersistedKey, merge = false): void {
+      const local = this.persistedValue(key);
+      const base = this.savedJson[key];
+      const dirty = merge && base !== undefined && JSON.stringify(local) !== base;
+      const load = <T extends string | { id: string } | CompletionRecord>(remote: T[]): T[] => {
+        this.savedJson[key] = JSON.stringify(remote);
+        return dirty ? mergeLists<T>(JSON.parse(base!), local as T[], remote) : remote;
+      };
+      switch (key) {
+        case "todos": this.items = load(loadJson<Todo[]>(key, [])); break;
+        case "skippedClusters": this.skippedClusters = load(loadJson<string[]>(key, [])); break;
+        case "scheduledItems": this.scheduledItems = load(loadJson<ScheduledItem[]>(key, [])); break;
+        case "planning": {
+          const remote = { ...DEFAULT_PLANNING, ...loadJson<Partial<Planning>>(key, {}) };
+          this.savedJson[key] = JSON.stringify(remote);
+          if (!dirty) this.planning = remote;
+          break;
+        }
+        case "history": this.history = load(loadJson<CompletionRecord[]>(key, [])); break;
+      }
+      if (dirty) this.saveTodos();
+    },
+
+    writeList(key: PersistedKey): boolean {
+      if (this.writesSuspended) return false;
+      const value = this.persistedValue(key);
+      const serialized = JSON.stringify(value);
+      if (this.savedJson[key] === serialized) return true;
+      if (!saveJson(key, value)) return false;
+      this.savedJson[key] = serialized;
+      return true;
     },
 
     // Writes happen a beat after the change, out of the completing click's frame, and runs of
@@ -154,11 +231,9 @@ function createTodosStore() {
       window.clearTimeout(this.saveTimer);
       this.saveTimer = undefined;
       // Stops at the first failed write, so one full-storage error shows one toast
-      void (saveJson("todos", this.items)
-        && saveJson("skippedClusters", this.skippedClusters)
-        && saveJson("scheduledItems", this.scheduledItems)
-        && saveJson("planning", this.planning)
-        && saveJson("history", this.history));
+      for (const key of PERSISTED_KEYS) {
+        if (!this.writeList(key)) break;
+      }
     },
 
     // A backup restore wrote storage directly and the page is about to reload: cancel the
@@ -176,7 +251,7 @@ function createTodosStore() {
       if (!missing.length) return;
       this.history = [...this.history, ...missing.map(task => this.completionRecord(task, task.completedAt!))]
         .sort((a, b) => a.at.localeCompare(b.at));
-      saveJson("history", this.history);
+      this.writeList("history");
     },
 
     // Days ticked on repeating blocks before ticks were kept in the history
@@ -194,7 +269,7 @@ function createTodosStore() {
       }
       if (!missing.length) return;
       this.history = [...this.history, ...missing].sort((a, b) => a.at.localeCompare(b.at)).slice(-HISTORY_LIMIT);
-      saveJson("history", this.history);
+      this.writeList("history");
     },
 
     // One ticked day of a repeating block. Today's tick is timed now; another day's is timed
@@ -384,38 +459,92 @@ function createTodosStore() {
     },
 
     toggleBlockDone(item: ScheduledItem, dateKey: string): void {
+      this.setBlockDone(item, dateKey, !this.isBlockDone(item, dateKey));
+    },
+
+    setBlockDone(item: ScheduledItem, dateKey: string, done: boolean): void {
+      if (this.isBlockDone(item, dateKey) === done) return;
       if (!item.repeat) {
         this.toggleTodo(item.taskId);
         return;
       }
       const { doneDates } = item.repeat;
-      const wasDone = doneDates.includes(dateKey);
-      item.repeat.doneDates = wasDone ? doneDates.filter(day => day !== dateKey) : [...doneDates, dateKey];
+      item.repeat.doneDates = done ? [...doneDates, dateKey] : doneDates.filter(day => day !== dateKey);
 
       // Each ticked day is one history entry, so routines count in Insights and streaks.
       // Unticking takes that day's entry out again.
-      const record = wasDone ? null : this.tickRecord(item, dateKey);
+      const record = done ? this.tickRecord(item, dateKey) : null;
       this.history = this.history.filter(entry => !(entry.blockId === item.id && toDateKey(new Date(entry.at)) === dateKey));
       if (record) this.history = [...this.history, record].sort((a, b) => a.at.localeCompare(b.at)).slice(-HISTORY_LIMIT);
       this.saveTodos();
+    },
+
+    // Captures what removing these ids would take out: the items at their positions,
+    // the blocks that point at them, and the Zen skip flags naming them. Pass the
+    // snapshot to restoreRemoval to put every entry back exactly where it was.
+    captureRemoval(ids: Set<string>): RemovalSnapshot {
+      return {
+        items: this.items.map((entry, index) => ({ entry, index })).filter(({ entry }) => ids.has(entry.id)),
+        scheduledItems: this.scheduledItems.map((entry, index) => ({ entry, index })).filter(({ entry }) => ids.has(entry.taskId)),
+        skippedClusters: this.skippedClusters.map((entry, index) => ({ entry, index })).filter(({ entry }) => ids.has(entry))
+      };
+    },
+
+    // Puts a removal snapshot back the way it was: each entry lands at its original
+    // index (or the end of the list if new items have since shortened it), with the
+    // entries at lower indexes restored first so every original index still lines up.
+    // Persists through the store's usual save path, like every other mutation.
+    restoreRemoval(snapshot: RemovalSnapshot): void {
+      const putBack = <Entry>(list: Entry[], removed: RemovedEntry<Entry>[]): Entry[] => {
+        if (!removed.length) return list;
+        const restored = [...list];
+        for (const { entry, index } of [...removed].sort((a, b) => a.index - b.index)) {
+          restored.splice(Math.min(index, restored.length), 0, entry);
+        }
+        return restored;
+      };
+      // A restored task whose cluster has since been deleted comes back as a loose task,
+      // so it stays visible instead of pointing at a cluster that no longer exists
+      const restored = putBack(this.items, snapshot.items);
+      const clusterIds = new Set(restored.filter(item => item.isCluster).map(item => item.id));
+      this.items = restored.map(item => item.parentId && !clusterIds.has(item.parentId) ? { ...item, parentId: null } : item);
+      this.scheduledItems = putBack(this.scheduledItems, snapshot.scheduledItems);
+      this.skippedClusters = putBack(this.skippedClusters, snapshot.skippedClusters);
+      this.saveTodos();
+    },
+
+    // Removes the captured ids and fires the Undo toast that restores them. The
+    // snapshot lives in the toast, so the undo expires with it.
+    removeWithUndoToast(ids: Set<string>, title: string, body: string): void {
+      const snapshot = this.captureRemoval(ids);
+      if (!snapshot.items.length) return;
+      this.removeItems(ids);
+      dispatchToast({
+        title,
+        body,
+        actionLabel: "Undo",
+        onAction: () => this.restoreRemoval(snapshot)
+      });
     },
 
     deleteTodo(id: string): void {
       const todo = this.find(id);
       if (!todo) return;
 
+      // A pinned cluster still needs its explicit confirm; undo covers everything else
       if (todo.isCluster && todo.isPinned &&
           !confirm(`"${todo.todo}" is pinned. Delete it and all of its tasks?`)) {
         return;
       }
 
-      const ids = this.items.filter(item => item.id === id || item.parentId === id).map(item => item.id);
-      this.removeItems(new Set(ids));
+      const ids = new Set(this.items.filter(item => item.id === id || item.parentId === id).map(item => item.id));
+      this.removeWithUndoToast(ids, `${todo.isCluster ? "Cluster" : "Task"} deleted`, todo.todo);
     },
 
-    deleteCompleted(): void {
-      // Unpinned clusters whose tasks are all complete go away with their tasks.
-      // A cluster with blocks is a class on the timetable, so it stays.
+    // Completed items that "Delete completed" clears: finished tasks, plus the
+    // unpinned clusters whose tasks are all complete. A cluster with blocks is a
+    // class on the timetable, so it stays.
+    completedRemovalIds(): string[] {
       const finishedClusterIds = this.clusters
         .filter(cluster => {
           if (cluster.isPinned || this.scheduledItems.some(entry => entry.taskId === cluster.id)) return false;
@@ -424,33 +553,67 @@ function createTodosStore() {
         })
         .map(cluster => cluster.id);
 
-      const ids = this.items
+      return this.items
         .filter(item => item.completed || finishedClusterIds.includes(item.id))
         .map(item => item.id);
-      this.removeItems(new Set(ids));
     },
 
-    // Removes items and everything that points at them
+    deleteCompleted(): void {
+      const ids = new Set(this.completedRemovalIds());
+      const snapshot = this.captureRemoval(ids);
+      const cleared = snapshot.items.filter(({ entry }) => !entry.isCluster).length;
+      if (!cleared) return;
+      this.removeItems(ids);
+      dispatchToast({
+        title: "Cleared completed",
+        body: `${cleared === 1 ? "1 task" : `${cleared} tasks`} cleared`,
+        actionLabel: "Undo",
+        onAction: () => this.restoreRemoval(snapshot)
+      });
+    },
+
+    // Clears only one list's finished tasks: one cluster's (clusterId), or the loose
+    // tasks (clusterId null). The Undo the removeWithUndoToast fires puts them back
+    // in their exact positions.
+    clearClusterCompleted(clusterId: string | null): void {
+      const ids = new Set(this.items
+        .filter(item => !item.isCluster && item.completed && (item.parentId ?? null) === clusterId)
+        .map(item => item.id));
+      const count = ids.size;
+      if (!count) return;
+      const where = clusterId ? this.clusterName(clusterId) || "its cluster" : "loose tasks";
+      this.removeWithUndoToast(ids, `Cleared ${count === 1 ? "1 completed task" : `${count} completed tasks`}`, `From ${where}`);
+    },
+
+    // Removes items and everything that points at them. Severed goal links are the
+    // one part of a removal that an undo snapshot cannot put back.
     removeItems(ids: Set<string>): void {
+      const progress = new Map(this.clusters.filter(cluster => ids.has(cluster.id))
+        .map(cluster => [cluster.id, this.clusterProgress(cluster.id)]));
       this.items = this.items.filter(item => !ids.has(item.id));
       this.scheduledItems = this.scheduledItems.filter(entry => !ids.has(entry.taskId));
       this.skippedClusters = this.skippedClusters.filter(clusterId => !ids.has(clusterId));
       this.saveTodos();
-      (window.Alpine.store("goals") as { unlinkClusters?: (ids: Set<string>) => void } | undefined)?.unlinkClusters?.(ids);
+      (window.Alpine.store("goals") as { unlinkClusters?: (progress: Map<string, { done: number; total: number }>) => void } | undefined)?.unlinkClusters?.(progress);
     },
 
-    toggleTodo(id: string): void {
+    toggleTodo(id: string, completionTime?: string): void {
       const todo = this.find(id);
       if (!todo) return;
 
       const now = new Date().toISOString();
+      const completedAt = completionTime ?? now;
       if (!todo.isCluster) {
-        this.history = todo.completed
-          ? this.history.filter(record => !(record.taskId === id && record.at === todo.completedAt))
-          : [...this.history, this.completionRecord(todo, now)].slice(-HISTORY_LIMIT);
+        if (todo.completed) {
+          this.history = this.history.filter(record => !(!record.blockId && record.taskId === id && record.at === todo.completedAt));
+        } else {
+          const history = [...this.history, this.completionRecord(todo, completedAt)];
+          if (completionTime) history.sort((a, b) => a.at.localeCompare(b.at));
+          this.history = history.slice(-HISTORY_LIMIT);
+        }
       }
       todo.completed = !todo.completed;
-      todo.completedAt = todo.completed ? now : undefined;
+      todo.completedAt = todo.completed ? completedAt : undefined;
       if (todo.completed) todo.startedAt = undefined;
       todo.updatedAt = now;
       this.saveTodos();
@@ -476,13 +639,40 @@ function createTodosStore() {
       this.saveTodos();
     },
 
+    // A plain move into a cluster, keeping the task's place in the list order
     moveTask(taskId: string, clusterId: string): void {
+      this.moveTaskTo(taskId, { clusterId });
+    },
+
+    // An ordered move: into a cluster, or out to loose tasks (clusterId null). With a
+    // target task it lands directly before (or after) that task; without one it only
+    // reassigns parentId and keeps its place in the list order, so a drop on a list
+    // container never clobbers the exact placement a row's drop in that list just made.
+    // Returns whether anything moved: a no-op restores nothing, saves nothing, announces nothing.
+    moveTaskTo(taskId: string, target: { clusterId: string | null; beforeId?: string; afterId?: string }): boolean {
       const task = this.find(taskId);
-      if (!task || task.isCluster || task.parentId === clusterId) return;
+      if (!task || task.isCluster) return false;
+      const clusterId = target.clusterId ?? null;
+
+      if (target.beforeId || target.afterId) {
+        if (target.beforeId === taskId || target.afterId === taskId) return false; // Dropped on itself
+        const anchor = this.find(target.beforeId ?? target.afterId!);
+        if (!anchor || anchor.isCluster) return false;
+        const items = this.items.filter(item => item.id !== taskId);
+        const index = items.findIndex(item => item.id === anchor.id);
+        if (index === -1) return false;
+        items.splice(index + (target.beforeId ? 0 : 1), 0, task);
+        // The same place it already sat: nothing to save
+        if (items.every((item, i) => item === this.items[i])) return false;
+        this.items = items;
+      } else if ((task.parentId ?? null) === clusterId) {
+        return false;
+      }
 
       task.parentId = clusterId;
       task.updatedAt = new Date().toISOString();
       this.saveTodos();
+      return true;
     },
 
     boardColumn(task: Todo): BoardColumn {
@@ -578,19 +768,20 @@ function createTodosStore() {
       this.saveTodos();
     },
 
-    // Zen mode: move a task behind the other open tasks in its cluster
+    // Zen mode: move a task behind the other open tasks in its cluster or unclustered list
     skipTaskToEndOfCluster(taskId: string): void {
       const task = this.find(taskId);
-      if (!task?.parentId) return;
+      if (!task || task.isCluster || task.completed) return;
 
       const openSiblings = this.items.filter(item =>
-        item.parentId === task.parentId && !item.completed && item.id !== taskId
+        item.parentId === task.parentId && !item.isCluster && !item.completed && item.id !== taskId
       );
       if (openSiblings.length === 0) return;
 
       const items = this.items.filter(item => item.id !== taskId);
       const lastIndex = items.findIndex(item => item.id === openSiblings[openSiblings.length - 1].id);
       items.splice(lastIndex + 1, 0, task);
+      if (task.startedAt) task.zenDeferredStart = task.startedAt;
       this.items = items;
       this.saveTodos();
     },
@@ -617,6 +808,7 @@ function createTodosStore() {
     saveScheduledItem(entry: ScheduledItem): void {
       const task = this.find(entry.taskId);
       const movesTask = !entry.repeat && Boolean(task) && !task!.isCluster && !task!.completed;
+      const previous = movesTask ? this.scheduledItems.find(item => item.id === entry.id && item.taskId === entry.taskId) : undefined;
       this.scheduledItems = [
         ...this.scheduledItems.filter(item => item.id !== entry.id
           && !(movesTask && item.taskId === entry.taskId && !item.repeat)),
@@ -625,6 +817,12 @@ function createTodosStore() {
       if (movesTask && task!.dueDate !== entry.date) {
         task!.dueDate = entry.date;
         task!.updatedAt = new Date().toISOString();
+      }
+      if (previous?.repeat?.doneDates.includes(entry.date)) {
+        const tick = this.history.find(record => record.blockId === previous.id && toDateKey(new Date(record.at)) === entry.date);
+        if (tick) this.history = this.history.filter(record => record !== tick);
+        this.toggleTodo(entry.taskId, tick?.at ?? this.tickRecord(previous, entry.date)?.at);
+        return;
       }
       this.saveTodos();
     },
@@ -635,7 +833,7 @@ function createTodosStore() {
     },
 
     // Plans open tasks into free availability on `dayCount` days from `fromDate`.
-    // Skips tasks that already have a block today or later, and routines (repeating blocks).
+    // Skips tasks with a one-off block today or later, or a routine that hasn't ended.
     // Like saveScheduledItem, a planned task moves to its new day: its past one-off blocks go
     // and its due date becomes that day. Returns what changed so undoAutoPlan can put it back.
     autoPlan(fromDate: string, dayCount: number): AutoPlanResult {
@@ -643,7 +841,7 @@ function createTodosStore() {
       const start = fromDate < today ? today : fromDate;
       const days = Array.from({ length: dayCount }, (_, i) => addDays(start, i));
       const planned = new Set(this.scheduledItems
-        .filter(item => item.repeat || item.date >= today)
+        .filter(({ repeat, date }) => repeat ? !repeat.until || repeat.until >= today : date >= today)
         .map(item => item.taskId));
       const tasks = this.openTasks.filter(task => task.todo.trim() && !planned.has(task.id));
 

@@ -110,49 +110,62 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
         </template>
     </div>
 
-    <!-- Activity calendar -->
-    <section class={`${panel} p-5`}>
-        <div class="flex flex-wrap items-baseline justify-between gap-2 mb-4">
-            <div>
-                <h2 class={panelTitle}>Activity</h2>
-                <p class="text-sm text-gray-500 dark:text-gray-400" x-text="`Last 26 weeks · ${view.heatmapActiveDays} active days`"></p>
+    <div class="grid gap-6 lg:grid-cols-3">
+        <!-- Activity calendar -->
+        <section class={`${panel} p-5 flex flex-col`}>
+            <div class="flex flex-wrap items-baseline justify-between gap-2 mb-4">
+                <div>
+                    <h2 class={panelTitle}>Activity</h2>
+                    <p class="text-sm text-gray-500 dark:text-gray-400" x-text="`Last 26 weeks · ${$plural(view.heatmapActiveDays, 'active day')}`"></p>
+                </div>
+                <div class="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400" aria-hidden="true">
+                    Less
+                    <template x-for="level in [0, 1, 2, 3, 4]" :key="level">
+                        <span class="w-3 h-3 rounded-[3px]" x-bind:class="levelClass(level)"></span>
+                    </template>
+                    More
+                </div>
             </div>
-            <div class="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400" aria-hidden="true">
-                Less
-                <template x-for="level in [0, 1, 2, 3, 4]" :key="level">
-                    <span class="w-3 h-3 rounded-[3px]" x-bind:class="levelClass(level)"></span>
-                </template>
-                More
+            <p id="activity-keyboard-help" class="sr-only">Use arrow keys to move between days, or Home and End to move to the first and last day.</p>
+            <div class="relative w-full my-auto" x-data="{
+                hovered: null,
+                activeDate: $dates.toDateKey(),
+                moveDay(event) {
+                    const days = [...event.currentTarget.querySelectorAll('[role=listitem]')];
+                    const index = days.indexOf(event.target);
+                    const offsets = { ArrowUp: -1, ArrowDown: 1, ArrowLeft: -7, ArrowRight: 7 };
+                    if (index === -1 || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || !(event.key in offsets || event.key === 'Home' || event.key === 'End')) return;
+                    event.preventDefault();
+                    const next = event.key === 'Home' ? 0 : event.key === 'End' ? days.length - 1 : Math.max(0, Math.min(days.length - 1, index + offsets[event.key]));
+                    days[next].focus();
+                }
+            }" x-on:mouseleave="hovered = null">
+                <div
+                    x-show="hovered"
+                    x-cloak
+                    class="absolute z-10 -translate-x-1/2 -translate-y-full px-2.5 py-1.5 rounded-lg bg-gray-900 dark:bg-slate-950 text-white text-xs shadow-lg pointer-events-none whitespace-nowrap"
+                    x-bind:style="hovered ? `left: ${(hovered.column + 0.5) / 26 * 100}%; top: ${hovered.row / 7 * 100}%;` : ''"
+                >
+                    <p class="font-semibold" x-text="hovered?.summary"></p>
+                    <p class="text-gray-300" x-text="hovered ? $dates.formatDate(hovered.date, { weekday: 'short', month: 'short', day: 'numeric' }) : ''"></p>
+                </div>
+                <div class="grid grid-rows-7 grid-flow-col auto-cols-fr gap-[3px]" role="list" aria-label="Activity per day for the last 26 weeks" aria-describedby="activity-keyboard-help" x-on:keydown="moveDay($event)">
+                    <template x-for="cell in view.heatmap" :key="cell.date">
+                        <div
+                            class="aspect-square rounded-[3px] focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
+                            x-bind:class="cell.future ? 'invisible' : levelClass(cell.level)"
+                            x-bind:role="cell.future ? null : 'listitem'"
+                            x-bind:tabindex="!cell.future && cell.date === activeDate ? 0 : -1"
+                            x-bind:aria-label="cell.future ? null : `${$dates.formatDate(cell.date, { month: 'short', day: 'numeric' })}: ${cell.summary}`"
+                            x-on:mouseenter="!cell.future && (hovered = cell)"
+                            x-on:focus="activeDate = cell.date; hovered = cell"
+                            x-on:blur="hovered = null"
+                        ></div>
+                    </template>
+                </div>
             </div>
-        </div>
-        <div class="relative max-w-lg" x-data="{ hovered: null }" x-on:mouseleave="hovered = null">
-            <div
-                x-show="hovered"
-                x-cloak
-                class="absolute z-10 -translate-x-1/2 -translate-y-full px-2.5 py-1.5 rounded-lg bg-gray-900 dark:bg-slate-950 text-white text-xs shadow-lg pointer-events-none whitespace-nowrap"
-                x-bind:style="hovered ? `left: ${(hovered.column + 0.5) / 26 * 100}%; top: ${hovered.row / 7 * 100}%;` : ''"
-            >
-                <p class="font-semibold" x-text="hovered?.summary"></p>
-                <p class="text-gray-300" x-text="hovered ? $dates.formatDate(hovered.date, { weekday: 'short', month: 'short', day: 'numeric' }) : ''"></p>
-            </div>
-            <div class="grid grid-rows-7 grid-flow-col auto-cols-fr gap-[3px]" role="list" aria-label="Activity per day for the last 26 weeks">
-                <template x-for="cell in view.heatmap" :key="cell.date">
-                    <div
-                        class="aspect-square rounded-[3px] focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
-                        x-bind:class="cell.future ? 'invisible' : levelClass(cell.level)"
-                        x-bind:role="cell.future ? null : 'listitem'"
-                        x-bind:tabindex="cell.future ? -1 : 0"
-                        x-bind:aria-label="cell.future ? null : `${$dates.formatDate(cell.date, { month: 'short', day: 'numeric' })}: ${cell.summary}`"
-                        x-on:mouseenter="!cell.future && (hovered = cell)"
-                        x-on:focus="hovered = cell"
-                        x-on:blur="hovered = null"
-                    ></div>
-                </template>
-            </div>
-        </div>
-    </section>
+        </section>
 
-    <div class="grid gap-6 lg:grid-cols-2">
         <section class={`${panel} p-5`}>
             <div class="flex items-baseline justify-between mb-6">
                 <h2 class={panelTitle}>Tasks completed</h2>
@@ -173,14 +186,14 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
         <!-- By cluster -->
         <section class={`${panel} p-5`}>
             <h2 class={`${panelTitle} mb-1`}>By cluster</h2>
-            <p class="text-sm text-gray-500 dark:text-gray-400 mb-4" x-text="view.summary.tasks ? `${view.summary.tasks} tasks in ${rangeLabel}` : `Nothing finished in ${rangeLabel}`"></p>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-4" x-text="view.clusters.length ? `${$plural(view.summary.tasks, 'task')} in ${rangeLabel}` : `Nothing finished in ${rangeLabel}`"></p>
             <ul class="space-y-3" x-show="view.clusters.length">
                 <template x-for="cluster in view.clusters" :key="cluster.key">
                     <li>
                         <div class="flex items-center gap-2 text-sm">
                             <span class="w-2.5 h-2.5 rounded-full shrink-0" x-bind:style="`background-color: ${cluster.color};`"></span>
                             <span class="flex-1 min-w-0 truncate text-gray-800 dark:text-gray-100" x-text="cluster.name"></span>
-                            <span class="tabular-nums font-medium text-gray-600 dark:text-gray-300" x-text="cluster.count"></span>
+                            <span class="tabular-nums font-medium text-gray-600 dark:text-gray-300" x-text="cluster.detail"></span>
                         </div>
                         <div class="mt-1.5 h-1.5 rounded-full overflow-hidden" x-bind:style="`background-color: color-mix(in srgb, ${cluster.color} 16%, transparent);`">
                             <div class="h-full rounded-full transition-[width] duration-700" x-bind:style="`width: ${cluster.percent}%; background-color: ${cluster.color};`"></div>
@@ -212,6 +225,7 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
 
 <script>
     import { dates } from '../lib/dates';
+    import { plural } from '../lib/plural';
     import { loadString, saveString } from '../lib/storage';
     import {
         activeDays, dailyActivity, formatMonth, lastDays, monthOf, monthRange, monthsWithActivity,
@@ -228,7 +242,6 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
     // January 4, 2026 is a Sunday
     const weekdayName = (day, style = 'short') => new Date(2026, 0, 4 + day).toLocaleDateString(undefined, { weekday: style });
     const hourLabel = (hour) => `${hour % 12 || 12}${hour < 12 ? 'a' : 'p'}`;
-    const plural = (count, word) => `${count} ${word}${count === 1 ? '' : 's'}`;
 
     function rangeFor(id, today) {
         if (id === '12m') {
@@ -370,11 +383,13 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
                     : 'Finish a few tasks to see when you work best.';
 
                 const topCount = summary.byCluster[0]?.count ?? 0;
+                const topFocus = Math.max(0, ...summary.byCluster.map(entry => entry.focusMinutes));
                 const clusters = summary.byCluster.slice(0, 6).map(entry => ({
                     key: entry.clusterId ?? 'none',
                     name: (entry.clusterId && todos.find(entry.clusterId)?.todo) || entry.name,
                     count: entry.count,
-                    percent: topCount ? Math.round(entry.count / topCount * 100) : 0,
+                    detail: [entry.count ? String(entry.count) : '', entry.focusMinutes ? dates.formatDuration(entry.focusMinutes) : ''].filter(Boolean).join(' · ') || '0',
+                    percent: topCount ? Math.round(entry.count / topCount * 100) : (topFocus ? Math.round(entry.focusMinutes / topFocus * 100) : 0),
                     color: entry.clusterId && todos.find(entry.clusterId) ? todos.clusterColor(entry.clusterId) : 'var(--c-none)'
                 }));
 

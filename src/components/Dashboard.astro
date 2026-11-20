@@ -45,7 +45,7 @@ const checkbox = 'w-4 h-4 shrink-0 rounded border-gray-300 dark:border-slate-500
                 <button
                     type="button"
                     x-on:click="$dispatch('change-tab', { tab: tile.tab })"
-                    class={`${panel} group p-4 text-left hover:ring-teal-600/30 dark:hover:ring-teal-400/30 transition-shadow`}
+                    class={`${panel} group p-4 text-left max-sm:grid max-sm:grid-cols-1 max-sm:content-start hover:ring-teal-600/30 dark:hover:ring-teal-400/30 transition-shadow`}
                     x-bind:aria-label="`${tile.label}: ${tile.value}. ${tile.detail}. Open ${tile.tabLabel}.`"
                 >
                     <div class="flex items-center justify-between">
@@ -53,9 +53,9 @@ const checkbox = 'w-4 h-4 shrink-0 rounded border-gray-300 dark:border-slate-500
                         <svg class="w-4 h-4 text-gray-400 dark:text-gray-500 group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" x-bind:d="tile.icon" /></svg>
                     </div>
                     <p class="mt-3 text-4xl font-semibold tracking-tighter tabular-nums text-gray-900 dark:text-white" x-text="tile.value"></p>
-                    <p class="mt-1 flex items-center gap-1 text-xs truncate" x-bind:class="tile.alert ? 'text-red-600 dark:text-red-400 font-medium' : 'text-gray-500 dark:text-gray-400'">
+                    <p class="mt-1 flex items-center gap-1 text-xs sm:truncate" x-bind:class="tile.alert ? 'text-red-600 dark:text-red-400 font-medium' : 'text-gray-500 dark:text-gray-400'">
                         <svg x-show="tile.alert" class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /></svg>
-                        <span class="truncate" x-text="tile.detail"></span>
+                        <span class="min-w-0 break-words sm:truncate" x-text="tile.detail"></span>
                     </p>
                 </button>
             </template>
@@ -274,7 +274,7 @@ const checkbox = 'w-4 h-4 shrink-0 rounded border-gray-300 dark:border-slate-500
                         progress: status === 'now' ? Math.round((nowMinutes - start) / (end - start) * 100) : 0,
                         title: task?.todo || 'Deleted task',
                         isCluster,
-                        completed: this.$store.todos.isBlockDone(item, this.todayKey),
+                        completed: !isCluster && this.$store.todos.isBlockDone(item, this.todayKey),
                         detail: isCluster
                             ? (item.repeat ? `Repeats ${dates.formatWeekdays(item.repeat.weekdays)}` : 'Cluster')
                             : this.$store.todos.clusterName(task?.parentId ?? null) || 'No cluster',
@@ -290,8 +290,26 @@ const checkbox = 'w-4 h-4 shrink-0 rounded border-gray-300 dark:border-slate-500
             get planSummary() {
                 const blocks = this.todayBlocks;
                 if (!blocks.length) return 'No blocks yet';
-                const done = blocks.filter(block => block.completed).length;
-                return `${blocks.length} ${blocks.length === 1 ? 'block' : 'blocks'} · ${dates.formatDuration(this.plannedMinutes)} · ${done} done`;
+                const taskBlocks = blocks.filter(block => !block.isCluster);
+                const summary = `${blocks.length} ${blocks.length === 1 ? 'block' : 'blocks'} · ${dates.formatDuration(this.plannedMinutes)}`;
+                if (!taskBlocks.length) return summary;
+                const done = taskBlocks.filter(block => block.completed).length;
+                return `${summary} · ${done} of ${taskBlocks.length} done`;
+            },
+
+            get plannedDetail() {
+                const blocks = this.todayBlocks;
+                if (!blocks.length) return 'No blocks yet';
+                const nextBlock = blocks.find(block => block.status !== 'past' && !block.completed);
+                if (nextBlock) {
+                    return nextBlock.status === 'now'
+                        ? `Now: ${nextBlock.title}`
+                        : `Next: ${nextBlock.title} at ${dates.formatTime(nextBlock.start)}`;
+                }
+                const taskBlocks = blocks.filter(block => !block.isCluster);
+                if (!taskBlocks.length) return 'All blocks ended';
+                if (taskBlocks.some(block => !block.completed)) return 'Ended with tasks left';
+                return taskBlocks.length === blocks.length ? 'All blocks finished' : 'All tasks done';
             },
 
             // --- Focus sessions (Pomodoro) ---
@@ -312,7 +330,6 @@ const checkbox = 'w-4 h-4 shrink-0 rounded border-gray-300 dark:border-slate-500
             get tiles() {
                 const open = this.$store.todos.openTasks.length;
                 const dueToday = this.$store.todos.openTasks.filter(task => task.dueDate === this.todayKey).length;
-                const nextBlock = this.todayBlocks.find(block => block.status !== 'past' && !block.completed);
                 const sessions = this.focusSessionsThisWeek;
 
                 return [
@@ -336,9 +353,7 @@ const checkbox = 'w-4 h-4 shrink-0 rounded border-gray-300 dark:border-slate-500
                     {
                         label: 'Planned today',
                         value: dates.formatDuration(this.plannedMinutes),
-                        detail: nextBlock
-                            ? `${nextBlock.status === 'now' ? 'Now' : 'Next'}: ${nextBlock.title}${nextBlock.status === 'now' ? '' : ` at ${dates.formatTime(nextBlock.start)}`}`
-                            : this.todayBlocks.length ? 'All blocks finished' : 'No blocks yet',
+                        detail: this.plannedDetail,
                         icon: ICONS.calendar,
                         tab: 'schedule',
                         tabLabel: 'Schedule'

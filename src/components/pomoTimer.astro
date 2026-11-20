@@ -26,6 +26,9 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
             const key = this.$dates.toDateKey();
             const sessions = this.$store.pomoState.sessions.filter(session => this.$dates.toDateKey(new Date(session.completedAt)) === key);
             return { count: sessions.length, minutes: sessions.reduce((sum, session) => sum + session.minutes, 0) };
+        },
+        get faceLabel() {
+            return this.$store.settings.timerStyles.find(s => s.id === this.$store.settings.timerStyle)?.label ?? 'Classic';
         }
     }"
     x-effect="document.title = $store.pomoState.isRunning ? `${$store.pomoState.digits.slice(0, 2)}:${$store.pomoState.digits.slice(2)} · ${$store.pomoState.isBreak ? 'Break' : 'Focus'} · ${baseTitle}` : baseTitle"
@@ -33,60 +36,127 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
     class="space-y-6"
 >
     <!-- Header -->
-    <header class="flex flex-wrap items-end justify-between gap-4">
-        <div>
-            <p class="text-sm font-medium text-teal-700 dark:text-teal-400">Pomodoro</p>
-            <h1 class="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900 dark:text-white">Focus, then rest</h1>
-            <p class="mt-1 text-gray-500 dark:text-gray-400">Work in timed stretches with short breaks between them.</p>
-        </div>
-        <!-- Length of a work stretch and its break -->
-        <div class={segmented} role="group" aria-label="Timer length">
-            <button type="button" x-on:click="$store.pomoState.preset !== 'pomodoro' && (!$store.pomoState.started || confirm('Change the timer length? The current timer will start over.')) && $store.pomoState.setPreset('pomodoro')" class={segment} x-bind:class={`$store.pomoState.preset === 'pomodoro' ? '${segmentOn}' : '${segmentOff}'`} x-bind:aria-pressed="$store.pomoState.preset === 'pomodoro'">25 / 5</button>
-            <button type="button" x-on:click="$store.pomoState.preset !== 'long' && (!$store.pomoState.started || confirm('Change the timer length? The current timer will start over.')) && $store.pomoState.setPreset('long')" class={segment} x-bind:class={`$store.pomoState.preset === 'long' ? '${segmentOn}' : '${segmentOff}'`} x-bind:aria-pressed="$store.pomoState.preset === 'long'">50 / 10</button>
-        </div>
+    <header>
+        <p class="text-sm font-medium text-teal-700 dark:text-teal-400">Pomodoro</p>
+        <h1 class="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900 dark:text-white">Focus, then rest</h1>
     </header>
 
+    <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_18rem] items-start">
     <!-- Timer Display -->
-    <div class={`${panel} p-6 sm:p-8 flex flex-col items-center justify-center`}>
-        <!-- Focus or break -->
-        <div class={`${segmented} mb-6`} role="group" aria-label="Mode">
-            <button type="button" x-on:click="$store.pomoState.isBreak && $store.pomoState.toggleBreak()" class={segment} x-bind:class={`!$store.pomoState.isBreak ? '${segmentOn}' : '${segmentOff}'`} x-bind:aria-pressed="!$store.pomoState.isBreak">Focus</button>
-            <button type="button" x-on:click="!$store.pomoState.isBreak && $store.pomoState.toggleBreak()" class={segment} x-bind:class={`$store.pomoState.isBreak ? '${segmentOn}' : '${segmentOff}'`} x-bind:aria-pressed="$store.pomoState.isBreak">Break</button>
+    <div class={`${panel} relative isolate overflow-hidden p-6 sm:p-8 flex flex-col items-center justify-center`}>
+        <span
+            x-show="$store.pomoState.lastCompleted"
+            x-transition:enter="transition-opacity ease-out duration-700 motion-reduce:transition-none"
+            x-transition:enter-start="opacity-0"
+            x-transition:enter-end="opacity-[0.14]"
+            class="ripples text-teal-600 dark:text-teal-400"
+            aria-hidden="true"
+        ></span>
+        <p role="status" aria-live="polite" class="sr-only" x-text="$store.pomoState.completedHeadline"></p>
+
+        <!-- Grouped mode, length, and face controls -->
+        <div class="mb-6 w-full flex flex-wrap items-center justify-center gap-2.5">
+            <div class={segmented} role="group" aria-label="Mode">
+                <button type="button" x-on:click="$store.pomoState.isBreak && $store.pomoState.toggleBreak()" class={segment} x-bind:class={`!$store.pomoState.isBreak ? '${segmentOn}' : '${segmentOff}'`} x-bind:aria-pressed="!$store.pomoState.isBreak">Focus</button>
+                <button type="button" x-on:click="!$store.pomoState.isBreak && $store.pomoState.toggleBreak()" class={segment} x-bind:class={`$store.pomoState.isBreak ? '${segmentOn}' : '${segmentOff}'`} x-bind:aria-pressed="$store.pomoState.isBreak">Break</button>
+            </div>
+            <div class={segmented} role="group" aria-label="Timer length">
+                <button type="button" x-on:click="$store.pomoState.setPreset('pomodoro')" class={segment} x-bind:class={`$store.pomoState.preset === 'pomodoro' ? '${segmentOn}' : '${segmentOff}'`} x-bind:aria-pressed="$store.pomoState.preset === 'pomodoro'">25 / 5</button>
+                <button type="button" x-on:click="$store.pomoState.setPreset('long')" class={segment} x-bind:class={`$store.pomoState.preset === 'long' ? '${segmentOn}' : '${segmentOff}'`} x-bind:aria-pressed="$store.pomoState.preset === 'long'">50 / 10</button>
+                <button type="button" x-on:click="$store.pomoState.setPreset('custom')" class={segment} x-bind:class={`$store.pomoState.preset === 'custom' ? '${segmentOn}' : '${segmentOff}'`} x-bind:aria-pressed="$store.pomoState.preset === 'custom'">Custom</button>
+            </div>
+            <button
+                type="button"
+                x-on:click="$dispatch('open-settings', { section: 'timer' })"
+                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium text-gray-600 hover:text-gray-900 bg-gray-900/[0.04] hover:bg-gray-900/[0.08] dark:text-gray-300 dark:hover:text-white dark:bg-white/[0.06] dark:hover:bg-white/[0.1] ring-1 ring-black/5 dark:ring-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 transition-colors"
+                aria-label="Change timer face in Settings"
+            >
+                <span class="text-xs text-gray-500 dark:text-gray-400">Face</span>
+                <span x-text="faceLabel"></span>
+            </button>
+        </div>
+
+        <!-- Custom lengths -->
+        <div
+            x-show="$store.pomoState.preset === 'custom'"
+            x-cloak
+            class="mb-6 flex flex-wrap items-center justify-center gap-4 text-sm"
+            role="group"
+            aria-label="Custom timer lengths"
+        >
+            <div class="flex items-center gap-1.5">
+                <label for="pomo-custom-work" class="font-medium text-gray-600 dark:text-gray-300">Focus</label>
+                <div class="inline-flex items-center rounded-lg ring-1 ring-black/10 dark:ring-white/10 bg-white dark:bg-slate-800">
+                    <button type="button" x-on:click="$store.pomoState.stepCustom('work', -5)" aria-label="Decrease focus minutes" class="px-2 py-1 rounded-l-lg text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">−</button>
+                    <input
+                        id="pomo-custom-work"
+                        type="number"
+                        min="1"
+                        max="180"
+                        x-bind:value="$store.pomoState.custom.work"
+                        x-on:change="$store.pomoState.setCustomDuration('work', Number($event.target.value))"
+                        class="w-14 border-0 bg-transparent py-1 text-center text-sm font-semibold tabular-nums text-gray-900 dark:text-white focus:ring-2 focus:ring-inset focus:ring-teal-500"
+                    />
+                    <button type="button" x-on:click="$store.pomoState.stepCustom('work', 5)" aria-label="Increase focus minutes" class="px-2 py-1 rounded-r-lg text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">+</button>
+                </div>
+                <span class="text-xs text-gray-500 dark:text-gray-400">min</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+                <label for="pomo-custom-break" class="font-medium text-gray-600 dark:text-gray-300">Break</label>
+                <div class="inline-flex items-center rounded-lg ring-1 ring-black/10 dark:ring-white/10 bg-white dark:bg-slate-800">
+                    <button type="button" x-on:click="$store.pomoState.stepCustom('break', -1)" aria-label="Decrease break minutes" class="px-2 py-1 rounded-l-lg text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">−</button>
+                    <input
+                        id="pomo-custom-break"
+                        type="number"
+                        min="1"
+                        max="60"
+                        x-bind:value="$store.pomoState.custom.break"
+                        x-on:change="$store.pomoState.setCustomDuration('break', Number($event.target.value))"
+                        class="w-12 border-0 bg-transparent py-1 text-center text-sm font-semibold tabular-nums text-gray-900 dark:text-white focus:ring-2 focus:ring-inset focus:ring-teal-500"
+                    />
+                    <button type="button" x-on:click="$store.pomoState.stepCustom('break', 1)" aria-label="Increase break minutes" class="px-2 py-1 rounded-r-lg text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">+</button>
+                </div>
+                <span class="text-xs text-gray-500 dark:text-gray-400">min</span>
+            </div>
+        </div>
+
+        <!-- Linked task -->
+        <div x-show="$store.todos.openTasks.length || $store.pomoState.activeTask" x-cloak class="mb-6 flex flex-wrap items-center justify-center gap-2 text-sm max-w-md w-full">
+            <label for="pomo-focus-task" class="shrink-0 text-gray-500 dark:text-gray-400">Focusing on:</label>
+            <select
+                id="pomo-focus-task"
+                x-bind:disabled="!$store.pomoState.isBreak && $store.pomoState.focusTask !== undefined"
+                x-bind:value="$store.pomoState.activeTaskId"
+                x-on:change="$store.pomoState.setTask($event.target.value)"
+                class="min-w-0 max-w-full flex-1 sm:flex-initial sm:max-w-xs truncate rounded-lg border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 py-1.5 pl-3 pr-8 text-sm font-medium text-gray-900 dark:text-white focus:border-teal-500 focus:ring-teal-500"
+            >
+                <template x-if="$store.pomoState.activeTask && !$store.todos.openTasks.some(task => task.id === $store.pomoState.activeTaskId)">
+                    <option x-bind:value="$store.pomoState.activeTaskId" selected x-text="$store.pomoState.activeTask.todo"></option>
+                </template>
+                <template x-for="task in $store.todos.openTasks" :key="task.id">
+                    <option
+                        x-bind:value="task.id"
+                        x-bind:selected="task.id === $store.pomoState.activeTaskId"
+                        x-text="task.parentId ? `${task.todo} (${$store.todos.clusterName(task.parentId)})` : task.todo"
+                    ></option>
+                </template>
+                <option value="" x-bind:selected="$store.pomoState.activeTaskId === ''">No specific task</option>
+            </select>
         </div>
 
         
         <!-- Timer Circle: the classic face. The others are in TimerFaces.astro, picked in Settings. -->
         <template x-if="$store.settings.timerStyle === 'classic'">
         <div class="relative w-72 h-72 mb-8">
-            <!-- Halo that breathes behind the ring while the timer runs -->
-            <div
-                class="absolute inset-3 rounded-full bg-teal-400/35 dark:bg-teal-400/30 blur-3xl transition-opacity duration-700"
-                :class="$store.pomoState.isRunning ? 'opacity-100 classic-breathe' : 'opacity-0'"
-                aria-hidden="true"
-            ></div>
-
-            <svg class="relative w-full h-full overflow-visible"
+            <p class="sr-only" role="timer" x-text="`${Math.floor($store.pomoState.timeLeft / 60)} minutes ${$store.pomoState.timeLeft % 60} seconds left`"></p>
+            <svg class="relative w-full h-full"
                 viewBox="0 0 100 100"
                 role="progressbar"
                 aria-label="Pomodoro progress"
                 aria-valuemin="0"
                 aria-valuemax="100"
-                :aria-valuenow="Math.round($store.pomoState.percentComplete)">
-                <defs>
-                    <linearGradient id="classic-progress" x1="0" y1="0" x2="1" y2="1">
-                        <stop offset="0" stop-color="currentColor" class="text-teal-300" />
-                        <stop offset="1" stop-color="currentColor" class="text-teal-600" />
-                    </linearGradient>
-                    <filter id="classic-glow" x="-50%" y="-50%" width="200%" height="200%">
-                        <feGaussianBlur stdDeviation="2" result="near" />
-                        <feGaussianBlur stdDeviation="5" result="far" />
-                        <feMerge><feMergeNode in="far" /><feMergeNode in="near" /></feMerge>
-                    </filter>
-                    <filter id="classic-head-glow" x="-300%" y="-300%" width="700%" height="700%">
-                        <feGaussianBlur stdDeviation="2.5" />
-                    </filter>
-                </defs>
-
+                :aria-valuenow="Math.round($store.pomoState.percentComplete)"
+                :aria-valuetext="$store.pomoState.timeLeft >= 60 ? `${Math.floor($store.pomoState.timeLeft / 60)} ${Math.floor($store.pomoState.timeLeft / 60) === 1 ? 'minute' : 'minutes'} left` : `${$store.pomoState.timeLeft} seconds left`">
                 <!-- Inner disc and minute ticks -->
                 <circle cx="50" cy="50" r="40.5" fill="currentColor" class="text-white/50 dark:text-slate-900/20" />
                 <g stroke="currentColor" stroke-linecap="round" class="text-gray-300 dark:text-slate-600">
@@ -102,99 +172,174 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
                     class="text-gray-200 dark:text-slate-700"
                 />
 
+                <!-- Progress arc -->
                 <g transform="rotate(-90 50 50)">
-                    <!-- Glow under the progress arc -->
                     <circle
                         cx="50" cy="50" r="45"
                         fill="transparent"
                         stroke="currentColor"
-                        stroke-width="8"
-                        stroke-linecap="round"
-                        stroke-dasharray="282.74"
-                        filter="url(#classic-glow)"
-                        class="text-teal-400 transition-opacity duration-500"
-                        :stroke-dashoffset="282.74 - (282.74 * $store.pomoState.percentComplete) / 100"
-                        :opacity="$store.pomoState.isRunning ? 1 : 0"
-                    />
-                    <!-- Progress Circle -->
-                    <circle
-                        cx="50" cy="50" r="45"
-                        fill="transparent"
                         stroke-width="6"
                         stroke-linecap="round"
                         stroke-dasharray="282.74"
                         :stroke-dashoffset="282.74 - (282.74 * $store.pomoState.percentComplete) / 100"
-                        :stroke="$store.pomoState.isRunning ? 'url(#classic-progress)' : 'currentColor'"
-                        class="text-gray-500 dark:text-gray-400"
+                        :class="$store.pomoState.isRunning ? 'text-teal-600 dark:text-teal-400' : 'text-gray-500 dark:text-gray-400'"
                     />
                 </g>
 
-                <!-- Bright head at the leading edge of the arc -->
+                <!-- Progress head -->
                 <g :transform="`rotate(${3.6 * $store.pomoState.percentComplete} 50 50)`">
-                    <circle cx="50" cy="5" r="4" fill="currentColor" class="text-teal-300" filter="url(#classic-head-glow)" :opacity="$store.pomoState.isRunning ? 1 : 0" />
                     <circle cx="50" cy="5" r="2.1" fill="currentColor" :class="$store.pomoState.isRunning ? 'text-white' : 'text-gray-100 dark:text-gray-300'" />
                 </g>
             </svg>
-            
+
             <!-- Timer Text -->
             <div class="absolute top-0 left-0 w-full h-full flex flex-col items-center justify-center">
                 <div
-                    class="text-6xl font-mono font-bold tabular-nums text-gray-800 dark:text-white transition-[text-shadow] duration-500"
-                    :class="$store.pomoState.isRunning && 'classic-text-glow'"
-                >
-                    <span class="transition-[color] duration-300 ease-in-out" x-text="Math.floor($store.pomoState.timeLeft / 60).toString().padStart(2, '0')"></span><span class="transition-[color] duration-300 ease-in-out" :class="$store.pomoState.isRunning && $store.pomoState.timeLeft % 2 && 'opacity-40'">:</span><span class="transition-[color] duration-300 ease-in-out" x-text="($store.pomoState.timeLeft % 60).toString().padStart(2, '0')"></span>
-                </div>
-                <div class="mt-1 text-md font-medium text-gray-600 dark:text-gray-300 transition-[color] duration-300 ease-in-out" x-text="$store.pomoState.currentPresetName"></div>
+                    class="text-[4rem] leading-none font-semibold tabular-nums tracking-tight text-gray-900 dark:text-white"
+                    x-text="`${$store.pomoState.digits.slice(0, 2)}:${$store.pomoState.digits.slice(2)}`"
+                ></div>
+                <div class="mt-2 text-sm font-medium text-gray-500 dark:text-gray-400" x-text="$store.pomoState.statusLabel"></div>
             </div>
         </div>
         </template>
         <TimerFaces />
-        
+
+        <!-- Cycle dots (4 focus blocks -> long break) -->
+        <div
+            class="mb-6 flex items-center gap-2"
+            role="group"
+            x-bind:aria-label="$store.pomoState.isLongBreak ? '4 of 4 focus blocks complete, long break' : `${$store.pomoState.completedInCycle} of 4 focus blocks in this cycle`"
+        >
+            <template x-for="i in 4" :key="i">
+                <span
+                    class="w-2.5 h-2.5 rounded-full transition-colors"
+                    x-bind:class="i <= $store.pomoState.completedInCycle ? 'bg-teal-600 dark:bg-teal-400' : 'bg-gray-200 dark:bg-slate-700'"
+                    aria-hidden="true"
+                ></span>
+            </template>
+            <span
+                x-show="$store.pomoState.isLongBreak"
+                class="ml-1 text-xs font-medium text-teal-700 dark:text-teal-300"
+            >Long break</span>
+        </div>
+
+        <!-- Finished State -->
+        <div
+            x-show="$store.pomoState.lastCompleted"
+            x-cloak
+            class="flex flex-col items-center gap-3 text-center"
+        >
+            <p class="text-base font-semibold text-gray-900 dark:text-white" x-text="$store.pomoState.completedHeadline"></p>
+            <div class="flex flex-wrap justify-center gap-3">
+                <button
+                    type="button"
+                    @click="$store.pomoState.startTimer()"
+                    class="min-w-[8rem] px-6 py-2.5 text-base font-semibold text-white bg-teal-600 hover:bg-teal-700 rounded-lg shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-800 transition-colors"
+                    x-text="$store.pomoState.isBreak ? ($store.pomoState.isLongBreak ? 'Start long break' : 'Start break') : 'Start focus'"
+                ></button>
+                <button
+                    type="button"
+                    @click="$store.pomoState.skipPhase()"
+                    class="inline-flex items-center px-4 py-2.5 text-sm font-medium rounded-lg ring-1 bg-white text-gray-700 ring-black/10 hover:bg-gray-50 dark:bg-slate-800 dark:text-gray-200 dark:ring-white/10 dark:hover:bg-slate-700 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
+                >Skip</button>
+            </div>
+        </div>
+
         <!-- Timer Controls -->
-        <div class="flex justify-center gap-3">
+        <div x-show="!$store.pomoState.lastCompleted" class="flex flex-wrap justify-center gap-3">
             <button
+              type="button"
               @click="$store.pomoState.isRunning ? $store.pomoState.pauseTimer() : $store.pomoState.startTimer()"
               class="min-w-[7rem] px-6 py-2.5 text-base font-semibold text-white bg-teal-600 hover:bg-teal-700 rounded-lg shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-800 transition-colors"
             >
               <span x-text="$store.pomoState.status === 'running' ? 'Pause' : $store.pomoState.status === 'paused' ? 'Resume' : 'Start'"></span>
             </button>
-            
-            <button 
+
+            <button
+                x-show="$store.pomoState.started"
+                x-cloak
                 type="button"
-                @click="if (confirm('Are you sure you want to reset the current timer?')) { $store.pomoState.resetTimer() }"
-                x-bind:disabled="!$store.pomoState.started"
-                class="inline-flex items-center px-4 py-2.5 text-sm font-medium rounded-lg ring-1 bg-white text-gray-700 ring-black/10 hover:bg-gray-50 dark:bg-slate-800 dark:text-gray-200 dark:ring-white/10 dark:hover:bg-slate-700 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 disabled:opacity-40 disabled:pointer-events-none"
+                @click="$store.pomoState.resetTimer(true)"
+                class="inline-flex items-center px-4 py-2.5 text-sm font-medium rounded-lg ring-1 bg-white text-gray-700 ring-black/10 hover:bg-gray-50 dark:bg-slate-800 dark:text-gray-200 dark:ring-white/10 dark:hover:bg-slate-700 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
             >
-                <div class="flex items-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
-                    Reset
-                </div>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Reset
+            </button>
+
+            <button
+                x-show="$store.pomoState.isBreak || $store.pomoState.started"
+                x-cloak
+                type="button"
+                @click="$store.pomoState.skipPhase()"
+                class="inline-flex items-center px-4 py-2.5 text-sm font-medium rounded-lg ring-1 bg-white text-gray-700 ring-black/10 hover:bg-gray-50 dark:bg-slate-800 dark:text-gray-200 dark:ring-white/10 dark:hover:bg-slate-700 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                </svg>
+                <span x-text="$store.pomoState.isBreak ? 'Skip break' : 'End focus early'"></span>
             </button>
         </div>
 
-        <p class="mt-4 hidden sm:block text-xs text-gray-500 dark:text-gray-400">
+        <p class="mt-4 hidden sm:block lg:hidden text-xs text-gray-500 dark:text-gray-400">
             Press <kbd class="px-1.5 py-0.5 rounded font-sans font-medium ring-1 ring-black/10 dark:ring-white/15">Space</kbd> to start or pause
         </p>
 
-        <!-- Focus finished today -->
-        <p class="mt-6 pt-4 w-full text-center text-sm text-gray-600 dark:text-gray-300 border-t border-black/5 dark:border-white/10"
+        <!-- Focus finished today (compact footer on smaller screens) -->
+        <p class="mt-6 pt-4 w-full text-center text-sm text-gray-600 dark:text-gray-300 border-t border-black/5 dark:border-white/10 lg:hidden"
             x-text="today.count ? `${today.count} focus ${today.count === 1 ? 'session' : 'sessions'} today · ${$dates.formatDuration(today.minutes)}` : 'No focus sessions finished yet today'"></p>
+    </div>
+
+    <!-- Today side column on wide screens -->
+    <aside class={`${panel} hidden lg:block p-5 space-y-5`}>
+        <div class="flex items-center justify-between gap-2">
+            <h2 class="text-base font-semibold text-gray-900 dark:text-white">Today</h2>
+            <button
+                type="button"
+                x-on:click="$dispatch('change-tab', { tab: 'insights' })"
+                class="text-sm font-medium text-teal-700 dark:text-teal-400 hover:text-teal-800 dark:hover:text-teal-300 transition-colors"
+            >Insights →</button>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+            <div class="rounded-xl bg-gray-50 dark:bg-slate-700/40 p-3">
+                <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Sessions</p>
+                <p class="mt-1 text-2xl font-semibold tabular-nums tracking-tight text-gray-900 dark:text-white" x-text="today.count"></p>
+            </div>
+            <div class="rounded-xl bg-gray-50 dark:bg-slate-700/40 p-3">
+                <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Focus time</p>
+                <p class="mt-1 text-2xl font-semibold tabular-nums tracking-tight text-gray-900 dark:text-white" x-text="today.minutes ? $dates.formatDuration(today.minutes) : '0m'"></p>
+            </div>
+        </div>
+
+        <div class="pt-4 border-t border-black/5 dark:border-white/10 space-y-2">
+            <div class="flex items-center justify-between text-xs font-medium text-gray-500 dark:text-gray-400">
+                <span>Cycle</span>
+                <span class="tabular-nums" x-text="`${$store.pomoState.completedInCycle} / 4`"></span>
+            </div>
+            <div class="flex items-center gap-2" aria-hidden="true">
+                <template x-for="i in 4" :key="i">
+                    <span
+                        class="h-2 flex-1 rounded-full transition-colors"
+                        x-bind:class="i <= $store.pomoState.completedInCycle ? 'bg-teal-600 dark:bg-teal-400' : 'bg-gray-200 dark:bg-slate-700'"
+                    ></span>
+                </template>
+            </div>
+            <p
+                class="text-xs text-gray-500 dark:text-gray-400"
+                x-text="$store.pomoState.isLongBreak ? 'Long break earned.' : `${4 - $store.pomoState.completedInCycle} more until long break.`"
+            ></p>
+        </div>
+
+        <p class="pt-4 border-t border-black/5 dark:border-white/10 text-xs text-gray-500 dark:text-gray-400">
+            Press <kbd class="px-1.5 py-0.5 rounded font-sans font-medium ring-1 ring-black/10 dark:ring-white/15">Space</kbd> to start or pause
+        </p>
+    </aside>
     </div>
 </div>
 
-<style is:global>
-    .classic-breathe { animation: classic-breathe 4s ease-in-out infinite; }
-    @keyframes classic-breathe {
-        0%, 100% { transform: scale(0.94); opacity: 0.7; }
-        50% { transform: scale(1.04); opacity: 1; }
-    }
-    .classic-text-glow { text-shadow: 0 0 22px rgb(var(--accent-400) / 0.55); }
-    @media (prefers-reduced-motion: reduce) {
-        .classic-breathe { animation: none; }
-    }
-</style>
+
 
 <script>
     document.addEventListener('alpine:init', () => {

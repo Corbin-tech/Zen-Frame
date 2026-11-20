@@ -86,6 +86,7 @@ const contentSecurityPolicy = [
 			import { notify, startReminders } from '../lib/notifications';
 			import { registerTaskDragDrop } from '../scripts/taskDragDrop.js';
 			import { dates } from '../lib/dates';
+			import { plural } from '../lib/plural';
 
 			document.addEventListener('alpine:init', () => {
 				window.Alpine.store('theme', initThemeStore());
@@ -106,6 +107,7 @@ const contentSecurityPolicy = [
 				registerTaskDragDrop(window.Alpine);
 				// $dates in templates: date and time helpers from src/lib/dates.ts
 				window.Alpine.magic('dates', () => dates);
+				window.Alpine.magic('plural', () => plural);
 			});
 
 			// Block and due-date reminders, once every store is ready

@@ -1,29 +1,150 @@
-<div x-data="{ text: '' }">
-    <div class="flex flex-wrap sm:flex-nowrap gap-3 sm:gap-4">
+<div x-data="quickTaskInput">
+    <div class="flex flex-wrap sm:flex-nowrap gap-2 sm:gap-4">
         <input id="new-task" name="new-task" aria-label="New task"
             type="text"
             x-model="text"
-            x-on:keyup.enter="if (text.trim()) { $store.todos.addTodo(text.trim()); text = '' }"
+            x-ref="input"
+            x-on:keyup.enter="submit()"
+            x-on:input="hint = ''"
+            x-bind:aria-describedby="hint ? 'new-task-hint' : null"
             placeholder="Add a new task..."
             class="w-full sm:w-auto sm:flex-1 min-w-0 px-4 py-2 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 dark:text-white"
         />
-        <button 
-            x-on:click="$dispatch('open-quick-add', { mode: 'task', text: text.trim() }); text = ''"
-            class="flex flex-1 sm:flex-none items-center justify-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors whitespace-nowrap"
-        >
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-            </svg>
-            Add Task
-        </button>
-        <button 
-            x-on:click="$dispatch('open-quick-add', { mode: 'cluster' })"
-            class="flex flex-1 sm:flex-none items-center justify-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors whitespace-nowrap"
-        >
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
-            </svg>
-            New Cluster
-        </button>
+        <div class="flex flex-1 sm:flex-none items-stretch gap-2 sm:gap-3">
+            <!-- The quiet way in: opens the QuickAdd window pre-filled with the typed line -->
+            <button
+                type="button"
+                x-on:click="openMoreOptions()"
+                title="More options"
+                aria-label="More options"
+                class="flex items-center justify-center px-3 py-2 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-slate-700/50 transition-colors"
+            >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01"></path>
+                </svg>
+            </button>
+            <button
+                type="button"
+                x-on:click="submit()"
+                class="flex flex-1 sm:flex-none items-center justify-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors whitespace-nowrap"
+            >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                </svg>
+                Add task
+            </button>
+            <button
+                type="button"
+                x-on:click="$dispatch('open-quick-add', { mode: 'cluster' })"
+                class="flex flex-1 sm:flex-none items-center justify-center gap-2 px-4 py-2 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-200 rounded-lg hover:border-gray-400 dark:hover:border-slate-400 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors whitespace-nowrap"
+            >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                </svg>
+                New cluster
+            </button>
+        </div>
+    </div>
+
+    <p id="new-task-hint" role="status" x-show="hint" x-cloak class="mt-2 text-sm text-gray-600 dark:text-gray-300" x-text="hint"></p>
+
+    <!-- Recognized tokens, one quiet chip per match. Previews only: deleting a chip
+         removes its token from the line, and submit applies the parsed fields. -->
+    <div x-show="chips.length" x-cloak class="mt-2 flex flex-wrap gap-1.5" role="group" aria-label="Recognized from this line">
+        <template x-for="(chip, index) in chips" :key="`${index}-${chip.raw}`">
+            <span
+                class="inline-flex items-center gap-1 pl-2.5 pr-1 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300 transition-opacity"
+                x-bind:class="chip.unresolved ? 'opacity-60' : ''"
+                x-bind:title="chip.unresolved ? 'No cluster with this name yet; the tag stays in the task' : ''"
+            >
+                <span x-text="chip.label"></span>
+                <button
+                    type="button"
+                    x-on:click="removeChip(chip)"
+                    x-bind:aria-label="`Remove ${chip.label}`"
+                    class="inline-flex items-center justify-center w-5 h-5 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-200 dark:text-gray-500 dark:hover:text-gray-300 dark:hover:bg-slate-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 transition-colors"
+                >
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </span>
+        </template>
     </div>
 </div>
+
+<script>
+    import { parseQuickAdd } from '../lib/quickAddParse';
+    import { toDateKey } from '../lib/dates';
+    import { chipLabelFor, resolveClusterByName, withoutMatch } from '../lib/taskFilters';
+
+    document.addEventListener('alpine:init', () => {
+        window.Alpine.data('quickTaskInput', () => ({
+            // The typed line. Enter and the "Add task" button share one submit.
+            text: '',
+            // Why the last submit added nothing (a line with only dates or times)
+            hint: '',
+
+            // The current parse of the line; every date goes through src/lib/dates.ts,
+            // so the due date is today's local day key.
+            get parsed() {
+                return parseQuickAdd(this.text, toDateKey());
+            },
+
+            // One preview chip per parsed token. A cluster chip that matches no existing
+            // cluster by name (case-insensitive) is muted: its tag will stay in the title.
+            get chips() {
+                if (!this.text.trim()) return [];
+                const todayKey = toDateKey();
+                return this.parsed.matches.map(match => ({
+                    ...match,
+                    label: chipLabelFor(match, todayKey),
+                    unresolved: match.kind === 'cluster'
+                        && !resolveClusterByName(this.$store.todos.clusters, String(match.value))
+                }));
+            },
+
+            // Spec item 9: the button and Enter do the same thing; with item 15's
+            // parsed fields applied. Clears and refocuses the input.
+            submit() {
+                const raw = this.text.trim();
+                if (!raw) return;
+                const parsed = this.parsed;
+                // Tokens only (no title): nothing to name a task with, so nothing is added
+                if (!parsed.title) {
+                    this.hint = 'Add a task name too, for example "Call the dentist tomorrow 30m".';
+                    this.$refs.input.focus();
+                    return;
+                }
+                this.hint = '';
+                const fields = {};
+                if (parsed.dueDate) fields.dueDate = parsed.dueDate;
+                if (parsed.estimateMinutes) fields.estimateMinutes = parsed.estimateMinutes;
+                let title = parsed.title;
+                if (parsed.clusterName) {
+                    const cluster = resolveClusterByName(this.$store.todos.clusters, parsed.clusterName);
+                    if (cluster) fields.parentId = cluster.id;
+                    else {
+                        // No cluster by that name: keep the tag in the title, never auto-create one
+                        const tag = parsed.matches.find(match => match.kind === 'cluster');
+                        title = [parsed.title, tag ? tag.raw : `#${parsed.clusterName}`].filter(Boolean).join(' ');
+                    }
+                }
+                this.$store.todos.addTodo(title, fields);
+                this.text = '';
+                this.$refs.input.focus();
+            },
+
+            // Deletes a preview chip by deleting its token from the line
+            removeChip(chip) {
+                this.text = withoutMatch(this.parsed, chip);
+                this.$refs.input.focus();
+            },
+
+            // The quiet "more options" control: the QuickAdd window, pre-filled
+            openMoreOptions() {
+                this.$dispatch('open-quick-add', { mode: 'task', text: this.text.trim() });
+            }
+        }));
+    });
+</script>

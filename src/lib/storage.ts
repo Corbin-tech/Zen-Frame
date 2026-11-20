@@ -1,4 +1,5 @@
 // Reads and writes JSON in localStorage safely, and handles full-app backup/restore.
+import { normalizeStoredData } from "./storedData.ts";
 
 const BACKUP_KEYS = [
   "todos",
@@ -66,7 +67,7 @@ export function removeSession(key: string): boolean {
 export function loadJson<T>(key: string, fallback: T): T {
   try {
     const saved = localStorage.getItem(key);
-    return saved ? JSON.parse(saved) : fallback;
+    return saved ? normalizeStoredData(key, JSON.parse(saved)) as T : fallback;
   } catch {
     console.error(`Could not read "${key}" from storage; starting empty.`);
     return fallback;
@@ -156,24 +157,36 @@ export function importBackup(raw: string): { ok: boolean; error?: string; count?
     if (STRING_KEYS.has(key) && typeof value !== "string") {
       return { ok: false, error: `Invalid "${key}" data in backup.` };
     }
-    entries.push([key, value]);
+    entries.push([key, normalizeStoredData(key, value)]);
   }
 
   // Keep the current values so a write that fails partway can be rolled back
-  const previous = entries.map(([key]) => [key, localStorage.getItem(key)] as const);
-  for (const [key, value] of entries) {
-    const saved = STRING_KEYS.has(key) ? saveString(key, value as string) : saveJson(key, value);
-    if (!saved) {
-      for (const [oldKey, oldValue] of previous) {
-        try {
-          if (oldValue === null) localStorage.removeItem(oldKey);
-          else localStorage.setItem(oldKey, oldValue);
-        } catch {
-          // Best effort: the old value fit before, so this rarely fails
-        }
-      }
-      return { ok: false, error: "Your browser storage is full. Nothing was restored." };
+  const previous = BACKUP_KEYS.map(key => [key, localStorage.getItem(key)] as const);
+  const restoredKeys = new Set(entries.map(([key]) => key));
+  try {
+    for (const key of BACKUP_KEYS) {
+      if (!restoredKeys.has(key)) localStorage.removeItem(key);
     }
+    for (const [key, value] of entries) {
+      localStorage.setItem(key, STRING_KEYS.has(key) ? value as string : JSON.stringify(value));
+    }
+  } catch {
+    for (const key of BACKUP_KEYS) {
+      try {
+        localStorage.removeItem(key);
+      } catch {
+        // Best effort if storage is unavailable
+      }
+    }
+    for (const [oldKey, oldValue] of previous) {
+      if (oldValue === null) continue;
+      try {
+        localStorage.setItem(oldKey, oldValue);
+      } catch {
+        // Best effort: the old value fit before, so this rarely fails
+      }
+    }
+    return { ok: false, error: "Your browser storage is full. Nothing was restored." };
   }
 
   return { ok: true, count: entries.length };

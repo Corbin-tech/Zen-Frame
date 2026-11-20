@@ -21,9 +21,9 @@ const button = 'touch-target rounded-md border border-gray-200 dark:border-slate
         x-bind:aria-label="task.estimateMinutes ? `Change estimate for ${task.todo || 'task'}: ${task.estimateMinutes} minutes` : `Set estimate for ${task.todo || 'task'}`"
         x-bind:class="task.estimateMinutes
             ? 'border-transparent bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300'
-            : 'border-dashed border-gray-300 text-gray-600 dark:border-slate-500 dark:text-gray-300'"
+            : 'border-dashed border-gray-300 text-gray-500 hover:text-gray-700 dark:border-slate-500 dark:text-gray-400 dark:hover:text-gray-200 sm:opacity-0 sm:group-hover/task:opacity-100 sm:group-focus-within/task:opacity-100 focus:opacity-100 [@media(hover:none)]:opacity-100'"
         class="touch-target rounded-md border px-2 py-1 text-xs font-medium hover:border-teal-500 focus-visible:ring-2 focus-visible:ring-teal-500"
-        x-text="task.estimateMinutes ? `${task.estimateMinutes} min` : '+ Estimate'"
+        x-text="task.estimateMinutes ? `${task.estimateMinutes} min` : '+ estimate'"
     ></button>
 
     <div
