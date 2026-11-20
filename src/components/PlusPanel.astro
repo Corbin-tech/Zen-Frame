@@ -12,9 +12,15 @@ const primary = "rounded-lg bg-teal-700 px-3 py-2 text-sm font-medium text-white
 
     <p x-show="$store.plus.error" x-text="$store.plus.error" role="alert" class="text-sm text-red-700 dark:text-red-300"></p>
 
+    <p role="status" class="sr-only" x-text="$store.plus.refreshing ? 'Checking your sign-in…' : $store.plus.error"></p>
+
     <div x-bind:hidden="$store.plus.ready">
-        <p x-show="$store.plus.refreshing" role="status" class="text-sm">Checking your sign-in…</p>
-        <button x-show="!$store.plus.refreshing" type="button" class={button} x-on:click="$store.plus.refresh()">Try again</button>
+        <button type="button" class={`${button} inline-grid focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500`}
+            x-bind:aria-disabled="$store.plus.refreshing" x-bind:aria-busy="$store.plus.refreshing"
+            x-on:click="if (!$store.plus.refreshing) { await $store.plus.refresh(); if ($store.plus.ready) $nextTick(() => ($store.plus.account ? $refs.title : $refs.email).focus()); }">
+            <span class="col-start-1 row-start-1" x-bind:class="{ invisible: $store.plus.refreshing }" x-bind:aria-hidden="$store.plus.refreshing">Try again</span>
+            <span class="col-start-1 row-start-1" x-bind:class="{ invisible: !$store.plus.refreshing }" x-bind:aria-hidden="!$store.plus.refreshing">Checking your sign-in…</span>
+        </button>
     </div>
 
     <div x-bind:hidden="!$store.plus.ready || !!$store.plus.account" class="max-w-sm space-y-3">
