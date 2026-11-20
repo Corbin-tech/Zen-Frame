@@ -116,7 +116,7 @@ const fieldLabel = 'block text-xs font-medium text-gray-500 dark:text-gray-400 m
                     <kbd class="px-1.5 py-0.5 rounded border border-gray-200 dark:border-slate-700 font-sans">Esc</kbd> to close
                 </p>
                 <div class="flex gap-2 ml-auto">
-                    <button type="button" x-on:click="$dispatch('open-brain-dump')" class="px-3 py-2 text-sm font-medium rounded-lg text-teal-700 dark:text-teal-300">Brain dump</button>
+                    <button type="button" x-on:click="$dispatch('open-brain-dump', { text: name })" class="px-3 py-2 text-sm font-medium rounded-lg text-teal-700 dark:text-teal-300">Brain dump</button>
                     <button type="button" x-on:click="close()" class="px-3 py-2 text-sm font-medium rounded-lg text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-slate-800">Cancel</button>
                     <button
                         type="submit"

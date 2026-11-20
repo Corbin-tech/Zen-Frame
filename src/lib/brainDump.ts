@@ -57,7 +57,10 @@ export function brainDump() {
       const preview = assist().preview;
       this.clusters = preview?.kind === 'compile' ? reviewClusters(preview) : [];
     },
-    show() {
+    show(input?: { text?: unknown }) {
+      if (typeof input?.text === 'string' && input.text) {
+        this.text = `${this.text}${this.text ? '\n' : ''}${input.text}`.slice(0, 6000);
+      }
       const detail = { name: 'brain-dump', opener: null as HTMLElement | null };
       window.dispatchEvent(new CustomEvent('overlay-opened', { detail }));
       this.opener = detail.opener || document.activeElement as HTMLElement;
