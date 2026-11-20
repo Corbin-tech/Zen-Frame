@@ -3,6 +3,7 @@ import { planTasks, type AvailabilityWindow } from "../lib/autoPlan";
 import { loadJson, saveJson } from "../lib/storage";
 import type { Milestone } from "./settingsStore";
 import { blockMinutes } from "../lib/estimates";
+import { normalizeLoadedTodo } from "../lib/assist/todoLoad";
 
 export interface Todo {
   id: string;
@@ -126,20 +127,7 @@ function createTodosStore() {
 
     // Alpine calls init() when the store is registered
     init(): void {
-      this.items = loadJson<Todo[]>("todos", []).map(item => ({
-        ...item,
-        parentId: item.parentId ?? null,
-        // A restored backup may carry anything here, so keep only well-formed values
-        estimateMinutes: Number.isFinite(item.estimateMinutes) && item.estimateMinutes > 0 ? item.estimateMinutes : null,
-        steps: Array.isArray(item.steps)
-          ? item.steps.filter(step => step && typeof step.text === "string").map(step => ({
-              id: typeof step.id === "string" ? step.id : crypto.randomUUID(),
-              text: step.text.slice(0, 200),
-              done: step.done === true,
-              minutes: Number.isFinite(step.minutes) ? step.minutes : null
-            }))
-          : undefined
-      }));
+      this.items = loadJson<Todo[]>("todos", []).map(normalizeLoadedTodo);
       this.skippedClusters = loadJson<string[]>("skippedClusters", []);
       this.scheduledItems = loadJson<ScheduledItem[]>("scheduledItems", []);
       this.planning = { ...DEFAULT_PLANNING, ...loadJson<Partial<Planning>>("planning", {}) };
