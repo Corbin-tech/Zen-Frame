@@ -135,7 +135,7 @@ const prompts = [
                     </div>
                 </div>
 
-                <!-- The week in numbers -->
+                <!-- Check-in stats -->
                 <div class="grid grid-cols-3 gap-3 mb-5">
                     <template x-for="stat in weekStats" :key="stat.label">
                         <div class="rounded-xl bg-gray-50 dark:bg-slate-700/40 px-3 py-2.5">
@@ -306,11 +306,12 @@ const prompts = [
                 // From the history, so clearing completed tasks doesn't lower a past week's count
                 const done = this.$store.todos.completions.filter(record => inWeek(record.at)).length;
                 const minutes = focusMinutes(this.$store.pomoState.sessions ?? [], start, end);
-                const goalsDone = this.$store.goals.goals.filter(goal => goal.done).length;
+                const goals = this.$store.goals.goals;
+                const goalsDone = goals.filter(goal => goal.done).length;
                 return [
                     { label: 'tasks done', value: done },
                     { label: 'focus time', value: minutes ? dates.formatDuration(minutes) : '0m' },
-                    { label: 'goals reached', value: `${goalsDone}/${this.$store.goals.goals.length}` }
+                    { label: 'current goal progress', value: goals.length ? `${goalsDone}/${goals.length}` : '–' }
                 ];
             },
 

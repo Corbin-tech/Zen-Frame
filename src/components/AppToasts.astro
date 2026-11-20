@@ -2,7 +2,7 @@
 // In-app toasts, stacked in the bottom corner. Anything can fire one with a window
 // "app-toast" CustomEvent (src/lib/notifications.ts dispatchToast(), or directly);
 // they show even when browser notifications are blocked.
-// Detail: { title, body?, action?: { label, onAction } }. The optional action renders
+// Detail: { title, body?, actionLabel?, onAction? }. The optional action renders
 // one quiet text button (e.g. "Undo") that runs onAction() and dismisses the toast.
 ---
 
@@ -24,14 +24,14 @@
             <div class="min-w-0 flex-1">
                 <p class="text-sm font-semibold text-gray-900 dark:text-white" x-text="toast.title"></p>
                 <p x-show="toast.body" class="text-sm text-gray-600 dark:text-gray-300" x-text="toast.body"></p>
-                <button
-                    type="button"
-                    x-show="toast.action"
-                    x-on:click="runAction(toast)"
-                    class="mt-0.5 text-sm font-medium text-[color:var(--teal-primary)] hover:underline underline-offset-2"
-                    x-text="toast.action?.label"
-                ></button>
             </div>
+            <button
+                x-show="toast.actionLabel && toast.onAction"
+                type="button"
+                x-on:click="runAction(toast)"
+                class="self-center shrink-0 px-2.5 py-1 rounded-lg text-sm font-semibold text-teal-700 hover:bg-teal-50 dark:text-teal-300 dark:hover:bg-teal-900/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 transition-colors"
+                x-text="toast.actionLabel"
+            ></button>
             <button
                 type="button"
                 x-on:click="dismiss(toast.id)"
@@ -54,20 +54,28 @@
         window.Alpine.data('appToasts', () => ({
             toasts: [],
             nextId: 1,
+            timers: new Map(),
 
-            add({ title, body, action }) {
+            add({ title, body = '', actionLabel = '', onAction = null }) {
                 const id = this.nextId++;
-                this.toasts = [...this.toasts, { id, title, body, action }].slice(-3);
-                setTimeout(() => this.dismiss(id), action ? ACTION_SHOW_FOR_MS : SHOW_FOR_MS);
+                const next = [...this.toasts, { id, title, body, actionLabel, onAction }];
+                for (const dropped of next.slice(0, Math.max(0, next.length - 3))) {
+                    clearTimeout(this.timers.get(dropped.id));
+                    this.timers.delete(dropped.id);
+                }
+                this.toasts = next.slice(-3);
+                this.timers.set(id, setTimeout(() => this.dismiss(id), actionLabel ? ACTION_SHOW_FOR_MS : SHOW_FOR_MS));
             },
 
-            // Runs the toast's action, if any, then takes the toast down
             runAction(toast) {
-                toast.action?.onAction();
+                const action = toast.onAction;
                 this.dismiss(toast.id);
+                action?.();
             },
 
             dismiss(id) {
+                clearTimeout(this.timers.get(id));
+                this.timers.delete(id);
                 this.toasts = this.toasts.filter(toast => toast.id !== id);
             }
         }));

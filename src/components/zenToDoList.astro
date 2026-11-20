@@ -204,10 +204,10 @@ import TaskSteps from './TaskSteps.astro';
                 <span class="relative inline-flex w-2 h-2 rounded-full" x-bind:class="$store.pomoState.isRunning ? 'bg-teal-500' : 'bg-gray-400'"></span>
             </span>
             <span class="text-lg font-semibold tabular-nums text-gray-900 dark:text-white" x-text="`${$store.pomoState.digits.slice(0, 2)}:${$store.pomoState.digits.slice(2)}`"></span>
-            <span class="text-sm text-gray-500 dark:text-gray-400" x-text="$store.pomoState.currentPresetName"></span>
+            <span class="text-sm text-gray-500 dark:text-gray-400" x-text="$store.pomoState.phaseLabel"></span>
             <button
                 type="button"
-                x-on:click="$store.pomoState.isRunning ? $store.pomoState.pauseTimer() : $store.pomoState.startFocus()"
+                x-on:click="$store.pomoState.isRunning ? $store.pomoState.pauseTimer() : $store.pomoState.startFocus(currentTodo?.id)"
                 class="ml-1 px-3 py-1 text-sm font-semibold rounded-full bg-teal-600 text-white hover:bg-teal-700 transition-colors"
                 x-text="$store.pomoState.isRunning ? 'Pause' : 'Focus'"
             ></button>

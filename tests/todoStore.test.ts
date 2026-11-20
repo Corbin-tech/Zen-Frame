@@ -1,5 +1,5 @@
 import { afterEach, expect, test, vi } from "vitest";
-import { initStores, type AutoPlanResult, type Planning, type ScheduledItem, type Todo } from "../src/stores/todoStore";
+import { initStores, type AutoPlanResult, type CompletionRecord, type Planning, type ScheduledItem, type Todo } from "../src/stores/todoStore";
 import { dispatchToast, type ToastDetail } from "../src/lib/notifications";
 
 afterEach(() => {
@@ -15,6 +15,41 @@ function setupStore<T extends { items: Todo[]; saveTodos(): void }>(): T {
   vi.spyOn(store, "saveTodos").mockImplementation(() => {});
   return store;
 }
+
+test.each([false, true])("setting a block's completion is idempotent (repeating: %s)", (repeating) => {
+  const store = setupStore<{
+    items: Todo[];
+    history: CompletionRecord[];
+    saveTodos(): void;
+    setBlockDone(item: ScheduledItem, dateKey: string, done: boolean): void;
+  }>();
+  const day = "2026-01-05";
+  const otherDay = "2026-01-06";
+  const task: Todo = {
+    id: "task", todo: "Review project brief", completed: false, isCluster: false,
+    isPinned: false, parentId: null, createdAt: "2026-01-01T00:00:00Z",
+  };
+  const block: ScheduledItem = {
+    id: "block", taskId: task.id, date: day, startTimeMinutes: 600, endTimeMinutes: 660,
+    repeat: repeating ? { weekdays: [1, 2], until: null, doneDates: [otherDay] } : undefined,
+  };
+  store.items = [task];
+
+  store.setBlockDone(block, day, true);
+  store.setBlockDone(block, day, true);
+  expect(task.completed).toBe(!repeating);
+  if (repeating) expect(block.repeat?.doneDates).toEqual([otherDay, day]);
+  expect(store.history).toHaveLength(1);
+  expect(store.history[0].blockId).toBe(repeating ? block.id : undefined);
+  expect(store.saveTodos).toHaveBeenCalledTimes(1);
+
+  store.setBlockDone(block, day, false);
+  store.setBlockDone(block, day, false);
+  expect(task.completed).toBe(false);
+  if (repeating) expect(block.repeat?.doneDates).toEqual([otherDay]);
+  expect(store.history).toEqual([]);
+  expect(store.saveTodos).toHaveBeenCalledTimes(2);
+});
 
 test.each([false, true])("skipping an unclustered task advances Zen and moves it behind its open siblings (started: %s)", (isStarted) => {
   const startedAt = "2026-01-01T10:00:00.000Z";
@@ -359,10 +394,11 @@ test("clear-completed fires one Undo toast whose action restores the removed ite
   expect(toasts).toEqual([{
     title: "Cleared completed",
     body: "3 tasks cleared",
-    action: { label: "Undo", onAction: expect.any(Function) }
+    actionLabel: "Undo",
+    onAction: expect.any(Function)
   }]);
 
-  toasts[0].action!.onAction();
+  toasts[0].onAction!();
 
   // The exact items, in their original order, with their original identities
   expect(store.items.map(item => item.id)).toEqual([keep.id, doneOne.id, cluster.id, doneTwo.id, keepTwo.id, oldCluster.id, oldDone.id]);
@@ -389,7 +425,7 @@ test("deleting a task removes its blocks and an undo puts both back", () => {
   expect(store.scheduledItems).toEqual([]);
   expect(toasts).toEqual([expect.objectContaining({ title: "Task deleted", body: "Book the venue" })]);
 
-  toasts[0].action!.onAction();
+  toasts[0].onAction!();
 
   expect(store.items).toEqual([task]);
   expect(store.items[0]).toBe(task);
@@ -421,7 +457,7 @@ test("an accepted pinned-cluster confirm deletes with an Undo toast that restore
   expect(store.items).toEqual([]);
   expect(toasts).toEqual([expect.objectContaining({ title: "Cluster deleted", body: "Class schedule" })]);
 
-  toasts[0].action!.onAction();
+  toasts[0].onAction!();
 
   expect(store.items.map(item => item.id)).toEqual([cluster.id, task.id]);
   expect(store.items[1].parentId).toBe(cluster.id);
@@ -573,11 +609,12 @@ test("clearing one cluster's completed tasks fires one Undo toast that restores 
   expect(toasts).toEqual([{
     title: "Cleared 1 completed task",
     body: "From alpha",
-    action: { label: "Undo", onAction: expect.any(Function) }
+    actionLabel: "Undo",
+    onAction: expect.any(Function)
   }]);
   expect(store.saveTodos).toHaveBeenCalled();
 
-  toasts[0].action!.onAction();
+  toasts[0].onAction!();
 
   // The exact item, back at its exact position
   expect(store.items.map(item => item.id)).toEqual(["alpha", "a1", "done-two", "beta", "done-beta", "done-loose", "l1"]);
@@ -591,7 +628,7 @@ test("clearing one cluster's completed tasks fires one Undo toast that restores 
   expect(store.items.map(item => item.id)).toEqual(["alpha", "a1", "done-two", "beta", "done-beta", "l1"]);
   expect(toasts).toEqual([expect.objectContaining({ title: "Cleared 1 completed task", body: "From loose tasks" })]);
 
-  toasts[0].action!.onAction();
+  toasts[0].onAction!();
   expect(store.items.map(item => item.id)).toEqual(["alpha", "a1", "done-two", "beta", "done-beta", "done-loose", "l1"]);
 });
 

@@ -19,7 +19,8 @@ type Alpine = { store: (name: string) => any };
 export interface ToastDetail {
   title: string;
   body?: string;
-  action?: { label: string; onAction: () => void };
+  actionLabel?: string;
+  onAction?: () => void;
 }
 
 // Fires one in-app toast. Closures in the action are fine: only the button keeps them.

@@ -150,6 +150,8 @@ interface Settings {
   zenBackground: ZenBackground;
   dashboardLayout: DashboardLayout;
   timerStyle: TimerStyle;
+  pomoAutoStartBreak: boolean;
+  pomoAutoStartFocus: boolean;
   alarmSound: AlarmSound;
   alarmVolume: number; // 0 to 1
   notifyEnabled: boolean; // Master switch for reminders and alerts
@@ -179,6 +181,8 @@ const DEFAULTS: Settings = {
   zenBackground: "none",
   dashboardLayout: DEFAULT_DASHBOARD,
   timerStyle: "classic",
+  pomoAutoStartBreak: false,
+  pomoAutoStartFocus: false,
   alarmSound: "classic",
   alarmVolume: 0.7,
   notifyEnabled: false,
@@ -236,6 +240,8 @@ function loadSettings(): Settings {
     zenBackground: pick(saved.zenBackground, ZEN_BACKGROUNDS, (saved as { zenAmbient?: boolean }).zenAmbient ? "glow" : DEFAULTS.zenBackground),
     dashboardLayout: cleanLayout(saved.dashboardLayout),
     timerStyle: pick(saved.timerStyle, TIMER_STYLES, DEFAULTS.timerStyle),
+    pomoAutoStartBreak: flag(saved.pomoAutoStartBreak, DEFAULTS.pomoAutoStartBreak),
+    pomoAutoStartFocus: flag(saved.pomoAutoStartFocus, DEFAULTS.pomoAutoStartFocus),
     alarmSound: pick(saved.alarmSound, ALARM_SOUNDS, DEFAULTS.alarmSound),
     alarmVolume: typeof saved.alarmVolume === "number" ? Math.min(1, Math.max(0, saved.alarmVolume)) : DEFAULTS.alarmVolume,
     notifyEnabled: flag(saved.notifyEnabled, DEFAULTS.notifyEnabled),
