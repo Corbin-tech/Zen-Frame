@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFile, mkdtemp, writeFile, rm } from 'node:fs/promises';
-import { homedir } from 'node:os';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -14,7 +14,7 @@ import { precheck } from './autorate.ts';
 const sample = validateDataset(JSON.parse(await readFile(new URL('./datasets/sample.json', import.meta.url), 'utf8')));
 assert.deepEqual(args(['--force', '--out', 'private', '--model', 'mock']), { force: 'true', out: 'private', model: 'mock' });
 assert.deepEqual(args(['--out', 'private', '--force']), { out: 'private', force: 'true' });
-const outputTest = await mkdtemp(join(homedir(), 'ws7-output-check-'));
+const outputTest = await mkdtemp(join(tmpdir(), 'ws7-output-check-'));
 try {
   await checkOutputDirectory(outputTest, false);
   for (const file of ['results.json', 'ratings.csv']) {
