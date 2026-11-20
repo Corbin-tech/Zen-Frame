@@ -69,6 +69,10 @@ const contentSecurityPolicy = [
 		<meta property="og:description" content={siteData.siteDescription} />
 		<meta property="og:type" content="website" />
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+		<link rel="manifest" href="/site.webmanifest" />
+		<!-- The browser's UI color. themeStore.ts sets it to the page color of the current theme. -->
+		<meta name="theme-color" content="#F7F5EF" />
 		<meta name="generator" content={Astro.generator} />
 		<title>{title}</title>
 		

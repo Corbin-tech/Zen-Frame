@@ -1,12 +1,19 @@
 // The browser-tab icon: the ensō from public/favicon.svg, redrawn in the chosen accent.
-// The tile uses --accent-600, the button step and the same step as the logo in the top bar.
-// For the default Teal that is #036672, the color in public/favicon.svg.
+// The tile uses --accent-600, the button step. For the default Teal that is #036672,
+// the color in public/favicon.svg.
 
+// The refined ensō on a 32 x 32 grid: an open circle (radius 9.5, centered) with its gap at
+// the top right, from 26° to 105° clockwise from the top, and one distinct dot in the gap.
+// EnsoMark.astro draws the same shape. public/favicon.svg and the PNG icons in public/ copy it.
+export const ENSO_ARC = "M25.18 18.46A9.5 9.5 0 1 1 20.16 7.46";
+export const ENSO_DOT = { cx: 24.64, cy: 12.06 };
+
+// A heavier stroke than the in-app mark, so the shape holds at 16 px
 const ENSO = (fill: string) =>
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">` +
   `<rect width="32" height="32" rx="9" fill="${fill}"/>` +
-  `<path d="M21.5 8.2A9.2 9.2 0 1 0 24.9 13.8" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"/>` +
-  `<circle cx="21.5" cy="8.2" r="2.1" fill="#fff"/>` +
+  `<path d="${ENSO_ARC}" fill="none" stroke="#F7F5EF" stroke-width="2.6" stroke-linecap="round"/>` +
+  `<circle cx="${ENSO_DOT.cx}" cy="${ENSO_DOT.cy}" r="1.7" fill="#F7F5EF"/>` +
   `</svg>`;
 
 // "3 102 114" (an --accent-* value) to "#036672"; null when it isn't three channels
