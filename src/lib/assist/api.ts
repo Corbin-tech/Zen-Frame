@@ -1,4 +1,3 @@
-import { DETAIL_LEVELS } from "./types.ts";
 import type { BreakdownResult, CompileResult, DetailLevel, EstimateResult } from "./types.ts";
 
 export const ASSIST_ENDPOINTS = {
@@ -47,36 +46,6 @@ export const ASSIST_ERROR_STATUS = {
 } as const;
 
 export type AssistErrorCode = keyof typeof ASSIST_ERROR_STATUS;
-export interface AssistErrorResponse {
-  error: AssistErrorCode;
-}
-
-const inputText = { type: "string", minLength: 1, maxLength: MAX_INPUT_CHARS };
-
-export const BREAKDOWN_REQUEST_SCHEMA = {
-  type: "object",
-  properties: {
-    task: inputText,
-    level: { type: "string", enum: DETAIL_LEVELS.map(level => level.id) },
-    context: { type: "string", maxLength: MAX_INPUT_CHARS }
-  },
-  required: ["task", "level"],
-  additionalProperties: false
-};
-
-export const COMPILE_REQUEST_SCHEMA = {
-  type: "object",
-  properties: { text: inputText },
-  required: ["text"],
-  additionalProperties: false
-};
-
-export const ESTIMATE_REQUEST_SCHEMA = {
-  type: "object",
-  properties: { task: inputText },
-  required: ["task"],
-  additionalProperties: false
-};
 
 const minutes = { type: "integer", minimum: 1, maximum: 480 };
 const item = {
@@ -123,12 +92,5 @@ export const ESTIMATE_SCHEMA = {
   type: "object",
   properties: { minutes, low: minutes, high: minutes },
   required: ["minutes", "low", "high"],
-  additionalProperties: false
-};
-
-export const ASSIST_ERROR_SCHEMA = {
-  type: "object",
-  properties: { error: { type: "string", enum: Object.keys(ASSIST_ERROR_STATUS) } },
-  required: ["error"],
   additionalProperties: false
 };
