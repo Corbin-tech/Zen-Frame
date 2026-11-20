@@ -27,6 +27,7 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-2 rou
     x-on:pointercancel.window="resetDrag()"
     x-on:blur.window="resetDrag()"
     x-on:keydown.escape.window="onEscape()"
+    x-on:keydown.tab.window="if (showModal) trap($event)"
     x-on:overlay-opened.window="if (showModal && $event.detail.name !== 'schedule') { $event.detail.opener = opener; closeModal(false); }"
 >
     <!-- Header -->
@@ -269,6 +270,7 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-2 rou
         x-show="showModal"
         x-transition:leave="duration-150"
         x-cloak
+        x-ref="modal"
         class="fixed inset-0 z-50 flex items-center justify-center p-4"
         role="dialog"
         aria-modal="true"
@@ -297,7 +299,7 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-2 rou
                         <h3 id="block-editor-title" class="text-lg font-semibold text-gray-900 dark:text-white" x-text="editingItemId ? 'Edit block' : 'Plan a block'"></h3>
                         <p class="text-sm text-gray-500 dark:text-gray-400" x-text="$dates.formatDate(selectedDate, { weekday: 'long', month: 'long', day: 'numeric' })"></p>
                     </div>
-                    <button type="button" class={iconButton} x-on:click="closeModal()" aria-label="Close">
+                    <button type="button" x-ref="closeModal" class={iconButton} x-on:click="closeModal()" aria-label="Close">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
                 </div>
@@ -513,6 +515,7 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-2 rou
     import { blockMinutes } from '../lib/estimates';
     import { DAY_START, DAY_END, HOUR_HEIGHT, SLOT_MINUTES } from '../lib/timeline';
     import { windowsOn } from '../lib/autoPlan';
+    import { trapFocus } from '../lib/focusTrap';
 
     const DEFAULT_LENGTH = 60;
     const DRAG_THRESHOLD_PX = 4;
@@ -976,7 +979,11 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-2 rou
                 this.repeatDays = item?.repeat ? [...item.repeat.weekdays] : [dates.fromDateKey(this.selectedDate).getDay()];
                 this.repeatUntil = item?.repeat?.until ?? '';
                 this.showModal = true;
-                if (!item && !taskId) this.$nextTick(() => this.$refs.search.focus());
+                this.$nextTick(() => (!item && !taskId ? this.$refs.search : this.$refs.closeModal).focus());
+            },
+
+            trap(event) {
+                trapFocus(event, this.$refs.modal);
             },
 
             // From the "To schedule" list (+) or the header button (no task)
