@@ -76,6 +76,23 @@ export interface AutoPlanResult {
 }
 
 const NEW_CLUSTER_NAME = "New Cluster";
+const PERSISTED_KEYS = ["todos", "skippedClusters", "scheduledItems", "planning", "history"] as const;
+type PersistedKey = typeof PERSISTED_KEYS[number];
+
+function mergeLists<T extends string | { id: string } | CompletionRecord>(base: T[], local: T[], remote: T[]): T[] {
+  const identity = (entry: string | { id: string } | CompletionRecord): string => typeof entry === "string" ? entry
+    : "id" in entry ? entry.id : JSON.stringify([entry.taskId, entry.at, entry.blockId]);
+  const before = new Map(base.map(entry => [identity(entry), JSON.stringify(entry)]));
+  const current = new Map(local.map(entry => [identity(entry), entry]));
+  const merged = new Map(remote.map(entry => [identity(entry), entry]));
+  for (const id of before.keys()) {
+    if (!current.has(id)) merged.delete(id);
+  }
+  for (const [id, entry] of current) {
+    if (before.get(id) !== JSON.stringify(entry)) merged.set(id, entry);
+  }
+  return [...merged.values()];
+}
 
 // Cluster colors, picked in this order for new clusters. Each key is a CSS variable
 // (--c-<key>) in Layout.astro with separate light and dark values. The order keeps
@@ -92,6 +109,7 @@ function createTodosStore() {
     history: [] as CompletionRecord[],
     saveTimer: undefined as ReturnType<typeof window.setTimeout> | undefined,
     writesSuspended: false,
+    savedJson: {} as Partial<Record<PersistedKey, string>>,
 
     get clusters(): Todo[] {
       return this.items.filter(item => item.isCluster);
@@ -131,18 +149,57 @@ function createTodosStore() {
 
     // Alpine calls init() when the store is registered
     init(): void {
-      this.items = loadJson<Todo[]>("todos", []);
-      this.skippedClusters = loadJson<string[]>("skippedClusters", []);
-      this.scheduledItems = loadJson<ScheduledItem[]>("scheduledItems", []);
-      this.planning = { ...DEFAULT_PLANNING, ...loadJson<Partial<Planning>>("planning", {}) };
-      this.history = loadJson<CompletionRecord[]>("history", []);
+      for (const key of PERSISTED_KEYS) this.loadList(key);
+      window.addEventListener("storage", event => {
+        if (event.storageArea !== localStorage) return;
+        for (const key of PERSISTED_KEYS) {
+          if (event.key === null || event.key === key) this.loadList(key, true);
+        }
+      });
       this.recordExistingCompletions();
       this.recordExistingTicks();
       // A write that is waiting when the tab is hidden or closed lands before it really goes
       window.addEventListener("pagehide", () => this.writeTodos());
       document.addEventListener("visibilitychange", () => { if (document.hidden) this.writeTodos(); });
-      // Last: it may save, and saving writes every list, so all of them must be loaded first
+      // Last: it may save, so all lists must be loaded first
       this.giveClustersDistinctColors();
+    },
+
+    persistedValue(key: PersistedKey): unknown {
+      return key === "todos" ? this.items : this[key];
+    },
+
+    loadList(key: PersistedKey, merge = false): void {
+      const local = this.persistedValue(key);
+      const base = this.savedJson[key];
+      const dirty = merge && base !== undefined && JSON.stringify(local) !== base;
+      const load = <T extends string | { id: string } | CompletionRecord>(remote: T[]): T[] => {
+        this.savedJson[key] = JSON.stringify(remote);
+        return dirty ? mergeLists<T>(JSON.parse(base!), local as T[], remote) : remote;
+      };
+      switch (key) {
+        case "todos": this.items = load(loadJson<Todo[]>(key, [])); break;
+        case "skippedClusters": this.skippedClusters = load(loadJson<string[]>(key, [])); break;
+        case "scheduledItems": this.scheduledItems = load(loadJson<ScheduledItem[]>(key, [])); break;
+        case "planning": {
+          const remote = { ...DEFAULT_PLANNING, ...loadJson<Partial<Planning>>(key, {}) };
+          this.savedJson[key] = JSON.stringify(remote);
+          if (!dirty) this.planning = remote;
+          break;
+        }
+        case "history": this.history = load(loadJson<CompletionRecord[]>(key, [])); break;
+      }
+      if (dirty) this.saveTodos();
+    },
+
+    writeList(key: PersistedKey): boolean {
+      if (this.writesSuspended) return false;
+      const value = this.persistedValue(key);
+      const serialized = JSON.stringify(value);
+      if (this.savedJson[key] === serialized) return true;
+      if (!saveJson(key, value)) return false;
+      this.savedJson[key] = serialized;
+      return true;
     },
 
     // Writes happen a beat after the change, out of the completing click's frame, and runs of
@@ -157,11 +214,9 @@ function createTodosStore() {
       window.clearTimeout(this.saveTimer);
       this.saveTimer = undefined;
       // Stops at the first failed write, so one full-storage error shows one toast
-      void (saveJson("todos", this.items)
-        && saveJson("skippedClusters", this.skippedClusters)
-        && saveJson("scheduledItems", this.scheduledItems)
-        && saveJson("planning", this.planning)
-        && saveJson("history", this.history));
+      for (const key of PERSISTED_KEYS) {
+        if (!this.writeList(key)) break;
+      }
     },
 
     // A backup restore wrote storage directly and the page is about to reload: cancel the
@@ -179,7 +234,7 @@ function createTodosStore() {
       if (!missing.length) return;
       this.history = [...this.history, ...missing.map(task => this.completionRecord(task, task.completedAt!))]
         .sort((a, b) => a.at.localeCompare(b.at));
-      saveJson("history", this.history);
+      this.writeList("history");
     },
 
     // Days ticked on repeating blocks before ticks were kept in the history
@@ -197,7 +252,7 @@ function createTodosStore() {
       }
       if (!missing.length) return;
       this.history = [...this.history, ...missing].sort((a, b) => a.at.localeCompare(b.at)).slice(-HISTORY_LIMIT);
-      saveJson("history", this.history);
+      this.writeList("history");
     },
 
     // One ticked day of a repeating block. Today's tick is timed now; another day's is timed
