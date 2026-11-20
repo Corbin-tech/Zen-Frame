@@ -125,8 +125,13 @@ export function taskRow(todos: TodosApi): RowState {
             const before = todos.getTaskPosition(task.id);
             todos.shiftTask(task.id, direction);
             if (todos.getTaskPosition(task.id) !== before) announce();
-            // The row just moved in the DOM; put focus back where it was
-            this.$nextTick(() => { if (document.activeElement !== from) from.focus(); });
+            // The row just moved in the DOM; put focus back where it was. A move that
+            // lands on the list edge disables the pressed button, and disabled buttons
+            // cannot hold focus — hand it to the row instead (which closes the sheet).
+            this.$nextTick(() => {
+                if (from.hasAttribute("disabled")) return from.closest<HTMLElement>("[data-task-id]")?.focus();
+                if (document.activeElement !== from) from.focus();
+            });
         },
 
         deleteTask(this: RowSelf, task: StepTask) {

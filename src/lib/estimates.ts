@@ -32,6 +32,18 @@ export function totalLabel(tasks: Estimated[]): string {
   return unestimated ? `${base} · ${unestimated} not estimated` : base;
 }
 
+// Estimate-only label for tight header chips: "~2 hr 15 min" with no "About" and no
+// "not estimated" tail (unestimated tasks carry their own add-controls row by row).
+// Empty when nothing in the list is estimated, so callers can drop the segment.
+export function chipEstimateLabel(tasks: Estimated[]): string {
+  const { minutes } = totalEstimate(tasks);
+  if (!minutes) return "";
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  const duration = [hours ? `${hours} hr` : "", rest ? `${rest} min` : ""].filter(Boolean).join(" ");
+  return `~${duration}`;
+}
+
 type AssistStore = ReturnType<typeof initAssistStore>;
 
 export function estimatePicker(assist: AssistStore) {

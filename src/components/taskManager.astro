@@ -103,8 +103,7 @@ const pickerItem = 'w-full flex items-center gap-2.5 px-3 py-2 text-left rounded
                     class="hidden sm:inline text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300 tabular-nums whitespace-nowrap"
                     x-text="(() => {
                         const tasks = $store.todos.items.filter(t => !t.isCluster && t.parentId === null);
-                        const total = totalLabel($store.todos.openTasks.filter(task => !task.parentId));
-                        const estimate = total.startsWith('About ') ? total.replace('About ', '~ ') : '';
+                        const estimate = chipEstimateLabel($store.todos.openTasks.filter(task => !task.parentId));
                         return `${tasks.filter(t => t.completed).length}/${tasks.length} done${estimate ? ` · ${estimate}` : ''}`;
                     })()"
                 ></span>
@@ -219,8 +218,7 @@ const pickerItem = 'w-full flex items-center gap-2.5 px-3 py-2 text-left rounded
                             class="hidden sm:inline text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300 tabular-nums whitespace-nowrap"
                             x-text="(() => {
                                 const tasks = $store.todos.items.filter(t => t.parentId === cluster.id);
-                                const total = totalLabel($store.todos.openTasks.filter(task => task.parentId === cluster.id));
-                                const estimate = total.startsWith('About ') ? total.replace('About ', '~ ') : '';
+                                const estimate = chipEstimateLabel($store.todos.openTasks.filter(task => task.parentId === cluster.id));
                                 return `${tasks.filter(t => t.completed).length}/${tasks.length} done${estimate ? ` · ${estimate}` : ''}`;
                             })()"
                         ></span>
@@ -412,7 +410,7 @@ const pickerItem = 'w-full flex items-center gap-2.5 px-3 py-2 text-left rounded
 </style>
 
 <script>
-    import { estimatePicker, totalLabel } from '../lib/estimates';
+    import { estimatePicker, chipEstimateLabel } from '../lib/estimates';
     import { taskRow } from '../scripts/taskRow';
     import { TM_OVERLAY_NAME, moveAnnouncementText, stepRowIndex, tmKeyIntent } from '../scripts/tmKeys';
     import { TASK_MANAGER_SORT_OPTIONS, sortTasksForDisplay, taskMatchesQuery } from '../lib/taskFilters';
@@ -687,7 +685,7 @@ const pickerItem = 'w-full flex items-center gap-2.5 px-3 py-2 text-left rounded
         window.Alpine.data('estimatePicker', estimatePicker);
         // TaskRow's data lives with its rows' x-for templates, so it registers here
         window.Alpine.data('taskRow', taskRow);
-        window.Alpine.data('clusterEstimate', () => ({ totalLabel }));
+        window.Alpine.data('clusterEstimate', () => ({ chipEstimateLabel }));
         window.Alpine.data('taskManagerPage', taskManagerPage);
     });
 </script>
