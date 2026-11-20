@@ -1,0 +1,250 @@
+---
+interface Props {
+    taskId?: string; // Alpine expression in the containing task's scope
+}
+
+const { taskId = 'task.id' } = Astro.props;
+const button = 'min-h-9 rounded-lg px-3 py-1.5 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500';
+const quiet = `${button} text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-slate-700`;
+const primary = `${button} bg-teal-700 text-white hover:bg-teal-800 disabled:opacity-50`;
+const field = 'w-full min-w-0 rounded-lg border border-gray-300 bg-white text-sm text-gray-900 focus:border-teal-500 focus:ring-teal-500 dark:border-slate-600 dark:bg-slate-800 dark:text-gray-100';
+---
+
+<div x-data={`breakdownPanel(() => ${taskId})`} x-id="['breakdown-panel', 'breakdown-title']" class="w-full">
+    <button
+        x-show="canSuggest && !open"
+        x-ref="trigger"
+        type="button"
+        x-bind:aria-controls="$id('breakdown-panel')"
+        x-bind:aria-expanded="open"
+        x-on:click="show()"
+        class={`${quiet} border border-gray-200 dark:border-slate-600`}
+    >Break down task <span class="ml-1 text-xs font-semibold text-teal-700 dark:text-teal-300">Plus</span></button>
+
+    <p role="status" class="sr-only" x-text="announcement"></p>
+    <section
+        x-show="open"
+        x-bind:id="$id('breakdown-panel')"
+        x-bind:aria-labelledby="$id('breakdown-title')"
+        x-on:keydown.escape.stop="close()"
+        class="space-y-4 rounded-xl border border-gray-200 bg-white p-4 text-left dark:border-slate-600 dark:bg-slate-800"
+    >
+        <div>
+            <h3 x-bind:id="$id('breakdown-title')" class="font-semibold text-gray-900 dark:text-gray-100">Break down task</h3>
+            <p class="mt-1 text-sm text-gray-600 dark:text-gray-300" x-text="task?.todo"></p>
+        </div>
+        <div x-show="!editing" class="space-y-3">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">
+                Detail level
+                <select x-ref="level" x-model="level" x-bind:disabled="working" class={`${field} mt-1 min-h-10 max-w-xs`}>
+                    <template x-for="option in detailLevels" x-bind:key="option.id">
+                        <option x-bind:value="option.id" x-text="option.label"></option>
+                    </template>
+                </select>
+            </label>
+            <p x-show="working" class="text-sm text-gray-600 dark:text-gray-300">Finding steps…</p>
+            <p x-show="error" role="alert" class="text-sm text-red-700 dark:text-red-300" x-text="error"></p>
+            <p x-show="open && !canSuggest && !working" class="text-sm text-gray-600 dark:text-gray-300">Plus suggestions are unavailable.</p>
+            <div class="flex flex-wrap gap-2">
+                <button
+                    x-show="!working"
+                    x-ref="generate"
+                    type="button"
+                    x-bind:disabled="!canSuggest || $store.assist.busy"
+                    x-on:click="generate()"
+                    class={primary}
+                    x-text="error ? 'Try again' : 'Find steps'"
+                ></button>
+                <button x-show="working" x-ref="cancel" type="button" x-on:click="cancel()" class={quiet}>Cancel</button>
+            </div>
+        </div>
+        <div x-show="editing" class="space-y-3">
+            <p class="text-sm text-gray-600 dark:text-gray-300">Edit, move or remove any step before saving.</p>
+            <p x-show="task?.steps?.length" class="text-sm text-gray-600 dark:text-gray-300">Accept replaces the existing checklist and resets its progress.</p>
+            <ol class="space-y-3">
+                <template x-for="(step, index) in draft" x-bind:key="step.key">
+                    <li x-bind:data-draft-step="step.key" class="space-y-1 rounded-lg border border-gray-200 p-2 dark:border-slate-600">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">
+                            <span x-text="`Step ${index + 1}`"></span>
+                            <textarea
+                                rows="2"
+                                maxlength="200"
+                                x-text="step.text"
+                                x-on:input="step.text = $event.target.value"
+                                class={`${field} mt-1 block`}
+                            ></textarea>
+                        </label>
+                        <div class="flex flex-wrap items-center gap-1">
+                            <button type="button" x-bind:disabled="index === 0" x-bind:aria-label="`Move step ${index + 1} up`" x-on:click="move(index, -1)" class={`${quiet} disabled:opacity-40`}>Up</button>
+                            <button type="button" x-bind:disabled="index === draft.length - 1" x-bind:aria-label="`Move step ${index + 1} down`" x-on:click="move(index, 1)" class={`${quiet} disabled:opacity-40`}>Down</button>
+                            <button type="button" x-bind:aria-label="`Remove step ${index + 1}`" x-on:click="remove(index)" class={quiet}>Remove</button>
+                            <span x-show="step.minutes" class="ml-auto px-2 text-xs text-gray-600 dark:text-gray-300" x-text="`${step.minutes} min`"></span>
+                        </div>
+                    </li>
+                </template>
+            </ol>
+            <button x-ref="add" type="button" x-on:click="add()" x-bind:disabled="draft.length >= maxSteps" class={`${quiet} disabled:opacity-40`}>Add step</button>
+            <p x-show="draft.length >= maxSteps" class="text-xs text-gray-600 dark:text-gray-300">This checklist can have up to 12 steps.</p>
+        </div>
+        <div class="flex flex-wrap justify-end gap-2 border-t border-gray-100 pt-3 dark:border-slate-700">
+            <button type="button" x-on:click="close()" class={quiet}>Discard</button>
+            <button x-show="editing" type="button" x-on:click="accept()" x-bind:disabled="!hasValidStep" class={primary}>Accept</button>
+        </div>
+    </section>
+</div>
+
+<script>
+    import { cleanBreakdown, cleanBreakdownRequest, cleanText, DETAIL_LEVELS, type DetailLevel, type StepSuggestion } from '../lib/assist';
+    import type { initAssistStore } from '../stores/assistStore';
+    import type { Todo } from '../stores/todoStore';
+
+    type DraftStep = StepSuggestion & { key: number };
+    type BreakdownTodos = {
+        find(id: string): Todo | undefined;
+        clusterName(id: string | null): string;
+        setSteps(id: string, steps: StepSuggestion[]): void;
+    };
+
+    const assist = () => window.Alpine.store('assist') as unknown as ReturnType<typeof initAssistStore>;
+    const todos = () => window.Alpine.store('todos') as unknown as BreakdownTodos;
+    const retryMessage = 'Couldn’t find steps this time. Try again.';
+
+    document.addEventListener('alpine:init', () => {
+        window.Alpine.data('breakdownPanel', (activeTaskId: () => string | undefined) => {
+            let request: AbortController | null = null;
+            let nextKey = 0;
+
+            return {
+                detailLevels: DETAIL_LEVELS,
+                maxSteps: 12,
+                open: false,
+                working: false,
+                editing: false,
+                level: 'five' as DetailLevel,
+                draft: [] as DraftStep[],
+                error: '',
+                announcement: '',
+
+                get breakdownTaskId() { return activeTaskId(); },
+                get task() { return this.breakdownTaskId ? todos().find(this.breakdownTaskId) : undefined; },
+                get canSuggest(): boolean {
+                    return Boolean(this.task?.todo.trim() && !this.task.isCluster && !this.task.completed
+                        && assist().aiStatus === 'ready' && assist().source === 'plus');
+                },
+                get hasValidStep(): boolean { return this.draft.some(step => cleanText(step.text)); },
+
+                init() { this.$watch('breakdownTaskId', () => this.close(false)); },
+                destroy() { request?.abort(); },
+                show() {
+                    if (!this.canSuggest) return;
+                    this.open = true;
+                    this.level = assist().prefs.level;
+                    this.announcement = '';
+                    this.$nextTick(() => this.$refs.level.focus());
+                },
+                stopRequest() {
+                    request?.abort();
+                    request = null;
+                    this.working = false;
+                },
+                focusGenerate() {
+                    this.$nextTick(() => {
+                        const button = this.$refs.generate as HTMLButtonElement;
+                        (button.disabled ? this.$refs.level : button).focus();
+                    });
+                },
+                cancel() {
+                    this.stopRequest();
+                    this.announcement = 'Step suggestions canceled.';
+                    this.focusGenerate();
+                },
+                close(restoreFocus = true) {
+                    const wasOpen = this.open;
+                    this.stopRequest();
+                    this.open = false;
+                    this.editing = false;
+                    this.draft = [];
+                    this.error = '';
+                    this.announcement = '';
+                    if (restoreFocus && wasOpen) this.$nextTick(() => this.$refs.trigger.focus());
+                },
+                async generate() {
+                    const store = assist();
+                    const task = this.task;
+                    if (!this.open || this.working || this.editing || !this.canSuggest || !task || store.busy) return;
+                    const input = cleanBreakdownRequest({ task: task.todo, level: this.level, context: todos().clusterName(task.parentId) });
+                    if (!input) {
+                        this.error = 'Shorten the task or cluster name before finding steps.';
+                        return;
+                    }
+                    if (this.level !== store.prefs.level) store.setPrefs({ level: this.level });
+
+                    const current = request = new AbortController();
+                    this.working = true;
+                    this.error = '';
+                    this.announcement = 'Finding steps.';
+                    this.$nextTick(() => { if (this.working) this.$refs.cancel.focus(); });
+
+                    const result = await store.run(async (provider, signal) => {
+                        const combined = AbortSignal.any([current.signal, signal]);
+                        try {
+                            const response = await provider.breakdown(input.task, input.level, input.context ?? '', combined);
+                            return combined.aborted ? null : cleanBreakdown(response);
+                        } catch (error) {
+                            if (!combined.aborted) throw error;
+                            return null;
+                        }
+                    });
+                    if (request !== current || task.id !== this.breakdownTaskId) return;
+                    this.stopRequest();
+                    this.announcement = '';
+                    if (!result?.steps.length) {
+                        this.error = retryMessage;
+                        this.focusGenerate();
+                        return;
+                    }
+
+                    this.draft = result.steps.map(step => ({ ...step, key: nextKey++ }));
+                    this.editing = true;
+                    this.announcement = `${this.draft.length} suggested steps ready to edit.`;
+                    this.focusStep(this.draft[0].key);
+                },
+                focusStep(key?: number) {
+                    this.$nextTick(() => {
+                        const field = this.$root.querySelector<HTMLTextAreaElement>(`[data-draft-step="${key}"] textarea`);
+                        (field ?? this.$refs.add).focus();
+                    });
+                },
+                add() {
+                    if (this.draft.length >= this.maxSteps) return;
+                    const key = nextKey++;
+                    this.draft.push({ key, text: '', minutes: null });
+                    this.announcement = `Step ${this.draft.length} added.`;
+                    this.focusStep(key);
+                },
+                move(index: number, direction: -1 | 1) {
+                    const target = index + direction;
+                    if (target < 0 || target >= this.draft.length) return;
+                    const [step] = this.draft.splice(index, 1);
+                    this.draft.splice(target, 0, step);
+                    this.announcement = `Step moved to position ${target + 1}.`;
+                    this.focusStep(step.key);
+                },
+                remove(index: number) {
+                    this.draft.splice(index, 1);
+                    this.announcement = `Step ${index + 1} removed.`;
+                    this.focusStep((this.draft[index] ?? this.draft.at(-1))?.key);
+                },
+                accept() {
+                    const task = this.task;
+                    if (!this.editing || !task || task.isCluster || task.completed) return;
+                    const { steps } = cleanBreakdown({ steps: this.draft });
+                    if (!steps.length) return;
+                    todos().setSteps(task.id, steps);
+                    this.close();
+                    this.announcement = 'Checklist saved.';
+                }
+            };
+        });
+    });
+</script>
