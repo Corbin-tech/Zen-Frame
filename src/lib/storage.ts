@@ -1,4 +1,5 @@
 // Reads and writes JSON in localStorage safely, and handles full-app backup/restore.
+import { normalizeStoredData } from "./storedData";
 
 const BACKUP_KEYS = [
   "todos",
@@ -66,7 +67,7 @@ export function removeSession(key: string): boolean {
 export function loadJson<T>(key: string, fallback: T): T {
   try {
     const saved = localStorage.getItem(key);
-    return saved ? JSON.parse(saved) : fallback;
+    return saved ? normalizeStoredData(key, JSON.parse(saved)) as T : fallback;
   } catch {
     console.error(`Could not read "${key}" from storage; starting empty.`);
     return fallback;
@@ -146,7 +147,7 @@ export function importBackup(raw: string): { ok: boolean; error?: string; count?
   const entries: Array<[BackupKey, unknown]> = [];
   for (const key of BACKUP_KEYS) {
     if (!(key in parsed.data)) continue;
-    const value = parsed.data[key];
+    const value = normalizeStoredData(key, parsed.data[key]);
     if (ARRAY_KEYS.has(key) && !Array.isArray(value)) {
       return { ok: false, error: `Invalid "${key}" data in backup.` };
     }

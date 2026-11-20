@@ -20,7 +20,9 @@ test('replacing an exported backup removes app keys absent from the backup', () 
   expect(importBackup(backup)).toEqual({ ok: true, count: 1 });
   expect(localStorage.getItem('goals')).toBe(null);
   expect(localStorage.getItem('theme')).toBe(null);
-  expect(localStorage.getItem('todos')).toBe('[{"id":"saved"}]');
+  expect(JSON.parse(localStorage.getItem('todos')!)).toEqual([
+    { id: 'saved', parentId: null, estimateMinutes: null }
+  ]);
   expect(localStorage.getItem('unrelated')).toBe('keep');
 });
 
