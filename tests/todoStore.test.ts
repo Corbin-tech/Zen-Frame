@@ -1,5 +1,6 @@
 import { afterEach, expect, test, vi } from "vitest";
 import { initStores, type AutoPlanResult, type Planning, type ScheduledItem, type Todo } from "../src/stores/todoStore";
+import { dispatchToast, type ToastDetail } from "../src/lib/notifications";
 
 afterEach(() => {
   vi.useRealTimers();
@@ -293,4 +294,147 @@ test("auto-plan schedules ended routines, preserving their blocks and skipping a
   expect(store.scheduledItems).toEqual([...routines, ...result.blocks]);
   expect(store.items[0].dueDate).toBe("2026-01-06");
   expect(store.autoPlan("2026-01-06", 7).blocks).toEqual([]);
+});
+
+// The undo/toast foundation: destructive store actions capture what they remove,
+// then fire an "app-toast" (with the Undo action in the detail) that restores it.
+type UndoStore = {
+  items: Todo[];
+  skippedClusters: string[];
+  scheduledItems: ScheduledItem[];
+  saveTodos(): void;
+  deleteTodo(id: string): void;
+  deleteCompleted(): void;
+};
+
+function undoStore(): { store: UndoStore; toasts: ToastDetail[] } {
+  const registerStore = vi.fn<(name: string, store: UndoStore) => void>();
+  const toasts: ToastDetail[] = [];
+  vi.stubGlobal("window", {
+    Alpine: { store: registerStore },
+    dispatchEvent: vi.fn((event: { detail: ToastDetail }) => toasts.push(event.detail))
+  });
+  vi.stubGlobal("CustomEvent", class {
+    detail: ToastDetail;
+    constructor(_type: string, init: { detail: ToastDetail }) { this.detail = init.detail; }
+  });
+  initStores();
+  const [, store] = registerStore.mock.calls[0];
+  vi.spyOn(store, "saveTodos").mockImplementation(() => {});
+  return { store, toasts };
+}
+
+const made = (fields: Partial<Todo> & { id: string }): Todo => ({
+  todo: fields.id,
+  completed: false,
+  isCluster: false,
+  isPinned: false,
+  parentId: null,
+  createdAt: "2026-01-01T00:00:00.000Z",
+  ...fields
+});
+
+test("clear-completed fires one Undo toast whose action restores the removed items in place", () => {
+  const { store, toasts } = undoStore();
+  const keep = made({ id: "keep", todo: "Water the plant" });
+  const doneOne = made({ id: "done-one", todo: "Submit the report", completed: true, completedAt: "2026-01-02T10:00:00.000Z" });
+  const cluster = made({ id: "cluster", todo: "Website relaunch", isCluster: true, color: "teal" });
+  const doneTwo = made({ id: "done-two", todo: "Proofread the copy", completed: true, completedAt: "2026-01-02T11:00:00.000Z", parentId: "cluster" });
+  const keepTwo = made({ id: "keep-two", todo: "Order business cards", parentId: "cluster" });
+  // An unpinned cluster whose only task is complete goes with that task
+  const oldCluster = made({ id: "old-cluster", todo: "Static site migration", isCluster: true, color: "indigo" });
+  const oldDone = made({ id: "old-done", todo: "Move the last pages", completed: true, completedAt: "2026-01-02T12:00:00.000Z", parentId: "old-cluster" });
+  store.items = [keep, doneOne, cluster, doneTwo, keepTwo, oldCluster, oldDone];
+  store.skippedClusters = [oldCluster.id, cluster.id];
+  const doneBlock = { id: "block", taskId: "done-one", date: "2026-01-03", startTimeMinutes: 540, endTimeMinutes: 600 };
+  const classBlock = { id: "class", taskId: "cluster", date: "2026-01-05", startTimeMinutes: 540, endTimeMinutes: 660, repeat: { weekdays: [1], until: null, doneDates: [] } };
+  store.scheduledItems = [doneBlock, classBlock];
+
+  store.deleteCompleted();
+
+  expect(store.items.map(item => item.id)).toEqual([keep.id, cluster.id, keepTwo.id]);
+  expect(store.skippedClusters).toEqual([cluster.id]);
+  expect(store.scheduledItems).toEqual([classBlock]);
+  expect(toasts).toEqual([{
+    title: "Cleared completed",
+    body: "3 tasks cleared",
+    action: { label: "Undo", onAction: expect.any(Function) }
+  }]);
+
+  toasts[0].action!.onAction();
+
+  // The exact items, in their original order, with their original identities
+  expect(store.items.map(item => item.id)).toEqual([keep.id, doneOne.id, cluster.id, doneTwo.id, keepTwo.id, oldCluster.id, oldDone.id]);
+  expect(store.items[1]).toBe(doneOne);
+  expect(store.items[6].parentId).toBe(oldCluster.id);
+  expect(store.skippedClusters).toEqual([oldCluster.id, cluster.id]);
+  expect(store.scheduledItems).toEqual([doneBlock, classBlock]);
+  expect(store.saveTodos).toHaveBeenCalled();
+});
+
+test("deleting a task removes its blocks and an undo puts both back", () => {
+  const confirm = vi.fn();
+  vi.stubGlobal("confirm", confirm);
+  const { store, toasts } = undoStore();
+  const task = made({ id: "task", todo: "Book the venue" });
+  const block = { id: "block", taskId: "task", date: "2026-01-05", startTimeMinutes: 600, endTimeMinutes: 660 };
+  store.items = [task];
+  store.scheduledItems = [block];
+
+  store.deleteTodo(task.id);
+
+  expect(confirm).not.toHaveBeenCalled(); // Undo covers unpinned deletions; no confirm needed
+  expect(store.items).toEqual([]);
+  expect(store.scheduledItems).toEqual([]);
+  expect(toasts).toEqual([expect.objectContaining({ title: "Task deleted", body: "Book the venue" })]);
+
+  toasts[0].action!.onAction();
+
+  expect(store.items).toEqual([task]);
+  expect(store.items[0]).toBe(task);
+  expect(store.scheduledItems).toEqual([block]);
+});
+
+test("a pinned cluster still requires its confirm, and a decline changes nothing", () => {
+  vi.stubGlobal("confirm", () => false);
+  const { store, toasts } = undoStore();
+  const cluster = made({ id: "cluster", todo: "Class schedule", isCluster: true, isPinned: true });
+  const task = made({ id: "task", todo: "Buy a planner", parentId: "cluster" });
+  store.items = [cluster, task];
+
+  store.deleteTodo(cluster.id);
+
+  expect(store.items.map(item => item.id)).toEqual([cluster.id, task.id]);
+  expect(toasts).toEqual([]);
+});
+
+test("an accepted pinned-cluster confirm deletes with an Undo toast that restores the cluster", () => {
+  vi.stubGlobal("confirm", () => true);
+  const { store, toasts } = undoStore();
+  const cluster = made({ id: "cluster", todo: "Class schedule", isCluster: true, isPinned: true });
+  const task = made({ id: "task", todo: "Buy a planner", parentId: "cluster" });
+  store.items = [cluster, task];
+
+  store.deleteTodo(cluster.id);
+
+  expect(store.items).toEqual([]);
+  expect(toasts).toEqual([expect.objectContaining({ title: "Cluster deleted", body: "Class schedule" })]);
+
+  toasts[0].action!.onAction();
+
+  expect(store.items.map(item => item.id)).toEqual([cluster.id, task.id]);
+  expect(store.items[1].parentId).toBe(cluster.id);
+});
+
+test("plain { title, body } toasts are unchanged and no-op deletions stay silent", () => {
+  const { store, toasts } = undoStore();
+  vi.mocked(store.saveTodos).mockClear();
+
+  dispatchToast({ title: "Water the ferns", body: "Today at noon" });
+  expect(toasts).toEqual([{ title: "Water the ferns", body: "Today at noon" }]);
+
+  store.deleteTodo("missing");
+  store.deleteCompleted();
+  expect(toasts).toEqual([{ title: "Water the ferns", body: "Today at noon" }]);
+  expect(store.saveTodos).not.toHaveBeenCalled();
 });

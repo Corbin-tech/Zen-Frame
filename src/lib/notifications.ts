@@ -13,6 +13,20 @@ const CHECK_EVERY_MS = 30 * 1000;
 
 type Alpine = { store: (name: string) => any };
 
+// The detail of an "app-toast" window event, shown by AppToasts.astro. The optional
+// action renders as one quiet text button (e.g. "Undo") that runs and then
+// dismisses the toast. Plain { title, body } payloads are unchanged.
+export interface ToastDetail {
+  title: string;
+  body?: string;
+  action?: { label: string; onAction: () => void };
+}
+
+// Fires one in-app toast. Closures in the action are fine: only the button keeps them.
+export function dispatchToast(detail: ToastDetail): void {
+  window.dispatchEvent(new CustomEvent("app-toast", { detail }));
+}
+
 function notificationsSupported(): boolean {
   return "Notification" in window;
 }
@@ -31,7 +45,7 @@ export function notify(Alpine: Alpine, kind: NotificationKind, title: string, bo
   const settings = Alpine.store("settings");
   if (!settings.notifyEnabled || !settings[SETTING[kind]]) return;
 
-  window.dispatchEvent(new CustomEvent("app-toast", { detail: { title, body } }));
+  dispatchToast({ title, body });
   if (permission() === "granted") {
     new Notification(title, { body, icon: "/favicon.svg", tag: `${kind}-${title}-${body}` });
   }
