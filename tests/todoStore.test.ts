@@ -305,6 +305,7 @@ type UndoStore = {
   saveTodos(): void;
   deleteTodo(id: string): void;
   deleteCompleted(): void;
+  clearClusterCompleted(clusterId: string | null): void;
 };
 
 function undoStore(): { store: UndoStore; toasts: ToastDetail[] } {
@@ -437,4 +438,183 @@ test("plain { title, body } toasts are unchanged and no-op deletions stay silent
   store.deleteCompleted();
   expect(toasts).toEqual([{ title: "Water the ferns", body: "Today at noon" }]);
   expect(store.saveTodos).not.toHaveBeenCalled();
+});
+
+// The ordered move (spec item 12): a drop on a row lands directly before or after that
+// row, within its list or across lists; a drop on a container reassigns the cluster
+// only, so the two handlers one drop fires never fight over position. A no-op move
+// (dropped on itself, or back where it already sat) restores nothing and saves nothing.
+type MoveStore = {
+  items: Todo[];
+  saveTodos(): void;
+  moveTaskTo(taskId: string, target: { clusterId: string | null; beforeId?: string; afterId?: string }): boolean;
+  moveTask(taskId: string, clusterId: string): void;
+};
+
+const clusterOf = (id: string): Todo => made({ id, todo: id, isCluster: true, color: "teal" });
+const inCluster = (id: string, parentId: string): Todo => made({ id, todo: id, parentId });
+const looseTask = (id: string): Todo => made({ id, todo: id });
+
+function moveResult(store: MoveStore, taskId: string, target: Parameters<MoveStore["moveTaskTo"]>[1]) {
+  vi.mocked(store.saveTodos).mockClear();
+  const moved = store.moveTaskTo(taskId, target);
+  return { moved, order: store.items.map(item => item.id), saved: store.saveTodos.mock.calls.length > 0 };
+}
+
+test("a row drop reorders within a cluster, before or after first, middle, and last", () => {
+  const store = setupStore<MoveStore>();
+  const pristine = () => [clusterOf("alpha"), inCluster("a1", "alpha"), inCluster("a2", "alpha"), inCluster("a3", "alpha")];
+  const cluster = (order: string[]) => ["alpha", ...order];
+
+  store.items = pristine();
+  expect(moveResult(store, "a3", { clusterId: "alpha", beforeId: "a1" }))
+    .toEqual({ moved: true, order: cluster(["a3", "a1", "a2"]), saved: true });
+
+  store.items = pristine();
+  expect(moveResult(store, "a1", { clusterId: "alpha", afterId: "a3" }))
+    .toEqual({ moved: true, order: cluster(["a2", "a3", "a1"]), saved: true });
+
+  store.items = pristine();
+  expect(moveResult(store, "a3", { clusterId: "alpha", beforeId: "a2" }))
+    .toEqual({ moved: true, order: cluster(["a1", "a3", "a2"]), saved: true });
+
+  store.items = pristine();
+  expect(moveResult(store, "a1", { clusterId: "alpha", afterId: "a2" }))
+    .toEqual({ moved: true, order: cluster(["a2", "a1", "a3"]), saved: true });
+
+  store.items = pristine();
+  expect(moveResult(store, "a2", { clusterId: "alpha", afterId: "a1" }))
+    .toEqual({ moved: false, order: cluster(["a1", "a2", "a3"]), saved: false });
+
+  store.items = pristine();
+  expect(moveResult(store, "a2", { clusterId: "alpha", beforeId: "a3" }))
+    .toEqual({ moved: false, order: cluster(["a1", "a2", "a3"]), saved: false });
+});
+
+test("no-op moves save nothing: dropping on itself, the same place, another cluster already home", () => {
+  const store = setupStore<MoveStore>();
+  store.items = [clusterOf("alpha"), inCluster("a1", "alpha"), inCluster("a2", "alpha"), clusterOf("beta"), inCluster("b1", "beta"), looseTask("l1")];
+  const pristine = store.items.map(item => item.id);
+
+  // Dropped on itself
+  expect(moveResult(store, "a1", { clusterId: "alpha", beforeId: "a1" })).toEqual({ moved: false, order: pristine, saved: false });
+  expect(moveResult(store, "b1", { clusterId: "beta", afterId: "b1" })).toEqual({ moved: false, order: pristine, saved: false });
+  // A container drop into the list the task is already in
+  expect(moveResult(store, "a2", { clusterId: "alpha" })).toEqual({ moved: false, order: pristine, saved: false });
+  expect(moveResult(store, "l1", { clusterId: null })).toEqual({ moved: false, order: pristine, saved: false });
+  // Missing task, missing target, or a cluster as the target
+  expect(moveResult(store, "missing", { clusterId: "alpha", beforeId: "a1" })).toEqual({ moved: false, order: pristine, saved: false });
+  expect(moveResult(store, "a1", { clusterId: "alpha", beforeId: "missing" })).toEqual({ moved: false, order: pristine, saved: false });
+  expect(moveResult(store, "a1", { clusterId: "alpha", beforeId: "beta" })).toEqual({ moved: false, order: pristine, saved: false });
+
+  expect(store.items.map(item => item.id)).toEqual(pristine);
+  expect(store.items.map(item => item.parentId)).toEqual([null, "alpha", "alpha", null, "beta", null]);
+});
+
+test("rows move across clusters and out to loose tasks at the dropped position", () => {
+  const store = setupStore<MoveStore>();
+  const pristine = () => [clusterOf("alpha"), inCluster("a1", "alpha"), inCluster("a2", "alpha"), clusterOf("beta"), inCluster("b1", "beta"), looseTask("l1"), looseTask("l2")];
+
+  // Across clusters, before and after the target
+  store.items = pristine();
+  const intoBeta = moveResult(store, "a2", { clusterId: "beta", beforeId: "b1" });
+  expect(intoBeta).toEqual({ moved: true, order: ["alpha", "a1", "beta", "a2", "b1", "l1", "l2"], saved: true });
+  expect(store.items[3].parentId).toBe("beta");
+
+  store.items = pristine();
+  expect(moveResult(store, "l1", { clusterId: "alpha", afterId: "a1" }))
+    .toEqual({ moved: true, order: ["alpha", "a1", "l1", "a2", "beta", "b1", "l2"], saved: true });
+
+  // Out to loose tasks, before and after a loose target
+  store.items = pristine();
+  expect(moveResult(store, "b1", { clusterId: null, afterId: "l1" }))
+    .toEqual({ moved: true, order: ["alpha", "a1", "a2", "beta", "l1", "b1", "l2"], saved: true });
+  expect(store.items[5].parentId).toBeNull();
+
+  store.items = pristine();
+  expect(moveResult(store, "a2", { clusterId: null, beforeId: "l1" }))    .toEqual({ moved: true, order: ["alpha", "a1", "beta", "b1", "a2", "l1", "l2"], saved: true });
+
+  // A container drop reassigns the cluster and keeps list position, in both directions
+  store.items = pristine();
+  expect(moveResult(store, "a2", { clusterId: null }))
+    .toEqual({ moved: true, order: ["alpha", "a1", "a2", "beta", "b1", "l1", "l2"], saved: true });
+  expect(store.items[2].parentId).toBeNull();
+
+  store.items = pristine();
+  expect(moveResult(store, "l2", { clusterId: "beta" }))
+    .toEqual({ moved: true, order: ["alpha", "a1", "a2", "beta", "b1", "l1", "l2"], saved: true });
+  expect(store.items[6].parentId).toBe("beta"); // l2 keeps its list position, joins beta
+
+  // The old moveTask stays a thin wrapper over the same semantics
+  store.items = pristine();
+  vi.mocked(store.saveTodos).mockClear();
+  store.moveTask("l1", "alpha");
+  expect(store.items.map(item => item.id)).toEqual(["alpha", "a1", "a2", "beta", "b1", "l1", "l2"]);
+  expect(store.items[5].parentId).toBe("alpha");
+  expect(store.saveTodos).toHaveBeenCalled();
+});
+
+test("clearing one cluster's completed tasks fires one Undo toast that restores their positions", () => {
+  const { store, toasts } = undoStore();
+  const alpha = clusterOf("alpha");
+  const a1 = inCluster("a1", "alpha");
+  const doneTwo = made({ id: "done-two", todo: "Proofread the copy", completed: true, completedAt: "2026-01-02T11:00:00.000Z", parentId: "alpha" });
+  const doneLoose = made({ id: "done-loose", todo: "Archive the receipts", completed: true, completedAt: "2026-01-02T12:00:00.000Z" });
+  const l1 = looseTask("l1");
+  const beta = clusterOf("beta");
+  const doneBeta = made({ id: "done-beta", todo: "Ship the invites", completed: true, completedAt: "2026-01-02T13:00:00.000Z", parentId: "beta" });
+  store.items = [alpha, a1, doneTwo, beta, doneBeta, doneLoose, l1];
+  vi.mocked(store.saveTodos).mockClear();
+
+  store.clearClusterCompleted("alpha");
+
+  // Only alpha's finished task went; beta's and the loose one stayed
+  expect(store.items.map(item => item.id)).toEqual(["alpha", "a1", "beta", "done-beta", "done-loose", "l1"]);
+  expect(toasts).toEqual([{
+    title: "Cleared 1 completed task",
+    body: "From alpha",
+    action: { label: "Undo", onAction: expect.any(Function) }
+  }]);
+  expect(store.saveTodos).toHaveBeenCalled();
+
+  toasts[0].action!.onAction();
+
+  // The exact item, back at its exact position
+  expect(store.items.map(item => item.id)).toEqual(["alpha", "a1", "done-two", "beta", "done-beta", "done-loose", "l1"]);
+  expect(store.items[2]).toBe(doneTwo);
+  expect(doneTwo.parentId).toBe("alpha");
+
+  // The loose list's own clear, through the same store method with null
+  toasts.pop();
+  vi.mocked(store.saveTodos).mockClear();
+  store.clearClusterCompleted(null);
+  expect(store.items.map(item => item.id)).toEqual(["alpha", "a1", "done-two", "beta", "done-beta", "l1"]);
+  expect(toasts).toEqual([expect.objectContaining({ title: "Cleared 1 completed task", body: "From loose tasks" })]);
+
+  toasts[0].action!.onAction();
+  expect(store.items.map(item => item.id)).toEqual(["alpha", "a1", "done-two", "beta", "done-beta", "done-loose", "l1"]);
+});
+
+test("clearing a list with nothing completed is silent and saves nothing", () => {
+  const { store, toasts } = undoStore();
+  store.items = [clusterOf("alpha"), inCluster("a1", "alpha"), looseTask("l1")];
+  vi.mocked(store.saveTodos).mockClear();
+
+  store.clearClusterCompleted("alpha");
+  store.clearClusterCompleted(null);
+
+  expect(store.items.map(item => item.id)).toEqual(["alpha", "a1", "l1"]);
+  expect(toasts).toEqual([]);
+  expect(store.saveTodos).not.toHaveBeenCalled();
+});
+
+test("a new cluster defaults to the sentence-case 'New cluster'", () => {
+  const store = setupStore<{ items: Todo[]; saveTodos(): void; createCluster(name?: string): string; updateTask(id: string, updates: Partial<Todo>): void }>();
+  const id = store.createCluster("");
+  expect(store.items[0].todo).toBe("New cluster");
+
+  // Emptying a cluster's name falls back to the same default
+  store.updateTask(id, { todo: "   " });
+  expect(store.items[0].todo).toBe("New cluster");
+  expect(store.saveTodos).toHaveBeenCalled();
 });

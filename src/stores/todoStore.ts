@@ -92,7 +92,7 @@ export interface RemovalSnapshot {
   skippedClusters: RemovedEntry<string>[];
 }
 
-const NEW_CLUSTER_NAME = "New Cluster";
+const NEW_CLUSTER_NAME = "New cluster";
 const PERSISTED_KEYS = ["todos", "skippedClusters", "scheduledItems", "planning", "history"] as const;
 type PersistedKey = typeof PERSISTED_KEYS[number];
 
@@ -562,6 +562,19 @@ function createTodosStore() {
       });
     },
 
+    // Clears only one list's finished tasks: one cluster's (clusterId), or the loose
+    // tasks (clusterId null). The Undo the removeWithUndoToast fires puts them back
+    // in their exact positions.
+    clearClusterCompleted(clusterId: string | null): void {
+      const ids = new Set(this.items
+        .filter(item => !item.isCluster && item.completed && (item.parentId ?? null) === clusterId)
+        .map(item => item.id));
+      const count = ids.size;
+      if (!count) return;
+      const where = clusterId ? this.clusterName(clusterId) || "its cluster" : "loose tasks";
+      this.removeWithUndoToast(ids, `Cleared ${count === 1 ? "1 completed task" : `${count} completed tasks`}`, `From ${where}`);
+    },
+
     // Removes items and everything that points at them. Severed goal links are the
     // one part of a removal that an undo snapshot cannot put back.
     removeItems(ids: Set<string>): void {
@@ -609,13 +622,40 @@ function createTodosStore() {
       this.saveTodos();
     },
 
+    // A plain move into a cluster, keeping the task's place in the list order
     moveTask(taskId: string, clusterId: string): void {
+      this.moveTaskTo(taskId, { clusterId });
+    },
+
+    // An ordered move: into a cluster, or out to loose tasks (clusterId null). With a
+    // target task it lands directly before (or after) that task; without one it only
+    // reassigns parentId and keeps its place in the list order, so a drop on a list
+    // container never clobbers the exact placement a row's drop in that list just made.
+    // Returns whether anything moved: a no-op restores nothing, saves nothing, announces nothing.
+    moveTaskTo(taskId: string, target: { clusterId: string | null; beforeId?: string; afterId?: string }): boolean {
       const task = this.find(taskId);
-      if (!task || task.isCluster || task.parentId === clusterId) return;
+      if (!task || task.isCluster) return false;
+      const clusterId = target.clusterId ?? null;
+
+      if (target.beforeId || target.afterId) {
+        if (target.beforeId === taskId || target.afterId === taskId) return false; // Dropped on itself
+        const anchor = this.find(target.beforeId ?? target.afterId!);
+        if (!anchor || anchor.isCluster) return false;
+        const items = this.items.filter(item => item.id !== taskId);
+        const index = items.findIndex(item => item.id === anchor.id);
+        if (index === -1) return false;
+        items.splice(index + (target.beforeId ? 0 : 1), 0, task);
+        // The same place it already sat: nothing to save
+        if (items.every((item, i) => item === this.items[i])) return false;
+        this.items = items;
+      } else if ((task.parentId ?? null) === clusterId) {
+        return false;
+      }
 
       task.parentId = clusterId;
       task.updatedAt = new Date().toISOString();
       this.saveTodos();
+      return true;
     },
 
     boardColumn(task: Todo): BoardColumn {
