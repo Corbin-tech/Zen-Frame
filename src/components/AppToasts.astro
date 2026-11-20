@@ -45,10 +45,12 @@
 </div>
 
 <script>
+    import { UNDO_TOAST_MS } from '../lib/notifications';
+
     const SHOW_FOR_MS = 8000;
     // Action toasts (Undo) get a longer window: the point is that the user has
     // time to read the toast and decide before the action becomes permanent.
-    const ACTION_SHOW_FOR_MS = 12000;
+    const ACTION_SHOW_FOR_MS = UNDO_TOAST_MS;
 
     document.addEventListener('alpine:init', () => {
         window.Alpine.data('appToasts', () => ({

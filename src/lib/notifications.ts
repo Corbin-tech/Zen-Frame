@@ -23,6 +23,10 @@ export interface ToastDetail {
   onAction?: () => void;
 }
 
+// How long an action toast (Undo) stays up. Stores that keep an undo snapshot must
+// keep it for this long too, so the button never shows after its action has expired.
+export const UNDO_TOAST_MS = 12000;
+
 // Fires one in-app toast. Closures in the action are fine: only the button keeps them.
 export function dispatchToast(detail: ToastDetail): void {
   window.dispatchEvent(new CustomEvent("app-toast", { detail }));
