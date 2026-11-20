@@ -44,6 +44,7 @@ interface RowMagics {
 // that state plus the template magics
 export interface RowState {
     dropEdge: 'top' | 'bottom' | null;
+    titleDraft: string;
     menuOpen: boolean;
     opener: HTMLElement | null;
     stepsOpen: boolean;
@@ -66,6 +67,10 @@ export function taskRow(todos: TodosApi): RowState {
     return {
         // Which edge of the row a dragged task would land on, shown as a teal bar
         dropEdge: null,
+
+        // The title being typed. It is saved on blur or Enter, so a search filter on
+        // task.todo cannot hide the row in the middle of a rename (the Board fix, #55).
+        titleDraft: '',
 
         // The "..." action sheet (item 13)
         menuOpen: false,
