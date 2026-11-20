@@ -3,9 +3,19 @@ import QuickTaskInput from './QuickTaskInput.astro';
 import TaskRow from './TaskRow.astro';
 
 const panel = 'panel';
+// The # picker's entries (spec item 17): quiet, like the row sheet's menu items
+const pickerItem = 'w-full flex items-center gap-2.5 px-3 py-2 text-left rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-40 disabled:pointer-events-none transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500';
 ---
 
-<div class="space-y-6">
+<div
+    class="space-y-6"
+    x-data="taskManagerPage"
+    x-on:keydown.window="tmKeydown($event)"
+    x-on:overlay-opened.window="onOverlayOpened($event.detail)"
+    x-on:task-row-menu.window="if (pickerOpen) closePicker(false)"
+>
+    <!-- One line about the latest move, spoken by screen readers -->
+    <p class="sr-only" role="status" aria-live="polite" x-text="moveAnnouncement"></p>
     <!-- Header -->
     <header class="flex flex-wrap items-end justify-between gap-4">
         <div>
@@ -17,26 +27,51 @@ const panel = 'panel';
                     const open = $store.todos.openTasks.length;
                     const clusters = $store.todos.clusters.length;
                     if (!$store.todos.items.length) return 'Add a task or a cluster to get started.';
+                    // Board's no-results idiom, mirrored quietly (spec item 20).
+                    // Completed matches count too: their folds open while searching.
+                    if (searching) {
+                        const matches = openTasksIn(null).length + doneTasksIn(null).length
+                            + $store.todos.clusters.reduce((sum, cluster) =>
+                                sum + openTasksIn(cluster.id).length + doneTasksIn(cluster.id).length, 0);
+                        if (!matches) return `No tasks match &quot;${search.trim()}&quot;.`;
+                    }
                     return `${open} open ${open === 1 ? 'task' : 'tasks'} · ${clusters} ${clusters === 1 ? 'cluster' : 'clusters'}`;
                 })()"
             ></p>
         </div>
-        <button 
-            x-on:click="$store.todos.deleteCompleted()"
-            x-show="$store.todos.hasCompletedTasks"
-            x-transition:enter="transition ease-out duration-300"
-            x-transition:enter-start="opacity-0 transform scale-90"
-            x-transition:enter-end="opacity-100 transform scale-100"
-            x-transition:leave="transition ease-in duration-200"
-            x-transition:leave-start="opacity-100 transform scale-100"
-            x-transition:leave-end="opacity-0 transform scale-90"
-            class="flex items-center gap-1.5 px-2 py-1 text-sm text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400 rounded-lg transition-colors duration-200"
-        >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
-            Delete Completed
-        </button>
+
+        <!-- Search and sort, the same tools the Board header has -->
+        <div class="flex flex-wrap items-center gap-2">
+            <label for="tm-search" class="sr-only">Search tasks</label>
+            <div class="relative">
+                <svg class="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z" /></svg>
+                <input
+                    id="tm-search"
+                    name="tm-search"
+                    type="search"
+                    x-model="search"
+                    x-on:keydown.escape="search = ''"
+                    placeholder="Search tasks"
+                    class="w-44 sm:w-52 pl-8 pr-3 py-1.5 rounded-full border-0 ring-1 ring-black/10 dark:ring-white/10 bg-white dark:bg-slate-800 dark:text-white text-sm focus:ring-2 focus:ring-teal-500"
+                />
+            </div>
+            <!-- Sort: list order, or by due date with overdue tasks on top -->
+            <div class="inline-flex p-1 rounded-full bg-gray-900/[0.04] dark:bg-white/[0.06] ring-1 ring-black/5 dark:ring-white/10" role="group" aria-label="Sort tasks">
+                <template x-for="option in sortOptions" :key="option.id">
+                    <button
+                        type="button"
+                        x-on:click="sortBy = option.id"
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all"
+                        x-bind:class="sortBy === option.id
+                            ? 'bg-white text-gray-900 shadow-sm ring-1 ring-black/5 dark:bg-white/[0.14] dark:text-white dark:ring-white/10'
+                            : 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200'"
+                        x-bind:aria-pressed="sortBy === option.id"
+                    >
+                        <span x-text="option.label"></span>
+                    </button>
+                </template>
+            </div>
+        </div>
     </header>
 
     <div class={`${panel} p-4 sm:p-6`}>
@@ -45,40 +80,111 @@ const panel = 'panel';
         <QuickTaskInput />
     </div>
 
-    <!-- Clusters and Tasks -->
+    <!-- Tasks: the Inbox first (spec item 18), then the clusters.
+         While searching, a section with no matching tasks hides entirely. -->
     <div class="space-y-6">
+        <!-- The Inbox: every task that belongs to no cluster, first under the quick
+             input so what you type there lands next to where you typed it. A cluster
+             card in every way but its name, which no one edits. -->
+        <div
+            class="cluster-card group relative rounded-xl shadow-sm ring-1 ring-black/5 dark:ring-white/5 transition-colors duration-300 ease-in-out"
+            style="background-color: var(--cluster-bg);"
+            x-show="$store.todos.items.length && (!searching || openTasksIn(null).length || doneTasksIn(null).length)"
+            x-task-drop="taskMove($taskId, { clusterId: null })"
+        >
+            <!-- The palette's neutral tint along the left edge, like a cluster's bar -->
+            <span class="absolute left-0 top-3 bottom-3 w-1 rounded-r-full" style="background-color: var(--c-none);" aria-hidden="true"></span>
+            <!-- Header, like a cluster's: the name, and the same "1/3 done" chip idiom -->
+            <div class="flex flex-wrap items-center justify-between gap-x-2 p-3 sm:p-4 border-b border-gray-100 dark:border-slate-600 transition-colors duration-300 ease-in-out">
+                <h2 class="flex-1 min-w-0 pl-4 sm:pl-5 text-lg font-medium text-gray-900 dark:text-white">Inbox</h2>
+                <span
+                    x-show="$store.todos.items.some(t => !t.isCluster && t.parentId === null)"
+                    x-data="clusterEstimate"
+                    class="hidden sm:inline text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300 tabular-nums whitespace-nowrap"
+                    x-text="(() => {
+                        const tasks = $store.todos.items.filter(t => !t.isCluster && t.parentId === null);
+                        const estimate = chipEstimateLabel($store.todos.openTasks.filter(task => !task.parentId));
+                        return `${tasks.filter(t => t.completed).length}/${tasks.length} done${estimate ? ` · ${estimate}` : ''}`;
+                    })()"
+                ></span>
+            </div>
+
+            <div class="p-2 sm:p-4">
+                <div class="p-1 sm:p-3 space-y-2 transition-colors duration-300 ease-in-out">
+                    <template x-for="task in openTasksIn(null)" :key="task.id">
+                        <TaskRow />
+                    </template>
+                </div>
+
+                <!-- Finished loose tasks fold away under the same quiet toggle -->
+                <div
+                    class="mt-1 ml-1 sm:ml-3"
+                    x-data="{ doneOpen: false }"
+                    x-show="doneTasksIn(null).length"
+                >
+                    <button
+                        type="button"
+                        x-on:click="doneOpen = !doneOpen"
+                        class="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-sm text-gray-500 hover:text-gray-800 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-slate-700/50 transition-colors"
+                        x-bind:aria-expanded="doneOpen || searching"
+                        aria-controls="done-inbox"
+                    >
+                        <svg class="w-3.5 h-3.5 transition-transform duration-200" x-bind:class="doneOpen ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                        <span class="tabular-nums" x-text="`Completed (${doneTasksIn(null).length})`"></span>
+                    </button>
+                    <div x-show="doneOpen || searching" x-cloak id="done-inbox" class="mt-2 space-y-4">
+                        <div class="space-y-2 transition-colors duration-300 ease-in-out">
+                            <template x-for="task in doneTasksIn(null)" :key="task.id">
+                                <TaskRow />
+                            </template>
+                        </div>
+                        <button
+                            type="button"
+                            x-on:click="$store.todos.clearClusterCompleted(null)"
+                            class="px-2 py-1 rounded-lg text-sm text-gray-500 hover:text-red-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-red-400 dark:hover:bg-slate-700/50 transition-colors"
+                        >Clear completed</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Clusters -->
         <template x-for="cluster in $store.todos.clusters" :key="cluster.id">
-            <div 
-                class="cluster-card group rounded-xl shadow-sm border-2 border-l-4 border-gray-100 dark:border-slate-600 hover:border-teal-200 dark:hover:border-teal-800 transition-all duration-300 ease-in-out"
-                x-bind:style="`background-color: var(--cluster-bg); border-left-color: ${$store.todos.clusterColor(cluster.id)};`"
-                x-task-drop="$store.todos.moveTask($taskId, cluster.id)"
+            <div
+                x-show="!searching || hasMatchesIn(cluster.id)"
+                class="cluster-card group relative rounded-xl shadow-sm ring-1 ring-black/5 dark:ring-white/5 transition-colors duration-300 ease-in-out"
+                x-bind:style="background-color: var(--cluster-bg);"
+                x-task-drop="taskMove($taskId, { clusterId: cluster.id })"
                 x-bind:id="`item-${cluster.id}`"
             >
+                <!-- Cluster color along the left edge, like a board card -->
+                <span class="absolute left-0 top-3 bottom-3 w-1 rounded-r-full" x-bind:style="`background-color: ${$store.todos.clusterColor(cluster.id)};`" aria-hidden="true"></span>
                 <!-- Cluster Header -->
-                <div class="group/header flex flex-wrap items-center justify-between gap-x-2 p-3 sm:p-4 border-b border-gray-100 dark:border-slate-600 transition-colors duration-300 ease-in-out"
-                     x-bind:class="{'bg-teal-50 dark:bg-teal-900/20': cluster.isPinned}">
+                <div class="group/header flex flex-wrap items-center justify-between gap-x-2 p-3 sm:p-4 border-b border-gray-100 dark:border-slate-600 transition-colors duration-300 ease-in-out">
                     <div class="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
                         <!-- Cluster color: the icon opens a swatch picker -->
                         <div class="relative" x-data="{ open: false }" x-on:click.outside="open = false" x-on:keydown.escape="open = false">
                             <button
                                 type="button"
                                 x-on:click="open = !open"
-                                class="inline-flex items-center justify-center touch-target p-1.5 rounded-lg transition-colors duration-300 ease-in-out"
-                                x-bind:class="{'ring-2 ring-teal-300 dark:ring-teal-700': cluster.isPinned}"
-                                x-bind:style="`color: ${$store.todos.clusterColor(cluster.id)}; background-color: color-mix(in srgb, ${$store.todos.clusterColor(cluster.id)} 15%, transparent);`"
+                                class="inline-flex items-center justify-center touch-target p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors duration-300 ease-in-out"
                                 aria-label="Change cluster color"
                                 title="Change color"
                             >
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2v-12a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                                </svg>
+                                <!-- The cluster's color, like a board chip. The dot opens the swatch picker. -->
+                                <span
+                                    class="w-2.5 h-2.5 rounded-full ring-1 ring-black/10 dark:ring-white/10"
+                                    x-bind:style="`background-color: ${$store.todos.clusterColor(cluster.id)};`"
+                                    aria-hidden="true"
+                                ></span>
                             </button>
                             <div
                                 x-show="open"
                                 x-transition.opacity.duration.150ms
                                 x-cloak
-                                class="absolute left-0 top-full mt-2 z-30 p-2 rounded-xl bg-white dark:bg-slate-800 shadow-lg ring-1 ring-black/5 dark:ring-white/10 grid grid-cols-6 gap-2"
+                                class="absolute left-0 top-full mt-2 z-30 p-2 rounded-xl bg-white dark:bg-slate-800 shadow-lg ring-1 ring-black/5 dark:ring-white/10 grid grid-cols-[repeat(6,1.5rem)] gap-2"
                             >
                                 <template x-for="color in $store.todos.palette" :key="color">
                                     <button
@@ -103,13 +209,18 @@ const panel = 'panel';
                             x-on:keydown.enter="$event.target.blur()"
                             x-on:blur="$store.todos.updateTask(cluster.id, { todo: cluster.todo })"
                             class="flex-1 min-w-0 text-lg font-medium bg-transparent border-none focus:ring-0 dark:text-white"
-                            placeholder="Cluster Name"
+                            placeholder="Cluster name"
                         />
-                        <!-- Completed / total tasks -->
+                        <!-- Completed / total tasks, with the cluster's open estimate in the same chip -->
                         <span
                             x-show="$store.todos.items.some(t => t.parentId === cluster.id)"
+                            x-data="clusterEstimate"
                             class="hidden sm:inline text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300 tabular-nums whitespace-nowrap"
-                            x-text="`${$store.todos.items.filter(t => t.parentId === cluster.id && t.completed).length}/${$store.todos.items.filter(t => t.parentId === cluster.id).length} done`"
+                            x-text="(() => {
+                                const tasks = $store.todos.items.filter(t => t.parentId === cluster.id);
+                                const estimate = chipEstimateLabel($store.todos.openTasks.filter(task => task.parentId === cluster.id));
+                                return `${tasks.filter(t => t.completed).length}/${tasks.length} done${estimate ? ` · ${estimate}` : ''}`;
+                            })()"
                         ></span>
                         <!-- Pin indicator/button -->
                         <button 
@@ -164,17 +275,12 @@ const panel = 'panel';
                             </svg>
                         </button>
                     </div>
-                    <p
-                        x-data="clusterEstimate"
-                        class="basis-full pl-12 text-xs text-gray-600 dark:text-gray-300"
-                        x-text="totalLabel($store.todos.openTasks.filter(task => task.parentId === cluster.id))"
-                    ></p>
                 </div>
 
                 <!-- Cluster Content -->
                 <div class="p-2 sm:p-4">
                     <div class="p-1 sm:p-3 space-y-2 transition-colors duration-300 ease-in-out">
-                        <template x-for="task in $store.todos.items.filter(t => t.parentId === cluster.id)" :key="task.id">
+                        <template x-for="task in openTasksIn(cluster.id)" :key="task.id">
                             <TaskRow />
                         </template>
                     </div>
@@ -186,49 +292,400 @@ const panel = 'panel';
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
                         <span x-text="`Add a task to ${cluster.todo}`"></span>
                     </button>
+
+                    <!-- Finished tasks fold out of the way; Clear is their only destructive exit.
+                         While searching, matching finished tasks surface: the section opens itself. -->
+                    <div
+                        class="mt-1 ml-1 sm:ml-3"
+                        x-data="{ doneOpen: false }"
+                        x-show="doneTasksIn(cluster.id).length"
+                    >
+                        <button
+                            type="button"
+                            x-on:click="doneOpen = !doneOpen"
+                            class="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-sm text-gray-500 hover:text-gray-800 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-slate-700/50 transition-colors"
+                            x-bind:aria-expanded="doneOpen || searching"
+                            x-bind:aria-controls="`done-${cluster.id}`"
+                        >
+                            <svg class="w-3.5 h-3.5 transition-transform duration-200" x-bind:class="doneOpen ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                            </svg>
+                            <span class="tabular-nums" x-text="`Completed (${doneTasksIn(cluster.id).length})`"></span>
+                        </button>
+                        <div x-show="doneOpen || searching" x-cloak x-bind:id="`done-${cluster.id}`" class="mt-2 space-y-4 pl-1 sm:pl-3">
+                            <div class="space-y-2 transition-colors duration-300 ease-in-out">
+                                <template x-for="task in doneTasksIn(cluster.id)" :key="task.id">
+                                    <TaskRow />
+                                </template>
+                            </div>
+                            <button
+                                type="button"
+                                x-on:click="$store.todos.clearClusterCompleted(cluster.id)"
+                                class="px-2 py-1 rounded-lg text-sm text-gray-500 hover:text-red-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-red-400 dark:hover:bg-slate-700/50 transition-colors"
+                            >Clear completed</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </template>
         
-        <!-- Main Container - All Non-Clustered Tasks -->
-        <div class="flex-1 p-1 sm:p-4">
-            <h2 class="text-xl font-semibold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-teal-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                </svg>
-                Tasks
-            </h2>
-            
-            <div class="space-y-2 transition-colors duration-300 ease-in-out" id="mainContainer">
-                <template x-for="task in $store.todos.items.filter(t => !t.parentId && !t.isCluster)" :key="task.id">
-                    <TaskRow />
-                </template>
-            </div>
+        <!-- No tasks and no clusters at all (spec item 20): one quiet centered line
+             in the panels' place, with a small echo of the page's raked sand. A
+             search that hides everything says so in the header instead. -->
+        <div x-show="!$store.todos.items.length" class="py-10 flex flex-col items-center text-center">
+            <span class="tm-raked-sand block w-40 h-8 mb-2" aria-hidden="true"></span>
+            <p class="text-sm text-gray-500 dark:text-gray-400">
+                Press <kbd class="px-1.5 py-0.5 rounded border border-gray-200 dark:border-slate-700 font-sans">N</kbd> to add a task
+            </p>
         </div>
     </div>
+    </div>
+
+    <!-- The # key's cluster picker (spec item 17): move the focused task to any
+         cluster or the Inbox, one quiet menu. Same keys and manners as a row's
+         "..." sheet: arrows cycle, Esc closes, focus returns to the row. -->
+    <div
+        x-show="pickerOpen"
+        x-cloak
+        x-transition.opacity.duration.150ms
+        x-ref="pickerMenu"
+        role="menu"
+        aria-label="Move task to"
+        x-bind:style="`position: fixed; top: ${pickerTop}px; left: ${pickerLeft}px;`"
+        x-on:keydown.escape.stop="closePicker()"
+        x-on:keydown.down.prevent="pickerFocus(1)"
+        x-on:keydown.up.prevent="pickerFocus(-1)"
+        x-on:focusout="if (!$el.contains($event.relatedTarget)) closePicker(false)"
+        class="z-40 w-52 py-1.5 rounded-xl bg-white dark:bg-slate-800 shadow-lg ring-1 ring-black/10 dark:ring-white/10 text-sm text-gray-700 dark:text-gray-200"
+    >
+        <template x-for="cluster in $store.todos.clusters" :key="cluster.id">
+            <button
+                type="button"
+                role="menuitem"
+                x-on:click="applyPickerMove(cluster.id)"
+                x-bind:disabled="pickerTask(pickerTaskId)?.parentId === cluster.id"
+                x-bind:aria-label="`Move to cluster ${cluster.todo || 'Unnamed cluster'}`"
+                class={pickerItem}
+            >
+                <span
+                    class="w-2.5 h-2.5 rounded-full ring-1 ring-black/10 dark:ring-white/10 shrink-0"
+                    x-bind:style="`background-color: ${$store.todos.clusterColor(cluster.id)};`"
+                    aria-hidden="true"
+                ></span>
+                <span class="min-w-0 flex-1 truncate" x-text="cluster.todo || 'Unnamed cluster'"></span>
+            </button>
+        </template>
+        <button
+            type="button"
+            role="menuitem"
+            x-on:click="applyPickerMove(null)"
+            x-bind:disabled="!pickerTask(pickerTaskId)?.parentId"
+            aria-label="Move to Inbox"
+            class={pickerItem}
+        >
+            <span
+                class="w-2.5 h-2.5 rounded-full ring-1 ring-black/10 dark:ring-white/10 shrink-0"
+                style="background-color: var(--c-none);"
+                aria-hidden="true"
+            ></span>
+            <span class="min-w-0 flex-1 truncate">Inbox</span>
+        </button>
     </div>
 </div>
 
 <style>
-    #mainContainer {
-        position: relative;
-        padding-top: 20px;
-        padding-bottom: 16px;
+    /* A task is being dragged over a cluster or the Inbox card */
+    .cluster-card[data-drop-active] {
+        box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--teal-primary) 45%, transparent);
+        background-color: color-mix(in srgb, var(--teal-primary) 5%, transparent) !important;
     }
 
-    /* A task is being dragged over this cluster */
-    .cluster-card[data-drop-active] {
-        border-style: dashed;
-        border-color: var(--teal-primary);
-        background-color: color-mix(in srgb, var(--teal-primary) 5%, transparent) !important;
+    /* A small echo of the page's raked-sand ripples (see Layout.astro's body::before),
+       one quiet band over the empty-state line, trailing off to the left. */
+    .tm-raked-sand {
+        background: repeating-radial-gradient(circle at 100% 0%, transparent 0 27px, var(--ripple) 27px 28px);
+        -webkit-mask-image: linear-gradient(to left, black 45%, transparent);
+        mask-image: linear-gradient(to left, black 45%, transparent);
     }
 </style>
 
 <script>
-    import { estimatePicker, totalLabel } from '../lib/estimates';
+    import { estimatePicker, chipEstimateLabel } from '../lib/estimates';
+    import { taskRow } from '../scripts/taskRow';
+    import { TM_OVERLAY_NAME, moveAnnouncementText, stepRowIndex, tmKeyIntent } from '../scripts/tmKeys';
+    import { TASK_MANAGER_SORT_OPTIONS, sortTasksForDisplay, taskMatchesQuery } from '../lib/taskFilters';
+
+    // Every drag-and-drop and keyboard move in the Task Manager funnels through one
+    // helper, so the store call and the one line of screen-reader copy stay in sync.
+    const taskManagerPage = () => ({
+        // The last move's result, spoken by the aria-live region in the page
+        moveAnnouncement: '',
+
+        // The # key's cluster picker (spec item 17): which task, which row focus
+        // returns to, and where the fixed menu sits on screen
+        pickerOpen: false,
+        pickerTaskId: null,
+        pickerOpener: null,
+        pickerTop: 0,
+        pickerLeft: 0,
+
+        // Header tools (spec item 14): Board's search and sort semantics.
+        // Ephemeral component state, like Board: nothing here persists.
+        search: '',
+        sortBy: 'manual',
+        sortOptions: TASK_MANAGER_SORT_OPTIONS,
+
+        get searching() {
+            return Boolean(this.search.trim());
+        },
+
+        // Board's card filter, verbatim: a case-insensitive match on the task's text
+        matchesSearch(task) {
+            return taskMatchesQuery(task, this.search);
+        },
+
+        // One cluster's (or, with null, the loose list's) matching open tasks,
+        // in the sort the header picks: list order, or most overdue first.
+        openTasksIn(clusterId) {
+            const open = this.$store.todos.items.filter(task =>
+                (task.parentId ?? null) === clusterId
+                && !task.isCluster
+                && !task.completed
+                && this.matchesSearch(task));
+            return sortTasksForDisplay(open, this.sortBy);
+        },
+
+        // Its matching finished tasks; the "Completed (n)" count reads this
+        doneTasksIn(clusterId) {
+            return this.$store.todos.items.filter(task =>
+                (task.parentId ?? null) === clusterId
+                && !task.isCluster
+                && task.completed
+                && this.matchesSearch(task));
+        },
+
+        // While searching, a list with no matches hides entirely
+        hasMatchesIn(clusterId) {
+            return this.openTasksIn(clusterId).length > 0 || this.doneTasksIn(clusterId).length > 0;
+        },
+
+        // Keyboard navigation (spec item 17). tmKeys.ts owns the key map; these
+        // methods own the DOM effects: the walk reads the rows that actually
+        // rendered, so search filtering and the "Overdue first" sort are respected
+        // for free, never the raw store list.
+
+        // x-show hides with display:none, which leaves no rects
+        isVisible(el) {
+            return Boolean(el && el.getClientRects().length > 0);
+        },
+
+        // The DOM facts of the moment a key lands, weighed by the key map
+        keyContext() {
+            const active = document.activeElement;
+            return {
+                typing: active instanceof Element && Boolean(active.closest('input, textarea, select, [contenteditable]')),
+                tabActive: this.isVisible(this.$root),
+                overlayOpen: Array.from(document.querySelectorAll('[role="dialog"]')).some(el => this.isVisible(el)),
+                rowMenuOpen: Array.from(this.$root.querySelectorAll('[role="menu"]')).some(el => this.isVisible(el))
+            };
+        },
+
+        // The visible open rows in DOM order, by the stable data-task-id the rows carry
+        visibleRows() {
+            const todos = this.$store.todos;
+            const rows = [];
+            for (const el of this.$root.querySelectorAll('.task-item[data-task-id]')) {
+                const task = todos.find(el.getAttribute('data-task-id'));
+                if (task && !task.completed && this.isVisible(el)) rows.push(el);
+            }
+            return rows;
+        },
+
+        // One keypress anywhere on the page. Only the Task Manager's keys, only on
+        // the Task Manager tab, and never while typing or under an overlay. The
+        // picker's own menu takes the keys while it is open.
+        tmKeydown(event) {
+            if (this.pickerOpen) return;
+            const intent = tmKeyIntent(event, this.keyContext());
+            if (!intent) return;
+            event.preventDefault();
+            const active = document.activeElement;
+            if (intent.kind === 'focusRow') return this.focusRow(intent.direction);
+            // The remaining intents act on the focused task's row
+            const row = active instanceof Element ? active.closest('.task-item[data-task-id]') : null;
+            if (!row) return;
+            const taskId = row.getAttribute('data-task-id');
+            if (intent.kind === 'completeTask') return this.completeTask(taskId, row);
+            // Enter and e belong to whatever inside the row holds focus; only
+            // the row itself opens its edit affordance
+            if (intent.kind === 'editTask') {
+                if (active === row) this.editRow(row);
+                return;
+            }
+            this.openPicker(taskId, row);
+        },
+
+        // j or k: move row focus through the visible open rows
+        focusRow(direction) {
+            const rows = this.visibleRows();
+            const active = document.activeElement;
+            const focused = active instanceof Element ? active.closest('.task-item[data-task-id]') : null;
+            const next = stepRowIndex(focused ? rows.indexOf(focused) : -1, direction, rows.length);
+            if (next === null) return;
+            const target = rows[next];
+            target.focus();
+            target.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        },
+
+        // x: the same store call the row's checkbox makes. The row usually folds
+        // into its "Completed" section, so focus follows to the row that took its
+        // place -- or stays on it when it is still visible, while searching
+        completeTask(taskId, row) {
+            const todos = this.$store.todos;
+            if (!todos.find(taskId)) return;
+            const at = this.visibleRows().indexOf(row);
+            todos.toggleTodo(taskId);
+            this.$nextTick(() => {
+                if (this.isVisible(row)) { row.focus(); return; }
+                const remaining = this.visibleRows();
+                const target = remaining[Math.min(Math.max(at, 0), remaining.length - 1)];
+                if (target) target.focus();
+            });
+        },
+
+        // e or Enter: the same affordance as the "..." sheet's Edit name, routed
+        // through the row's taskRow data so the inline input focus and select happen
+        editRow(row) {
+            const data = window.Alpine && window.Alpine.$data ? window.Alpine.$data(row) : null;
+            if (data && typeof data.editName === 'function') return data.editName();
+            const input = row.querySelector('input[name="task-name"]');
+            if (input) { input.focus(); input.select(); }
+        },
+
+        // #: a small quiet menu of the clusters plus the Inbox. Like every overlay,
+        // it announces itself on the window so dialogs and row sheets close first
+        openPicker(taskId, row) {
+            this.pickerTaskId = taskId;
+            this.pickerOpener = row;
+            const box = row.getBoundingClientRect();
+            this.pickerTop = box.bottom + 4;
+            this.pickerLeft = Math.max(8, box.left);
+            window.dispatchEvent(new CustomEvent('overlay-opened', { detail: { name: TM_OVERLAY_NAME } }));
+            this.pickerOpen = true;
+            this.$nextTick(() => {
+                const menu = this.$refs.pickerMenu;
+                const at = menu.getBoundingClientRect();
+                // Keep the menu on screen: flip above the row, or clamp to an edge
+                if (at.bottom > window.innerHeight) {
+                    const above = box.top - at.height - 4;
+                    this.pickerTop = above >= 8 ? above : Math.max(8, window.innerHeight - at.height - 8);
+                }
+                if (at.right > window.innerWidth) this.pickerLeft = Math.max(8, window.innerWidth - at.width - 8);
+                const first = menu.querySelector('button:not([disabled])');
+                if (first) first.focus();
+            });
+        },
+
+        // Arrows cycle the picker's entries, like a row sheet's menu
+        pickerFocus(direction) {
+            const items = Array.from(this.$refs.pickerMenu.querySelectorAll('button:not([disabled])'));
+            if (!items.length) return;
+            const at = items.indexOf(document.activeElement);
+            items[(at + direction + items.length) % items.length].focus();
+        },
+
+        // Esc or a picked entry: close, and put focus back on the row by default
+        closePicker(restoreFocus = true) {
+            this.pickerOpen = false;
+            const opener = this.pickerOpener;
+            this.pickerTaskId = null;
+            this.pickerOpener = null;
+            if (restoreFocus && opener && opener.isConnected) this.$nextTick(() => opener.focus());
+        },
+
+        // One entry picked: the same move a drop on a cluster makes, with the same
+        // one-line announcement; focus follows the row into its new section
+        applyPickerMove(clusterId) {
+            const taskId = this.pickerTaskId;
+            const row = this.pickerOpener;
+            this.closePicker(false);
+            if (!taskId) return;
+            this.taskMove(taskId, { clusterId });
+            this.$nextTick(() => { if (row && row.isConnected && this.isVisible(row)) row.focus(); });
+        },
+
+        pickerTask(id) {
+            return id ? this.$store.todos.find(id) : null;
+        },
+
+        // Any other overlay opening -- a dialog, a row's "..." sheet -- closes the
+        // picker, the same coordination every other overlay obeys
+        onOverlayOpened(detail) {
+            if (this.pickerOpen && detail && detail.name !== TM_OVERLAY_NAME) this.closePicker(false);
+        },
+
+        // A dropped task move. The store decides whether it was a real move;
+        // no-ops (same place, dropped on itself) stay silent.
+        taskMove(taskId, target) {
+            const todos = this.$store.todos;
+            if (!todos.moveTaskTo(taskId, target)) return;
+            this.announceMoveFor(taskId);
+        },
+
+        // Alt + an arrow on a focused row swaps it with the sibling above or below.
+        // The row keeps focus through the DOM reorder (its stable data attributes
+        // survive the move), and the move speaks through the same one line as every
+        // other move (spec item 19)
+        rowKeydown(event, task) {
+            if (!event.altKey || (event.key !== 'ArrowUp' && event.key !== 'ArrowDown')) return;
+            event.preventDefault();
+            const row = event.currentTarget;
+            if (!(row instanceof HTMLElement)) return;
+            const todos = this.$store.todos;
+            const before = todos.getTaskPosition(task.id);
+            todos.shiftTask(task.id, event.key === 'ArrowUp' ? -1 : 1);
+            if (todos.getTaskPosition(task.id) !== before) this.announceMoveFor(task.id);
+            // The row just moved in the DOM; focus follows the row, not the position
+            this.$nextTick(() => { if (row.isConnected && document.activeElement !== row) row.focus(); });
+        },
+
+        // Where a drop on a row lands: just above it (after false) or just below it
+        rowTarget(target, after) {
+            return { clusterId: target.parentId ?? null, [after ? 'afterId' : 'beforeId']: target.id };
+        },
+
+        // One line describing where a task now sits, for the aria-live region.
+        // The task is read fresh after the move, so a cross-cluster drag, an
+        // Alt+arrow swap, or the # picker all announce the destination (spec item
+        // 19). Loose tasks are the Inbox (spec item 18), one name everywhere.
+        // Pure logic in tmKeys.ts; this reads the store and hands over.
+        moveAnnouncementFor(taskId) {
+            const todos = this.$store.todos;
+            const task = todos.find(taskId);
+            if (!task) return '';
+            return moveAnnouncementText(
+                task,
+                todos.getTaskPosition(taskId),
+                todos.siblingsOf(task).length,
+                todos.clusterName(task.parentId)
+            );
+        },
+
+        // Clear then set on the next tick, so an identical result (say "position 2 of 2"
+        // twice in a row) is announced again.
+        announceMoveFor(taskId) {
+            const message = this.moveAnnouncementFor(taskId);
+            if (!message) return;
+            this.moveAnnouncement = '';
+            this.$nextTick(() => { this.moveAnnouncement = message; });
+        }
+    });
 
     document.addEventListener('alpine:init', () => {
         window.Alpine.data('estimatePicker', estimatePicker);
-        window.Alpine.data('clusterEstimate', () => ({ totalLabel }));
+        // TaskRow's data lives with its rows' x-for templates, so it registers here
+        window.Alpine.data('taskRow', taskRow);
+        window.Alpine.data('clusterEstimate', () => ({ chipEstimateLabel }));
+        window.Alpine.data('taskManagerPage', taskManagerPage);
     });
 </script>

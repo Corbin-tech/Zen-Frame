@@ -1,6 +1,9 @@
 ---
-// In-app reminders from src/lib/notifications.ts ("app-toast" window events), stacked
-// in the bottom corner. They show even when browser notifications are blocked.
+// In-app toasts, stacked in the bottom corner. Anything can fire one with a window
+// "app-toast" CustomEvent (src/lib/notifications.ts dispatchToast(), or directly);
+// they show even when browser notifications are blocked.
+// Detail: { title, body?, actionLabel?, onAction? }. The optional action renders
+// one quiet text button (e.g. "Undo") that runs onAction() and dismisses the toast.
 ---
 
 <div
@@ -15,17 +18,15 @@
             x-transition:enter="transition ease-out duration-300"
             x-transition:enter-start="opacity-0 translate-y-2"
             x-transition:enter-end="opacity-100 translate-y-0"
-            class="pointer-events-auto flex items-start gap-3 p-3.5 rounded-2xl bg-white/90 dark:bg-slate-800/90 backdrop-blur-xl shadow-lg ring-1 ring-black/5 dark:ring-white/10"
+            class="panel pointer-events-auto flex items-start gap-3 p-3.5"
         >
-            <span class="mt-0.5 grid place-items-center w-7 h-7 shrink-0 rounded-lg bg-teal-50 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
-            </span>
+            <svg class="w-4 h-4 mt-1 shrink-0 text-[color:var(--teal-primary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
             <div class="min-w-0 flex-1">
                 <p class="text-sm font-semibold text-gray-900 dark:text-white" x-text="toast.title"></p>
                 <p x-show="toast.body" class="text-sm text-gray-600 dark:text-gray-300" x-text="toast.body"></p>
             </div>
             <button
-                x-show="toast.actionLabel && toast.onAction"
+                x-show="Boolean(toast.actionLabel && toast.onAction)"
                 type="button"
                 x-on:click="runAction(toast)"
                 class="self-center shrink-0 px-2.5 py-1 rounded-lg text-sm font-semibold text-teal-700 hover:bg-teal-50 dark:text-teal-300 dark:hover:bg-teal-900/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 transition-colors"
@@ -44,7 +45,12 @@
 </div>
 
 <script>
+    import { UNDO_TOAST_MS } from '../lib/notifications';
+
     const SHOW_FOR_MS = 8000;
+    // Action toasts (Undo) get a longer window: the point is that the user has
+    // time to read the toast and decide before the action becomes permanent.
+    const ACTION_SHOW_FOR_MS = UNDO_TOAST_MS;
 
     document.addEventListener('alpine:init', () => {
         window.Alpine.data('appToasts', () => ({
@@ -60,7 +66,7 @@
                     this.timers.delete(dropped.id);
                 }
                 this.toasts = next.slice(-3);
-                this.timers.set(id, setTimeout(() => this.dismiss(id), SHOW_FOR_MS));
+                this.timers.set(id, setTimeout(() => this.dismiss(id), actionLabel ? ACTION_SHOW_FOR_MS : SHOW_FOR_MS));
             },
 
             runAction(toast) {

@@ -1,5 +1,6 @@
 import { afterEach, expect, test, vi } from "vitest";
 import { initPomoStore } from "../src/stores/pomoStore";
+import { UNDO_TOAST_MS } from "../src/lib/notifications";
 
 afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers(); });
 
@@ -80,4 +81,24 @@ test.each([
     keydown({ code: "Space", target: { closest: () => null }, preventDefault });
     expect(pause).toHaveBeenCalledOnce();
   }
+});
+
+test("Undo stays available for as long as the toast shows its button", () => {
+  vi.useFakeTimers();
+  const data = new Map<string, string>();
+  const storage = { getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, value: string) => data.set(key, value), removeItem: (key: string) => data.delete(key) };
+  vi.stubGlobal("localStorage", storage);
+  vi.stubGlobal("sessionStorage", storage);
+  vi.stubGlobal("window", { Alpine: { store: () => ({}) }, dispatchEvent: vi.fn() });
+  vi.stubGlobal("CustomEvent", class {});
+  const store = initPomoStore();
+  store.skipPhase();
+  expect(store.isBreak).toBe(true);
+  vi.advanceTimersByTime(UNDO_TOAST_MS - 1000); // past the old 8-second window
+  store.restoreSnapshot();
+  expect(store.isBreak).toBe(false);
+  store.skipPhase();
+  vi.advanceTimersByTime(UNDO_TOAST_MS);
+  store.restoreSnapshot(); // the toast is gone, so the snapshot is too
+  expect(store.isBreak).toBe(true);
 });

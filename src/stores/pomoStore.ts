@@ -1,5 +1,6 @@
 import { formatTime, minutesNow } from "../lib/dates.ts";
 import { loadJson, loadString, saveJson } from "../lib/storage.ts";
+import { UNDO_TOAST_MS } from "../lib/notifications.ts";
 
 export const CYCLE_LENGTH = 4;
 export const MIN_MINUTES = 1;
@@ -93,7 +94,8 @@ function clampMinutes(value: unknown, fallback: number, max: number): number {
   return Math.min(max, Math.max(MIN_MINUTES, Math.round(value)));
 }
 
-const UNDO_WINDOW_MS = 8000;
+// Same as the toast's Undo button, so Undo never silently does nothing
+const UNDO_WINDOW_MS = UNDO_TOAST_MS;
 
 // A countdown belongs to this tab and isn't part of an exported backup.
 const RUNNING_TIMER_KEY = "pomoRunningTimer";
