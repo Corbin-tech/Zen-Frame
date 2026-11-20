@@ -31,6 +31,9 @@ export interface Note {
   updatedAt: string;
 }
 
+const PERSISTED_KEYS = ["goals", "checkIns", "notes"] as const;
+type PersistedKey = typeof PERSISTED_KEYS[number];
+
 // The Monday on or before a day
 export function weekOf(dateKey: string = toDateKey()): string {
   const weekday = fromDateKey(dateKey).getDay();
@@ -42,16 +45,35 @@ export function initGoalsStore() {
     goals: [] as Goal[],
     checkIns: {} as Record<string, CheckIn>,
     notes: [] as Note[],
+    savedJson: {} as Partial<Record<PersistedKey, string>>,
 
     // Alpine calls init() when the store is registered
     init(): void {
-      this.goals = loadJson<Goal[]>("goals", []);
-      this.checkIns = loadJson<Record<string, CheckIn>>("checkIns", {});
-      this.notes = loadJson<Note[]>("notes", []);
+      for (const key of PERSISTED_KEYS) this.loadList(key);
+      window.addEventListener("storage", event => {
+        if (event.storageArea !== localStorage) return;
+        for (const key of PERSISTED_KEYS) {
+          if (event.key === null || event.key === key) this.loadList(key);
+        }
+      });
+    },
+
+    loadList(key: PersistedKey): void {
+      switch (key) {
+        case "goals": this.goals = loadJson<Goal[]>(key, []); break;
+        case "checkIns": this.checkIns = loadJson<Record<string, CheckIn>>(key, {}); break;
+        case "notes": this.notes = loadJson<Note[]>(key, []); break;
+      }
+      this.savedJson[key] = JSON.stringify(this[key]);
     },
 
     save(): void {
-      void (saveJson("goals", this.goals) && saveJson("checkIns", this.checkIns) && saveJson("notes", this.notes));
+      for (const key of PERSISTED_KEYS) {
+        const serialized = JSON.stringify(this[key]);
+        if (this.savedJson[key] === serialized) continue;
+        if (!saveJson(key, this[key])) break;
+        this.savedJson[key] = serialized;
+      }
     },
 
     addGoal(title: string, fields: Partial<Goal> = {}): string {
