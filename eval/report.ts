@@ -11,8 +11,9 @@ export function summarize(data: any, ratings: Record<string, string>[]) {
     if (!result || result.kind !== r.kind || r.kind === 'estimate' || seen.has(r.id)) throw new Error('Unknown, mismatched, or duplicate rating');
     seen.add(r.id);
     for (const k of ['useful', 'literal', 'one_action', 'realistic_minutes']) if (!['', 'y', 'n'].includes(r[k])) throw new Error('Ratings must be y/n or blank');
-    if (r.useful && (!r.rater.trim() || ['literal', 'one_action', 'realistic_minutes'].some(k => !r[k]))) throw new Error('Completed ratings need all criteria and a rater');
-    if (result.status !== 200 && r.useful === 'y') throw new Error('Failed responses cannot be useful');
+    const required = ['useful', 'literal', 'one_action', 'realistic_minutes', 'rater'];
+    if (required.some(k => r[k].trim()) && required.some(k => !r[k].trim())) throw new Error('Completed ratings need all criteria and a rater');
+    if (result.status !== 200 && required.slice(0, 4).some(k => r[k] === 'y')) throw new Error('Failed responses cannot pass any criterion');
   }
   const helpers = Object.fromEntries(['breakdown', 'compile', 'estimate'].map(kind => {
     const rows = data.results.filter((r: any) => r.kind === kind);

@@ -63,6 +63,17 @@ const results = [...Array.from({ length: 50 }, (_, i) => ({ id: `b${i}`, kind: '
 const ratings = results.map(r => ({ ...rating, id: r.id, kind: r.kind }));
 const data = { model: 'anthropic', modelName: 'claude-haiku-5-5', consent: { source: 'contributed' }, results };
 const good = summarize(data, ratings); assert.equal(good.launchBar, true);
+const requiredRatings = ['useful', 'literal', 'one_action', 'realistic_minutes', 'rater'];
+const blankRating = { ...ratings[0], useful: '', literal: '', one_action: '', realistic_minutes: '', rater: '' };
+assert.equal(summarize(data, [blankRating]).helpers.breakdown.rated, 0);
+for (const key of requiredRatings) {
+  assert.throws(() => summarize(data, [{ ...ratings[0], [key]: '' }]), /all criteria and a rater/);
+  assert.throws(() => summarize(data, [{ ...blankRating, [key]: key === 'rater' ? 'human1' : 'n' }]), /all criteria and a rater/);
+}
+const failedData = { ...data, results: [{ ...results[0], status: 502 }] };
+const failedRating = { ...ratings[0], useful: 'n', literal: 'n', one_action: 'n', realistic_minutes: 'n' };
+assert.equal(summarize(failedData, [failedRating]).helpers.breakdown.rated, 1);
+for (const key of requiredRatings.slice(0, 4)) assert.throws(() => summarize(failedData, [{ ...failedRating, [key]: 'y' }]), /cannot pass any criterion/);
 assert.match(markdown([good]), /\| breakdown \| 50 \| 50 \| 0\.00 \| 100\.00/);
 assert.match(markdown([good]), /\| compile \| 10 \| 10 \|/);
 const badRatings = ratings.map((r, i) => ({ ...r, useful: i < 6 ? 'n' : 'y' }));
