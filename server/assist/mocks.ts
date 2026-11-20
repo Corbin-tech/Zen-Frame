@@ -1,11 +1,11 @@
-import { SCHEMAS } from './contract.ts';
+import { COMPILE_SCHEMA } from '../../src/lib/assist/api.ts';
 import type { EntitlementGate, ModelClient, RateLimiter } from './ports.ts';
 export function mockModel(mode: 'ok' | 'invalid' | 'refusal' | 'timeout' | 'throw' = 'ok'): ModelClient {
-  return { async generate({ schema, user }) {
+  return { async generate({ schema }) {
     if (mode === 'throw') throw new Error('model unavailable');
     if (mode === 'refusal' || mode === 'timeout') return { kind: mode };
     if (mode === 'invalid') return { kind: 'ok', json: 'not JSON' };
-    const json = schema === SCHEMAS.breakdown ? { steps: ['Start the task'] } : schema === SCHEMAS.compile ? { clusters: [{ name: 'Tasks', tasks: [{ title: 'Start the task', estimateMinutes: 10 }] }] } : { tasks: JSON.parse(user).tasks.map(() => ({ minutes: 10, low: 5, high: 15 })) };
+    const json = schema === COMPILE_SCHEMA ? { clusters: [{ name: 'Tasks', tasks: [{ text: 'Start the task', minutes: 10 }] }] } : 'steps' in (schema as { properties: object }).properties ? { steps: [{ text: 'Start the task', minutes: 10 }] } : { minutes: 10, low: 5, high: 15 };
     return { kind: 'ok', json };
   } };
 }

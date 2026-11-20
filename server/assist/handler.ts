@@ -1,5 +1,10 @@
-import { DETAIL_LEVELS, PROMPTS, SANITIZERS, SCHEMAS } from './contract.ts';
-import type { Endpoint } from './contract.ts';
+import { detailLevel } from '../../src/lib/assist/types.ts';
+import { MAX_INPUT_CHARS, breakdownSchema, COMPILE_SCHEMA, ESTIMATE_SCHEMA } from '../../src/lib/assist/api.ts';
+import { SYSTEM_PROMPT, breakdownPrompt, compilePrompt, estimatePrompt } from '../../src/lib/assist/prompts.ts';
+import { cleanBreakdownRequest, cleanCompileRequest, cleanEstimateRequest } from '../../src/lib/assist/sanitize.ts';
+import type { AssistRequestMap } from '../../src/lib/assist/api.ts';
+import { cleanAnswer } from './validation.ts';
+import type { Endpoint } from './validation.ts';
 import type { EntitlementGate, ModelClient, RateLimiter } from './ports.ts';
 export const BODY_LIMIT = 32_768;
 export const jsonResponse = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } });
@@ -17,21 +22,23 @@ async function readBody(request: Request): Promise<string | null> {
   return new TextDecoder('utf-8', { fatal: true }).decode(buffer);
 }
 const cleanInputText = (value: string): string | null => value.replace(/\r\n?/g, '\n').replace(/[\u0000-\u0009\u000b-\u001f\u007f-\u009f]/g, '').trim() || null;
-function inputFor(endpoint: Endpoint, value: unknown): { input?: unknown; tooLong?: boolean } {
+function inputFor(endpoint: Endpoint, value: unknown): { input?: AssistRequestMap[Endpoint]; tooLong?: boolean } {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
   const v = value as Record<string, unknown>;
-  if (endpoint === 'estimate') {
-    if (!Array.isArray(v.tasks) || !v.tasks.length || v.tasks.length > 50 || !v.tasks.every(t => typeof t === 'string')) return {};
-    if (v.tasks.reduce((sum, t) => sum + t.length, 0) > 6000) return { tooLong: true };
-    const tasks = v.tasks.map(t => cleanInputText(t));
-    return tasks.every(Boolean) ? { input: { tasks } } : {};
-  }
-  const text = endpoint === 'breakdown' ? v.task : v.text;
+  const text = endpoint === 'compile' ? v.text : v.task;
   if (typeof text !== 'string') return {};
-  if (text.length > 6000) return { tooLong: true };
+  if (text.length + (endpoint === 'breakdown' && typeof v.context === 'string' ? v.context.length : 0) > MAX_INPUT_CHARS) return { tooLong: true };
   const clean = cleanInputText(text); if (!clean) return {};
-  if (endpoint === 'compile') return { input: { text: clean } };
-  return DETAIL_LEVELS.includes(v.detailLevel as typeof DETAIL_LEVELS[number]) ? { input: { task: clean, detailLevel: v.detailLevel } } : {};
+  if (endpoint === 'compile') return cleanCompileRequest(value) ? { input: { text: clean } } : {};
+  if (endpoint === 'estimate') return cleanEstimateRequest(value) ? { input: { task: clean } } : {};
+  const parsed = cleanBreakdownRequest(value);
+  return parsed ? { input: { ...parsed, task: clean, ...(typeof v.context === 'string' ? { context: cleanInputText(v.context) ?? '' } : {}) } } : {};
+}
+function modelInput(endpoint: Endpoint, input: AssistRequestMap[Endpoint]) {
+  if (endpoint === 'compile') return { user: compilePrompt((input as AssistRequestMap['compile']).text), schema: COMPILE_SCHEMA };
+  if (endpoint === 'estimate') return { user: estimatePrompt((input as AssistRequestMap['estimate']).task), schema: ESTIMATE_SCHEMA };
+  const { task, level, context } = input as AssistRequestMap['breakdown'];
+  return { user: breakdownPrompt(task, detailLevel(level), context ?? ''), schema: breakdownSchema(detailLevel(level)) };
 }
 export async function handleAssist(request: Request, deps: { model: ModelClient; entitlement: EntitlementGate; rateLimit: RateLimiter }): Promise<Response> {
   const url = new URL(request.url);
@@ -57,11 +64,11 @@ export async function handleAssist(request: Request, deps: { model: ModelClient;
     if (!reservation) return fail(402, 'quota_exhausted');
     let completed = false;
     try {
-      const result = await deps.model.generate({ system: PROMPTS[endpoint], user: JSON.stringify(parsed.input), schema: SCHEMAS[endpoint], maxTokens: 4096, signal: request.signal });
+      const result = await deps.model.generate({ system: SYSTEM_PROMPT, ...modelInput(endpoint, parsed.input), maxTokens: 4096, signal: request.signal });
       if (request.signal.aborted) return fail(503, 'unavailable');
       if (result.kind !== 'ok') return fail(result.kind === 'timeout' ? 504 : 502, 'unavailable');
-      const clean = SANITIZERS[endpoint](result.json);
-      if (!clean || (endpoint === 'estimate' && 'tasks' in clean && clean.tasks.length !== (parsed.input as { tasks: string[] }).tasks.length)) return fail(502, 'invalid_answer');
+      const clean = cleanAnswer(endpoint, result.json);
+      if (!clean) return fail(502, 'invalid_answer');
       completed = await reservation.complete();
       if (!completed) return fail(503, 'unavailable');
       return jsonResponse(200, clean);

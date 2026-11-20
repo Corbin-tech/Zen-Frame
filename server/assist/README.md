@@ -1,6 +1,7 @@
 # Assist server (WS2)
 
-Provisional contract: replace `contract.ts` imports with WS1's shared modules on rebase.
+Contracts, prompts and sanitizers come from WS1's `src/lib/assist/` modules.
+`validation.ts` rejects empty/unusable sanitized answers on both sides of the network.
 WS3 integration is deliberately fail closed: the Pages adapter rejects all tokens until
 `createEntitlementService(env)` is wired from `server/auth/entitlement.ts`.
 
@@ -31,5 +32,5 @@ Also run the brief's forbidden-pattern git search; it should produce no matches 
 - Met: exact Origin required; cross-site fetch metadata rejected; no CORS headers, including OPTIONS.
 - Met: both server and client sanitize output; extra properties dropped; no model tools.
 - Met: all JSON responses are no-store and nosniff.
-- Pending integration: WS1 final contracts and WS3 real authentication/reservation service.
+- Pending integration: WS3 real authentication/reservation service.
 - Pending human/WS8 gates: independent security review, live retention configuration, quality and latency evaluation.
