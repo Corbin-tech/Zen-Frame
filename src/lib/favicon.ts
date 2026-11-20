@@ -1,5 +1,6 @@
 // The browser-tab icon: the ensō from public/favicon.svg, redrawn in the chosen accent.
-// The tile uses --accent-700, the same step as the logo in the top bar.
+// The tile uses --accent-600, the button step and the same step as the logo in the top bar.
+// For the default Teal that is #036672, the color in public/favicon.svg.
 
 const ENSO = (fill: string) =>
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">` +
@@ -19,7 +20,7 @@ let lastFill = "";
 
 // Call after data-accent changes on <html>. Reads the color from CSS so preferences.css stays the only source.
 export function applyAccentFavicon(): void {
-  const fill = channelsToHex(getComputedStyle(document.documentElement).getPropertyValue("--accent-700"));
+  const fill = channelsToHex(getComputedStyle(document.documentElement).getPropertyValue("--accent-600"));
   if (!fill || fill === lastFill) return;
   lastFill = fill;
 

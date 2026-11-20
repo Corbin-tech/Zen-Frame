@@ -10,11 +10,41 @@ export default {
 			transitionProperty: {
 				none: 'none',
 			},
-			// The accent color. Values come from the chosen scheme in src/styles/preferences.css.
 			colors: {
+				// The accent color. Values come from the chosen scheme in src/styles/preferences.css.
 				teal: Object.fromEntries(
 					[50, 100, 200, 300, 400, 500, 600, 700, 800, 900].map(step => [step, `rgb(var(--accent-${step}) / <alpha-value>)`])
 				),
+				// Brand neutrals. Hex, not CSS variables: the Flowbite plugin reads gray through theme() in
+				// JavaScript, which leaves <alpha-value> unreplaced. Warm ink from Paper (50) to Pine (900);
+				// 500 stays at 4.5:1 or more on Paper and white.
+				gray: {
+					50: '#F7F5EF',
+					100: '#F0EFE9',
+					200: '#E3E3DB',
+					300: '#CDCFC7',
+					400: '#9DA39A',
+					500: '#606D66',
+					600: '#4E5C58',
+					700: '#394C48',
+					800: '#294540',
+					900: '#173F3A',
+				},
+				// Dark-mode surfaces, tinted toward Pine. Each step keeps the luminance of the Tailwind slate
+				// step it replaces, so dark-mode contrast stays the same.
+				slate: {
+					50: '#F9FAFA',
+					100: '#F2F5F5',
+					200: '#E2E9E8',
+					300: '#CBD7D5',
+					400: '#8EA6A3',
+					500: '#547A75',
+					600: '#3E5956',
+					700: '#244642',
+					800: '#172C2A',
+					900: '#0D1918',
+					950: '#040707',
+				},
 			},
 		},
 	},

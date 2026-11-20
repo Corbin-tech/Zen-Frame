@@ -8,7 +8,7 @@ import { applyAccentFavicon } from "../lib/favicon";
 // the matching CSS lives in src/styles/preferences.css.
 
 const ACCENTS = [
-  { id: "teal", label: "Teal", swatch: "#047481" },
+  { id: "teal", label: "Teal", swatch: "#036672" },
   { id: "ocean", label: "Ocean", swatch: "#0284c7" },
   { id: "lavender", label: "Lavender", swatch: "#7c3aed" },
   { id: "rose", label: "Rose", swatch: "#e11d48" },

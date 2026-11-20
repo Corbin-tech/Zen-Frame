@@ -2,22 +2,24 @@
    script in Layout.astro. Tailwind's teal-* classes read the --accent-* variables
    (see tailwind.config.mjs), so every accent in the app follows the chosen scheme. */
 
+/* The brand default. 600, the button step, is the brand Teal (#036672). 50 and 100 lean
+   to the brand's Mist (#DCE7DC), so the default tints match the identity board. */
 :root,
 :root[data-accent="teal"] {
-	--accent-50: 237 250 250;
-	--accent-100: 213 245 246;
+	--accent-50: 238 245 241;
+	--accent-100: 220 231 220;
 	--accent-200: 175 236 239;
 	--accent-300: 126 220 226;
 	--accent-400: 22 189 202;
 	--accent-500: 6 148 162;
-	--accent-600: 4 116 129;
-	--accent-700: 3 102 114;
-	--accent-800: 5 80 92;
-	--accent-900: 1 68 81;
+	--accent-600: 3 102 114;
+	--accent-700: 2 82 92;
+	--accent-800: 1 68 81;
+	--accent-900: 1 52 61;
 }
 
-/* Ocean, sunset, forest and orchid sit a step darker from 600 up: their usual 600 is near or under 4.5:1
-   as text on white or behind white text. 800 matches 900 so the 700 to 800 hover still shifts. */
+/* Ocean, sunset, forest, orchid and rose sit a step darker from 600 up: their usual 600 is near or under
+   4.5:1 as text on the Paper page or behind white text. 800 matches 900 so the 700 to 800 hover still shifts. */
 :root[data-accent="ocean"] {
 	--accent-50: 240 249 255;
 	--accent-100: 224 242 254;
@@ -51,9 +53,9 @@
 	--accent-300: 253 164 175;
 	--accent-400: 251 113 133;
 	--accent-500: 244 63 94;
-	--accent-600: 225 29 72;
-	--accent-700: 190 18 60;
-	--accent-800: 159 18 57;
+	--accent-600: 190 18 60;
+	--accent-700: 159 18 57;
+	--accent-800: 136 19 55;
 	--accent-900: 136 19 55;
 }
 
