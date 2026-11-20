@@ -1,5 +1,5 @@
 import { cleanMinutes, cleanText } from '../lib/assist';
-import type { initAssistStore } from '../stores/assistStore';
+import { canBreakDown } from './BreakdownPanel';
 import type { Todo, TodoStep } from '../stores/todoStore';
 
 type StepTodos = {
@@ -11,10 +11,9 @@ type StepTodos = {
 };
 
 const todos = () => window.Alpine.store('todos') as unknown as StepTodos;
-const assist = () => window.Alpine.store('assist') as unknown as ReturnType<typeof initAssistStore>;
 
 export function registerTaskSteps() {
-    window.Alpine.data('taskSteps', (activeTaskId: () => string | undefined) => ({
+    window.Alpine.data('taskSteps', (activeTaskId: () => string | undefined, zen = false) => ({
         breakdownOpen: false,
         confirming: false,
         promotionMessage: '',
@@ -24,7 +23,8 @@ export function registerTaskSteps() {
         get canShowSteps(): boolean {
             const task = this.stepTask;
             if (!task || task.isCluster) return false;
-            return Boolean(this.savedSteps.length || (!task.completed && task.todo.trim() && assist().aiStatus === 'ready' && assist().source === 'plus'));
+            // Task rows open Break down from the row icon. Zen shows its own link, so it needs this line.
+            return Boolean(this.savedSteps.length || (zen && canBreakDown(task)));
         },
         get stepProgress(): string {
             return `${this.savedSteps.filter(step => step.done).length} of ${this.savedSteps.length} steps`;

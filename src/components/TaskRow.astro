@@ -6,119 +6,136 @@ import TaskSteps from './TaskSteps.astro';
 ---
 
 <div 
-    class="relative group/task flex flex-wrap items-center gap-x-2 pr-2 border border-gray-100 dark:border-slate-600 rounded-lg shadow-sm hover:shadow-md transition-all duration-300 ease-in-out task-item"
+    class="relative group/task flex flex-col border border-gray-100 dark:border-slate-600 rounded-lg shadow-sm hover:shadow-md transition-all duration-300 ease-in-out task-item"
     style="background-color: var(--task-bg);"
     x-bind:class="{'bg-green-50 dark:bg-green-900/10 border-green-100 dark:border-green-900/30': task.completed, 'hover:border-teal-300 dark:hover:border-teal-700': !task.completed}"
     x-drag-task="task.id"
     x-bind:id="`item-${task.id}`"
 >
     <!-- On small screens the due date and controls wrap to a second line -->
-    <div class="basis-full sm:basis-auto flex-1 min-w-0 py-3 pl-2 sm:pl-3">
-        <div class="flex items-center gap-2 sm:gap-3">
-            <div 
-                data-drag-handle
-                class="p-1 cursor-grab text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 flex items-center"
-                title="Drag to add to a cluster"
-            >
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16" />
-                </svg>
+    <div class="flex flex-wrap sm:flex-nowrap items-center gap-x-2 pr-2">
+        <div class="basis-full sm:basis-auto flex-1 min-w-0 py-3 pl-2 sm:pl-3">
+            <div class="flex items-center gap-2 sm:gap-3">
+                <div 
+                    data-drag-handle
+                    class="p-1 cursor-grab text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 flex items-center"
+                    title="Drag to add to a cluster"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16" />
+                    </svg>
+                </div>
+                <input name="task-done" x-bind:aria-label="`Mark ${task.todo || 'task'} ${task.completed ? 'not done' : 'done'}`"
+                    type="checkbox"
+                    class="w-5 h-5 rounded border-gray-300 dark:border-slate-500 text-teal-600 dark:text-teal-400 focus:ring-teal-500 dark:focus:ring-teal-400 dark:bg-slate-700"
+                    x-bind:checked="task.completed"
+                    x-on:change="$store.todos.toggleTodo(task.id)"
+                />
+                <input name="task-name" aria-label="Task name"
+                    type="text"
+                    x-model="task.todo"
+                    x-bind:readonly="task.completed"
+                    x-on:keydown.enter="$event.target.blur()"
+                    x-on:blur="$store.todos.updateTask(task.id, { todo: task.todo })"
+                    class="flex-1 min-w-0 bg-transparent border-none focus:ring-0 focus:outline-none"
+                    x-bind:class="{
+                        'line-through text-gray-500 dark:text-gray-400': task.completed,
+                        'text-gray-700 dark:text-gray-300': !task.completed
+                    }"
+                />
             </div>
-            <input name="task-done" x-bind:aria-label="`Mark ${task.todo || 'task'} ${task.completed ? 'not done' : 'done'}`"
-                type="checkbox"
-                class="w-5 h-5 rounded border-gray-300 dark:border-slate-500 text-teal-600 dark:text-teal-400 focus:ring-teal-500 dark:focus:ring-teal-400 dark:bg-slate-700"
-                x-bind:checked="task.completed"
-                x-on:change="$store.todos.toggleTodo(task.id)"
-            />
-            <input name="task-name" aria-label="Task name"
-                type="text"
-                x-model="task.todo"
-                x-bind:readonly="task.completed"
-                x-on:keydown.enter="$event.target.blur()"
-                x-on:blur="$store.todos.updateTask(task.id, { todo: task.todo })"
-                class="flex-1 min-w-0 bg-transparent border-none focus:ring-0 focus:outline-none"
-                x-bind:class="{
-                    'line-through text-gray-500 dark:text-gray-400': task.completed,
-                    'text-gray-700 dark:text-gray-300': !task.completed
-                }"
+        </div>
+
+        <EstimatePicker />
+
+        <!-- Due date: the chip opens the browser date picker. Tasks started on the board say so. -->
+        <div class="relative shrink-0 pl-14 sm:pl-0 pb-2 sm:pb-0 flex items-center gap-1.5" x-data>
+            <span
+                x-show="task.startedAt && !task.completed"
+                class="text-xs font-medium px-2 py-1 rounded-md bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+            >In progress</span>
+            <button
+                type="button"
+                x-on:click="$refs.due.showPicker ? $refs.due.showPicker() : $refs.due.focus()"
+                class="flex items-center gap-1 touch-target text-xs font-medium px-2 py-1 rounded-md transition-opacity"
+                x-bind:class="task.dueDate
+                    ? $dates.dueClass(task.dueDate, task.completed)
+                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 sm:opacity-0 sm:group-hover/task:opacity-100 focus:opacity-100 [@media(hover:none)]:opacity-100'"
+                x-bind:title="task.dueDate ? 'Due ' + $dates.formatDate(task.dueDate, { weekday: 'long', month: 'long', day: 'numeric' }) : 'Set a due date'"
+                x-bind:aria-label="task.dueDate ? 'Due ' + $dates.dueLabel(task.dueDate) + '. Change due date' : 'Set a due date'"
+            >
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <span x-show="task.dueDate" x-text="task.dueDate ? $dates.dueLabel(task.dueDate) : ''"></span>
+            </button>
+            <input name="task-due-date"
+                type="date"
+                x-ref="due"
+                tabindex="-1"
+                aria-hidden="true"
+                class="absolute inset-0 w-full h-full opacity-0 pointer-events-none"
+                x-bind:value="task.dueDate ?? ''"
+                x-on:change="$store.todos.setDueDate(task.id, $event.target.value)"
             />
         </div>
-    </div>
-
-    <EstimatePicker />
-
-    <!-- Due date: the chip opens the browser date picker. Tasks started on the board say so. -->
-    <div class="relative shrink-0 pl-14 sm:pl-0 pb-2 sm:pb-0 flex items-center gap-1.5" x-data>
-        <span
-            x-show="task.startedAt && !task.completed"
-            class="text-xs font-medium px-2 py-1 rounded-md bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
-        >In progress</span>
-        <button
-            type="button"
-            x-on:click="$refs.due.showPicker ? $refs.due.showPicker() : $refs.due.focus()"
-            class="flex items-center gap-1 touch-target text-xs font-medium px-2 py-1 rounded-md transition-opacity"
-            x-bind:class="task.dueDate
-                ? $dates.dueClass(task.dueDate, task.completed)
-                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 sm:opacity-0 sm:group-hover/task:opacity-100 focus:opacity-100 [@media(hover:none)]:opacity-100'"
-            x-bind:title="task.dueDate ? 'Due ' + $dates.formatDate(task.dueDate, { weekday: 'long', month: 'long', day: 'numeric' }) : 'Set a due date'"
-            x-bind:aria-label="task.dueDate ? 'Due ' + $dates.dueLabel(task.dueDate) + '. Change due date' : 'Set a due date'"
-        >
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-            <span x-show="task.dueDate" x-text="task.dueDate ? $dates.dueLabel(task.dueDate) : ''"></span>
-        </button>
-        <input name="task-due-date"
-            type="date"
-            x-ref="due"
-            tabindex="-1"
-            aria-hidden="true"
-            class="absolute inset-0 w-full h-full opacity-0 pointer-events-none"
-            x-bind:value="task.dueDate ?? ''"
-            x-on:change="$store.todos.setDueDate(task.id, $event.target.value)"
-        />
-    </div>
     
-    <!-- Task ordering and actions -->
-    <div class="shrink-0 ml-auto pb-2 sm:pb-0 flex items-center gap-2 transition-opacity sm:opacity-0 sm:group-hover/task:opacity-100 sm:focus-within:opacity-100 [@media(hover:none)]:opacity-100">
-        <!-- Up/down controls: stacked with a mouse, side by side where they are 44px touch targets -->
-        <div class="flex sm:flex-col sm:gap-1 [@media(pointer:coarse)]:flex-row">
-            <button 
-                @click="$store.todos.shiftTask(task.id, -1)"
-                class="inline-flex items-center justify-center touch-target p-0.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
-                :disabled="$store.todos.isFirstTask(task.id)"
-                :class="$store.todos.isFirstTask(task.id) ? 'opacity-30 cursor-not-allowed' : ''"
-                aria-label="Move task up"
+        <!-- Task ordering and actions -->
+        <div class="shrink-0 ml-auto pb-2 sm:pb-0 flex items-center gap-2 transition-opacity sm:opacity-0 sm:group-hover/task:opacity-100 sm:focus-within:opacity-100 [@media(hover:none)]:opacity-100">
+            <!-- Plus: opens the Break down panel below this row. Tasks with a checklist use "Redo steps" there. -->
+            <button
+                type="button"
+                x-show="!task.steps?.length && $canBreakDown(task)"
+                x-cloak
+                x-on:click="$dispatch('breakdown-open', { row: $el.closest('.task-item'), opener: $el })"
+                class="inline-flex items-center justify-center touch-target p-1 text-gray-500 hover:text-teal-700 dark:text-gray-400 dark:hover:text-teal-300 transition-colors"
+                aria-label="Break down task (Plus)"
+                title="Break down into steps (Plus)"
             >
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6l1.5 1.5L8 5M4 12l1.5 1.5L8 11M4 18l1.5 1.5L8 17M11 6h9M11 12h9M11 18h9" />
                 </svg>
             </button>
+            <!-- Up/down controls: stacked with a mouse, side by side where they are 44px touch targets -->
+            <div class="flex sm:flex-col sm:gap-1 [@media(pointer:coarse)]:flex-row">
+                <button 
+                    @click="$store.todos.shiftTask(task.id, -1)"
+                    class="inline-flex items-center justify-center touch-target p-0.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+                    :disabled="$store.todos.isFirstTask(task.id)"
+                    :class="$store.todos.isFirstTask(task.id) ? 'opacity-30 cursor-not-allowed' : ''"
+                    aria-label="Move task up"
+                >
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
+                    </svg>
+                </button>
+                <button 
+                    @click="$store.todos.shiftTask(task.id, 1)"
+                    class="inline-flex items-center justify-center touch-target p-0.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+                    :disabled="$store.todos.isLastTask(task.id)"
+                    :class="$store.todos.isLastTask(task.id) ? 'opacity-30 cursor-not-allowed' : ''"
+                    aria-label="Move task down"
+                >
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </button>
+            </div>
+        
+            <!-- Delete button -->
             <button 
-                @click="$store.todos.shiftTask(task.id, 1)"
-                class="inline-flex items-center justify-center touch-target p-0.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
-                :disabled="$store.todos.isLastTask(task.id)"
-                :class="$store.todos.isLastTask(task.id) ? 'opacity-30 cursor-not-allowed' : ''"
-                aria-label="Move task down"
+                x-on:click="$store.todos.deleteTodo(task.id)"
+                class="inline-flex items-center justify-center touch-target p-1 text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400 transition-colors"
+                aria-label="Delete task"
             >
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
                 </svg>
             </button>
         </div>
-        
-        <!-- Delete button -->
-        <button 
-            x-on:click="$store.todos.deleteTodo(task.id)"
-            class="inline-flex items-center justify-center touch-target p-1 text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400 transition-colors"
-            aria-label="Delete task"
-        >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-            </svg>
-        </button>
     </div>
-    <TaskSteps />
+    <!-- Checklist and Break down panel: a full-width line below the row -->
+    <TaskSteps class="px-2 pb-2 sm:pl-3" />
 </div>
 
 <style>

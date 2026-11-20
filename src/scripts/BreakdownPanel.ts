@@ -13,6 +13,12 @@ const assist = () => window.Alpine.store('assist') as unknown as ReturnType<type
 const todos = () => window.Alpine.store('todos') as unknown as BreakdownTodos;
 const retryMessage = 'Couldn’t find steps this time. Try again.';
 
+// Plus can suggest steps for this task. Templates use it as $canBreakDown(task).
+export function canBreakDown(task: Todo | undefined): boolean {
+    return Boolean(task?.todo.trim() && !task.isCluster && !task.completed
+        && assist().aiStatus === 'ready' && assist().source === 'plus');
+}
+
 // Release the shared busy state even if a provider is slow to honor the abort.
 async function untilAborted(work: () => Promise<BreakdownResult>, signal: AbortSignal): Promise<BreakdownResult | null> {
     if (signal.aborted) return null;
@@ -31,6 +37,7 @@ async function untilAborted(work: () => Promise<BreakdownResult>, signal: AbortS
 export function registerBreakdownPanel() {
     window.Alpine.data('breakdownPanel', (activeTaskId: () => string | undefined, fallbackFocus: () => HTMLElement | undefined) => {
         let request: AbortController | null = null;
+        let opener: HTMLElement | null = null; // The row control that opened the panel
         let nextKey = 0;
 
         return {
@@ -46,10 +53,7 @@ export function registerBreakdownPanel() {
 
             get breakdownTaskId() { return activeTaskId(); },
             get task() { return this.breakdownTaskId ? todos().find(this.breakdownTaskId) : undefined; },
-            get canSuggest(): boolean {
-                return Boolean(this.task?.todo.trim() && !this.task.isCluster && !this.task.completed
-                    && assist().aiStatus === 'ready' && assist().source === 'plus');
-            },
+            get canSuggest(): boolean { return canBreakDown(this.task); },
             get plusReady(): boolean { return assist().aiStatus === 'ready' && assist().source === 'plus'; },
             get hasValidStep(): boolean { return this.draft.some(step => cleanText(step.text)); },
 
@@ -63,6 +67,13 @@ export function registerBreakdownPanel() {
                 });
             },
             destroy() { request?.abort(); },
+            // A "breakdown-open" event from a control in the same task row
+            openFrom(detail: { row?: Element | null; opener?: HTMLElement } | undefined) {
+                const row = this.$root.closest('.task-item');
+                if (!row || detail?.row !== row) return;
+                opener = detail.opener instanceof HTMLElement ? detail.opener : null;
+                this.show();
+            },
             show() {
                 if (!this.canSuggest) return;
                 this.open = true;
@@ -87,6 +98,8 @@ export function registerBreakdownPanel() {
             },
             close(restoreFocus = true) {
                 const wasOpen = this.open;
+                const returnTo = opener;
+                opener = null;
                 this.stopRequest();
                 this.open = false;
                 this.editing = false;
@@ -96,7 +109,8 @@ export function registerBreakdownPanel() {
                 if (!wasOpen) return;
                 this.$dispatch('breakdown-visibility', false);
                 if (restoreFocus) this.$nextTick(() => {
-                    (this.canSuggest ? this.$refs.trigger : fallbackFocus())?.focus();
+                    const visible = (el?: HTMLElement | null) => el?.isConnected && el.getClientRects().length ? el : undefined;
+                    (visible(this.$refs.trigger) ?? visible(returnTo) ?? fallbackFocus())?.focus();
                 });
             },
             async generate() {
@@ -176,7 +190,10 @@ export function registerBreakdownPanel() {
                 const { steps } = cleanBreakdown({ steps: this.draft });
                 if (!steps.length) return;
                 todos().setSteps(task.id, steps);
-                this.close();
+                // The row icon hides once the task has steps, so focus the checklist instead.
+                // x-show reveals it on the next animation frame. Queue after Alpine's own frame callback.
+                this.close(false);
+                this.$nextTick(() => requestAnimationFrame(() => fallbackFocus()?.focus()));
                 this.announcement = 'Checklist saved.';
             }
         };
