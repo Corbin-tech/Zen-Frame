@@ -81,7 +81,7 @@ const contentSecurityPolicy = [
 			import { initPomoStore } from '../stores/pomoStore';
 			import { initAssistStore } from '../stores/assistStore';
 			import { initPlusStore } from '../stores/plusStore';
-			import { registerBreakdownPanel } from '../scripts/BreakdownPanel';
+			import { canBreakDown, registerBreakdownPanel } from '../scripts/BreakdownPanel';
 			import { registerTaskSteps } from '../scripts/TaskSteps';
 			import { notify, startReminders } from '../lib/notifications';
 			import { registerTaskDragDrop } from '../scripts/taskDragDrop.js';
@@ -106,6 +106,8 @@ const contentSecurityPolicy = [
 				registerTaskDragDrop(window.Alpine);
 				// $dates in templates: date and time helpers from src/lib/dates.ts
 				window.Alpine.magic('dates', () => dates);
+				// $canBreakDown(task) in templates: Plus can suggest steps for this task
+				window.Alpine.magic('canBreakDown', () => canBreakDown);
 			});
 
 			// Block and due-date reminders, once every store is ready
