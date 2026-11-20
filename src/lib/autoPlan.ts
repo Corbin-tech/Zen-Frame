@@ -57,11 +57,13 @@ export function windowsOn(availability: AvailabilityWindow[], dateKey: string): 
   }, []);
 }
 
-// Free ranges: the windows minus busy ranges, starting no earlier than `earliest`
-function freeRanges(windows: Range[], busy: Range[], earliest: number): Range[] {
+// Free ranges: the windows minus busy ranges, starting no earlier than `earliest`.
+// Each busy range also takes the `gap` before it, so a task placed there keeps its break.
+function freeRanges(windows: Range[], busy: Range[], earliest: number, gap: number): Range[] {
   let free = windows.map(range => ({ start: Math.max(range.start, roundUp(earliest)), end: range.end }))
     .filter(range => range.end > range.start);
-  for (const taken of busy) {
+  for (const { start, end } of busy) {
+    const taken = { start: start - gap, end };
     free = free.flatMap(range => {
       if (taken.end <= range.start || taken.start >= range.end) return [range];
       return [
@@ -89,7 +91,7 @@ export function planTasks(input: PlanInput): PlannedBlock[] {
   const planned: PlannedBlock[] = [];
   const free = new Map(input.days.map(day => [
     day,
-    freeRanges(windowsOn(input.availability, day), input.busyOn(day), input.earliestOn(day))
+    freeRanges(windowsOn(input.availability, day), input.busyOn(day), input.earliestOn(day), input.gap)
   ]));
 
   for (const task of planOrder(input.tasks)) {
