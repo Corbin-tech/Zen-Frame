@@ -1,7 +1,7 @@
 import { loadJson, loadString, saveJson } from "../lib/storage";
 
 // Minutes for each preset
-export const POMO_DURATIONS = {
+const POMO_DURATIONS = {
   pomodoro: { work: 25, break: 5 },
   long: { work: 50, break: 10 }
 } as const;
