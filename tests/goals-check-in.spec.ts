@@ -1,5 +1,22 @@
 import { test, expect } from '@playwright/test';
 
+test('an open weekly check-in refreshes answers saved in another tab', async ({ context, page: a }) => {
+  await a.goto('/');
+  await a.locator('button[data-tab="goals"]').click();
+  const b = await context.newPage();
+  await b.goto('/');
+  await b.locator('button[data-tab="goals"]').click();
+  await a.getByLabel('What went well this week?').fill('Finished the milestone');
+  await a.getByRole('button', { name: 'Save check-in', exact: true }).click();
+  await expect(b.getByLabel('What went well this week?')).toHaveValue('Finished the milestone');
+  await b.getByLabel('What got in the way?').fill('Waiting for feedback');
+  await b.getByRole('button', { name: 'Save check-in', exact: true }).click();
+  await a.reload();
+  await a.locator('button[data-tab="goals"]').click();
+  await expect(a.getByLabel('What went well this week?')).toHaveValue('Finished the milestone');
+  await expect(a.getByLabel('What got in the way?')).toHaveValue('Waiting for feedback');
+});
+
 test('weekly check-in shows a dash when there are no goals', async ({ page }) => {
   await page.goto('/');
   await page.locator('button[data-tab="goals"]').click();

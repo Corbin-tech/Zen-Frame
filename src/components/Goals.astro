@@ -277,6 +277,10 @@ const prompts = [
 
             init() {
                 this.draft = { ...this.$store.goals.checkInFor(this.week) };
+                this.$watch('$store.goals.checkIns[week]', () => {
+                    this.draft = { ...this.$store.goals.checkInFor(this.week) };
+                    this.saveState = 'clean';
+                });
             },
 
             get thisWeek() {
