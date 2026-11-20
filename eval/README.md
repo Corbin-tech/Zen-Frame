@@ -45,14 +45,15 @@ node eval/eval.check.ts
 node eval/run.ts --dataset eval/datasets/sample.json --model mock --out eval/out
 # Until WS2 is merged, use a separate worktree (never copy server files):
 git worktree add /tmp/ws2 origin/swarm/ws2-ai-server
-node eval/run.ts --dataset eval/datasets/sample.json --model mock --contract ws2-provisional --handler /tmp/ws2/server/assist/handler.ts --out eval/out
+node eval/run.ts --dataset eval/datasets/sample.json --model mock --handler /tmp/ws2/server/assist/handler.ts --out eval/out
 node eval/autorate.ts --results eval/out/results.json
 node eval/report.ts --results eval/out/results.json --ratings eval/out/ratings-auto.csv
 ```
 
 The default handler is `server/assist/handler.ts` relative to cwd; `--handler` can
-point elsewhere. `--limit N` selects the first N items. Default contract is WS1;
-the temporary translation and normalization live only in `provisional.ts`.
+point elsewhere. `--limit N` selects the first N items. Only the frozen WS1
+request/response contract is supported. The mock shapes answers from the supplied
+schema, including step bounds; it accepts the handler's plain-text prompts.
 Requests include same-origin headers, JSON, and a local bearer token. Entitlement
 and rate limiting are intentionally allow-all eval fakes, never production adapters.
 

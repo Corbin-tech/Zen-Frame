@@ -1,16 +1,14 @@
 import { readFile, mkdir, writeFile, access } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { args, validateDataset, ratingsCsv } from './core.ts';
+import { args, validateDataset, ratingsCsv, requestBody } from './core.ts';
 import type { ModelClient } from './core.ts';
-import { requestBody, normalize } from './provisional.ts';
 import { mockModel } from './models/mock.ts';
 import { createOpenAIClient } from './models/openai.ts';
 async function main() {
   const a = args();
   if (!a.dataset || !['mock', 'anthropic', 'openai'].includes(a.model)) throw new Error('Usage: node eval/run.ts --dataset path --model mock|anthropic|openai');
-  const contract = a.contract ?? 'ws1';
-  if (!['ws1', 'ws2-provisional'].includes(contract)) throw new Error('Invalid --contract');
+  if (Object.keys(a).some(k => !['dataset', 'model', 'handler', 'out', 'limit'].includes(k))) throw new Error('Unknown runner option');
   if (a.model === 'anthropic' && !process.env.ANTHROPIC_API_KEY) throw new Error('ANTHROPIC_API_KEY is required (set locally)');
   if (a.model === 'openai' && (!process.env.OPENAI_API_KEY || !process.env.OPENAI_EVAL_MODEL)) throw new Error('OPENAI_API_KEY and OPENAI_EVAL_MODEL are required (set locally)');
   const handlerPath = resolve(a.handler ?? 'server/assist/handler.ts');
@@ -30,17 +28,17 @@ async function main() {
   for (const item of dataset.items.slice(0, limit)) {
     const start = performance.now(); let status = 0, error: string | null = null, output: unknown = null;
     try {
-      const request = new Request(`http://eval.local/api/assist/${item.kind}`, { method: 'POST', headers: { Origin: 'http://eval.local', 'Content-Type': 'application/json', Authorization: 'Bearer eval-local', 'Sec-Fetch-Site': 'same-origin' }, body: JSON.stringify(requestBody(item, contract)) });
+      const request = new Request(`http://eval.local/api/assist/${item.kind}`, { method: 'POST', headers: { Origin: 'http://eval.local', 'Content-Type': 'application/json', Authorization: 'Bearer eval-local', 'Sec-Fetch-Site': 'same-origin' }, body: JSON.stringify(requestBody(item)) });
       const response = await handler.handleAssist(request, { model, entitlement: { authenticate: async () => ({ accountId: 'eval', sessionId: 'eval' }), reserve: async () => ({ complete: async () => true, release: async () => {} }) }, rateLimit: { limit: () => true } });
       status = response.status; const body = await response.json();
-      if (response.ok) output = normalize(item.kind, body); else error = typeof body.error === 'string' && /^[a-z_]{1,60}$/.test(body.error) ? body.error : 'handler_error';
+      if (response.ok) output = body; else error = typeof body.error === 'string' && /^[a-z_]{1,60}$/.test(body.error) ? body.error : 'handler_error';
     } catch { error = 'handler_failure'; }
     const latencyMs = Math.round((performance.now() - start) * 100) / 100;
     results.push({ id: item.id, kind: item.kind, ...(item.kind === 'breakdown' ? { level: item.level } : {}), status, error, latencyMs, output });
     console.log(`${item.id} status=${status} latency_ms=${latencyMs}`);
   }
   const out = resolve(a.out ?? 'eval/out'); await mkdir(out, { recursive: true, mode: 0o700 });
-  await writeFile(resolve(out, 'results.json'), JSON.stringify({ version: 1, model: a.model, modelName: a.model === 'anthropic' ? 'claude-haiku-5-5' : a.model === 'openai' ? process.env.OPENAI_EVAL_MODEL : 'mock', contract, consent: dataset.consent, createdAt: new Date().toISOString(), results }, null, 2), { mode: 0o600 });
+  await writeFile(resolve(out, 'results.json'), JSON.stringify({ version: 1, model: a.model, modelName: a.model === 'anthropic' ? 'claude-haiku-5-5' : a.model === 'openai' ? process.env.OPENAI_EVAL_MODEL : 'mock', consent: dataset.consent, createdAt: new Date().toISOString(), results }, null, 2), { mode: 0o600 });
   await writeFile(resolve(out, 'ratings.csv'), ratingsCsv(results.filter(r => r.kind !== 'estimate').map(r => ({ id: r.id, kind: r.kind }))), { mode: 0o600 });
   console.log(`Completed ${results.length} items`);
 }

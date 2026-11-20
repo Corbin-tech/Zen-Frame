@@ -1,6 +1,13 @@
 import { DETAIL_LEVELS } from '../src/lib/assist/types.ts';
+import type { DetailLevel } from '../src/lib/assist/types.ts';
+import type { AssistRequestMap } from '../src/lib/assist/api.ts';
 export { DETAIL_LEVELS };
-export type Item = { id: string; kind: 'breakdown'; task: string; level: string; context?: string } | { id: string; kind: 'compile'; text: string } | { id: string; kind: 'estimate'; task: string };
+export type Item = { id: string; kind: 'breakdown'; task: string; level: DetailLevel; context?: string } | { id: string; kind: 'compile'; text: string } | { id: string; kind: 'estimate'; task: string };
+export function requestBody(item: Item): AssistRequestMap[Item['kind']] {
+  if (item.kind === 'compile') return { text: item.text };
+  if (item.kind === 'estimate') return { task: item.task };
+  return { task: item.task, level: item.level, ...(item.context === undefined ? {} : { context: item.context }) };
+}
 export type Dataset = { version: 1; consent: { source: 'synthetic' | 'contributed'; notes: string }; items: Item[] };
 export type ModelClient = { generate(input: { system: string; user: string; schema: unknown; maxTokens: number; signal: AbortSignal }): Promise<{ kind: 'ok'; json: unknown } | { kind: 'refusal' | 'timeout' | 'error' }> };
 export function validateDataset(value: any): Dataset {
