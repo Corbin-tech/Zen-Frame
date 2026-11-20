@@ -14,9 +14,6 @@ test('saved multiline note is fully visible after reloading and opening Goals', 
   await goals.click();
   await expect(note).toHaveValue(text);
   await expect(page.getByRole('heading', { name: 'Goals & check-ins' })).toBeVisible();
-  if (process.env.GOALS_SCREENSHOT) {
-    await page.screenshot({ path: process.env.GOALS_SCREENSHOT, fullPage: true, animations: 'disabled' });
-  }
   await expect(note).toBeVisible();
   await expect.poll(() => note.evaluate(el => el.clientHeight)).toBeGreaterThan(0);
   await expect.poll(() => note.evaluate(el => el.clientHeight >= el.scrollHeight)).toBe(true);
