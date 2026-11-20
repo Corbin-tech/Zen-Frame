@@ -3,6 +3,7 @@
   "type": "module",
   "version": "0.0.1",
   "scripts": {
+    "test": "node --experimental-strip-types --test tests/*.test.mjs",
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",

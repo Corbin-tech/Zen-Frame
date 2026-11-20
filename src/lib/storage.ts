@@ -160,20 +160,25 @@ export function importBackup(raw: string): { ok: boolean; error?: string; count?
   }
 
   // Keep the current values so a write that fails partway can be rolled back
-  const previous = entries.map(([key]) => [key, localStorage.getItem(key)] as const);
-  for (const [key, value] of entries) {
-    const saved = STRING_KEYS.has(key) ? saveString(key, value as string) : saveJson(key, value);
-    if (!saved) {
-      for (const [oldKey, oldValue] of previous) {
-        try {
-          if (oldValue === null) localStorage.removeItem(oldKey);
-          else localStorage.setItem(oldKey, oldValue);
-        } catch {
-          // Best effort: the old value fit before, so this rarely fails
-        }
-      }
-      return { ok: false, error: "Your browser storage is full. Nothing was restored." };
+  const previous = BACKUP_KEYS.map(key => [key, localStorage.getItem(key)] as const);
+  const restoredKeys = new Set(entries.map(([key]) => key));
+  try {
+    for (const key of BACKUP_KEYS) {
+      if (!restoredKeys.has(key)) localStorage.removeItem(key);
     }
+    for (const [key, value] of entries) {
+      localStorage.setItem(key, STRING_KEYS.has(key) ? value as string : JSON.stringify(value));
+    }
+  } catch {
+    for (const [oldKey, oldValue] of previous) {
+      try {
+        if (oldValue === null) localStorage.removeItem(oldKey);
+        else localStorage.setItem(oldKey, oldValue);
+      } catch {
+        // Best effort: the old value fit before, so this rarely fails
+      }
+    }
+    return { ok: false, error: "Your browser storage is full. Nothing was restored." };
   }
 
   return { ok: true, count: entries.length };
