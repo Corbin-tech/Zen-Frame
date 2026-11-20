@@ -1,4 +1,4 @@
-import { DETAIL_LEVELS, PROMPTS, SANITIZERS, SCHEMAS, cleanText } from './contract.ts';
+import { DETAIL_LEVELS, PROMPTS, SANITIZERS, SCHEMAS } from './contract.ts';
 import type { Endpoint } from './contract.ts';
 import type { EntitlementGate, ModelClient, RateLimiter } from './ports.ts';
 export const BODY_LIMIT = 32_768;
@@ -16,19 +16,20 @@ async function readBody(request: Request): Promise<string | null> {
   for (const chunk of chunks) { buffer.set(chunk, offset); offset += chunk.length; }
   return new TextDecoder('utf-8', { fatal: true }).decode(buffer);
 }
+const cleanInputText = (value: string): string | null => value.replace(/\r\n?/g, '\n').replace(/[\u0000-\u0009\u000b-\u001f\u007f-\u009f]/g, '').trim() || null;
 function inputFor(endpoint: Endpoint, value: unknown): { input?: unknown; tooLong?: boolean } {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
   const v = value as Record<string, unknown>;
   if (endpoint === 'estimate') {
     if (!Array.isArray(v.tasks) || !v.tasks.length || v.tasks.length > 50 || !v.tasks.every(t => typeof t === 'string')) return {};
     if (v.tasks.reduce((sum, t) => sum + t.length, 0) > 6000) return { tooLong: true };
-    const tasks = v.tasks.map(t => cleanText(t, 6000));
+    const tasks = v.tasks.map(t => cleanInputText(t));
     return tasks.every(Boolean) ? { input: { tasks } } : {};
   }
   const text = endpoint === 'breakdown' ? v.task : v.text;
   if (typeof text !== 'string') return {};
   if (text.length > 6000) return { tooLong: true };
-  const clean = cleanText(text, 6000); if (!clean) return {};
+  const clean = cleanInputText(text); if (!clean) return {};
   if (endpoint === 'compile') return { input: { text: clean } };
   return DETAIL_LEVELS.includes(v.detailLevel as typeof DETAIL_LEVELS[number]) ? { input: { task: clean, detailLevel: v.detailLevel } } : {};
 }

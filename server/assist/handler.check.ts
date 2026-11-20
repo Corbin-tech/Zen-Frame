@@ -27,6 +27,18 @@ try {
     assert.equal(result.headers.get('cache-control'), 'no-store'); assert.equal(result.headers.get('x-content-type-options'), 'nosniff');
     assert.deepEqual(deps.entitlement.counts, { reserved: 1, completed: 1, released: 0 }); tests++;
   }
+  for (const endpoint of ['breakdown', 'compile', 'estimate'] as const) {
+    for (const text of ['buy milk\ncall mom', 'buy milk\r\ncall mom', '\u0000buy milk\t\ncall mom\u007f']) {
+      const input = endpoint === 'compile' ? { text } : endpoint === 'estimate' ? { tasks: [text] } : { task: text, detailLevel: '1-3' };
+      const model: ModelClient = { async generate(args) {
+        const sent = JSON.parse(args.user);
+        assert.equal(endpoint === 'compile' ? sent.text : endpoint === 'estimate' ? sent.tasks[0] : sent.task, 'buy milk\ncall mom');
+        return mockModel().generate(args);
+      } };
+      assert.equal((await handleAssist(request(endpoint, input), setup(model))).status, 200); tests++;
+    }
+  }
+  assert.deepEqual(SANITIZERS.breakdown({ steps: ['buy milk\ncall mom'] }), { steps: ['buy milkcall mom'] }); tests++;
   for (const [req, status] of [
     [request('breakdown', undefined, { Origin: 'https://other.test' }), 403],
     [request('breakdown', undefined, { Origin: '' }), 403],
@@ -40,7 +52,7 @@ try {
     [request('compile', { text: 'a'.repeat(6001) }), 413],
     [request('estimate', { tasks: ['a'.repeat(3001), 'b'.repeat(3000)] }), 413],
     [request('compile', { text: 'a'.repeat(BODY_LIMIT) }), 413],
-    [request('compile', { text: '' }), 400], [request('estimate', { tasks: [] }), 400],
+    [request('compile', { text: '' }), 400], [request('compile', { text: '\r\n\u0000' }), 400], [request('estimate', { tasks: [] }), 400],
     [request('breakdown', { task: 'a', detailLevel: 'bad' }), 400],
     [request('compile', undefined, { 'Content-Type': 'text/plain' }), 415],
     [new Request('https://zen.test/api/assist/compile', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer test-token' }, body: '{}' }), 403],
