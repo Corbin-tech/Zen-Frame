@@ -5,6 +5,8 @@
             x-model="text"
             x-ref="input"
             x-on:keyup.enter="submit()"
+            x-on:input="hint = ''"
+            x-bind:aria-describedby="hint ? 'new-task-hint' : null"
             placeholder="Add a new task..."
             class="w-full sm:w-auto sm:flex-1 min-w-0 px-4 py-2 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 dark:text-white"
         />
@@ -44,6 +46,8 @@
         </div>
     </div>
 
+    <p id="new-task-hint" role="status" x-show="hint" x-cloak class="mt-2 text-sm text-gray-600 dark:text-gray-300" x-text="hint"></p>
+
     <!-- Recognized tokens, one quiet chip per match. Previews only: deleting a chip
          removes its token from the line, and submit applies the parsed fields. -->
     <div x-show="chips.length" x-cloak class="mt-2 flex flex-wrap gap-1.5" role="group" aria-label="Recognized from this line">
@@ -78,6 +82,8 @@
         window.Alpine.data('quickTaskInput', () => ({
             // The typed line. Enter and the "Add task" button share one submit.
             text: '',
+            // Why the last submit added nothing (a line with only dates or times)
+            hint: '',
 
             // The current parse of the line; every date goes through src/lib/dates.ts,
             // so the due date is today's local day key.
@@ -105,7 +111,12 @@
                 if (!raw) return;
                 const parsed = this.parsed;
                 // Tokens only (no title): nothing to name a task with, so nothing is added
-                if (!parsed.title) return;
+                if (!parsed.title) {
+                    this.hint = 'Add a task name too, for example "Call the dentist tomorrow 30m".';
+                    this.$refs.input.focus();
+                    return;
+                }
+                this.hint = '';
                 const fields = {};
                 if (parsed.dueDate) fields.dueDate = parsed.dueDate;
                 if (parsed.estimateMinutes) fields.estimateMinutes = parsed.estimateMinutes;
