@@ -480,13 +480,13 @@ const pickerItem = 'w-full flex items-center gap-2.5 px-3 py-2 text-left rounded
         },
 
         // The DOM facts of the moment a key lands, weighed by the key map
-        keyContext() {
-            const active = document.activeElement;
+        keyContext(active = document.activeElement, row = active instanceof Element ? active.closest('.task-item[data-task-id]') : null) {
             return {
                 typing: active instanceof Element && Boolean(active.closest('input, textarea, select, [contenteditable]')),
                 tabActive: this.isVisible(this.$root),
                 overlayOpen: Array.from(document.querySelectorAll('[role="dialog"]')).some(el => this.isVisible(el)),
-                rowMenuOpen: Array.from(this.$root.querySelectorAll('[role="menu"]')).some(el => this.isVisible(el))
+                rowMenuOpen: Array.from(this.$root.querySelectorAll('[role="menu"]')).some(el => this.isVisible(el)),
+                rowFocus: !row ? 'none' : (active === row ? 'row' : 'within')
             };
         },
 
@@ -505,23 +505,30 @@ const pickerItem = 'w-full flex items-center gap-2.5 px-3 py-2 text-left rounded
         // the Task Manager tab, and never while typing or under an overlay. The
         // picker's own menu takes the keys while it is open.
         tmKeydown(event) {
-            if (this.pickerOpen) return;
-            const intent = tmKeyIntent(event, this.keyContext());
-            if (!intent) return;
-            event.preventDefault();
+            if (this.pickerOpen || event.defaultPrevented) return;
             const active = document.activeElement;
-            if (intent.kind === 'focusRow') return this.focusRow(intent.direction);
-            // The remaining intents act on the focused task's row
             const row = active instanceof Element ? active.closest('.task-item[data-task-id]') : null;
+            const intent = tmKeyIntent(event, this.keyContext(active, row));
+            if (!intent) return;
+            if (intent.kind === 'focusRow') {
+                if (this.focusRow(intent.direction)) event.preventDefault();
+                return;
+            }
+            // The remaining intents act on the focused task's row
             if (!row) return;
             const taskId = row.getAttribute('data-task-id');
-            if (intent.kind === 'completeTask') return this.completeTask(taskId, row);
+            if (intent.kind === 'completeTask') {
+                event.preventDefault();
+                return this.completeTask(taskId, row);
+            }
             // Enter and e belong to whatever inside the row holds focus; only
             // the row itself opens its edit affordance
             if (intent.kind === 'editTask') {
-                if (active === row) this.editRow(row);
-                return;
+                if (active !== row) return;
+                event.preventDefault();
+                return this.editRow(row);
             }
+            event.preventDefault();
             this.openPicker(taskId, row);
         },
 
@@ -531,10 +538,11 @@ const pickerItem = 'w-full flex items-center gap-2.5 px-3 py-2 text-left rounded
             const active = document.activeElement;
             const focused = active instanceof Element ? active.closest('.task-item[data-task-id]') : null;
             const next = stepRowIndex(focused ? rows.indexOf(focused) : -1, direction, rows.length);
-            if (next === null) return;
+            if (next === null) return false;
             const target = rows[next];
             target.focus();
             target.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            return true;
         },
 
         // x: the same store call the row's checkbox makes. The row usually folds
