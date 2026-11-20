@@ -1,5 +1,5 @@
 import { afterEach, expect, test, vi } from "vitest";
-import { initStores, type AutoPlanResult, type Planning, type ScheduledItem, type Todo } from "../src/stores/todoStore";
+import { initStores, type AutoPlanResult, type CompletionRecord, type Planning, type ScheduledItem, type Todo } from "../src/stores/todoStore";
 
 afterEach(() => {
   vi.useRealTimers();
@@ -14,6 +14,41 @@ function setupStore<T extends { items: Todo[]; saveTodos(): void }>(): T {
   vi.spyOn(store, "saveTodos").mockImplementation(() => {});
   return store;
 }
+
+test.each([false, true])("setting a block's completion is idempotent (repeating: %s)", (repeating) => {
+  const store = setupStore<{
+    items: Todo[];
+    history: CompletionRecord[];
+    saveTodos(): void;
+    setBlockDone(item: ScheduledItem, dateKey: string, done: boolean): void;
+  }>();
+  const day = "2026-01-05";
+  const otherDay = "2026-01-06";
+  const task: Todo = {
+    id: "task", todo: "Review project brief", completed: false, isCluster: false,
+    isPinned: false, parentId: null, createdAt: "2026-01-01T00:00:00Z",
+  };
+  const block: ScheduledItem = {
+    id: "block", taskId: task.id, date: day, startTimeMinutes: 600, endTimeMinutes: 660,
+    repeat: repeating ? { weekdays: [1, 2], until: null, doneDates: [otherDay] } : undefined,
+  };
+  store.items = [task];
+
+  store.setBlockDone(block, day, true);
+  store.setBlockDone(block, day, true);
+  expect(task.completed).toBe(!repeating);
+  if (repeating) expect(block.repeat?.doneDates).toEqual([otherDay, day]);
+  expect(store.history).toHaveLength(1);
+  expect(store.history[0].blockId).toBe(repeating ? block.id : undefined);
+  expect(store.saveTodos).toHaveBeenCalledTimes(1);
+
+  store.setBlockDone(block, day, false);
+  store.setBlockDone(block, day, false);
+  expect(task.completed).toBe(false);
+  if (repeating) expect(block.repeat?.doneDates).toEqual([otherDay]);
+  expect(store.history).toEqual([]);
+  expect(store.saveTodos).toHaveBeenCalledTimes(2);
+});
 
 test.each([false, true])("skipping an unclustered task advances Zen and moves it behind its open siblings (started: %s)", (isStarted) => {
   const startedAt = "2026-01-01T10:00:00.000Z";
