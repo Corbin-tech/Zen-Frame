@@ -170,10 +170,17 @@ export function importBackup(raw: string): { ok: boolean; error?: string; count?
       localStorage.setItem(key, STRING_KEYS.has(key) ? value as string : JSON.stringify(value));
     }
   } catch {
-    for (const [oldKey, oldValue] of previous) {
+    for (const key of BACKUP_KEYS) {
       try {
-        if (oldValue === null) localStorage.removeItem(oldKey);
-        else localStorage.setItem(oldKey, oldValue);
+        localStorage.removeItem(key);
+      } catch {
+        // Best effort if storage is unavailable
+      }
+    }
+    for (const [oldKey, oldValue] of previous) {
+      if (oldValue === null) continue;
+      try {
+        localStorage.setItem(oldKey, oldValue);
       } catch {
         // Best effort: the old value fit before, so this rarely fails
       }

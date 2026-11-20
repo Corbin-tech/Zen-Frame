@@ -70,3 +70,25 @@ test('a failed removal rolls back keys already removed', () => {
   expect(localStorage.getItem('todos')).toBe('[]');
   expect(localStorage.getItem('goals')).toBe('[]');
 });
+
+test('rollback frees imported values before restoring removed keys under quota', () => {
+  const data = new Map<string, string>();
+  localStorage.getItem = key => data.get(key) ?? null;
+  localStorage.removeItem = key => { data.delete(key); };
+  localStorage.setItem = (key, value) => {
+    const size = [...data.entries()].reduce((total, [storedKey, storedValue]) =>
+      total + (storedKey === key ? 0 : storedValue.length), value.length);
+    if (size > 100) throw new Error('Quota exceeded');
+    data.set(key, value);
+  };
+  localStorage.setItem('todos', '["original"]');
+  localStorage.setItem('settings', '{}');
+  localStorage.setItem('unrelated', 'keep');
+  const previous = new Map(data);
+
+  const result = importBackup(JSON.stringify({ app: 'zen-frame', version: 1,
+    data: { settings: { name: 'x'.repeat(80) }, theme: 'y'.repeat(20) } }));
+
+  expect(result.ok).toBe(false);
+  expect(data).toEqual(previous);
+});
