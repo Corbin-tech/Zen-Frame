@@ -1,11 +1,12 @@
 ---
 import EstimatePicker from './EstimatePicker.astro';
+import TaskSteps from './TaskSteps.astro';
 
 // One task row. Render it inside an Alpine x-for that provides `task`.
 ---
 
 <div 
-    class="relative group/task flex flex-wrap sm:flex-nowrap items-center gap-x-2 pr-2 border border-gray-100 dark:border-slate-600 rounded-lg shadow-sm hover:shadow-md transition-all duration-300 ease-in-out task-item"
+    class="relative group/task flex flex-wrap items-center gap-x-2 pr-2 border border-gray-100 dark:border-slate-600 rounded-lg shadow-sm hover:shadow-md transition-all duration-300 ease-in-out task-item"
     style="background-color: var(--task-bg);"
     x-bind:class="{'bg-green-50 dark:bg-green-900/10 border-green-100 dark:border-green-900/30': task.completed, 'hover:border-teal-300 dark:hover:border-teal-700': !task.completed}"
     x-drag-task="task.id"
@@ -117,6 +118,7 @@ import EstimatePicker from './EstimatePicker.astro';
             </svg>
         </button>
     </div>
+    <TaskSteps />
 </div>
 
 <style>

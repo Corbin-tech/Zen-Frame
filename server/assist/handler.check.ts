@@ -144,7 +144,18 @@ try {
   assert.equal(await selected?.limit('chosen-account'), false); assert.equal(bindingCalls, 1); assert.equal(database.calls.length, dbCalls); tests++;
   assert.equal(await selectAssistRateLimiter({ PLUS_DB: database.db })?.limit('db-account'), true);
   assert.equal(database.calls.length, dbCalls + 1); assert.equal(selectAssistRateLimiter({}), null); tests++;
-  assert.equal((await onRequest({ request: request(), env: { ANTHROPIC_API_KEY: 'fake-key', PLUS_DB: database.db } })).status, 401); tests++;
+  const adapterDb = { prepare(sql: string) {
+    const statement = database.db.prepare(sql);
+    return {
+      bind(...values: (string | number | null)[]) { statement.bind(...values); return this; },
+      first<T>() { return statement.first<T>(); },
+      async run() {}
+    };
+  } };
+  assert.equal((await onRequest({ request: request(), env: { ANTHROPIC_API_KEY: 'fake-key', PLUS_DB: adapterDb } })).status, 503); tests++;
+  assert.equal((await onRequest({ request: request(), env: { ANTHROPIC_API_KEY: 'fake-key', PLUS_SIGNING_KEY: 'test-key' } })).status, 503); tests++;
+  const unsigned = request(); unsigned.headers.delete('Authorization');
+  assert.equal((await onRequest({ request: unsigned, env: { ANTHROPIC_API_KEY: 'fake-key', PLUS_DB: adapterDb, PLUS_SIGNING_KEY: 'test-key' } })).status, 401); tests++;
   assert.equal((await onRequest({ request: request(), env: { ANTHROPIC_API_KEY: 'fake-key' } })).status, 503); tests++;
   const brokenDb: AssistDatabase = { prepare() { throw new Error('unavailable'); } };
   const dbFailure = { ...setup(), rateLimit: createD1RateLimiter(brokenDb) };
@@ -316,7 +327,7 @@ try {
     await assert.rejects(cloud.breakdown('a', 'few', ''), AssistError); tests++;
   } finally { globalThis.fetch = realFetch; }
   assert.equal((await onRequest({ request: request(), env: {} })).status, 503);
-  assert.equal((await onRequest({ request: request(), env: { ANTHROPIC_API_KEY: 'fake-key', ASSIST_RATE_LIMITER: { async limit() { return { success: true }; } }, ASSIST_IP_RATE_LIMITER: { async limit() { return { success: true }; } } } })).status, 401); tests++;
+  assert.equal((await onRequest({ request: request(), env: { ANTHROPIC_API_KEY: 'fake-key', ASSIST_RATE_LIMITER: { async limit() { return { success: true }; } }, ASSIST_IP_RATE_LIMITER: { async limit() { return { success: true }; } } } })).status, 503); tests++;
   assert.equal(JSON.stringify(logged).includes(secretText), false);
   assert.equal(logged.length, 0); tests++;
 } finally { Object.assign(console, originalConsole); }

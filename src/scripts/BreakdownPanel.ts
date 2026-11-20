@@ -125,7 +125,7 @@ export function registerBreakdownPanel() {
                 }
                 this.announcement = '';
                 if (!result?.steps.length) {
-                    this.error = retryMessage;
+                    this.error = store.error || retryMessage;
                     this.focusGenerate();
                     return;
                 }

@@ -3,8 +3,8 @@
 Contracts, prompts and sanitizers come from WS1's `src/lib/assist/` modules.
 `validation.ts` rejects unusable sanitized answers on both sides of the network;
 an explicitly empty brain-dump cluster list is valid, but all tasks discarded by cleaning is not.
-WS3 integration is deliberately fail closed: the Pages adapter rejects all tokens until
-`createEntitlementService(env)` is wired from `server/auth/entitlement.ts`.
+The Pages adapter uses `createEntitlementService(env)` from `server/auth/entitlement.ts`.
+Missing `PLUS_DB` or `PLUS_SIGNING_KEY` bindings return `503 unavailable`.
 
 ## Owner configuration
 
@@ -88,7 +88,7 @@ local mock requests need an explicit test header.
 Missing/blank `CF-Connecting-IP`, missing limiter, hashing failure, and limiter errors
 return fixed `503 unavailable`; an exhausted IP counter returns `429 rate_limited`.
 All these blocks occur before authenticate/reserve/complete/release or model generation,
-so they never consume trial quota. The production entitlement placeholder remains fail closed.
+so they never consume trial quota. Entitlements are authenticated and reserved through WS3's service.
 
 Apply `server/assist/migrations/0001_assist_rate_limits.sql` and then
 `server/assist/migrations/0002_assist_ip_rate_limits.sql` to the same database bound as
