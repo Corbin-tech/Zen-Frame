@@ -200,6 +200,25 @@ for (const mode of ['success', 'error', 'abort', 'late-response']) {
     assert.equal(panel.editing, true);
     assert.equal(panel.draft.length, 4);
     assert.equal(refreshes, beforeRefresh + 1);
+    // Withdrawing consent: Accept cannot save the draft, and the panel discards it
+    assist.withdrawConsent();
+    await assist.refresh();
+    panel.accept();
+    assert.equal(writes, 0);
+    assert.deepEqual(task.steps, [{ text: 'Existing step', minutes: 1 }]);
+    const watchers = {};
+    panel.$watch = (key, callback) => { watchers[key] = callback; };
+    panel.$root.contains = () => false;
+    panel.init();
+    globalThis.document = { activeElement: null };
+    watchers.plusReady(panel.plusReady);
+    delete globalThis.document;
+    assert.equal(panel.open, false);
+    assert.equal(panel.editing, false);
+    assert.deepEqual(panel.draft, []);
+    assert.equal(panel.announcement, 'Task helpers are off. The suggestion was discarded.');
+    assist.giveConsent();
+    await assist.refresh();
   } else {
     assert.equal(panel.editing, false);
     assert.deepEqual(panel.draft, []);
