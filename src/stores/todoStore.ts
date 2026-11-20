@@ -1,6 +1,7 @@
 import { toDateKey, fromDateKey, addDays, minutesNow } from "../lib/dates";
 import { planTasks, type AvailabilityWindow } from "../lib/autoPlan";
 import { loadJson, saveJson } from "../lib/storage";
+import { dispatchToast } from "../lib/notifications";
 import type { Milestone } from "./settingsStore";
 import { blockMinutes } from "../lib/estimates";
 import { cleanStepTotal } from "../lib/assist/sanitize";
@@ -73,6 +74,22 @@ export interface AutoPlanResult {
   blocks: ScheduledItem[]; // The new blocks
   replaced: ScheduledItem[]; // Past one-off blocks of the planned tasks, removed by the plan
   dueDates: { taskId: string; dueDate: string | null }[]; // Due dates before the plan
+}
+
+// One entry a destructive action took out of a list, and where it sat, so an
+// Undo can put it back at its original position.
+export interface RemovedEntry<Entry> {
+  entry: Entry;
+  index: number;
+}
+
+// Everything a destructive action removed from the store's lists: the items
+// themselves (with their cluster membership, since parentId travels with them),
+// the blocks that pointed at them, and any Zen-mode skip flags.
+export interface RemovalSnapshot {
+  items: RemovedEntry<Todo>[];
+  scheduledItems: RemovedEntry<ScheduledItem>[];
+  skippedClusters: RemovedEntry<string>[];
 }
 
 const NEW_CLUSTER_NAME = "New Cluster";
@@ -458,22 +475,67 @@ function createTodosStore() {
       this.saveTodos();
     },
 
+    // Captures what removing these ids would take out: the items at their positions,
+    // the blocks that point at them, and the Zen skip flags naming them. Pass the
+    // snapshot to restoreRemoval to put every entry back exactly where it was.
+    captureRemoval(ids: Set<string>): RemovalSnapshot {
+      return {
+        items: this.items.map((entry, index) => ({ entry, index })).filter(({ entry }) => ids.has(entry.id)),
+        scheduledItems: this.scheduledItems.map((entry, index) => ({ entry, index })).filter(({ entry }) => ids.has(entry.taskId)),
+        skippedClusters: this.skippedClusters.map((entry, index) => ({ entry, index })).filter(({ entry }) => ids.has(entry))
+      };
+    },
+
+    // Puts a removal snapshot back the way it was: each entry lands at its original
+    // index (or the end of the list if new items have since shortened it), with the
+    // entries at lower indexes restored first so every original index still lines up.
+    // Persists through the store's usual save path, like every other mutation.
+    restoreRemoval(snapshot: RemovalSnapshot): void {
+      const putBack = <Entry>(list: Entry[], removed: RemovedEntry<Entry>[]): Entry[] => {
+        if (!removed.length) return list;
+        const restored = [...list];
+        for (const { entry, index } of [...removed].sort((a, b) => a.index - b.index)) {
+          restored.splice(Math.min(index, restored.length), 0, entry);
+        }
+        return restored;
+      };
+      this.items = putBack(this.items, snapshot.items);
+      this.scheduledItems = putBack(this.scheduledItems, snapshot.scheduledItems);
+      this.skippedClusters = putBack(this.skippedClusters, snapshot.skippedClusters);
+      this.saveTodos();
+    },
+
+    // Removes the captured ids and fires the Undo toast that restores them. The
+    // snapshot lives in the toast, so the undo expires with it.
+    removeWithUndoToast(ids: Set<string>, title: string, body: string): void {
+      const snapshot = this.captureRemoval(ids);
+      if (!snapshot.items.length) return;
+      this.removeItems(ids);
+      dispatchToast({
+        title,
+        body,
+        action: { label: "Undo", onAction: () => this.restoreRemoval(snapshot) }
+      });
+    },
+
     deleteTodo(id: string): void {
       const todo = this.find(id);
       if (!todo) return;
 
+      // A pinned cluster still needs its explicit confirm; undo covers everything else
       if (todo.isCluster && todo.isPinned &&
           !confirm(`"${todo.todo}" is pinned. Delete it and all of its tasks?`)) {
         return;
       }
 
-      const ids = this.items.filter(item => item.id === id || item.parentId === id).map(item => item.id);
-      this.removeItems(new Set(ids));
+      const ids = new Set(this.items.filter(item => item.id === id || item.parentId === id).map(item => item.id));
+      this.removeWithUndoToast(ids, `${todo.isCluster ? "Cluster" : "Task"} deleted`, todo.todo);
     },
 
-    deleteCompleted(): void {
-      // Unpinned clusters whose tasks are all complete go away with their tasks.
-      // A cluster with blocks is a class on the timetable, so it stays.
+    // Completed items that "Delete completed" clears: finished tasks, plus the
+    // unpinned clusters whose tasks are all complete. A cluster with blocks is a
+    // class on the timetable, so it stays.
+    completedRemovalIds(): string[] {
       const finishedClusterIds = this.clusters
         .filter(cluster => {
           if (cluster.isPinned || this.scheduledItems.some(entry => entry.taskId === cluster.id)) return false;
@@ -482,13 +544,26 @@ function createTodosStore() {
         })
         .map(cluster => cluster.id);
 
-      const ids = this.items
+      return this.items
         .filter(item => item.completed || finishedClusterIds.includes(item.id))
         .map(item => item.id);
-      this.removeItems(new Set(ids));
     },
 
-    // Removes items and everything that points at them
+    deleteCompleted(): void {
+      const ids = new Set(this.completedRemovalIds());
+      const snapshot = this.captureRemoval(ids);
+      const cleared = snapshot.items.filter(({ entry }) => !entry.isCluster).length;
+      if (!cleared) return;
+      this.removeItems(ids);
+      dispatchToast({
+        title: "Cleared completed",
+        body: `${cleared === 1 ? "1 task" : `${cleared} tasks`} cleared`,
+        action: { label: "Undo", onAction: () => this.restoreRemoval(snapshot) }
+      });
+    },
+
+    // Removes items and everything that points at them. Severed goal links are the
+    // one part of a removal that an undo snapshot cannot put back.
     removeItems(ids: Set<string>): void {
       this.items = this.items.filter(item => !ids.has(item.id));
       this.scheduledItems = this.scheduledItems.filter(entry => !ids.has(entry.taskId));
