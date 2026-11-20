@@ -6,7 +6,7 @@
 // - Each step starts with a physical verb and names one thing to do.
 // - No judgment or motivational filler.
 
-export { breakdownSchema, COMPILE_SCHEMA, ESTIMATE_SCHEMA } from "./api";
+export { breakdownSchema, COMPILE_SCHEMA, ESTIMATE_SCHEMA } from "./api.ts";
 
 export const SYSTEM_PROMPT = [
   "You help people with ADHD and autism turn tasks into clear, concrete actions.",

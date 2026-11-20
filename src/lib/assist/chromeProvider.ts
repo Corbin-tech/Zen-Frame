@@ -1,6 +1,6 @@
-import { breakdownPrompt, breakdownSchema, compilePrompt, COMPILE_SCHEMA, estimatePrompt, ESTIMATE_SCHEMA, SYSTEM_PROMPT } from "./prompts";
-import { cleanBreakdown, cleanCompile, cleanEstimate } from "./sanitize";
-import { detailLevel, type AssistProvider, type ProviderStatus } from "./types";
+import { breakdownPrompt, breakdownSchema, compilePrompt, COMPILE_SCHEMA, estimatePrompt, ESTIMATE_SCHEMA, SYSTEM_PROMPT } from "./prompts.ts";
+import { cleanBreakdown, cleanCompile, cleanEstimate } from "./sanitize.ts";
+import { detailLevel, type AssistProvider, type ProviderStatus } from "./types.ts";
 
 // Chrome's built-in model (Gemini Nano) through the Prompt API, on desktop Chrome 148 and later.
 // The model runs on the device: the page makes no request, so the Content Security Policy

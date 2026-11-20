@@ -1,4 +1,4 @@
-import type { BreakdownResult, CompileResult, EstimateResult, StepSuggestion } from "./types";
+import type { BreakdownResult, CompileResult, EstimateResult, StepSuggestion } from "./types.ts";
 import { DETAIL_LEVELS } from "./types.ts";
 import { MAX_INPUT_CHARS } from "./api.ts";
 import type { BreakdownRequest, CompileRequest, EstimateRequest } from "./api.ts";
