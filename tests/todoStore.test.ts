@@ -50,6 +50,54 @@ test.each([false, true])("setting a block's completion is idempotent (repeating:
   expect(store.saveTodos).toHaveBeenCalledTimes(2);
 });
 
+test.each([false, true])("converting a weekly block keeps the chosen day's completion (done: %s)", (done) => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date(2026, 0, 13, 12));
+  const store = setupStore<{
+    items: Todo[];
+    scheduledItems: ScheduledItem[];
+    history: CompletionRecord[];
+    saveTodos(): void;
+    isBlockDone(item: ScheduledItem, dateKey: string): boolean;
+    setBlockDone(item: ScheduledItem, dateKey: string, done: boolean): void;
+    saveScheduledItem(item: ScheduledItem): void;
+  }>();
+  const task: Todo = {
+    id: "task", todo: "Review project brief", completed: false, isCluster: false,
+    isPinned: false, parentId: null, createdAt: "2026-01-01T00:00:00Z",
+  };
+  const firstDay = "2026-01-05";
+  const selectedDay = "2026-01-12";
+  const weekly: ScheduledItem = {
+    id: "block", taskId: task.id, date: firstDay, startTimeMinutes: 600, endTimeMinutes: 660,
+    repeat: { weekdays: [1], until: null, doneDates: [] },
+  };
+  store.items = [task];
+  store.saveScheduledItem(weekly);
+  store.setBlockDone(weekly, firstDay, true);
+  store.setBlockDone(weekly, selectedDay, done);
+  const [firstTick, selectedTick] = store.history;
+  const otherWeekly = { ...weekly, id: "other-block", repeat: { weekdays: [1], until: null, doneDates: [] } };
+  store.saveScheduledItem(otherWeekly);
+  store.setBlockDone(otherWeekly, selectedDay, true);
+  const otherTick = store.history.at(-1);
+
+  const oneOff = { ...weekly, date: selectedDay, repeat: undefined };
+  store.saveScheduledItem(oneOff);
+
+  expect(store.scheduledItems).toEqual([otherWeekly, oneOff]);
+  expect(store.isBlockDone(oneOff, selectedDay)).toBe(done);
+  expect(task.completed).toBe(done);
+  expect(task.dueDate).toBe(selectedDay);
+  expect(task.completedAt).toBe(selectedTick?.at);
+  expect(store.history).toEqual(done ? [firstTick, otherTick, {
+    taskId: task.id, title: task.todo, clusterId: null, clusterName: '', dueDate: selectedDay, at: selectedTick.at,
+  }] : [firstTick, otherTick]);
+
+  store.setBlockDone(oneOff, selectedDay, false);
+  expect(store.history).toEqual([firstTick, otherTick]);
+});
+
 test.each([false, true])("skipping an unclustered task advances Zen and moves it behind its open siblings (started: %s)", (isStarted) => {
   const startedAt = "2026-01-01T10:00:00.000Z";
   const defaults = { completed: false, isCluster: false, isPinned: false, parentId: null, createdAt: startedAt };
