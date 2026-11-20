@@ -1,5 +1,16 @@
 import { test, expect } from '@playwright/test';
 
+test('weekly check-in shows a dash when there are no goals', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('button[data-tab="goals"]').click();
+
+  const checkIn = page.locator('section').filter({
+    has: page.getByRole('heading', { name: 'Weekly check-in', exact: true }),
+  });
+  const progressCard = checkIn.getByText('current goal progress', { exact: true }).locator('..');
+  await expect(progressCard.locator('p').first()).toHaveText('–');
+});
+
 test('weekly check-in labels the live goals count as current progress', async ({ page }) => {
   await page.goto('/');
   await page.locator('button[data-tab="goals"]').click();
