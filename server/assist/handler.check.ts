@@ -109,6 +109,10 @@ try {
   const emptyResponse = await handleAssist(request('compile', { text: 'Only feelings, no actions' }), emptyCompile);
   assert.equal(emptyResponse.status, 200); assert.deepEqual(await emptyResponse.json(), { clusters: [] });
   assert.deepEqual(emptyCompile.entitlement.counts, { reserved: 1, completed: 1, released: 0 }); tests++;
+  const discardedTasks = setup({ async generate() { return { kind: 'ok', json: { clusters: [{ name: 'Tasks', tasks: [{ text: '', minutes: 10 }, { text: null }] }] } }; } });
+  const discardedResponse = await handleAssist(request('compile', { text: secretText }), discardedTasks);
+  assert.equal(discardedResponse.status, 502); assert.deepEqual(await discardedResponse.json(), { error: 'model_error' });
+  assert.deepEqual(discardedTasks.entitlement.counts, { reserved: 1, completed: 0, released: 1 }); tests++;
   assert.equal(cleanAnswer('estimate', { minutes: 0, low: 1, high: 5 }), null);
   assert.deepEqual(cleanAnswer('estimate', { minutes: 10, low: 20, high: 30, id: 'bad' }), { minutes: 10, low: 10, high: 30 });
   const cluster = cleanAnswer('compile', { clusters: [{ name: 'x'.repeat(150), color: 'red', tasks: [{ text: 'y'.repeat(500), minutes: 10, url: 'bad' }] }] });
