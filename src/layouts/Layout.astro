@@ -98,6 +98,7 @@ const contentSecurityPolicy = [
 				window.Alpine.effect(() => {
 					const plus = window.Alpine.store('plus') as ReturnType<typeof initPlusStore>;
 					void plus.account;
+					void plus.ready;
 					void (window.Alpine.store('assist') as ReturnType<typeof initAssistStore>).refresh();
 				});
 				registerBreakdownPanel();

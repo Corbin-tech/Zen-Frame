@@ -72,6 +72,35 @@ assert.equal(assist.aiStatus, 'needs-plus');
 await assert.rejects(() => stale.compile('fixture'), { code: 'unauthorized' });
 assert.equal(tokens, previousTokens);
 
+// Consent belongs to the account that gave it
+assert.equal(assist.consent, true); // Plus has not confirmed a sign-out yet (ready is unset)
+plus.account = { email: 'other@example.com' };
+await assist.refresh();
+assert.equal(assist.consent, false);
+assert.equal(saved.get('assistConsent'), 'false');
+assert.equal(assist.aiStatus, 'needs-consent');
+plus.account = { email: 'fixture@example.com' };
+assist.giveConsent();
+await assist.refresh();
+plus.account = null;
+plus.ready = true; // Plus confirmed that nobody is signed in
+await assist.refresh();
+assert.equal(assist.consent, false);
+assert.equal(saved.get('assistConsent'), 'false');
+saved.set('assistConsent', 'true');
+const reloaded = initAssistStore();
+assert.equal(reloaded.consent, true);
+plus.account = { email: 'fixture@example.com' };
+await reloaded.refresh(); // The saved consent is adopted by the account signed in at load
+assert.equal(reloaded.consent, true);
+plus.account = { email: 'other@example.com' };
+await reloaded.refresh();
+assert.equal(reloaded.consent, false);
+assert.equal(saved.get('assistConsent'), 'false');
+delete plus.ready;
+plus.account = { email: 'fixture@example.com' };
+assist.giveConsent();
+
 const panelUrl = new URL('../../scripts/BreakdownPanel.ts', import.meta.url);
 const hooks = registerHooks({ resolve(specifier, context, nextResolve) {
   return nextResolve(specifier === '../lib/assist' && context.parentURL === panelUrl.href
