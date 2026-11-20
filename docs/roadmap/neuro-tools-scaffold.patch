@@ -1,0 +1,859 @@
+diff --git a/src/layouts/Layout.astro b/src/layouts/Layout.astro
+index 8c41314..85d506d 100644
+--- a/src/layouts/Layout.astro
++++ b/src/layouts/Layout.astro
+@@ -79,6 +79,7 @@ const contentSecurityPolicy = [
+ 			import { initSettingsStore } from '../stores/settingsStore';
+ 			import { initGoalsStore } from '../stores/goalsStore';
+ 			import { initPomoStore } from '../stores/pomoStore';
++			import { initAssistStore } from '../stores/assistStore';
+ 			import { notify, startReminders } from '../lib/notifications';
+ 			import { registerTaskDragDrop } from '../scripts/taskDragDrop.js';
+ 			import { dates } from '../lib/dates';
+@@ -89,6 +90,8 @@ const contentSecurityPolicy = [
+ 				window.Alpine.store('goals', initGoalsStore());
+ 				window.Alpine.store('pomoState', initPomoStore());
+ 				initStores();
++				// Breakdown, Brain dump, and Estimate helpers (on-device only)
++				window.Alpine.store('assist', initAssistStore());
+ 				registerTaskDragDrop(window.Alpine);
+ 				// $dates in templates: date and time helpers from src/lib/dates.ts
+ 				window.Alpine.magic('dates', () => dates);
+diff --git a/src/lib/assist/chromeProvider.ts b/src/lib/assist/chromeProvider.ts
+new file mode 100644
+index 0000000..a3bb094
+--- /dev/null
++++ b/src/lib/assist/chromeProvider.ts
+@@ -0,0 +1,89 @@
++import { breakdownPrompt, breakdownSchema, compilePrompt, COMPILE_SCHEMA, estimatePrompt, ESTIMATE_SCHEMA, SYSTEM_PROMPT } from "./prompts";
++import { cleanBreakdown, cleanCompile, cleanEstimate } from "./sanitize";
++import { detailLevel, type AssistProvider, type ProviderStatus } from "./types";
++
++// Chrome's built-in model (Gemini Nano) through the Prompt API, on desktop Chrome 148 and later.
++// The model runs on the device: the page makes no request, so the Content Security Policy
++// (connect-src 'self') needs no change. Docs: https://developer.chrome.com/docs/ai/prompt-api
++//
++// A bonus only: the app uses it when Chrome already has the model ("ready") and never asks the
++// user to download it. Everyone else gets the rules in localProvider.ts.
++
++// Just the parts of the API this file uses. TypeScript's DOM types don't include it yet.
++type Availability = "unavailable" | "downloadable" | "downloading" | "available";
++
++interface LanguageModelSession {
++  prompt(input: string, options?: { responseConstraint?: object; signal?: AbortSignal }): Promise<string>;
++  clone(options?: { signal?: AbortSignal }): Promise<LanguageModelSession>;
++  destroy(): void;
++}
++
++interface LanguageModelStatic {
++  availability(options?: object): Promise<Availability>;
++  create(options?: object): Promise<LanguageModelSession>;
++}
++
++const LANGUAGE_OPTIONS = {
++  expectedInputs: [{ type: "text", languages: ["en"] }],
++  expectedOutputs: [{ type: "text", languages: ["en"] }]
++};
++
++function api(): LanguageModelStatic | undefined {
++  return (globalThis as { LanguageModel?: LanguageModelStatic }).LanguageModel;
++}
++
++export function createChromeProvider(): AssistProvider {
++  // One session holds the system prompt; each request clones it so requests don't share history
++  let base: Promise<LanguageModelSession> | null = null;
++
++  function session(): Promise<LanguageModelSession> {
++    base ??= api().create({
++      ...LANGUAGE_OPTIONS,
++      initialPrompts: [{ role: "system", content: SYSTEM_PROMPT }]
++    }).catch(error => {
++      base = null;
++      throw error;
++    });
++    return base;
++  }
++
++  async function ask(input: string, schema: object, signal?: AbortSignal): Promise<string> {
++    const request = await (await session()).clone({ signal });
++    try {
++      return await request.prompt(input, { responseConstraint: schema, signal });
++    } finally {
++      request.destroy();
++    }
++  }
++
++  return {
++    id: "on-device-ai",
++
++    async status(): Promise<ProviderStatus> {
++      if (!api()) return "unavailable";
++      try {
++        const availability = await api().availability(LANGUAGE_OPTIONS);
++        if (availability === "available") return "ready";
++        if (availability === "downloadable") return "needs-download";
++        return availability;
++      } catch {
++        return "unavailable";
++      }
++    },
++
++    async breakdown(task, levelId, context, signal) {
++      const level = detailLevel(levelId);
++      return cleanBreakdown(await ask(breakdownPrompt(task, level, context), breakdownSchema(level), signal));
++    },
++
++    async compile(dump, signal) {
++      return cleanCompile(await ask(compilePrompt(dump), COMPILE_SCHEMA, signal));
++    },
++
++    async estimate(task, signal) {
++      const result = cleanEstimate(await ask(estimatePrompt(task), ESTIMATE_SCHEMA, signal));
++      if (!result) throw new Error("The model did not return an estimate.");
++      return result;
++    }
++  };
++}
+diff --git a/src/lib/assist/index.ts b/src/lib/assist/index.ts
+new file mode 100644
+index 0000000..eb45aee
+--- /dev/null
++++ b/src/lib/assist/index.ts
+@@ -0,0 +1,16 @@
++import { createChromeProvider } from "./chromeProvider";
++import { createLocalProvider } from "./localProvider";
++import type { AssistProvider, ProviderStatus } from "./types";
++
++export * from "./types";
++
++// Picks the provider: Chrome's on-device model only when it's already on the device,
++// otherwise the rules. Never starts a model download. Both keep every word on the device.
++// A paid cloud provider can slot in here later behind the same interface (docs/neuro-tools-plan.md).
++export async function pickProvider(): Promise<{ provider: AssistProvider; chromeStatus: ProviderStatus }> {
++  const chrome = createChromeProvider();
++  const chromeStatus = await chrome.status();
++  return { provider: chromeStatus === "ready" ? chrome : createLocalProvider(), chromeStatus };
++}
++
++export { createChromeProvider, createLocalProvider };
+diff --git a/src/lib/assist/localProvider.ts b/src/lib/assist/localProvider.ts
+new file mode 100644
+index 0000000..255dac3
+--- /dev/null
++++ b/src/lib/assist/localProvider.ts
+@@ -0,0 +1,106 @@
++import { cleanText } from "./sanitize";
++import { detailLevel, type AssistProvider, type CompiledCluster, type EstimateResult, type StepSuggestion } from "./types";
++
++// The offline fallback: plain rules, no model. It runs in every browser, including Firefox,
++// Safari, and phones, where Chrome's built-in model is missing. Brain dump and Estimate work
++// well from rules; Breakdown can only give a generic structure, so the UI should say so.
++
++// Keyword buckets for grouping brain-dump lines. First match wins; the rest go to "Other".
++const CLUSTER_KEYWORDS: Array<[string, RegExp]> = [
++  ["Work", /\b(work|boss|meeting|report|deadline|client|email|slack|project|presentation|invoice)\b/i],
++  ["School", /\b(class|homework|essay|study|exam|assignment|lecture|professor|quiz)\b/i],
++  ["Home", /\b(clean|laundry|dishes|vacuum|tidy|trash|bed|kitchen|bathroom|fix|repair)\b/i],
++  ["Errands", /\b(buy|shop|groceries|pick up|drop off|return|store|post office|pharmacy)\b/i],
++  ["Health", /\b(doctor|dentist|meds?|medicine|therapy|gym|workout|walk|sleep|appointment)\b/i],
++  ["Money", /\b(pay|bill|rent|bank|budget|tax|taxes|refund|subscription)\b/i],
++  ["People", /\b(call|text|mom|dad|friend|birthday|gift|reply|message|visit)\b/i]
++];
++
++// Rough minutes for common kinds of task, checked in order
++const MINUTE_HINTS: Array<[RegExp, number]> = [
++  [/\b(text|reply|message|book|schedule|order)\b/i, 10],
++  [/\b(email|call|pay|bill)\b/i, 15],
++  [/\b(dishes|tidy|trash|laundry|pick up|drop off)\b/i, 20],
++  [/\b(groceries|shop|clean|cook|workout|gym)\b/i, 45],
++  [/\b(essay|report|presentation|study|homework|taxes)\b/i, 90]
++];
++const DEFAULT_MINUTES = 25;
++
++// Lines that describe a feeling rather than an action
++const NOT_ACTIONABLE = /^(i feel|i'm (so )?(tired|stressed|anxious|worried)|ugh|why|maybe someday)\b/i;
++
++export function guessMinutes(task: string): number {
++  return MINUTE_HINTS.find(([pattern]) => pattern.test(task))?.[1] ?? DEFAULT_MINUTES;
++}
++
++export function rangeFor(minutes: number): EstimateResult {
++  // People with ADHD tend to underestimate, so the range leans long
++  return { minutes, low: Math.max(1, Math.round(minutes * 0.75)), high: Math.round(minutes * 1.75) };
++}
++
++// Splits on new lines, bullets, semicolons, and sentence ends, then on "and then"
++export function splitDump(dump: string): string[] {
++  return dump
++    .split(/\n|;|(?<=[.!?])\s+|\s+(?:and then|then|also)\s+/i)
++    .map(line => cleanText(line)
++      .replace(/^(?:i\s+)?(?:really\s+)?(?:need to|have to|gotta|must|should)\s+/i, "")
++      .replace(/[.!]+$/, ""))
++    .map(line => line.charAt(0).toUpperCase() + line.slice(1))
++    .filter(line => line.length > 2 && !NOT_ACTIONABLE.test(line));
++}
++
++const GENERIC_STEPS = [
++  "Get everything you need for this in one place",
++  "Do the first small part",
++  "Do the main part",
++  "Check the result",
++  "Put things away",
++  "Set a timer for 5 minutes and clear your space",
++  "Write down where you stopped",
++  "Take a 2-minute break",
++  "Do the last part",
++  "Mark it done"
++];
++
++// Generic structure by level: the order matters, so the short levels keep the key steps
++const STEP_ORDER: Record<string, number[]> = {
++  few: [1, 2, 3],
++  some: [0, 1, 2, 3],
++  five: [0, 1, 2, 3, 4],
++  many: [5, 0, 1, 6, 7, 2, 8, 3, 4, 9]
++};
++
++export function createLocalProvider(): AssistProvider {
++  return {
++    id: "rules",
++
++    async status() {
++      return "ready";
++    },
++
++    async breakdown(task, levelId) {
++      const level = detailLevel(levelId);
++      const total = guessMinutes(task);
++      const order = STEP_ORDER[level.id].slice(0, level.max);
++      const steps: StepSuggestion[] = order.map(index => ({
++        text: GENERIC_STEPS[index],
++        minutes: Math.max(2, Math.round(total / order.length))
++      }));
++      return { steps };
++    },
++
++    async compile(dump) {
++      const groups = new Map<string, CompiledCluster>();
++      for (const text of splitDump(dump)) {
++        const name = CLUSTER_KEYWORDS.find(([, pattern]) => pattern.test(text))?.[0] ?? "Other";
++        if (!groups.has(name)) groups.set(name, { name, tasks: [] });
++        groups.get(name).tasks.push({ text, minutes: guessMinutes(text) });
++      }
++      return { clusters: [...groups.values()] };
++    },
++
++    async estimate(task) {
++      return rangeFor(guessMinutes(task));
++    }
++  };
++}
+diff --git a/src/lib/assist/prompts.ts b/src/lib/assist/prompts.ts
+new file mode 100644
+index 0000000..b0a1672
+--- /dev/null
++++ b/src/lib/assist/prompts.ts
+@@ -0,0 +1,93 @@
++
++// Prompts and JSON Schemas for the on-device model. The schema goes in `responseConstraint`,
++// so the model can only answer in this shape. sanitize.ts still checks every answer.
++//
++// Tone rules for every prompt, chosen for ADHD and autistic users:
++// - Literal, concrete wording. No idioms, jokes, or vague verbs like "handle" or "deal with".
++// - Each step starts with a physical verb and names one thing to do.
++// - No judgment or motivational filler.
++
++export const SYSTEM_PROMPT = [
++  "You help people with ADHD and autism turn tasks into clear, concrete actions.",
++  "Write in plain, literal language. Start each item with a verb. One action per item.",
++  "Do not add advice, encouragement, or commentary. Answer only in the requested JSON."
++].join(" ");
++
++interface Level {
++  min: number;
++  max: number;
++}
++
++export function breakdownPrompt(task: string, level: Level, context: string): string {
++  const count = level.min === level.max ? `${level.min}` : `between ${level.min} and ${level.max}`;
++  return [
++    `Split this task into ${count} steps, in the order they are done.`,
++    "Give each step a realistic estimate in minutes.",
++    context ? `It belongs to a group called "${context}".` : "",
++    `Task: ${task}`
++  ].filter(Boolean).join("\n");
++}
++
++export function compilePrompt(dump: string): string {
++  return [
++    "This is a brain dump: unsorted thoughts, worries, and to-dos.",
++    "Pull out every actionable task. Rewrite each as a short action that starts with a verb.",
++    "Group related tasks into a few clusters with short names (1 to 3 words).",
++    "Skip feelings and notes that have no action. Give each task an estimate in minutes.",
++    "Brain dump:",
++    dump
++  ].join("\n");
++}
++
++export function estimatePrompt(task: string): string {
++  return [
++    "Estimate how long this task takes a person who gets distracted easily, including setup and switching time.",
++    "Give a best guess plus a low and high value, all in minutes.",
++    `Task: ${task}`
++  ].join("\n");
++}
++
++const minutes = { type: "integer", minimum: 1, maximum: 480 };
++const item = {
++  type: "object",
++  properties: { text: { type: "string", maxLength: 200 }, minutes },
++  required: ["text", "minutes"],
++  additionalProperties: false
++};
++
++export function breakdownSchema(level: Level) {
++  return {
++    type: "object",
++    properties: { steps: { type: "array", items: item, minItems: level.min, maxItems: level.max } },
++    required: ["steps"],
++    additionalProperties: false
++  };
++}
++
++export const COMPILE_SCHEMA = {
++  type: "object",
++  properties: {
++    clusters: {
++      type: "array",
++      maxItems: 12,
++      items: {
++        type: "object",
++        properties: {
++          name: { type: "string", maxLength: 60 },
++          tasks: { type: "array", items: item, minItems: 1, maxItems: 25 }
++        },
++        required: ["name", "tasks"],
++        additionalProperties: false
++      }
++    }
++  },
++  required: ["clusters"],
++  additionalProperties: false
++};
++
++export const ESTIMATE_SCHEMA = {
++  type: "object",
++  properties: { minutes, low: minutes, high: minutes },
++  required: ["minutes", "low", "high"],
++  additionalProperties: false
++};
+diff --git a/src/lib/assist/sanitize.ts b/src/lib/assist/sanitize.ts
+new file mode 100644
+index 0000000..9c08fe5
+--- /dev/null
++++ b/src/lib/assist/sanitize.ts
+@@ -0,0 +1,75 @@
++import type { BreakdownResult, CompileResult, EstimateResult, StepSuggestion } from "./types";
++
++// Model output is untrusted input, just like an imported backup. Everything a provider returns
++// goes through these before the UI shows it or the store saves it. Templates must still render
++// it with x-text, never x-html.
++
++const MAX_TEXT = 200;
++const MAX_STEPS = 12;
++const MAX_CLUSTERS = 12;
++const MAX_TASKS_PER_CLUSTER = 25;
++export const MAX_MINUTES = 8 * 60;
++
++// Trims, collapses whitespace, strips control characters and list markers, and caps the length
++export function cleanText(value: unknown, max = MAX_TEXT): string {
++  if (typeof value !== "string") return "";
++  return value
++    .replace(/[\u0000-\u001f\u007f]/g, " ")
++    .replace(/^\s*(?:[-*•]|\d+[.)])\s+/, "")
++    .replace(/\s+/g, " ")
++    .trim()
++    .slice(0, max);
++}
++
++export function cleanMinutes(value: unknown): number | null {
++  const minutes = typeof value === "number" ? value : Number.parseFloat(String(value));
++  if (!Number.isFinite(minutes) || minutes <= 0) return null;
++  return Math.min(MAX_MINUTES, Math.max(1, Math.round(minutes)));
++}
++
++function parse(raw: unknown): unknown {
++  if (typeof raw !== "string") return raw;
++  try {
++    return JSON.parse(raw);
++  } catch {
++    return null;
++  }
++}
++
++function cleanSteps(list: unknown, cap: number): StepSuggestion[] {
++  if (!Array.isArray(list)) return [];
++  return list
++    .map(item => typeof item === "string"
++      ? { text: cleanText(item), minutes: null }
++      : { text: cleanText(item?.text), minutes: cleanMinutes(item?.minutes) })
++    .filter(step => step.text)
++    .slice(0, cap);
++}
++
++export function cleanBreakdown(raw: unknown): BreakdownResult {
++  const data = parse(raw) as { steps?: unknown } | null;
++  return { steps: cleanSteps(data?.steps, MAX_STEPS) };
++}
++
++export function cleanCompile(raw: unknown): CompileResult {
++  const data = parse(raw) as { clusters?: unknown } | null;
++  const clusters = Array.isArray(data?.clusters) ? data.clusters : [];
++  return {
++    clusters: clusters
++      .map(cluster => ({
++        name: cleanText(cluster?.name, 60) || "Tasks",
++        tasks: cleanSteps(cluster?.tasks, MAX_TASKS_PER_CLUSTER)
++      }))
++      .filter(cluster => cluster.tasks.length)
++      .slice(0, MAX_CLUSTERS)
++  };
++}
++
++export function cleanEstimate(raw: unknown): EstimateResult | null {
++  const data = parse(raw) as { minutes?: unknown; low?: unknown; high?: unknown } | null;
++  const minutes = cleanMinutes(data?.minutes);
++  if (!minutes) return null;
++  const low = Math.min(minutes, cleanMinutes(data?.low) ?? minutes);
++  const high = Math.max(minutes, cleanMinutes(data?.high) ?? minutes);
++  return { minutes, low, high };
++}
+diff --git a/src/lib/assist/types.ts b/src/lib/assist/types.ts
+new file mode 100644
+index 0000000..d27341c
+--- /dev/null
++++ b/src/lib/assist/types.ts
+@@ -0,0 +1,62 @@
++// Shared types for the task helpers: Breakdown (split one task into steps),
++// Brain dump (turn free text into clusters and tasks), and Estimate (minutes per task).
++// Every helper runs on the device. Nothing here sends data off the page.
++
++// How finely Breakdown splits a task. The user picks one of these each time.
++// min/max are the step counts the helper aims for.
++export const DETAIL_LEVELS = [
++  { id: "few", label: "1–3 steps", min: 1, max: 3 },
++  { id: "some", label: "3–4 steps", min: 3, max: 4 },
++  { id: "five", label: "About 5", min: 4, max: 6 },
++  { id: "many", label: "7 or more", min: 7, max: 10 }
++] as const;
++
++export type DetailLevel = typeof DETAIL_LEVELS[number]["id"];
++
++export function detailLevel(id: string): typeof DETAIL_LEVELS[number] {
++  return DETAIL_LEVELS.find(level => level.id === id) ?? DETAIL_LEVELS[2];
++}
++
++export interface StepSuggestion {
++  text: string;
++  minutes: number | null; // Estimate for the step, when the helper gave one
++}
++
++export interface BreakdownResult {
++  steps: StepSuggestion[];
++}
++
++export interface CompiledTask {
++  text: string;
++  minutes: number | null;
++}
++
++export interface CompiledCluster {
++  name: string;
++  tasks: CompiledTask[];
++}
++
++export interface CompileResult {
++  clusters: CompiledCluster[];
++}
++
++export interface EstimateResult {
++  minutes: number; // Best guess
++  low: number; // A range is easier to trust than one number
++  high: number;
++}
++
++// Where suggestions come from. "on-device-ai" is Chrome's built-in model; "rules" is the
++// offline fallback in localProvider.ts that works in every browser.
++export type ProviderId = "on-device-ai" | "rules";
++
++// "needs-download": the model is supported but must download first (a user click starts it).
++export type ProviderStatus = "ready" | "needs-download" | "downloading" | "unavailable";
++
++export interface AssistProvider {
++  id: ProviderId;
++  status(): Promise<ProviderStatus>;
++  breakdown(task: string, level: DetailLevel, context: string, signal?: AbortSignal): Promise<BreakdownResult>;
++  compile(dump: string, signal?: AbortSignal): Promise<CompileResult>;
++  estimate(task: string, signal?: AbortSignal): Promise<EstimateResult>;
++}
+diff --git a/src/lib/autoPlan.ts b/src/lib/autoPlan.ts
+index 1f0d3bd..efd7792 100644
+--- a/src/lib/autoPlan.ts
++++ b/src/lib/autoPlan.ts
+@@ -19,6 +19,7 @@ export interface PlanTask {
+   id: string;
+   dueDate?: string | null;
+   startedAt?: string;
++  estimateMinutes?: number | null;
+ }
+ 
+ export interface PlannedBlock {
+@@ -34,6 +35,7 @@ interface PlanInput {
+   availability: AvailabilityWindow[];
+   busyOn: (dateKey: string) => Range[]; // Blocks already on that day
+   duration: number; // Minutes per task
++  durationOf?: (task: PlanTask) => number; // Per-task minutes, such as from an estimate. Falls back to duration.
+   gap: number; // Minutes left free after each task
+   earliestOn: (dateKey: string) => number; // For today: now, so nothing lands in the past
+ }
+@@ -91,12 +93,13 @@ export function planTasks(input: PlanInput): PlannedBlock[] {
+   ]));
+ 
+   for (const task of planOrder(input.tasks)) {
++    const duration = input.durationOf?.(task) || input.duration;
+     for (const day of input.days) {
+       const ranges = free.get(day)!;
+-      const slot = ranges.find(range => range.end - range.start >= input.duration);
++      const slot = ranges.find(range => range.end - range.start >= duration);
+       if (!slot) continue;
+       const start = slot.start;
+-      const end = start + input.duration;
++      const end = start + duration;
+       planned.push({ taskId: task.id, date: day, start, end });
+       slot.start = Math.min(slot.end, roundUp(end + input.gap));
+       break;
+diff --git a/src/lib/estimates.ts b/src/lib/estimates.ts
+new file mode 100644
+index 0000000..b9f2bf6
+--- /dev/null
++++ b/src/lib/estimates.ts
+@@ -0,0 +1,54 @@
++import { formatDuration } from "./dates";
++import { SLOT_MINUTES } from "./timeline";
++
++// Time estimates: totals for a cluster, a buffer for time blindness, rounding to the schedule
++// grid, and a personal factor learned from how long the user's tasks actually took.
++
++export interface Estimated {
++  estimateMinutes?: number | null;
++  completed?: boolean;
++}
++
++// Minutes left in a group of tasks. Tasks with no estimate are counted, not guessed.
++export function totalEstimate(tasks: Estimated[]): { minutes: number; unestimated: number } {
++  let minutes = 0;
++  let unestimated = 0;
++  for (const task of tasks) {
++    if (task.completed) continue;
++    if (task.estimateMinutes) minutes += task.estimateMinutes;
++    else unestimated += 1;
++  }
++  return { minutes, unestimated };
++}
++
++// "About 1 hr 30 min (2 tasks not estimated)"
++export function totalLabel(tasks: Estimated[]): string {
++  const { minutes, unestimated } = totalEstimate(tasks);
++  const base = minutes ? `About ${formatDuration(minutes)}` : "No estimate yet";
++  return unestimated ? `${base} (${unestimated} not estimated)` : base;
++}
++
++// The block length the schedule should suggest: estimate × buffer, rounded up to the grid
++export function blockMinutes(estimate: number, buffer = 1, fallback = 45): number {
++  const minutes = estimate > 0 ? estimate * buffer : fallback;
++  return Math.max(SLOT_MINUTES, Math.ceil(minutes / SLOT_MINUTES) * SLOT_MINUTES);
++}
++
++export interface EstimateSample {
++  estimated: number;
++  actual: number;
++}
++
++// How much longer (or shorter) the user's tasks take than estimated: the median ratio of
++// recent samples, held between 0.5× and 3×. Returns 1 until there are enough samples to trust.
++export function personalFactor(samples: EstimateSample[], minSamples = 5): number {
++  const ratios = samples
++    .filter(sample => sample.estimated > 0 && sample.actual > 0)
++    .slice(-50)
++    .map(sample => sample.actual / sample.estimated)
++    .sort((a, b) => a - b);
++  if (ratios.length < minSamples) return 1;
++  const middle = Math.floor(ratios.length / 2);
++  const median = ratios.length % 2 ? ratios[middle] : (ratios[middle - 1] + ratios[middle]) / 2;
++  return Math.min(3, Math.max(0.5, Math.round(median * 100) / 100));
++}
+diff --git a/src/lib/storage.ts b/src/lib/storage.ts
+index d1fb0c8..3a914ce 100644
+--- a/src/lib/storage.ts
++++ b/src/lib/storage.ts
+@@ -12,6 +12,7 @@ const BACKUP_KEYS = [
+   "pomoState",
+   "pomoSessions",
+   "settings",
++  "assist",
+   "theme",
+   "activeTab",
+   "boardCluster",
+@@ -32,7 +33,7 @@ const ARRAY_KEYS = new Set<BackupKey>([
+   "pomoSessions"
+ ]);
+ 
+-const OBJECT_KEYS = new Set<BackupKey>(["planning", "checkIns", "pomoState", "settings"]);
++const OBJECT_KEYS = new Set<BackupKey>(["planning", "checkIns", "pomoState", "settings", "assist"]);
+ const STRING_KEYS = new Set<BackupKey>(["theme", "activeTab", "boardCluster", "boardSort", "boardWipLimit", "insightsRange"]);
+ 
+ export function loadJson<T>(key: string, fallback: T): T {
+diff --git a/src/stores/assistStore.ts b/src/stores/assistStore.ts
+new file mode 100644
+index 0000000..48152a1
+--- /dev/null
++++ b/src/stores/assistStore.ts
+@@ -0,0 +1,145 @@
++import { createLocalProvider, pickProvider, type AssistProvider, type CompiledCluster, type DetailLevel, type EstimateResult, type ProviderStatus, type StepSuggestion } from "../lib/assist";
++import { loadJson, saveJson } from "../lib/storage";
++
++// The task helpers, registered as $store.assist. Saved under "assist" in localStorage
++// (preferences only, never task text).
++//
++// Suggestions are never applied on their own: each run fills `preview`, the user reviews and
++// edits it, and only accept*() writes to $store.todos. Predictable, undoable changes matter
++// for autistic users, and a quick review keeps ADHD users in charge of the plan.
++
++export type AssistPreview =
++  | { kind: "breakdown"; taskId: string; level: DetailLevel; steps: StepSuggestion[] }
++  | { kind: "compile"; clusters: CompiledCluster[] }
++  | { kind: "estimate"; taskId: string; result: EstimateResult };
++
++interface AssistPrefs {
++  level: DetailLevel;
++  useAi: boolean; // Use Chrome's model when it's already there; the user may prefer the rules
++}
++
++const DEFAULT_PREFS: AssistPrefs = { level: "five", useAi: true };
++const LEVELS = new Set<string>(["few", "some", "five", "many"]);
++
++function loadPrefs(): AssistPrefs {
++  const saved = loadJson<Partial<AssistPrefs>>("assist", {});
++  return {
++    level: LEVELS.has(saved?.level as string) ? saved.level : DEFAULT_PREFS.level,
++    useAi: typeof saved?.useAi === "boolean" ? saved.useAi : DEFAULT_PREFS.useAi
++  };
++}
++
++// Minimal view of $store.todos used here
++interface TodosApi {
++  find(id: string): { id: string; todo: string; parentId: string | null } | undefined;
++  clusterName(id: string | null): string;
++  createCluster(name?: string): string;
++  addTodo(text: string, fields?: object): string;
++  setSteps(taskId: string, steps: StepSuggestion[]): void;
++  setEstimate(taskId: string, minutes: number | null): void;
++}
++
++const todos = () => window.Alpine.store("todos") as unknown as TodosApi;
++
++export function initAssistStore() {
++  let provider: AssistProvider = createLocalProvider();
++  let controller: AbortController | null = null;
++
++  return {
++    prefs: { ...DEFAULT_PREFS } as AssistPrefs,
++    aiStatus: "unavailable" as ProviderStatus, // "ready" only when Chrome already has its model
++    source: "rules" as AssistProvider["id"],
++    busy: false,
++    error: "",
++    preview: null as AssistPreview | null,
++
++    async init(): Promise<void> {
++      this.prefs = loadPrefs();
++      await this.refresh();
++    },
++
++    async refresh(): Promise<void> {
++      const picked = await pickProvider();
++      this.aiStatus = picked.chromeStatus;
++      provider = this.prefs.useAi ? picked.provider : createLocalProvider();
++      this.source = provider.id;
++    },
++
++    setPrefs(changes: Partial<AssistPrefs>): void {
++      this.prefs = { ...this.prefs, ...changes };
++      saveJson("assist", this.prefs);
++      void this.refresh();
++    },
++
++    // Runs one request at a time; starting another cancels the last
++    async run<T>(work: (provider: AssistProvider, signal: AbortSignal) => Promise<T>): Promise<T | null> {
++      controller?.abort();
++      const current = controller = new AbortController();
++      this.busy = true;
++      this.error = "";
++      try {
++        return await work(provider, current.signal);
++      } catch (error) {
++        if (!current.signal.aborted) this.error = "Couldn't make suggestions this time. Try again, or edit the task by hand.";
++        console.error(error);
++        return null;
++      } finally {
++        if (controller === current) {
++          this.busy = false;
++          controller = null;
++        }
++      }
++    },
++
++    cancel(): void {
++      controller?.abort();
++    },
++
++    discard(): void {
++      this.cancel();
++      this.preview = null;
++    },
++
++    // Remembers the level, so the picker opens on the user's last choice
++    async breakdown(taskId: string, chosen?: DetailLevel): Promise<void> {
++      const task = todos().find(taskId);
++      if (!task?.todo.trim()) return;
++      const level = chosen ?? this.prefs.level;
++      if (level !== this.prefs.level) this.setPrefs({ level });
++      const result = await this.run((p, signal) => p.breakdown(task.todo, level, todos().clusterName(task.parentId), signal));
++      if (result) this.preview = { kind: "breakdown", taskId, level, steps: result.steps };
++    },
++
++    async compile(dump: string): Promise<void> {
++      if (!dump.trim()) return;
++      const result = await this.run((p, signal) => p.compile(dump.slice(0, 6000), signal));
++      if (result) this.preview = { kind: "compile", clusters: result.clusters };
++    },
++
++    async estimate(taskId: string): Promise<void> {
++      const task = todos().find(taskId);
++      if (!task?.todo.trim()) return;
++      const result = await this.run((p, signal) => p.estimate(task.todo, signal));
++      if (result) this.preview = { kind: "estimate", taskId, result };
++    },
++
++    // Saves the (possibly edited) preview to the task list
++    accept(): void {
++      const preview = this.preview;
++      if (!preview) return;
++      if (preview.kind === "breakdown") {
++        todos().setSteps(preview.taskId, preview.steps.filter(step => step.text.trim()));
++      } else if (preview.kind === "estimate") {
++        todos().setEstimate(preview.taskId, preview.result.minutes);
++      } else {
++        for (const cluster of preview.clusters) {
++          const clusterId = todos().createCluster(cluster.name);
++          for (const task of cluster.tasks) {
++            if (task.text.trim()) todos().addTodo(task.text, { parentId: clusterId, estimateMinutes: task.minutes });
++          }
++        }
++      }
++      this.preview = null;
++    }
++  };
++}
+diff --git a/src/stores/todoStore.ts b/src/stores/todoStore.ts
+index 6cba798..352d039 100644
+--- a/src/stores/todoStore.ts
++++ b/src/stores/todoStore.ts
+@@ -2,6 +2,7 @@ import { toDateKey, fromDateKey, addDays, minutesNow } from "../lib/dates";
+ import { planTasks, type AvailabilityWindow } from "../lib/autoPlan";
+ import { loadJson, saveJson } from "../lib/storage";
+ import type { Milestone } from "./settingsStore";
++import { blockMinutes } from "../lib/estimates";
+ 
+ export interface Todo {
+   id: string;
+@@ -16,6 +17,15 @@ export interface Todo {
+   updatedAt?: string;
+   startedAt?: string; // Set while the task is in the board's In progress column
+   completedAt?: string;
++  estimateMinutes?: number | null; // From Estimate, Brain dump, or the user
++  steps?: TodoStep[]; // A checklist from Breakdown. Steps stay inside the task, so the board and schedule still see one task.
++}
++
++export interface TodoStep {
++  id: string;
++  text: string;
++  done: boolean;
++  minutes?: number | null;
+ }
+ 
+ // One finished task, kept after the task itself is cleared so Insights can count it
+@@ -114,7 +124,20 @@ function createTodosStore() {
+ 
+     // Alpine calls init() when the store is registered
+     init(): void {
+-      this.items = loadJson<Todo[]>("todos", []).map(item => ({ ...item, parentId: item.parentId ?? null }));
++      this.items = loadJson<Todo[]>("todos", []).map(item => ({
++        ...item,
++        parentId: item.parentId ?? null,
++        // A restored backup may carry anything here, so keep only well-formed values
++        estimateMinutes: Number.isFinite(item.estimateMinutes) && item.estimateMinutes > 0 ? item.estimateMinutes : null,
++        steps: Array.isArray(item.steps)
++          ? item.steps.filter(step => step && typeof step.text === "string").map(step => ({
++              id: typeof step.id === "string" ? step.id : crypto.randomUUID(),
++              text: step.text.slice(0, 200),
++              done: step.done === true,
++              minutes: Number.isFinite(step.minutes) ? step.minutes : null
++            }))
++          : undefined
++      }));
+       this.skippedClusters = loadJson<string[]>("skippedClusters", []);
+       this.scheduledItems = loadJson<ScheduledItem[]>("scheduledItems", []);
+       this.planning = { ...DEFAULT_PLANNING, ...loadJson<Partial<Planning>>("planning", {}) };
+@@ -305,6 +328,33 @@ function createTodosStore() {
+       this.saveTodos();
+     },
+ 
++    // Estimate in minutes, or null to clear it
++    setEstimate(taskId: string, minutes: number | null): void {
++      const task = this.find(taskId);
++      if (!task || task.isCluster) return;
++      task.estimateMinutes = minutes && minutes > 0 ? Math.round(minutes) : null;
++      task.updatedAt = new Date().toISOString();
++      this.saveTodos();
++    },
++
++    // Replaces the task's checklist. When no estimate is set yet, the steps' minutes add up to one.
++    setSteps(taskId: string, steps: Array<{ text: string; minutes?: number | null }>): void {
++      const task = this.find(taskId);
++      if (!task || task.isCluster) return;
++      task.steps = steps.map(step => ({ id: crypto.randomUUID(), text: step.text.trim(), done: false, minutes: step.minutes ?? null }));
++      const total = task.steps.reduce((sum, step) => sum + (step.minutes ?? 0), 0);
++      if (!task.estimateMinutes && total) task.estimateMinutes = total;
++      task.updatedAt = new Date().toISOString();
++      this.saveTodos();
++    },
++
++    toggleStep(taskId: string, stepId: string): void {
++      const step = this.find(taskId)?.steps?.find(item => item.id === stepId);
++      if (!step) return;
++      step.done = !step.done;
++      this.saveTodos();
++    },
++
+     // A repeating block is returned as stored, for each day it repeats on
+     scheduledItemsOn(dateKey: string = toDateKey()): ScheduledItem[] {
+       const weekday = fromDateKey(dateKey).getDay();
+@@ -592,6 +642,8 @@ function createTodosStore() {
+         busyOn: day => this.scheduledItemsOn(day).map(item => ({ start: item.startTimeMinutes, end: item.endTimeMinutes })),
+         earliestOn: day => day === today ? minutesNow() : 0,
+         duration: this.planning.duration,
++        // Estimated tasks get a block that fits the estimate; the rest keep the planning default
++        durationOf: task => task.estimateMinutes ? blockMinutes(task.estimateMinutes) : this.planning.duration,
+         gap: this.planning.gap
+       });
+ 
