@@ -329,16 +329,14 @@ test("webhook logs only safe failure codes and keeps failure responses generic",
     const wrongSecret = await webhook({ ...f.env, STRIPE_WEBHOOK_SECRET: "whsec_" + randomBytes(32).toString("hex") });
     assert.equal(wrongSecret.status, 400);
     assert.deepEqual(await wrongSecret.json(), { error: "invalid_stripe_signature" });
-    assert.deepEqual(log.mock.calls[1].arguments, [
-        "Plus request failed", { scope: "stripe_webhook", reason: "stripe_signature_mismatch" }
-    ]);
+    assert.equal(log.mock.callCount(), 1);
 
     const reconciliation = await webhook(f.env);
     assert.equal(reconciliation.status, 503);
     assert.deepEqual(await reconciliation.json(), { error: "plus_unavailable" });
-    assert.deepEqual(log.mock.calls[2].arguments, [
+    assert.deepEqual(log.mock.calls[1].arguments, [
         "Plus request failed", { scope: "stripe_webhook", reason: "stripe_reconciliation_failed" }
     ]);
     assert.equal((await webhook(f.env, "")).status, 400);
-    assert.equal(log.mock.callCount(), 3);
+    assert.equal(log.mock.callCount(), 2);
 });

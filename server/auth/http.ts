@@ -14,7 +14,7 @@ export class HttpError extends Error {
 }
 
 type FailureScope = "account" | "billing" | "stripe_webhook";
-type FailureReason = "stripe_webhook_not_configured" | "stripe_signature_mismatch" | "stripe_reconciliation_failed" | "unexpected_error";
+type FailureReason = "stripe_webhook_not_configured" | "stripe_reconciliation_failed" | "unexpected_error";
 
 export class ServiceError extends Error {
     readonly reason: FailureReason;
@@ -23,11 +23,6 @@ export class ServiceError extends Error {
         super(reason);
         this.reason = reason;
     }
-}
-
-export function logFailure(scope: FailureScope, reason: FailureReason) {
-    // Raw exceptions can contain database parameters, provider payloads, or credentials.
-    console.error("Plus request failed", { scope, reason });
 }
 
 export function appOrigin(request: Request, env: OriginEnv): URL {
@@ -94,7 +89,11 @@ export function handlePost(request: Request, scope: FailureScope, run: () => Pro
     if (request.method !== "POST") return Promise.resolve(json({ error: "method_not_allowed" }, 405, { Allow: "POST" }));
     return run().catch((error: unknown) => {
         if (!(error instanceof HttpError) || error.status >= 500) {
-            logFailure(scope, error instanceof ServiceError ? error.reason : "unexpected_error");
+            // Raw exceptions can contain database parameters, provider payloads, or credentials.
+            console.error("Plus request failed", {
+                scope,
+                reason: error instanceof ServiceError ? error.reason : "unexpected_error"
+            });
         }
         return error instanceof HttpError
             ? json({ error: error.code }, error.status)
