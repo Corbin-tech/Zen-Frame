@@ -5,7 +5,8 @@ export function mockModel(mode: 'ok' | 'invalid' | 'refusal' | 'timeout' | 'thro
     if (mode === 'throw') throw new Error('model unavailable');
     if (mode === 'refusal' || mode === 'timeout') return { kind: mode };
     if (mode === 'invalid') return { kind: 'ok', json: 'not JSON' };
-    const json = schema === COMPILE_SCHEMA ? { clusters: [{ name: 'Tasks', tasks: [{ text: 'Start the task', minutes: 10 }] }] } : 'steps' in (schema as { properties: object }).properties ? { steps: [{ text: 'Start the task', minutes: 10 }] } : { minutes: 10, low: 5, high: 15 };
+    const steps = (schema as { properties: { steps?: { minItems: number } } }).properties.steps;
+    const json = schema === COMPILE_SCHEMA ? { clusters: [{ name: 'Tasks', tasks: [{ text: 'Start the task', minutes: 10 }] }] } : steps ? { steps: Array.from({ length: steps.minItems }, () => ({ text: 'Start the task', minutes: 10 })) } : { minutes: 10, low: 5, high: 15 };
     return { kind: 'ok', json };
   } };
 }

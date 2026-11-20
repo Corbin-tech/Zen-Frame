@@ -30,6 +30,16 @@ try {
     assert.equal(result.headers.get('cache-control'), 'no-store'); assert.equal(result.headers.get('x-content-type-options'), 'nosniff');
     assert.deepEqual(deps.entitlement.counts, { reserved: 1, completed: 1, released: 0 }); tests++;
   }
+  for (const level of DETAIL_LEVELS) {
+    for (const count of [level.min - 1, level.min, level.max, level.max + 1]) {
+      const steps = Array.from({ length: count }, () => ({ text: 'Start task', minutes: 10 }));
+      const deps = setup({ async generate() { return { kind: 'ok', json: { steps } }; } });
+      const result = await handleAssist(request('breakdown', { task: secretText, level: level.id }), deps);
+      const valid = count >= level.min && count <= level.max;
+      assert.equal(result.status, valid ? 200 : 502);
+      assert.deepEqual(deps.entitlement.counts, { reserved: 1, completed: valid ? 1 : 0, released: valid ? 0 : 1 }); tests++;
+    }
+  }
   for (const endpoint of ['breakdown', 'compile', 'estimate'] as const) {
     for (const text of ['buy milk\ncall mom', 'buy milk\r\ncall mom', '\u0000buy milk\t\ncall mom\u007f']) {
       const input = endpoint === 'compile' ? { text } : endpoint === 'estimate' ? { task: text } : { task: text, level: 'few' };

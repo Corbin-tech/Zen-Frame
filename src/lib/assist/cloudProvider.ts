@@ -14,7 +14,7 @@ export function createCloudProvider({ getToken }: { getToken: () => string | nul
     try { response = await fetch(ASSIST_ENDPOINTS[endpoint], { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(input), signal }); }
     catch (error) { if (signal?.aborted) throw error; throw new AssistError('unavailable'); }
     if (!response.ok) throw new AssistError(response.status === 401 || response.status === 402 ? 'unauthorized' : response.status === 429 ? 'rate_limited' : response.status === 413 ? 'too_long' : response.status >= 500 ? 'unavailable' : 'invalid');
-    try { const result = cleanAnswer(endpoint, await response.json()); if (!result) throw new AssistError('invalid'); return result; }
+    try { const result = cleanAnswer(endpoint, await response.json(), endpoint === 'breakdown' ? (input as AssistRequestMap['breakdown']).level : undefined); if (!result) throw new AssistError('invalid'); return result; }
     catch { throw new AssistError('invalid'); }
   }
   return {

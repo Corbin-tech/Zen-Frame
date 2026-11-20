@@ -67,7 +67,7 @@ export async function handleAssist(request: Request, deps: { model: ModelClient;
       const result = await deps.model.generate({ system: SYSTEM_PROMPT, ...modelInput(endpoint, parsed.input), maxTokens: 4096, signal: request.signal });
       if (request.signal.aborted) return fail(503, 'unavailable');
       if (result.kind !== 'ok') return fail(result.kind === 'timeout' ? 504 : 502, 'unavailable');
-      const clean = cleanAnswer(endpoint, result.json);
+      const clean = cleanAnswer(endpoint, result.json, endpoint === 'breakdown' ? (parsed.input as AssistRequestMap['breakdown']).level : undefined);
       if (!clean) return fail(502, 'invalid_answer');
       completed = await reservation.complete();
       if (!completed) return fail(503, 'unavailable');
