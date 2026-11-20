@@ -4,7 +4,6 @@ import { loadJson, saveJson } from "../lib/storage";
 import type { Milestone } from "./settingsStore";
 import { blockMinutes } from "../lib/estimates";
 import { cleanStepTotal } from "../lib/assist/sanitize";
-import { normalizeLoadedTodo } from "../lib/assist/todoLoad";
 
 export interface Todo {
   id: string;
@@ -179,7 +178,7 @@ function createTodosStore() {
         return dirty ? mergeLists<T>(JSON.parse(base!), local as T[], remote) : remote;
       };
       switch (key) {
-        case "todos": this.items = load(loadJson<Todo[]>(key, []).map(normalizeLoadedTodo)); break;
+        case "todos": this.items = load(loadJson<Todo[]>(key, [])); break;
         case "skippedClusters": this.skippedClusters = load(loadJson<string[]>(key, [])); break;
         case "scheduledItems": this.scheduledItems = load(loadJson<ScheduledItem[]>(key, [])); break;
         case "planning": {

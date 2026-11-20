@@ -88,7 +88,7 @@ export function initPomoStore() {
         if (e.code !== "Space") return;
         const target = e.target as Element | null;
         if (target?.closest("input, textarea, select, button, [role='button'], [contenteditable], [role='dialog']")) return;
-        if (document.querySelector("[role='dialog']:not([style*='display: none'])")) return;
+        if (Array.from(document.querySelectorAll("[role='dialog']")).some(dialog => dialog.checkVisibility())) return;
         const activeTab = loadString("activeTab", "dashboard");
         const settings = window.Alpine.store("settings") as { zenShowTimer?: boolean } | undefined;
         const zenTimerActive = activeTab === "zenmode" && Boolean(settings?.zenShowTimer);
@@ -182,7 +182,7 @@ export function initPomoStore() {
       if (!this.isBreak) {
         const completedAt = new Date(endsAt).toISOString();
         const saved = loadJson<FocusSession[]>("pomoSessions", this.sessions);
-        if (Array.isArray(saved)) this.sessions = saved;
+        this.sessions = saved;
         if (!this.sessions.some((session) => session?.completedAt === completedAt)) {
           this.sessions = [...this.sessions, { completedAt, minutes: this.totalTime / 60 }].slice(-500);
           saveJson("pomoSessions", this.sessions);
@@ -223,8 +223,7 @@ export function initPomoStore() {
       const state = loadJson<PomoSavedState>("pomoState", {}) ?? {};
       this.preset = state.preset && Object.hasOwn(POMO_DURATIONS, state.preset) ? state.preset as PomoPreset : "pomodoro";
       this.isBreak = Boolean(state.isBreak);
-      const sessions = loadJson<unknown>("pomoSessions", []);
-      this.sessions = Array.isArray(sessions) ? sessions : [];
+      this.sessions = loadJson<FocusSession[]>("pomoSessions", []);
     }
   };
 }
