@@ -277,7 +277,8 @@ const prompts = [
 
             init() {
                 this.draft = { ...this.$store.goals.checkInFor(this.week) };
-                this.$watch('$store.goals.checkIns[week]', () => {
+                this.$watch('$store.goals.checkIns[week]', (checkIn, previous) => {
+                    if (JSON.stringify(checkIn) === JSON.stringify(previous)) return;
                     this.draft = { ...this.$store.goals.checkInFor(this.week) };
                     this.saveState = 'clean';
                 });

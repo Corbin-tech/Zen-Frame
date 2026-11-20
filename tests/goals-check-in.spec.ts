@@ -17,6 +17,20 @@ test('an open weekly check-in refreshes answers saved in another tab', async ({ 
   await expect(a.getByLabel('What got in the way?')).toHaveValue('Waiting for feedback');
 });
 
+test('a different week saved in another tab does not reset the open draft', async ({ context, page: a }) => {
+  await a.goto('/');
+  await a.locator('button[data-tab="goals"]').click();
+  const b = await context.newPage();
+  await b.goto('/');
+  await b.locator('button[data-tab="goals"]').click();
+  await b.getByLabel('What went well this week?').fill('Still drafting');
+  await a.getByRole('button', { name: 'Previous week' }).click();
+  await a.getByLabel('What went well this week?').fill('Last week');
+  await a.getByRole('button', { name: 'Save check-in', exact: true }).click();
+  await expect(b.getByRole('button', { name: /Week of/ })).toBeVisible();
+  await expect(b.getByLabel('What went well this week?')).toHaveValue('Still drafting');
+});
+
 test('weekly check-in shows a dash when there are no goals', async ({ page }) => {
   await page.goto('/');
   await page.locator('button[data-tab="goals"]').click();
