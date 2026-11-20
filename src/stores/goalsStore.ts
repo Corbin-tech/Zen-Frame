@@ -1,5 +1,6 @@
 import { addDays, fromDateKey, toDateKey } from "../lib/dates";
 import { loadJson, saveJson } from "../lib/storage";
+import { mergeLists } from "../lib/mergeLists";
 
 // Goals, weekly check-ins, and notes. Saved in localStorage under "goals", "checkIns", and "notes".
 
@@ -34,14 +35,6 @@ export interface Note {
 const PERSISTED_KEYS = ["goals", "checkIns", "notes"] as const;
 type PersistedKey = typeof PERSISTED_KEYS[number];
 
-function retainUnchanged<T extends { id: string }>(local: T[], remote: T[]): T[] {
-  const current = new Map(local.map(entry => [entry.id, entry]));
-  return remote.map(entry => {
-    const previous = current.get(entry.id);
-    return previous && JSON.stringify(previous) === JSON.stringify(entry) ? previous : entry;
-  });
-}
-
 // The Monday on or before a day
 export function weekOf(dateKey: string = toDateKey()): string {
   const weekday = fromDateKey(dateKey).getDay();
@@ -61,18 +54,37 @@ export function initGoalsStore() {
       window.addEventListener("storage", event => {
         if (event.storageArea !== localStorage) return;
         for (const key of PERSISTED_KEYS) {
-          if (event.key === null || event.key === key) this.loadList(key);
+          if (event.key === null || event.key === key) this.loadList(key, true);
         }
       });
     },
 
-    loadList(key: PersistedKey): void {
+    loadList(key: PersistedKey, merge = false): void {
+      const base = this.savedJson[key];
+      const dirty = merge && base !== undefined && JSON.stringify(this[key]) !== base;
       switch (key) {
-        case "goals": this.goals = retainUnchanged(this.goals, loadJson<Goal[]>(key, [])); break;
-        case "checkIns": this.checkIns = loadJson<Record<string, CheckIn>>(key, {}); break;
-        case "notes": this.notes = retainUnchanged(this.notes, loadJson<Note[]>(key, [])); break;
+        case "goals": {
+          const remote = loadJson<Goal[]>(key, []);
+          this.savedJson[key] = JSON.stringify(remote);
+          this.goals = mergeLists(dirty ? JSON.parse(base!) : this.goals, this.goals, remote, goal => goal.id);
+          break;
+        }
+        case "checkIns": {
+          const remote = loadJson<Record<string, CheckIn>>(key, {});
+          this.savedJson[key] = JSON.stringify(remote);
+          const local = Object.values(this.checkIns);
+          const merged = mergeLists(dirty ? Object.values(JSON.parse(base!) as Record<string, CheckIn>) : local, local, Object.values(remote), checkIn => checkIn.week);
+          this.checkIns = Object.fromEntries(merged.map(checkIn => [checkIn.week, checkIn]));
+          break;
+        }
+        case "notes": {
+          const remote = loadJson<Note[]>(key, []);
+          this.savedJson[key] = JSON.stringify(remote);
+          this.notes = mergeLists(dirty ? JSON.parse(base!) : this.notes, this.notes, remote, note => note.id);
+          break;
+        }
       }
-      this.savedJson[key] = JSON.stringify(this[key]);
+      if (dirty) this.save();
     },
 
     save(): void {

@@ -59,3 +59,45 @@ test("failed writes can be retried", () => {
   expect(JSON.parse(storage.getItem("goals")!)).toEqual(a.store.goals);
   error.mockRestore();
 });
+
+test.each(["goals", "notes", "checkIns"] as const)("a remote %s reload merges and retries a failed local write", key => {
+  const { a, b, storage } = sharedTabs();
+  const error = vi.spyOn(console, "error").mockImplementation(() => {});
+  vi.stubGlobal("CustomEvent", class {});
+  storage.setItem.mockImplementationOnce(() => { throw new Error("Full"); });
+  if (key === "goals") {
+    a.store.addGoal("Local");
+    b.store.addGoal("Remote");
+  } else if (key === "notes") {
+    a.store.addNote("Local");
+    b.store.addNote("Remote");
+  } else {
+    a.store.saveCheckIn({ ...a.store.checkInFor("2026-01-05"), wins: "Local" });
+    b.store.saveCheckIn({ ...b.store.checkInFor("2026-01-12"), wins: "Remote" });
+  }
+  const local = structuredClone(a.store[key]);
+  const remote = structuredClone(b.store[key]);
+  a.dispatch(key);
+  if (key === "checkIns") {
+    expect(a.store[key]).toEqual({ ...remote, ...local });
+  } else {
+    expect(a.store[key]).toEqual([...remote as unknown[], ...local as unknown[]]);
+  }
+  expect(JSON.parse(storage.getItem(key)!)).toEqual(a.store[key]);
+  error.mockRestore();
+});
+
+test("a failed local deletion is retained while merging a remote add", () => {
+  const { a, b, storage } = sharedTabs();
+  const id = a.store.addGoal("Delete me");
+  b.dispatch("goals");
+  const error = vi.spyOn(console, "error").mockImplementation(() => {});
+  vi.stubGlobal("CustomEvent", class {});
+  storage.setItem.mockImplementationOnce(() => { throw new Error("Full"); });
+  a.store.removeGoal(id);
+  b.store.addGoal("Remote");
+  a.dispatch("goals");
+  expect(a.store.goals.map(goal => goal.title)).toEqual(["Remote"]);
+  expect(JSON.parse(storage.getItem("goals")!)).toEqual(a.store.goals);
+  error.mockRestore();
+});

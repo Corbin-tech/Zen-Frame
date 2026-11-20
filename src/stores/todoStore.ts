@@ -4,6 +4,7 @@ import { loadJson, saveJson } from "../lib/storage";
 import type { Milestone } from "./settingsStore";
 import { blockMinutes } from "../lib/estimates";
 import { cleanStepTotal } from "../lib/assist/sanitize";
+import { mergeLists } from "../lib/mergeLists";
 
 export interface Todo {
   id: string;
@@ -79,19 +80,9 @@ const NEW_CLUSTER_NAME = "New Cluster";
 const PERSISTED_KEYS = ["todos", "skippedClusters", "scheduledItems", "planning", "history"] as const;
 type PersistedKey = typeof PERSISTED_KEYS[number];
 
-function mergeLists<T extends string | { id: string } | CompletionRecord>(base: T[], local: T[], remote: T[]): T[] {
-  const identity = (entry: string | { id: string } | CompletionRecord): string => typeof entry === "string" ? entry
+function persistedIdentity(entry: string | { id: string } | CompletionRecord): string {
+  return typeof entry === "string" ? entry
     : "id" in entry ? entry.id : JSON.stringify([entry.taskId, entry.at, entry.blockId]);
-  const before = new Map(base.map(entry => [identity(entry), JSON.stringify(entry)]));
-  const current = new Map(local.map(entry => [identity(entry), entry]));
-  const merged = new Map(remote.map(entry => [identity(entry), entry]));
-  for (const id of before.keys()) {
-    if (!current.has(id)) merged.delete(id);
-  }
-  for (const [id, entry] of current) {
-    if (before.get(id) !== JSON.stringify(entry)) merged.set(id, entry);
-  }
-  return [...merged.values()];
 }
 
 // Cluster colors, picked in this order for new clusters. Each key is a CSS variable
@@ -175,7 +166,7 @@ function createTodosStore() {
       const dirty = merge && base !== undefined && JSON.stringify(local) !== base;
       const load = <T extends string | { id: string } | CompletionRecord>(remote: T[]): T[] => {
         this.savedJson[key] = JSON.stringify(remote);
-        return dirty ? mergeLists<T>(JSON.parse(base!), local as T[], remote) : remote;
+        return dirty ? mergeLists<T>(JSON.parse(base!), local as T[], remote, persistedIdentity) : remote;
       };
       switch (key) {
         case "todos": this.items = load(loadJson<Todo[]>(key, [])); break;
