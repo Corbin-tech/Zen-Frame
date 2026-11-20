@@ -88,7 +88,7 @@ export function initPomoStore() {
         if (e.code !== "Space") return;
         const target = e.target as Element | null;
         if (target?.closest("input, textarea, select, button, [role='button'], [contenteditable], [role='dialog']")) return;
-        if (document.querySelector("[role='dialog']:not([style*='display: none'])")) return;
+        if (Array.from(document.querySelectorAll("[role='dialog']")).some(dialog => dialog.checkVisibility())) return;
         const activeTab = loadString("activeTab", "dashboard");
         const settings = window.Alpine.store("settings") as { zenShowTimer?: boolean } | undefined;
         const zenTimerActive = activeTab === "zenmode" && Boolean(settings?.zenShowTimer);
