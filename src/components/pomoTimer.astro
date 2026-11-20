@@ -121,14 +121,18 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
         </div>
 
         <!-- Linked task -->
-        <div x-show="$store.todos.openTasks.length" x-cloak class="mb-6 flex flex-wrap items-center justify-center gap-2 text-sm max-w-md w-full">
+        <div x-show="$store.todos.openTasks.length || $store.pomoState.activeTask" x-cloak class="mb-6 flex flex-wrap items-center justify-center gap-2 text-sm max-w-md w-full">
             <label for="pomo-focus-task" class="shrink-0 text-gray-500 dark:text-gray-400">Focusing on:</label>
             <select
                 id="pomo-focus-task"
+                x-bind:disabled="!$store.pomoState.isBreak && $store.pomoState.focusTask !== undefined"
                 x-bind:value="$store.pomoState.activeTaskId"
                 x-on:change="$store.pomoState.setTask($event.target.value)"
                 class="min-w-0 max-w-full flex-1 sm:flex-initial sm:max-w-xs truncate rounded-lg border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 py-1.5 pl-3 pr-8 text-sm font-medium text-gray-900 dark:text-white focus:border-teal-500 focus:ring-teal-500"
             >
+                <template x-if="$store.pomoState.activeTask && !$store.todos.openTasks.some(task => task.id === $store.pomoState.activeTaskId)">
+                    <option x-bind:value="$store.pomoState.activeTaskId" selected x-text="$store.pomoState.activeTask.todo"></option>
+                </template>
                 <template x-for="task in $store.todos.openTasks" :key="task.id">
                     <option
                         x-bind:value="task.id"
