@@ -323,15 +323,17 @@ export function initPomoStore() {
       };
       this.clearUndo();
       this.undoSnapshot = snapshot;
+      // Read it back: in an Alpine store this is a reactive proxy, which never equals the raw object.
+      const stored = this.undoSnapshot;
       this.undoTimer = setTimeout(() => {
-        if (this.undoSnapshot === snapshot) this.clearUndo();
+        if (this.undoSnapshot === stored) this.clearUndo();
       }, UNDO_WINDOW_MS);
       window.dispatchEvent(new CustomEvent("app-toast", {
         detail: {
           title,
           body: "",
           actionLabel: "Undo",
-          onAction: () => this.restoreSnapshot(snapshot)
+          onAction: () => this.restoreSnapshot(stored)
         }
       }));
     },
