@@ -464,7 +464,7 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-1 rou
             },
 
             // Done shows the most recently finished first. The other columns follow list order,
-            // or with "Overdue first" go by due date (most overdue on top, undated last).
+            // or with "Past due first" go by due date (most overdue on top, undated last).
             tasksIn(column) {
                 const tasks = this.tasks.filter(task => this.$store.todos.boardColumn(task) === column);
                 if (column === 'done') {

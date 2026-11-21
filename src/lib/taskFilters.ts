@@ -9,7 +9,7 @@
 //   - Search: a case-insensitive match of the query against the task's own
 //     text (`todo`), exactly as `board.tasks` filters cards. An empty query
 //     matches everything.
-//   - "Overdue first": most overdue first (earliest due date key on top),
+//   - "Past due first": most overdue first (earliest due date key on top),
 //     undated tasks last — Board's `tasksIn` comparator, verbatim.
 //   - "My order": the store's list order, untouched.
 import { dates } from "./dates";
@@ -39,7 +39,7 @@ export function taskMatchesQuery(task: Todo, query: string): boolean {
 }
 
 /**
- * Board's "Overdue first" comparator, verbatim: the earliest (most overdue)
+ * Board's "Past due first" comparator, verbatim: the earliest (most overdue)
  * due date first, undated tasks last.
  */
 export function compareOverdueFirst(a: Todo, b: Todo): number {
@@ -48,7 +48,7 @@ export function compareOverdueFirst(a: Todo, b: Todo): number {
 
 /**
  * A list of tasks in display order. "My order" keeps the store's list order;
- * "Overdue first" sorts by due date (most overdue first, undated last) and
+ * "Past due first" sorts by due date (most overdue first, undated last) and
  * never mutates the input list.
  */
 export function sortTasksForDisplay(tasks: readonly Todo[], sortBy: TaskManagerSort): Todo[] {
