@@ -638,6 +638,33 @@ test("rows move across clusters and out to loose tasks at the dropped position",
   expect(store.saveTodos).toHaveBeenCalled();
 });
 
+test("row drops that keep the same array order still reassign parentId across lists", () => {
+  const store = setupStore<MoveStore>();
+
+  // Loose task immediately before a cluster task, dropped onto its top half (beforeId)
+  store.items = [clusterOf("alpha"), looseTask("l1"), inCluster("a1", "alpha")];
+  expect(moveResult(store, "l1", { clusterId: "alpha", beforeId: "a1" }))
+    .toEqual({ moved: true, order: ["alpha", "l1", "a1"], saved: true });
+  expect(store.items[1].parentId).toBe("alpha");
+
+  // Cluster task immediately after a loose task, dropped onto its bottom half (afterId)
+  store.items = [clusterOf("alpha"), looseTask("l1"), inCluster("a1", "alpha")];
+  expect(moveResult(store, "a1", { clusterId: null, afterId: "l1" }))
+    .toEqual({ moved: true, order: ["alpha", "l1", "a1"], saved: true });
+  expect(store.items[2].parentId).toBeNull();
+
+  // Adjacent tasks in different clusters, beforeId and afterId
+  store.items = [clusterOf("alpha"), clusterOf("beta"), inCluster("a1", "alpha"), inCluster("b1", "beta")];
+  expect(moveResult(store, "a1", { clusterId: "beta", beforeId: "b1" }))
+    .toEqual({ moved: true, order: ["alpha", "beta", "a1", "b1"], saved: true });
+  expect(store.items[2].parentId).toBe("beta");
+
+  store.items = [clusterOf("alpha"), clusterOf("beta"), inCluster("a1", "alpha"), inCluster("b1", "beta")];
+  expect(moveResult(store, "b1", { clusterId: "alpha", afterId: "a1" }))
+    .toEqual({ moved: true, order: ["alpha", "beta", "a1", "b1"], saved: true });
+  expect(store.items[3].parentId).toBe("alpha");
+});
+
 test("clearing one cluster's completed tasks fires one Undo toast that restores their positions", () => {
   const { store, toasts } = undoStore();
   const alpha = clusterOf("alpha");

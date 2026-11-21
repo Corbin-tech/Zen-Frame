@@ -644,6 +644,7 @@ function createTodosStore() {
       const task = this.find(taskId);
       if (!task || task.isCluster) return false;
       const clusterId = target.clusterId ?? null;
+      const sameCluster = (task.parentId ?? null) === clusterId;
 
       if (target.beforeId || target.afterId) {
         if (target.beforeId === taskId || target.afterId === taskId) return false; // Dropped on itself
@@ -653,10 +654,11 @@ function createTodosStore() {
         const index = items.findIndex(item => item.id === anchor.id);
         if (index === -1) return false;
         items.splice(index + (target.beforeId ? 0 : 1), 0, task);
-        // The same place it already sat: nothing to save
-        if (items.every((item, i) => item === this.items[i])) return false;
-        this.items = items;
-      } else if ((task.parentId ?? null) === clusterId) {
+        const sameOrder = items.every((item, i) => item === this.items[i]);
+        // The same place in the same cluster: nothing to save
+        if (sameOrder && sameCluster) return false;
+        if (!sameOrder) this.items = items;
+      } else if (sameCluster) {
         return false;
       }
 
