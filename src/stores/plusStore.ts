@@ -105,12 +105,12 @@ export function initPlusStore() {
             if (pendingRefresh) return pendingRefresh;
             const version = generation;
             this.refreshing = true;
-            this.error = "";
             pendingRefresh = (async () => {
                 try {
                     const session = await post<SessionReply>("account/session");
                     if (generation !== version) return false;
                     this.applySession(session);
+                    this.error = "";
                     return true;
                 } catch (error) {
                     if (generation === version) {
@@ -120,6 +120,7 @@ export function initPlusStore() {
                             this.forgetSession();
                             this.checkoutReturn = checkoutReturn;
                             this.checkoutPending = checkoutPending;
+                            this.error = "";
                         } else {
                             this.showError(error);
                         }

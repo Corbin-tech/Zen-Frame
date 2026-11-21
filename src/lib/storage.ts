@@ -1,5 +1,5 @@
 // Reads and writes JSON in localStorage safely, and handles full-app backup/restore.
-import { normalizeStoredData } from "./storedData";
+import { normalizeStoredData } from "./storedData.ts";
 
 const BACKUP_KEYS = [
   "todos",

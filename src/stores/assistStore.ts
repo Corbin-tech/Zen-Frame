@@ -1,5 +1,7 @@
-import { DETAIL_LEVELS, pickProvider, type AssistProvider, type CompiledCluster, type DetailLevel, type EstimateResult, type ProviderStatus, type StepSuggestion } from "../lib/assist";
-import { loadJson, saveJson } from "../lib/storage";
+import { DETAIL_LEVELS, pickProvider, type AssistProvider, type CompiledCluster, type DetailLevel, type EstimateResult, type ProviderStatus, type StepSuggestion } from "../lib/assist/index.ts";
+import { loadJson, saveJson } from "../lib/storage.ts";
+import { AssistError } from "../lib/assist/cloudProvider.ts";
+import type { initPlusStore } from "./plusStore.ts";
 
 // The task helpers, registered as $store.assist. Saved under "assist" in localStorage
 // (preferences only, never task text).
@@ -38,13 +40,16 @@ interface TodosApi {
 }
 
 const todos = () => window.Alpine.store("todos") as unknown as TodosApi;
+const plusStore = () => (typeof window !== "undefined" ? window.Alpine?.store("plus") : undefined) as ReturnType<typeof initPlusStore> | undefined;
 
 export function initAssistStore() {
   let provider: AssistProvider | null = null;
   let controller: AbortController | null = null;
+  let consentAccount: string | null = null; // Email of the account that gave consent. Memory only, never saved.
 
   return {
     prefs: { ...DEFAULT_PREFS } as AssistPrefs,
+    consent: loadJson<unknown>('assistConsent', false) === true,
     aiStatus: "needs-plus" as ProviderStatus,
     source: null as AssistProvider["id"] | null,
     busy: false,
@@ -57,10 +62,49 @@ export function initAssistStore() {
     },
 
     async refresh(): Promise<void> {
-      const picked = await pickProvider();
+      this.checkConsentOwner();
+      const picked = await pickProvider(this.consent);
       this.aiStatus = picked.status;
       provider = picked.provider;
       this.source = provider?.id ?? null;
+    },
+
+    giveConsent(): void {
+      this.consent = true;
+      consentAccount = plusStore()?.account?.email ?? null;
+      saveJson('assistConsent', true);
+      void this.refresh();
+    },
+
+    withdrawConsent(): void {
+      this.clearConsent();
+      void this.refresh();
+    },
+
+    clearConsent(): void {
+      this.consent = false;
+      consentAccount = null;
+      saveJson('assistConsent', false);
+      this.discard();
+    },
+
+    // Consent belongs to the person who gave it. Clear it when another tab cleared it, when
+    // Plus confirms that nobody is signed in (sign-out or expired session), or when a different
+    // account is signed in, so the next person on this browser sees the consent card again.
+    checkConsentOwner(): void {
+      if (!this.consent) return;
+      if (loadJson<unknown>('assistConsent', false) !== true) {
+        this.clearConsent();
+        return;
+      }
+      const plus = plusStore();
+      if (plus?.account) {
+        consentAccount ??= plus.account.email;
+        if (plus.account.email === consentAccount) return;
+      } else if (!plus?.ready) {
+        return;
+      }
+      this.clearConsent();
     },
 
     setPrefs(changes: Partial<AssistPrefs>): void {
@@ -72,7 +116,7 @@ export function initAssistStore() {
     // Runs one request at a time; starting another cancels the last
     async run<T>(work: (provider: AssistProvider, signal: AbortSignal) => Promise<T>): Promise<T | null> {
       controller?.abort();
-      if (!provider) {
+      if (!provider || !this.consent) {
         controller = null;
         this.busy = false;
         this.error = "Plus isn't available yet. You can still edit the task by hand.";
@@ -82,9 +126,15 @@ export function initAssistStore() {
       this.busy = true;
       this.error = "";
       try {
-        return await work(provider, current.signal);
-      } catch {
-        if (!current.signal.aborted) this.error = "Couldn't make suggestions this time. Try again, or edit the task by hand.";
+        const result = await work(provider, current.signal);
+        if (result !== null && !current.signal.aborted) void plusStore()?.refresh();
+        return current.signal.aborted ? null : result;
+      } catch (error) {
+        if (!current.signal.aborted) {
+          this.error = error instanceof AssistError && ['unauthorized', 'needs_plus', 'trial_exhausted'].includes(error.code)
+            ? "Plus isn't available yet. You can still edit the task by hand."
+            : "Couldn't make suggestions this time. Try again, or edit the task by hand.";
+        }
         return null;
       } finally {
         if (controller === current) {

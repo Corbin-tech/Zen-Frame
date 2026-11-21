@@ -7,9 +7,10 @@ export class AssistError extends Error {
   readonly code: AssistErrorCode;
   constructor(code: AssistErrorCode) { super(code); this.name = 'AssistError'; this.code = code; }
 }
-export function createCloudProvider({ getToken }: { getToken: () => string | null }): AssistProvider {
+export function createCloudProvider({ getToken }: { getToken: () => string | null | Promise<string | null> }): AssistProvider {
   async function call<K extends keyof AssistRequestMap>(endpoint: K, input: AssistRequestMap[K], signal?: AbortSignal): Promise<AssistResponseMap[K]> {
-    const token = getToken(); if (!token) throw new AssistError('unauthorized');
+    const token = await getToken(); if (!token) throw new AssistError('unauthorized');
+    if (signal?.aborted) throw signal.reason;
     let response: Response;
     try { response = await fetch(ASSIST_ENDPOINTS[endpoint], { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(input), signal }); }
     catch (error) { if (signal?.aborted) throw error; throw new AssistError('unavailable'); }
@@ -26,7 +27,7 @@ export function createCloudProvider({ getToken }: { getToken: () => string | nul
   }
   return {
     id: 'plus',
-    status: async () => getToken() ? 'ready' : 'needs-plus',
+    status: async () => await getToken() ? 'ready' : 'needs-plus',
     breakdown: (task, level, context, signal) => call('breakdown', { task, level, context }, signal),
     compile: (text, signal) => call('compile', { text }, signal),
     estimate: (task, signal) => call('estimate', { task }, signal),

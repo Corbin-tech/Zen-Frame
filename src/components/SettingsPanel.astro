@@ -1,4 +1,5 @@
 ---
+import PlusPanel from './PlusPanel.astro';
 // Settings: a panel that slides in from the right. Open it with the "open-settings" window event.
 // { section: "zen" } in the event's detail scrolls to that section (see data-settings-section).
 // Every change saves right away through $store.settings.
@@ -80,6 +81,10 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
                     />
                 </div>
             </section>
+
+            <div class={section} data-settings-section="plus">
+                <PlusPanel />
+            </div>
 
             <!-- Appearance -->
             <section class={section}>

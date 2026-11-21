@@ -85,6 +85,7 @@ const contentSecurityPolicy = [
 			import { initGoalsStore } from '../stores/goalsStore';
 			import { initPomoStore } from '../stores/pomoStore';
 			import { initAssistStore } from '../stores/assistStore';
+			import { initPlusStore } from '../stores/plusStore';
 			import { registerBreakdownPanel } from '../scripts/BreakdownPanel';
 			import { registerTaskSteps } from '../scripts/TaskSteps';
 			import { notify, startReminders } from '../lib/notifications';
@@ -98,8 +99,14 @@ const contentSecurityPolicy = [
 				window.Alpine.store('goals', initGoalsStore());
 				window.Alpine.store('pomoState', initPomoStore());
 				initStores();
-				// Breakdown, Brain dump, and Estimate helpers (Plus integration pending)
+				if (!window.Alpine.store('plus')) window.Alpine.store('plus', initPlusStore());
 				window.Alpine.store('assist', initAssistStore());
+				window.Alpine.effect(() => {
+					const plus = window.Alpine.store('plus') as ReturnType<typeof initPlusStore>;
+					void plus.account;
+					void plus.ready;
+					void (window.Alpine.store('assist') as ReturnType<typeof initAssistStore>).refresh();
+				});
 				registerBreakdownPanel();
 				registerTaskSteps();
 				registerTaskDragDrop(window.Alpine);

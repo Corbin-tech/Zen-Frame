@@ -6,6 +6,7 @@ import type { ModelClient } from './core.ts';
 import { mockModel } from './models/mock.ts';
 import { createOpenAIClient } from './models/openai.ts';
 import { checkOutputDirectory } from './output.ts';
+import { memoryRateLimiter } from '../server/assist/mocks.ts';
 async function main() {
   const a = args();
   if (!a.dataset || !['mock', 'anthropic', 'openai'].includes(a.model)) throw new Error('Usage: node eval/run.ts --dataset path --model mock|anthropic|openai');
@@ -32,12 +33,13 @@ async function main() {
   const dataset = validateDataset(JSON.parse(await readFile(resolve(a.dataset), 'utf8')));
   const limit = a.limit === undefined ? dataset.items.length : Number(a.limit);
   if (!Number.isSafeInteger(limit) || limit < 1) throw new Error('--limit must be a positive integer');
+  const ipRateLimit = a.model === 'mock' ? memoryRateLimiter(limit) : undefined;
   const results = [];
   for (const item of dataset.items.slice(0, limit)) {
     const start = performance.now(); let status = 0, error: string | null = null, output: unknown = null;
     try {
-      const request = new Request(`http://eval.local/api/assist/${item.kind}`, { method: 'POST', headers: { Origin: 'http://eval.local', 'Content-Type': 'application/json', Authorization: 'Bearer eval-local', 'Sec-Fetch-Site': 'same-origin' }, body: JSON.stringify(requestBody(item)) });
-      const response = await handler.handleAssist(request, { model, entitlement: { authenticate: async () => ({ accountId: 'eval', sessionId: 'eval' }), reserve: async () => ({ complete: async () => true, release: async () => {} }) }, rateLimit: { limit: () => true } });
+      const request = new Request(`http://eval.local/api/assist/${item.kind}`, { method: 'POST', headers: { Origin: 'http://eval.local', 'Content-Type': 'application/json', Authorization: 'Bearer eval-local', 'Sec-Fetch-Site': 'same-origin', ...(ipRateLimit ? { 'CF-Connecting-IP': '192.0.2.1' } : {}) }, body: JSON.stringify(requestBody(item)) });
+      const response = await handler.handleAssist(request, { model, entitlement: { authenticate: async () => ({ accountId: 'eval', sessionId: 'eval' }), reserve: async () => ({ complete: async () => true, release: async () => {} }) }, rateLimit: { limit: () => true }, ...(ipRateLimit ? { ipRateLimit } : {}) });
       status = response.status; const body = await response.json();
       if (response.ok) output = body; else error = typeof body.error === 'string' && /^[a-z_]{1,60}$/.test(body.error) ? body.error : 'handler_error';
     } catch { error = 'handler_failure'; }

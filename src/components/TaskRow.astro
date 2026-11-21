@@ -1,6 +1,7 @@
 ---
 import EnsoMark from './EnsoMark.astro';
 import EstimatePicker from './EstimatePicker.astro';
+import TaskSteps from './TaskSteps.astro';
 
 // One task row. Render it inside an Alpine x-for that provides `task`.
 // Touch screens and narrow windows keep the row quiet -- checkbox, title, the set
@@ -37,7 +38,7 @@ const menuDanger = 'hover:!text-red-600 hover:!bg-red-50 dark:hover:!text-red-40
     <div class="flex flex-wrap sm:flex-nowrap items-center gap-x-2 w-full min-w-0 pr-2 pb-3 sm:pb-0">
         <div class="flex-1 basis-full sm:basis-0 min-w-0 py-3 pl-4">
             <div class="flex items-center gap-2 sm:gap-3 min-w-0">
-                <div 
+                <div
                     data-drag-handle
                     class="row-drag p-1 cursor-grab text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 flex items-center"
                     title="Drag to reorder and move between clusters"
@@ -242,6 +243,7 @@ const menuDanger = 'hover:!text-red-600 hover:!bg-red-50 dark:hover:!text-red-40
             <span>Delete task</span>
         </button>
     </div>
+    <TaskSteps showChecklist={false} />
 </div>
 
 <style>

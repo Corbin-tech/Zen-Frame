@@ -1,4 +1,4 @@
-import { normalizeLoadedTodo } from "./assist/todoLoad";
+import { normalizeLoadedTodo } from "./assist/todoLoad.ts";
 import type { Todo } from "../stores/todoStore";
 
 function isObject(value: unknown): value is Record<string, unknown> {
