@@ -1,5 +1,6 @@
 ---
 import { createHash } from 'node:crypto';
+import AppToasts from '../components/AppToasts.astro';
 import Feedback from '../components/Feedback.astro';
 import Footer from '../components/footer.astro';
 import '../styles/tailwind.css';
@@ -297,6 +298,7 @@ const contentSecurityPolicy = [
 					<slot />
 				</main>
 			</div>
+			<AppToasts />
 			<Feedback />
 			<Footer />
 		</div>
