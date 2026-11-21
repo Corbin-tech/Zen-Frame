@@ -1,8 +1,8 @@
 # Zen Frame media kit
 
-- **Source identity:** `Zen-Frame-Visual-Identity-Board.png` (Minimal Editorial, Identity Study 01)
-- **Product alignment:** `brand-refresh-plan-2026-11-20.md` and `docs/roadmap/neuro-tools.md`
-- **Last updated:** 2026-11-20
+- **Source identity:** Minimal Editorial (Pine `#173F3A`, Paper `#F7F5EF`, Mist `#DCE7DC`, Teal `#036672`, Warmth `#D7B36A`; tokens in `tailwind.config.mjs`, `src/styles/preferences.css`, and `src/lib/favicon.ts`)
+- **Product alignment:** `docs/roadmap/media-principles-swarm.md` and `docs/roadmap/neuro-tools.md`
+- **Last updated:** 2026-11-21
 
 ## 1. Brand foundation and voice
 
@@ -71,6 +71,8 @@ Zen Frame is a calm, browser-only focus and planning app built around executive-
 - **Dark statement card (launches and milestones):** Pine (`#173F3A`) background, Paper (`#F7F5EF`) Newsreader headline, refined ensō mark, muted sage metadata.
 
 ## 4. First 10 launch posts
+
+> **Publish readiness note:** Posts 4, 5, 7, 9, and 10 describe capabilities already live on `main` (ready as soon as `[production-url]` is set in M1). Posts 1, 2, 3, 6, and 8 reference Warmth carried-over overdue copy (M2 / Phase 5) or a simplified Next step / Today–Focus–Library navigation — hold or adjust those claims until the corresponding milestone ships.
 
 ### Post 1 — X / Bluesky (Anti-shame redesign)
 - **Visual:** Split editorial card on Paper (`#F7F5EF`). Left: harsh red badge `"2 OVERDUE!"`. Right: soft Warmth (`#D7B36A`) dot + Pine text `"2 carried over. Pick one to start."`
@@ -171,9 +173,9 @@ Next on our roadmap is **Zen Frame Plus**: optional, zero-retention helpers for 
 
 Core Zen Frame stays free, private, and local-first. Always.
 
-## 5. Calm Design Principles manifesto page copy
+## 5. Calm design principles manifesto page copy
 
-Intended route: `src/pages/principles.astro` (static HTML/CSS, Paper `#F7F5EF` canvas, `.panel` cards, Newsreader 400 headings, Inter 400/500 interface text).
+Intended route: `src/pages/principles.astro` (static HTML/CSS, Paper `#F7F5EF` canvas, `.panel` cards, `.editorial` Newsreader 400 headings, `.eyebrow` uppercase labels, Inter 400/500 interface text).
 
 ### Hero
 - **Eyebrow:** `CALM DESIGN PRINCIPLES`
@@ -187,14 +189,14 @@ Zen Frame is built for students and anyone who wants gentler support with execut
 ### The five principles
 
 #### 01 — No guilt for unfinished work
-Plans change, energy dips, and days run short. Carrying a task into tomorrow is normal, not a failure. Zen Frame removes red overdue warnings and streak counters in favor of warm, neutral reminders that help you pick back up without dread.
+Plans change, energy dips, and days run short. Carrying a task into tomorrow is normal, not a failure. Zen Frame avoids streak counters and guilt metrics in favor of calm reminders that help you pick back up without dread.
 
-*In the app:* Past-due tasks use a soft Warmth tint (`#D7B36A`) and plain language (*"2 carried over. Pick one to start."*). Red is reserved strictly for destructive actions like deleting an item.
+*In the app:* Zero streak counters anywhere. We are completing the calm-copy pass that moves past-due reminders to a soft Warmth tint (`#D7B36A`) and plain carried-over wording, reserving red strictly for destructive actions.
 
 #### 02 — One next step, not everything at once
 Looking at forty tasks at once makes starting harder, not easier. Our mark — an open circle with a single dot at the opening — is the whole layout philosophy: leave room to begin, and focus on one concrete step.
 
-*In the app:* Views are grouped into three quiet areas — **Today**, **Focus**, and **Library** — and Next step mode pairs a single task and its rough time estimate with one calm *Begin focus →* action.
+*In the app:* Zen Mode isolates one task at a time with nothing else in view, alongside focused **Dashboard**, **Task Manager**, **Board**, **Schedule**, **Goals**, **Insights**, and **Pomodoro** views.
 
 #### 03 — Your work stays on your device
 You should not have to create an account, hand over an email address, or accept background tracking just to write down a to-do list. Your tasks, schedules, notes, and focus sessions live in your browser's local storage, nowhere else.
@@ -204,7 +206,7 @@ You should not have to create an account, hand over an email address, or accept 
 #### 04 — Readable and accessible by default
 Calm design only works if everyone can read and navigate it comfortably. Every color pairing is measured for contrast, every state is shown in words as well as color, and motion stays subtle.
 
-*In the app:* WCAG 2.2 AA contrast across light mode, dark mode, and all 9 accent colors; explicit task states (*Ready · In focus · Done*); self-hosted Newsreader, Inter, Lexend, and Atkinson Hyperlegible fonts; and automatic support for reduced motion.
+*In the app:* WCAG 2.2 AA contrast across light mode, dark mode, and all 9 accent colors; explicit *In focus* task badges alongside completion states; self-hosted Newsreader, Inter, Lexend, and Atkinson Hyperlegible fonts; and automatic support for reduced motion.
 
 #### 05 — Assistance that asks first, never takes over
 Sometimes the hardest part of a task is breaking it into pieces, sorting a messy brain dump, or guessing how long it will actually take. As we build optional AI helpers for **Zen Frame Plus**, they will follow the same calm rules as the rest of the app: literal wording, realistic time ranges, and human control.
@@ -219,20 +221,22 @@ Core Zen Frame will always stay free, private, and local-first. Zen Frame Plus i
 | Price and account | Free forever, no account required | Optional paid tier with a free trial allowance; account used only for billing |
 | Where tasks live | Locally in your browser (`localStorage`) | Still locally in your browser — Plus never locks or syncs your data |
 | Network and privacy | Zero outbound requests or tracking | Opt-in only; sends only the text you submit to a helper, with zero retention |
-| Core features | Tasks, Board, Schedule, Timer, Next step, Goals, Stillpoint recaps, manual estimates | Adds AI **Breakdown**, **Brain dump**, **Estimate** ranges, and **Learning your pace** |
+| Core features | Dashboard, Task Manager, Board, Schedule, Goals, Insights (Stillpoint recaps), Pomodoro, Zen Mode, and manual time estimates | Adds AI **Breakdown**, **Brain dump**, **Estimate** ranges, and **Learning your pace** |
 | Control | Everything stays manual and predictable | Preview-only suggestions you can edit, accept, or discard before anything changes |
 
 ### Closing and CTA
 - **Pull line (Newsreader 400):** `Starting small counts.`
 - **Supporting line:** Open Zen Frame in your browser — no sign-up, no setup wizard, just a clear space for your next step.
 - **Primary button:** `Open Zen Frame →`
-- **Secondary link:** `Tell us what would help most` (links to the in-app Feedback panel)
+- **Secondary action:** `Tell us what would help most` (opens the Feedback dialog directly from `/principles`)
 - **Footer tagline:** `A CALMER WAY FROM INTENTION TO ACTION.`
 
 ## 6. Future media and brand milestones
 
-- **Nov–Dec 2026 — Brand refresh completion and live deploy:** Merge Phases 3–6, set production `site` URL, generate `public/og-image.png`, and publish on portfolio, GitHub, and LinkedIn.
-- **Jan–Feb 2027 — Quiet community launch:** Share Posts 1–6 across X/Bluesky, Show HN, and student/executive-function communities; gather Plus demand signal and real task/brain-dump test cases via Feedback.
-- **Mar–May 2027 — Stillpoint share cards and organic loop:** Add optional, client-rendered Paper/Pine Stillpoint recap cards (zero task text exposed) alongside a 2x/week Quiet desk clip cadence.
-- **Jun–Aug 2027 — Zen Frame Plus beta:** Launch opt-in Breakdown, Brain dump, and Estimate helpers with a free trial allowance and zero-retention privacy page.
-- **Sep–Dec 2027 — Back-to-school campaign and Learning your pace:** Time a student push around fall semester featuring time-blindness buffers, personal actual-to-estimate insights, and seasonal CSS Quiet desk scenes.
+Detailed deliverables, gates, and next steps are tracked in `docs/roadmap/media-principles-swarm.md`.
+
+- **M1 (Nov–Dec 2026) — Production domain and live metadata:** Set `site` in `astro.config.mjs` (activates automatic `og:image`, `og:url`, and `twitter:image` tags in `Layout.astro`), configure `feedbackEmail` in `src/data/site.json`, replace `[production-url]` placeholders in this kit, and verify social card unfurls on X, Bluesky, and LinkedIn.
+- **M2 (Dec 2026) — Phase 5 calm copy and Warmth overdue pass:** Replace red overdue pills and `"overdue"` copy in `src/lib/dates.ts`, `src/lib/notifications.ts`, and `src/lib/taskFilters.ts` with Warmth (`#D7B36A`) styling and plain carried-over phrasing; update `/principles` Principle 01 and unlock Posts 1, 2, 6, and 8.
+- **M3 (Jan–Feb 2027) — Quiet community launch:** Generate reusable Paper/Pine social cards, record two 15-second Quiet desk clips, publish Posts 1–6 across X/Bluesky, Show HN, and student/executive-function communities, and collect Plus demand signal via Feedback.
+- **M4 (Mar–May 2027) — Stillpoint share cards and organic loop:** Add optional, client-rendered Paper/Pine Stillpoint recap cards (zero task text exposed, zero outbound requests) alongside a 2x/week Quiet desk clip cadence.
+- **M5 (Jun–Dec 2027) — Zen Frame Plus beta and back-to-school campaign:** Ship opt-in Breakdown, Brain dump, and Estimate helpers (`docs/roadmap/neuro-tools.md`) with a zero-retention privacy page and consent screen, update `/principles` to reflect live Plus features, and run a fall student push featuring Learning your pace.
