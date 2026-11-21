@@ -10,8 +10,6 @@ import Insights from './Insights.astro';
 import DarkModeToggle from './darkModeToggle.astro';
 import SettingsPanel from './SettingsPanel.astro';
 import QuickAdd from './QuickAdd.astro';
-import AppToasts from './AppToasts.astro';
-import Feedback from './Feedback.astro';
 import ZenQuote from './ZenQuote.astro';
 import ZenBackdrop from './ZenBackdrop.astro';
 import EnsoMark from './EnsoMark.astro';
@@ -267,8 +265,6 @@ const tabs = [
 
     <SettingsPanel />
     <QuickAdd />
-    <AppToasts />
-    <Feedback />
 
     <!-- Tab Content -->
     <div>
@@ -331,6 +327,12 @@ const tabs = [
             },
 
             init() {
+                const hashTab = window.location.hash.replace(/^#/, '');
+                if (VALID_TABS.has(hashTab)) {
+                    this.activeTab = hashTab;
+                    saveString('activeTab', hashTab);
+                    history.replaceState(null, '', window.location.pathname + window.location.search);
+                }
                 this.$watch('activeTab', (value) => {
                     const valid = safeTab(value);
                     if (valid !== value) {
