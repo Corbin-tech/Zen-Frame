@@ -37,8 +37,8 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
 >
     <!-- Header -->
     <header>
-        <p class="text-sm font-medium text-teal-700 dark:text-teal-400">Pomodoro</p>
-        <h1 class="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900 dark:text-white">Focus, then rest</h1>
+        <p class="eyebrow">Pomodoro</p>
+        <h1 class="page-title">Focus, then rest</h1>
     </header>
 
     <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_18rem] items-start">
@@ -159,8 +159,8 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
                 :aria-valuetext="$store.pomoState.timeLeft >= 60 ? `${Math.floor($store.pomoState.timeLeft / 60)} ${Math.floor($store.pomoState.timeLeft / 60) === 1 ? 'minute' : 'minutes'} left` : `${$store.pomoState.timeLeft} seconds left`">
                 <!-- Inner disc and minute ticks -->
                 <circle cx="50" cy="50" r="40.5" fill="currentColor" class="text-white/50 dark:text-slate-900/20" />
-                <g stroke="currentColor" stroke-linecap="round" class="text-gray-300 dark:text-slate-600">
-                    {ringTicks.map(tick => <line x1={tick.x1} y1={tick.y1} x2={tick.x2} y2={tick.y2} stroke-width={tick.major ? 0.8 : 0.35} />)}
+                <g stroke="currentColor" stroke-linecap="round" class="text-gray-300/60 dark:text-slate-600/50">
+                    {ringTicks.map(tick => <line x1={tick.x1} y1={tick.y1} x2={tick.x2} y2={tick.y2} stroke-width={tick.major ? 0.65 : 0.3} />)}
                 </g>
 
                 <!-- Track -->
@@ -168,7 +168,7 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
                     cx="50" cy="50" r="45"
                     fill="transparent"
                     stroke="currentColor"
-                    stroke-width="6"
+                    stroke-width="4"
                     class="text-gray-200 dark:text-slate-700"
                 />
 
@@ -178,7 +178,7 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
                         cx="50" cy="50" r="45"
                         fill="transparent"
                         stroke="currentColor"
-                        stroke-width="6"
+                        stroke-width="4"
                         stroke-linecap="round"
                         stroke-dasharray="282.74"
                         :stroke-dashoffset="282.74 - (282.74 * $store.pomoState.percentComplete) / 100"
@@ -188,7 +188,7 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
 
                 <!-- Progress head -->
                 <g :transform="`rotate(${3.6 * $store.pomoState.percentComplete} 50 50)`">
-                    <circle cx="50" cy="5" r="2.1" fill="currentColor" :class="$store.pomoState.isRunning ? 'text-white' : 'text-gray-100 dark:text-gray-300'" />
+                    <circle cx="50" cy="5" r="1.5" fill="currentColor" :class="$store.pomoState.isRunning ? 'text-white' : 'text-gray-100 dark:text-gray-300'" />
                 </g>
             </svg>
 
@@ -198,7 +198,8 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
                     class="text-[4rem] leading-none font-semibold tabular-nums tracking-tight text-gray-900 dark:text-white"
                     x-text="`${$store.pomoState.digits.slice(0, 2)}:${$store.pomoState.digits.slice(2)}`"
                 ></div>
-                <div class="mt-2 text-sm font-medium text-gray-500 dark:text-gray-400" x-text="$store.pomoState.statusLabel"></div>
+                <div class="mt-1 text-[10px] font-medium uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">Minutes</div>
+                <div class="mt-1.5 text-sm font-medium text-gray-500 dark:text-gray-400" x-text="$store.pomoState.statusLabel"></div>
             </div>
         </div>
         </template>
@@ -234,13 +235,13 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
                 <button
                     type="button"
                     @click="$store.pomoState.startTimer()"
-                    class="min-w-[8rem] px-6 py-2.5 text-base font-semibold text-white bg-teal-600 hover:bg-teal-700 rounded-lg shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-800 transition-colors"
+                    class="btn-primary min-w-[8rem] px-6 py-2.5 text-base"
                     x-text="$store.pomoState.isBreak ? ($store.pomoState.isLongBreak ? 'Start long break' : 'Start break') : 'Start focus'"
                 ></button>
                 <button
                     type="button"
                     @click="$store.pomoState.skipPhase()"
-                    class="inline-flex items-center px-4 py-2.5 text-sm font-medium rounded-lg ring-1 bg-white text-gray-700 ring-black/10 hover:bg-gray-50 dark:bg-slate-800 dark:text-gray-200 dark:ring-white/10 dark:hover:bg-slate-700 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
+                    class="btn-secondary px-4 py-2.5"
                 >Skip</button>
             </div>
         </div>
@@ -250,7 +251,7 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
             <button
               type="button"
               @click="$store.pomoState.isRunning ? $store.pomoState.pauseTimer() : $store.pomoState.startTimer()"
-              class="min-w-[7rem] px-6 py-2.5 text-base font-semibold text-white bg-teal-600 hover:bg-teal-700 rounded-lg shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-800 transition-colors"
+              class="btn-primary min-w-[7rem] px-6 py-2.5 text-base"
             >
               <span x-text="$store.pomoState.status === 'running' ? 'Pause' : $store.pomoState.status === 'paused' ? 'Resume' : 'Start'"></span>
             </button>
@@ -260,9 +261,9 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
                 x-cloak
                 type="button"
                 @click="$store.pomoState.resetTimer(true)"
-                class="inline-flex items-center px-4 py-2.5 text-sm font-medium rounded-lg ring-1 bg-white text-gray-700 ring-black/10 hover:bg-gray-50 dark:bg-slate-800 dark:text-gray-200 dark:ring-white/10 dark:hover:bg-slate-700 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
+                class="btn-secondary px-4 py-2.5"
             >
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
                 Reset
@@ -273,7 +274,7 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
                 x-cloak
                 type="button"
                 @click="$store.pomoState.skipPhase()"
-                class="inline-flex items-center px-4 py-2.5 text-sm font-medium rounded-lg ring-1 bg-white text-gray-700 ring-black/10 hover:bg-gray-50 dark:bg-slate-800 dark:text-gray-200 dark:ring-white/10 dark:hover:bg-slate-700 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
+                class="btn-secondary px-4 py-2.5"
             >
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" />

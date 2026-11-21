@@ -96,7 +96,7 @@ const tabs = [
         <button
             type="button"
             x-on:click="$dispatch('open-quick-add')"
-            class="flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-teal-600 text-white text-sm font-medium shadow-sm shadow-teal-700/30 hover:bg-teal-700 transition-colors"
+            class="btn-primary w-full px-3 py-2"
             aria-label="New task or cluster (N)"
             title="New task or cluster (N)"
         >
@@ -223,12 +223,12 @@ const tabs = [
                     <span x-text="Math.floor($store.pomoState.timeLeft / 60).toString().padStart(2, '0')"></span>:<span x-text="($store.pomoState.timeLeft % 60).toString().padStart(2, '0')"></span>
                 </span>
                 <svg class="w-5 h-5 rotate-90 -scale-y-100" viewBox="0 0 100 100" aria-hidden="true">
-                    <circle cx="50" cy="50" r="40" fill="transparent" stroke="currentColor" stroke-width="12" class="text-gray-200 dark:text-gray-700" />
+                    <circle cx="50" cy="50" r="40" fill="transparent" stroke="currentColor" stroke-width="8" class="text-gray-200 dark:text-slate-700" />
                     <circle
                         cx="50" cy="50" r="40"
                         fill="transparent"
                         stroke="currentColor"
-                        stroke-width="12"
+                        stroke-width="8"
                         stroke-linecap="round"
                         :stroke-dasharray="251"
                         :stroke-dashoffset="251 - (251 * $store.pomoState.percentComplete) / 100"
@@ -241,7 +241,7 @@ const tabs = [
             <button
                 type="button"
                 x-on:click="$dispatch('open-quick-add')"
-                class="shrink-0 inline-flex items-center justify-center gap-1.5 touch-target p-2 xl:pl-2.5 xl:pr-3 rounded-full bg-teal-600 text-white text-sm font-medium shadow-sm shadow-teal-700/30 hover:bg-teal-700 transition-colors"
+                class="btn-primary shrink-0 touch-target p-2 xl:px-3 xl:py-2"
                 aria-label="New task or cluster (N)"
                 title="New task or cluster (N)"
             >
@@ -296,8 +296,8 @@ const tabs = [
         <div x-show="activeTab === 'zenmode'" x-transition:enter="transition-opacity ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" class="space-y-6">
             <header class="w-full max-w-4xl mx-auto flex flex-wrap items-end justify-between gap-4">
                 <div>
-                    <p class="text-sm font-medium text-teal-700 dark:text-teal-400">Zen mode</p>
-                    <h1 class="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900 dark:text-white">Just this, for now</h1>
+                    <p class="eyebrow">Zen mode</p>
+                    <h1 class="page-title">Just this, for now</h1>
                     <p class="mt-1 text-gray-500 dark:text-gray-400">Finish it, or choose not now.</p>
                 </div>
             </header>

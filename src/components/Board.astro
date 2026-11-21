@@ -1,4 +1,6 @@
 ---
+import EnsoMark from './EnsoMark.astro';
+
 // Kanban board: the same tasks as the Task Manager, in To do, In progress, and Done columns.
 // Drag a card between columns or within one; the arrow buttons, or [ and ] on a focused card,
 // do the same from the keyboard. The pencil opens a card's due date and cluster.
@@ -10,8 +12,8 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-1 rou
     <!-- Header -->
     <header class="flex flex-wrap items-end justify-between gap-4">
         <div>
-            <p class="text-sm font-medium text-teal-700 dark:text-teal-400">Board</p>
-            <h1 class="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900 dark:text-white">What's moving</h1>
+            <p class="eyebrow">Board</p>
+            <h1 class="page-title">What's moving</h1>
             <p class="mt-1 text-gray-500 dark:text-gray-400" x-text="summary"></p>
         </div>
 
@@ -196,6 +198,14 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-1 rou
 
                                 <!-- Details -->
                                 <div class="mt-2.5 pl-7 flex flex-wrap items-center gap-1.5 text-xs">
+                                    <span
+                                        x-show="!task.completed && $store.pomoState.isRunning && !$store.pomoState.isBreak && $store.pomoState.selectedTaskId === task.id"
+                                        x-cloak
+                                        class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md font-medium bg-teal-50 text-teal-700 ring-1 ring-teal-600/20 dark:bg-teal-900/30 dark:text-teal-300 dark:ring-teal-400/20"
+                                    >
+                                        <EnsoMark class="w-3.5 h-3.5 shrink-0" />
+                                        <span>In focus</span>
+                                    </span>
                                     <span
                                         x-show="task.parentId"
                                         class="inline-flex items-center gap-1 max-w-[10rem] px-1.5 py-0.5 rounded-md font-medium"
