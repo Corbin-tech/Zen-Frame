@@ -123,10 +123,6 @@ function createTodosStore() {
       return this.items.filter(item => item.isCluster);
     },
 
-    get hasCompletedTasks(): boolean {
-      return this.items.some(item => item.completed);
-    },
-
     // What statistics count: finished tasks, plus one entry for each ticked day of a repeating
     // block. A routine ticked on a day its task was also finished counts once.
     get completions(): CompletionRecord[] {
