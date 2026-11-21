@@ -77,18 +77,18 @@ function dueTone(dueKey: string, todayKey: string = toDateKey()): DueTone {
   return days <= 3 ? "soon" : "later";
 }
 
-// "Today", "Tomorrow", "In 3 days", "2 days overdue", or "Oct 30"
+// "Today", "Tomorrow", "In 3 days", "2 days past due", or "Oct 30"
 function dueLabel(dueKey: string, todayKey: string = toDateKey()): string {
   const days = daysBetween(todayKey, dueKey);
   if (days === 0) return "Today";
   if (days === 1) return "Tomorrow";
-  if (days === -1) return "1 day overdue";
-  if (days < 0) return `${-days} days overdue`;
+  if (days === -1) return "1 day past due";
+  if (days < 0) return `${-days} days past due`;
   if (days < 7) return `In ${days} days`;
   return formatDate(dueKey);
 }
 
-// For sentences: "due today", "due tomorrow", "due in 3 days", "due Oct 30", "2 days overdue"
+// For sentences: "due today", "due tomorrow", "due in 3 days", "due Oct 30", "2 days past due"
 function dueText(dueKey: string, todayKey: string = toDateKey()): string {
   const days = daysBetween(todayKey, dueKey);
   if (days < 0) return dueLabel(dueKey, todayKey);
@@ -108,9 +108,9 @@ function daysAgoText(key: string, todayKey: string = toDateKey()): string {
 
 // Tailwind classes for a due-date chip. Completed tasks use the quiet style.
 const DUE_TONE_CLASSES: Record<DueTone, string> = {
-  overdue: "bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-300",
-  today: "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
-  soon: "bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300",
+  overdue: "bg-warmth/35 text-gray-900 dark:bg-warmth/15 dark:text-warmth",
+  today: "bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300",
+  soon: "ring-1 ring-teal-600/30 text-teal-700 dark:ring-teal-400/30 dark:text-teal-300",
   later: "bg-gray-100 text-gray-600 dark:bg-slate-700 dark:text-gray-300"
 };
 

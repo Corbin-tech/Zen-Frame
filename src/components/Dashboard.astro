@@ -53,8 +53,8 @@ const checkbox = 'w-4 h-4 shrink-0 rounded border-gray-300 dark:border-slate-500
                         <svg class="w-4 h-4 text-gray-400 group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" x-bind:d="tile.icon" /></svg>
                     </div>
                     <p class="mt-3 text-4xl font-semibold tracking-tighter tabular-nums text-gray-900 dark:text-white" x-text="tile.value"></p>
-                    <p class="mt-1 flex items-center gap-1 text-xs sm:truncate" x-bind:class="tile.alert ? 'text-red-600 dark:text-red-400 font-medium' : 'text-gray-500 dark:text-gray-400'">
-                        <svg x-show="tile.alert" class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /></svg>
+                    <p class="mt-1 flex items-center gap-1.5 text-xs sm:truncate" x-bind:class="tile.alert ? 'text-gray-900 dark:text-white font-medium' : 'text-gray-500 dark:text-gray-400'">
+                        <span x-show="tile.alert" class="w-2 h-2 rounded-full bg-warmth shrink-0" aria-hidden="true"></span>
                         <span class="min-w-0 break-words sm:truncate" x-text="tile.detail"></span>
                     </p>
                 </button>
@@ -193,7 +193,7 @@ const checkbox = 'w-4 h-4 shrink-0 rounded border-gray-300 dark:border-slate-500
 
             get headline() {
                 const parts = [];
-                if (this.overdue.length) parts.push(`${this.overdue.length} overdue`);
+                if (this.overdue.length) parts.push(`${this.overdue.length} carried over`);
                 const dueSoon = this.$store.todos.openTasks.filter(task => {
                     if (!task.dueDate) return false;
                     const days = dates.daysBetween(this.todayKey, task.dueDate);
@@ -202,9 +202,12 @@ const checkbox = 'w-4 h-4 shrink-0 rounded border-gray-300 dark:border-slate-500
                 if (dueSoon) parts.push(`${dueSoon} due this week`);
                 if (this.plannedMinutes) parts.push(`${dates.formatDuration(this.plannedMinutes)} planned today`);
                 if (!parts.length) {
-                    return this.$store.todos.openTasks.length ? 'No deadlines pressing. A good day to get ahead.' : 'A clear slate. Press New to add a task.';
+                    return this.$store.todos.openTasks.length ? 'Nothing pressing. Pick one small thing.' : 'A little space. Add one next step.';
                 }
-                return `You have ${parts.join(', ')}.`;
+                if (this.overdue.length) {
+                    return `${parts.join(', ')}. Pick one to start.`;
+                }
+                return `${parts.join(', ')}.`;
             },
 
             // --- Tasks ---
@@ -336,7 +339,7 @@ const checkbox = 'w-4 h-4 shrink-0 rounded border-gray-300 dark:border-slate-500
                     {
                         label: 'Open tasks',
                         value: open,
-                        detail: this.overdue.length ? `${this.overdue.length} overdue` : dueToday ? `${dueToday} due today` : 'Nothing overdue',
+                        detail: this.overdue.length ? `${this.overdue.length} past due` : dueToday ? `${dueToday} due today` : 'Nothing past due',
                         alert: this.overdue.length > 0,
                         icon: ICONS.tasks,
                         tab: 'taskmanager',

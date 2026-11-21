@@ -15,6 +15,10 @@ export default {
 				teal: Object.fromEntries(
 					[50, 100, 200, 300, 400, 500, 600, 700, 800, 900].map(step => [step, `rgb(var(--accent-${step}) / <alpha-value>)`])
 				),
+				// Warmth: non-destructive overdue attention. Never use as text in light mode
+				// (1.83:1 contrast on Paper); use Pine text (text-gray-900) on bg-warmth/35 in
+				// light mode and text-warmth on bg-warmth/15 in dark mode.
+				warmth: '#D7B36A',
 				// Brand neutrals. Hex, not CSS variables: the Flowbite plugin reads gray through theme() in
 				// JavaScript, which leaves <alpha-value> unreplaced. Warm ink from Paper (50) to Pine (900);
 				// 500 stays at 4.5:1 or more on Paper and white.
