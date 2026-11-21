@@ -75,7 +75,7 @@ const tabs = [
         x-data="{ get collapsed() { return $store.settings.sidebarCollapsed } }"
     >
         <div class="flex items-center gap-2 px-1 pt-1" x-bind:class="collapsed && 'flex-col'">
-            <button type="button" x-on:click="activeTab = 'dashboard'" class="flex items-center gap-2 min-w-0 rounded-lg" aria-label="Zen Frame, go to the dashboard">
+            <button type="button" x-on:click="activeTab = 'dashboard'" class="flex items-center gap-2 min-w-0 rounded-lg" aria-label="Zen Frame, go to the overview">
                 <span class="grid place-items-center w-8 h-8 shrink-0">
                     <EnsoMark class="w-7 h-7 text-gray-900 dark:text-gray-50" />
                 </span>
@@ -172,7 +172,7 @@ const tabs = [
         x-bind:class="$store.settings.navLayout === 'side' && 'xl:hidden'"
         class="sticky top-3 z-40 mt-3 mb-6 pl-2 pr-1.5 py-1.5 rounded-2xl backdrop-blur-xl backdrop-saturate-150 ring-1 ring-black/5 dark:ring-white/10 shadow-lg shadow-slate-900/[0.04] dark:shadow-black/20" style="background-color: var(--glass);">
         <div class="flex items-center gap-2 sm:gap-3">
-            <button type="button" x-on:click="activeTab = 'dashboard'" class="hidden sm:flex items-center gap-2 shrink-0 rounded-lg" aria-label="Zen Frame, go to the dashboard">
+            <button type="button" x-on:click="activeTab = 'dashboard'" class="hidden sm:flex items-center gap-2 shrink-0 rounded-lg" aria-label="Zen Frame, go to the overview">
                 <span class="grid place-items-center w-8 h-8">
                     <EnsoMark class="w-7 h-7 text-gray-900 dark:text-gray-50" />
                 </span>
