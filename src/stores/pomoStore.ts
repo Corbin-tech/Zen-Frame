@@ -3,9 +3,9 @@ import { loadJson, loadString, saveJson } from "../lib/storage.ts";
 import { UNDO_TOAST_MS } from "../lib/notifications.ts";
 
 export const CYCLE_LENGTH = 4;
-export const MIN_MINUTES = 1;
-export const MAX_WORK_MINUTES = 180;
-export const MAX_BREAK_MINUTES = 60;
+const MIN_MINUTES = 1;
+const MAX_WORK_MINUTES = 180;
+const MAX_BREAK_MINUTES = 60;
 
 export interface CustomDurations {
   work: number;
@@ -13,7 +13,7 @@ export interface CustomDurations {
   longBreak: number;
 }
 
-export const DEFAULT_CUSTOM: CustomDurations = { work: 30, break: 5, longBreak: 15 };
+const DEFAULT_CUSTOM: CustomDurations = { work: 30, break: 5, longBreak: 15 };
 
 // Minutes for each built-in preset
 export const POMO_DURATIONS = {
