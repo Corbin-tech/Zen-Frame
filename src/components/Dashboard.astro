@@ -34,7 +34,7 @@ const checkbox = 'w-4 h-4 shrink-0 rounded-full border-gray-300 dark:border-slat
     <div x-show="editing" x-cloak x-transition.opacity class="flex flex-wrap items-center justify-between gap-3 rounded-2xl px-4 py-3 bg-teal-50 text-teal-900 ring-1 ring-teal-600/20 dark:bg-teal-900/30 dark:text-teal-100 dark:ring-teal-400/20">
         <p class="text-sm">Move, hide, or add widgets. Changes save as you go.</p>
         <div class="flex gap-2">
-            <button type="button" x-on:click="if (confirm('Put the dashboard back to its original widgets?')) $store.settings.resetDashboardLayout()" class="px-3 py-1.5 text-sm font-medium rounded-lg text-teal-800 hover:bg-teal-100 dark:text-teal-200 dark:hover:bg-teal-900/50">Reset layout</button>
+            <button type="button" x-on:click="if (confirm('Put the overview back to its original widgets?')) $store.settings.resetDashboardLayout()" class="px-3 py-1.5 text-sm font-medium rounded-lg text-teal-800 hover:bg-teal-100 dark:text-teal-200 dark:hover:bg-teal-900/50">Reset layout</button>
         </div>
     </div>
 
@@ -343,7 +343,7 @@ const checkbox = 'w-4 h-4 shrink-0 rounded-full border-gray-300 dark:border-slat
                         alert: this.overdue.length > 0,
                         icon: ICONS.tasks,
                         tab: 'taskmanager',
-                        tabLabel: 'Task Manager'
+                        tabLabel: 'Tasks'
                     },
                     {
                         label: 'Done today',
@@ -351,7 +351,7 @@ const checkbox = 'w-4 h-4 shrink-0 rounded-full border-gray-300 dark:border-slat
                         detail: `${this.weekTotal} in the last 7 days`,
                         icon: ICONS.done,
                         tab: 'taskmanager',
-                        tabLabel: 'Task Manager'
+                        tabLabel: 'Tasks'
                     },
                     {
                         label: 'Planned today',
@@ -367,7 +367,7 @@ const checkbox = 'w-4 h-4 shrink-0 rounded-full border-gray-300 dark:border-slat
                         detail: `${sessions} ${sessions === 1 ? 'session' : 'sessions'} in the last 7 days`,
                         icon: ICONS.focus,
                         tab: 'pomodoro',
-                        tabLabel: 'Pomodoro'
+                        tabLabel: 'Timer'
                     }
                 ];
             },

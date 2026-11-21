@@ -91,7 +91,7 @@ const ZEN_OPTIONS = [
   { key: "zenShowCluster", label: "Cluster and position", hint: "Which cluster the task is in, and where" },
   { key: "zenShowDue", label: "Due date", hint: "When the task is due" },
   { key: "zenShowNext", label: "Up next", hint: "The two tasks after this one" },
-  { key: "zenShowTimer", label: "Focus timer", hint: "Start a Pomodoro without leaving Zen mode" },
+  { key: "zenShowTimer", label: "Focus timer", hint: "Start a Pomodoro from the Next step view" },
   { key: "zenShowProgress", label: "Progress bar", hint: "Tasks completed out of all tasks" },
   { key: "showQuotes", label: "Calming quotes", hint: "A quote that changes each time you finish a task" }
 ] as const;
