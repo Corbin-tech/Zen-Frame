@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { openView } from './nav';
 
 for (const repeating of [false, true]) {
   test(`${repeating ? 'repeating' : 'one-off'} block completion is only applied on Save`, async ({ page }) => {
@@ -15,8 +16,6 @@ for (const repeating of [false, true]) {
       }]));
     }, { title, repeating });
     await page.goto('/');
-    const scheduleTab = page.locator('button[data-tab="schedule"]');
-    const boardTab = page.locator('button[data-tab="board"]');
     const block = page.getByRole('button', { name: /^Review project brief, / });
     const editor = page.getByRole('dialog', { name: 'Edit block' });
     const done = editor.getByRole('checkbox', { name: 'Done', exact: true });
@@ -25,7 +24,7 @@ for (const repeating of [false, true]) {
     const history = () => page.evaluate(() => JSON.parse(localStorage.getItem('history') ?? '[]'));
     const boardTask = (column: RegExp) => page.getByRole('region', { name: column }).getByText(title, { exact: true });
 
-    await scheduleTab.click();
+    await openView(page, 'schedule');
     await block.press('Enter');
     await expect(done).not.toBeChecked();
     await done.check();
@@ -36,10 +35,10 @@ for (const repeating of [false, true]) {
     await expect(done).not.toBeChecked();
     expect(await history()).toEqual([]);
     await cancel.click();
-    await boardTab.click();
+    await openView(page, 'board');
     await expect(boardTask(/^To do,/)).toBeVisible();
 
-    await scheduleTab.click();
+    await openView(page, 'schedule');
     await block.press('Enter');
     await done.check();
     await save.click();
@@ -48,9 +47,9 @@ for (const repeating of [false, true]) {
     await expect.poll(history).toEqual([expect.objectContaining({ taskId: 'task' })]);
     expect((await history())[0].blockId).toBe(repeating ? 'block' : undefined);
 
-    await boardTab.click();
+    await openView(page, 'board');
     await expect(boardTask(repeating ? /^To do,/ : /^Done,/)).toBeVisible();
-    await scheduleTab.click();
+    await openView(page, 'schedule');
     if (repeating) {
       await page.getByRole('button', { name: 'Next day' }).click();
       await expect(block.getByRole('checkbox')).not.toBeChecked();

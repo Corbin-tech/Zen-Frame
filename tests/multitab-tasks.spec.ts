@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { openView } from './nav';
 
 async function addTask(page: Page, title: string) {
   await page.getByRole('button', { name: 'Add a task to To do', exact: true }).click();
@@ -10,10 +11,10 @@ async function addTask(page: Page, title: string) {
 
 test('tasks survive writes and reloads across two tabs', async ({ context, page: a }) => {
   await a.goto('/');
-  await a.locator('button[data-tab="board"]').click();
+  await openView(a, 'board');
   const b = await context.newPage();
   await b.goto('/');
-  await b.locator('button[data-tab="board"]').click();
+  await openView(b, 'board');
   await addTask(a, 'Task from tab A');
   await addTask(b, 'Task from tab B');
   await a.reload();

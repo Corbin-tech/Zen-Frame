@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { openView } from './nav';
 
 test('Begin focus in Next step starts a session for the shown task, then pauses and resumes it', async ({ page }) => {
   await page.goto('/');
@@ -6,7 +7,7 @@ test('Begin focus in Next step starts a session for the shown task, then pauses 
     const todos = (window as any).Alpine.store('todos');
     todos.addTodo('Read chapter 4', { estimateMinutes: 10 });
   });
-  await page.locator('button[data-tab="zenmode"]').click();
+  await openView(page, 'zenmode');
   const zen = page.locator('[x-data="zenTodoList"]');
   await expect(zen.getByText('About 10 min')).toBeVisible();
 
