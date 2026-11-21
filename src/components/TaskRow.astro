@@ -1,4 +1,5 @@
 ---
+import EnsoMark from './EnsoMark.astro';
 import EstimatePicker from './EstimatePicker.astro';
 
 // One task row. Render it inside an Alpine x-for that provides `task`.
@@ -78,6 +79,14 @@ const menuDanger = 'hover:!text-red-600 hover:!bg-red-50 dark:hover:!text-red-40
             <!-- Meta chips: In progress, steps, due date. The date input under them
                  is the chip's picker, as on the board card's pencil form. -->
             <div class="relative shrink-0 flex items-center gap-1.5">
+                <span
+                    x-show="!task.completed && $store.pomoState.isRunning && !$store.pomoState.isBreak && $store.pomoState.selectedTaskId === task.id"
+                    x-cloak
+                    class="inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-md bg-teal-50 text-teal-700 ring-1 ring-teal-600/20 dark:bg-teal-900/30 dark:text-teal-300 dark:ring-teal-400/20"
+                >
+                    <EnsoMark class="w-3.5 h-3.5 shrink-0" />
+                    <span>In focus</span>
+                </span>
                 <span
                     x-show="task.startedAt && !task.completed"
                     class="text-xs font-medium px-2 py-1 rounded-md bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
@@ -174,7 +183,7 @@ const menuDanger = 'hover:!text-red-600 hover:!bg-red-50 dark:hover:!text-red-40
                             x-bind:aria-label="`Mark step: ${step.text}`"
                             x-bind:checked="step.done"
                             x-on:change="$store.todos.toggleStep(task.id, step.id)"
-                            class="h-4 w-4 shrink-0 rounded border-gray-300 dark:border-slate-500 text-teal-600 dark:text-teal-400 focus:ring-teal-500 dark:bg-slate-700"
+                            class="h-4 w-4 shrink-0 rounded-full border-gray-300 dark:border-slate-500 text-teal-600 dark:text-teal-400 focus:ring-teal-500 dark:bg-slate-700"
                         />
                         <span class="min-w-0 flex-1 break-words"
                             x-bind:class="step.done ? 'line-through text-gray-500 dark:text-gray-400' : ''"
