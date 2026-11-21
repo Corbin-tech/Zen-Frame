@@ -14,8 +14,8 @@ const prompts = [
 <div x-data="goalsPage" class="space-y-6">
     <header class="flex flex-wrap items-end justify-between gap-4">
         <div>
-            <p class="text-sm font-medium text-teal-700 dark:text-teal-400">Goals</p>
-            <h1 class="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900 dark:text-white">Goals &amp; check-ins</h1>
+            <p class="eyebrow">Goals</p>
+            <h1 class="page-title">Goals &amp; check-ins</h1>
             <p class="mt-1 text-gray-500 dark:text-gray-400" x-text="summary"></p>
         </div>
     </header>
@@ -112,7 +112,7 @@ const prompts = [
                     </template>
                 </ul>
                 <div x-show="!goals.length" class="rounded-xl border-2 border-dashed border-gray-200 dark:border-slate-700 px-6 py-8 text-center">
-                    <p class="text-sm font-medium text-gray-700 dark:text-gray-200">No goals yet</p>
+                    <p class="editorial text-lg font-normal text-gray-800 dark:text-gray-100">No goals yet</p>
                     <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Add what you're working toward. The weekly check-in keeps it on track.</p>
                 </div>
             </section>
@@ -147,7 +147,7 @@ const prompts = [
 
                 <form class="space-y-4" x-on:submit.prevent="saveCheckIn()" x-on:input="saveState = 'dirty'">
                     <div>
-                        <p class="text-sm font-medium text-gray-900 dark:text-white mb-2">How was your energy?</p>
+                        <p class="editorial text-base font-normal text-gray-900 dark:text-white mb-2">How was your energy?</p>
                         <div class="flex gap-2" role="radiogroup" aria-label="Energy">
                             <template x-for="level in [1, 2, 3, 4, 5]" :key="level">
                                 <button
@@ -167,7 +167,7 @@ const prompts = [
 
                     {prompts.map((prompt) => (
                         <label class="block">
-                            <span class="text-sm font-medium text-gray-900 dark:text-white">{prompt.label}</span>
+                            <span class="editorial text-base font-normal text-gray-900 dark:text-white">{prompt.label}</span>
                             <textarea name={`checkin-${prompt.key}`} rows="3" class={`${field} mt-1.5`} placeholder={prompt.placeholder} x-model={`draft.${prompt.key}`}></textarea>
                         </label>
                     ))}

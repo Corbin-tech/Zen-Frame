@@ -48,4 +48,19 @@
 		-webkit-mask-image: radial-gradient(circle at 100% 0%, black, transparent 70%);
 		mask-image: radial-gradient(circle at 100% 0%, black, transparent 70%);
 	}
+
+	/* Typography: Newsreader for page titles and reflective copy; Inter for eyebrows and controls.
+	   preferences.css overrides font-family to inherit when the user picks another font in Settings. */
+	.page-title {
+		font-family: 'Newsreader Variable', ui-serif, Georgia, serif;
+		@apply text-3xl sm:text-4xl font-normal tracking-tight text-gray-900 dark:text-white;
+	}
+
+	.editorial {
+		font-family: 'Newsreader Variable', ui-serif, Georgia, serif;
+	}
+
+	.eyebrow {
+		@apply text-xs font-medium uppercase tracking-[0.14em] text-gray-500 dark:text-gray-400;
+	}
 }
