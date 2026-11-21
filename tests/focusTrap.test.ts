@@ -59,3 +59,12 @@ test('does not intercept Tab when there are no eligible controls', () => {
   expect(() => trapFocus(event, f.panel)).not.toThrow();
   expect(event.preventDefault).not.toHaveBeenCalled();
 });
+
+test('ignores modified Tab shortcuts (Ctrl/Alt/Meta)', () => {
+  const f = fixture();
+  for (const mod of ['ctrlKey', 'altKey', 'metaKey'] as const) {
+    const event = { shiftKey: true, [mod]: true, preventDefault: vi.fn() } as unknown as KeyboardEvent;
+    trapFocus(event, f.panel);
+    expect(event.preventDefault).not.toHaveBeenCalled();
+  }
+});
