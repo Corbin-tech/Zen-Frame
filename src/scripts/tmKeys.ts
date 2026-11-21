@@ -35,6 +35,9 @@ export interface TmKeyEvent {
     shiftKey: boolean;
 }
 
+/** Where focus sits relative to task rows. */
+export type TmRowFocus = 'none' | 'within' | 'row';
+
 /** The DOM facts of the moment, supplied by the page when a key lands. */
 export interface TmKeyContext {
     /** Focus is in an input, textarea, select, or contenteditable: the user is typing. */
@@ -45,6 +48,8 @@ export interface TmKeyContext {
     overlayOpen: boolean;
     /** A row's "..." action sheet is open. */
     rowMenuOpen: boolean;
+    /** Whether focus is on a task row itself ('row'), inside one ('within'), or elsewhere ('none'). */
+    rowFocus: TmRowFocus;
 }
 
 /**
@@ -58,14 +63,14 @@ export function tmKeyIntent(event: TmKeyEvent, context: TmKeyContext): TmKeyInte
     // No browser or system combinations: only bare keys are ours
     if (event.altKey || event.ctrlKey || event.metaKey) return null;
     // "#" is Shift+3 on many keyboards, so Shift stays allowed for it alone
-    if (event.key === '#') return { kind: 'openClusterPicker' };
+    if (event.key === '#') return context.rowFocus === 'none' ? null : { kind: 'openClusterPicker' };
     if (event.shiftKey) return null;
     switch (event.key.toLowerCase()) {
         case 'j': return { kind: 'focusRow', direction: 1 };
         case 'k': return { kind: 'focusRow', direction: -1 };
-        case 'x': return { kind: 'completeTask' };
+        case 'x': return context.rowFocus === 'none' ? null : { kind: 'completeTask' };
         case 'e':
-        case 'enter': return { kind: 'editTask' };
+        case 'enter': return context.rowFocus === 'row' ? { kind: 'editTask' } : null;
         default: return null;
     }
 }

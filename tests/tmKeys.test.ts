@@ -12,8 +12,8 @@ function key(key: string, overrides: Partial<Parameters<typeof tmKeyIntent>[0]> 
   return { key, altKey: false, ctrlKey: false, metaKey: false, shiftKey: false, ...overrides };
 }
 
-// The Task Manager tab visible, nothing else competing for the keys
-const ready = { typing: false, tabActive: true, overlayOpen: false, rowMenuOpen: false };
+// The Task Manager tab visible with focus on a task row, nothing else competing for the keys
+const ready = { typing: false, tabActive: true, overlayOpen: false, rowMenuOpen: false, rowFocus: "row" as const };
 
 describe("tmKeys", () => {
   describe("tmKeyIntent (spec item 17's key map)", () => {
@@ -27,6 +27,25 @@ describe("tmKeys", () => {
       expect(tmKeyIntent(key("e"), ready)).toEqual({ kind: "editTask" });
       expect(tmKeyIntent(key("Enter"), ready)).toEqual({ kind: "editTask" });
       expect(tmKeyIntent(key("#"), ready)).toEqual({ kind: "openClusterPicker" });
+    });
+
+    test("outside a row, j/k still focus rows while Enter, e, x, and # are left to the browser", () => {
+      const outside = { ...ready, rowFocus: "none" as const };
+      expect(tmKeyIntent(key("j"), outside)).toEqual({ kind: "focusRow", direction: 1 });
+      expect(tmKeyIntent(key("k"), outside)).toEqual({ kind: "focusRow", direction: -1 });
+      expect(tmKeyIntent(key("Enter"), outside)).toBeNull();
+      expect(tmKeyIntent(key("e"), outside)).toBeNull();
+      expect(tmKeyIntent(key("x"), outside)).toBeNull();
+      expect(tmKeyIntent(key("#"), outside)).toBeNull();
+    });
+
+    test("on a control inside a row, Enter and e stay with the control while x and # act on the row", () => {
+      const within = { ...ready, rowFocus: "within" as const };
+      expect(tmKeyIntent(key("Enter"), within)).toBeNull();
+      expect(tmKeyIntent(key("e"), within)).toBeNull();
+      expect(tmKeyIntent(key("x"), within)).toEqual({ kind: "completeTask" });
+      expect(tmKeyIntent(key("#"), within)).toEqual({ kind: "openClusterPicker" });
+      expect(tmKeyIntent(key("j"), within)).toEqual({ kind: "focusRow", direction: 1 });
     });
 
     test("# works with Shift held, the way most keyboards type it", () => {
