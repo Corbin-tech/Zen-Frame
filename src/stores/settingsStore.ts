@@ -99,6 +99,7 @@ const ZEN_OPTIONS = [
 const ZEN_BACKGROUNDS = [
   { id: "none", label: "None", hint: "Just the card" },
   { id: "glow", label: "Soft glow", hint: "Drifting colored light" },
+  { id: "desk", label: "Quiet desk", hint: "Paper and slow light" },
   { id: "koi", label: "Koi pond", hint: "Koi under lily pads" },
   { id: "swirly", label: "Swirly night", hint: "Spirals and stars" },
   { id: "birds", label: "Birds", hint: "Flocks across the sky" },

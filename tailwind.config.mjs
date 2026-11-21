@@ -10,6 +10,16 @@ export default {
 			transitionProperty: {
 				none: 'none',
 			},
+			// A slow fade for live dots (a running timer, the current block), used as motion-safe:animate-breathe
+			keyframes: {
+				breathe: {
+					'0%, 100%': { opacity: '1' },
+					'50%': { opacity: '0.5' },
+				},
+			},
+			animation: {
+				breathe: 'breathe 3s ease-in-out infinite',
+			},
 			colors: {
 				// The accent color. Values come from the chosen scheme in src/styles/preferences.css.
 				teal: Object.fromEntries(

@@ -707,12 +707,12 @@ const numerals = Array.from({ length: 10 }, (_, n) => n);
     .tf-sand-stream { animation: tf-stream 0.5s linear infinite; }
     @keyframes tf-stream { to { stroke-dashoffset: -6; } }
 
-    /* Bloom: the stem grows smoothly, leaves and petals spring open, the plant sways while running */
+    /* Bloom: the stem grows smoothly, leaves and petals unfold, the plant sways while running */
     .tf-stem { transition: stroke-dashoffset 1s linear; }
     .tf-leaf, .tf-bloom {
         transform: scale(0);
         transform-box: fill-box;
-        transition: transform 0.9s cubic-bezier(0.34, 1.4, 0.64, 1);
+        transition: transform 0.9s ease-out;
     }
     .tf-leaf { transform-origin: left center; }
     .tf-bloom { transform-origin: center; }

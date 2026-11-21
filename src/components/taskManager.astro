@@ -334,8 +334,10 @@ const pickerItem = 'w-full flex items-center gap-2.5 px-3 py-2 text-left rounded
              search that hides everything says so in the header instead. -->
         <div x-show="!$store.todos.items.length" class="py-10 flex flex-col items-center text-center">
             <span class="tm-raked-sand block w-40 h-8 mb-2" aria-hidden="true"></span>
-            <p class="text-sm text-gray-500 dark:text-gray-400">
-                Press <kbd class="px-1.5 py-0.5 rounded border border-gray-200 dark:border-slate-700 font-sans">N</kbd> to add a task
+            <p class="text-sm text-gray-500 dark:text-gray-400">Add your first task.</p>
+            <button type="button" class="btn-primary mt-3" x-on:click="$dispatch('open-quick-add')">New task</button>
+            <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                Or press <kbd class="px-1.5 py-0.5 rounded border border-gray-200 dark:border-slate-700 font-sans">N</kbd>
             </p>
         </div>
     </div>
