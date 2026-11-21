@@ -6,11 +6,11 @@
     "recapName": "Stillpoint",
     "pages": [
         {
-            "title": "Dashboard",
+            "title": "Overview",
             "href": "#dashboard"
         },
         {
-            "title": "Task Manager",
+            "title": "Tasks",
             "href": "#taskmanager"
         },
         {
@@ -30,11 +30,11 @@
             "href": "#insights"
         },
         {
-            "title": "Pomodoro",
+            "title": "Timer",
             "href": "#pomodoro"
         },
         {
-            "title": "Zen Mode",
+            "title": "Next step",
             "href": "#zenmode"
         }
     ]
