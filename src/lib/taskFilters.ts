@@ -22,7 +22,7 @@ export type TaskManagerSort = "manual" | "due";
 /** Sort options with the Board's exact labels. */
 export const TASK_MANAGER_SORT_OPTIONS: ReadonlyArray<{ id: TaskManagerSort; label: string }> = [
   { id: "manual", label: "My order" },
-  { id: "due", label: "Overdue first" }
+  { id: "due", label: "Past due first" }
 ];
 
 // Board's sentinel for a card without a due date: undated tasks sort last.

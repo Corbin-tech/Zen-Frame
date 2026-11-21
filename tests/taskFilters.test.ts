@@ -63,7 +63,7 @@ describe("taskFilters", () => {
     test("the sort options carry the Board's exact labels", () => {
       expect(TASK_MANAGER_SORT_OPTIONS).toEqual([
         { id: "manual", label: "My order" },
-        { id: "due", label: "Overdue first" }
+        { id: "due", label: "Past due first" }
       ]);
     });
 

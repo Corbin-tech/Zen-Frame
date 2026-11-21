@@ -65,7 +65,7 @@ export const DASHBOARD_WIDGETS = [
   { id: "clusters", label: "Clusters", hint: "Progress for each cluster", zone: "column" },
   { id: "completed", label: "Tasks completed", hint: "The last 7 days", zone: "column" },
   { id: "upnext", label: "Up next", hint: "The next task, with a focus button", zone: "column" },
-  { id: "deadlines", label: "Deadlines", hint: "Overdue and the next 14 days", zone: "column" },
+  { id: "deadlines", label: "Deadlines", hint: "Past due and the next 14 days", zone: "column" },
   { id: "recent", label: "Recently completed", hint: "Your last few finished tasks", zone: "column" },
   { id: "focus", label: "Focus timer", hint: "Start a Pomodoro from here", zone: "column" },
   { id: "goals", label: "Goals", hint: "Progress on your open goals", zone: "column" },

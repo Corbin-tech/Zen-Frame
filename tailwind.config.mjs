@@ -17,7 +17,7 @@ export default {
 				),
 				// Warmth: non-destructive overdue attention. Never use as text in light mode
 				// (1.83:1 contrast on Paper); use Pine text (text-gray-900) on bg-warmth/35 in
-				// light mode and text-warmth on bg-warmth/15 in dark mode.
+				// light mode and text-warmth on bg-warmth/10 in dark mode.
 				warmth: '#D7B36A',
 				// Brand neutrals. Hex, not CSS variables: the Flowbite plugin reads gray through theme() in
 				// JavaScript, which leaves <alpha-value> unreplaced. Warm ink from Paper (50) to Pine (900);
