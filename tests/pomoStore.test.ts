@@ -67,7 +67,7 @@ test.each([
   });
   vi.stubGlobal("localStorage", { getItem: (key: string) => key === "activeTab" ? tab : null });
   vi.stubGlobal("sessionStorage", { getItem: () => null });
-  vi.stubGlobal("window", { addEventListener: vi.fn(), Alpine: { store: () => ({ zenShowTimer: true }) } });
+  vi.stubGlobal("window", { addEventListener: vi.fn(), Alpine: { store: () => ({ nextTask: { id: "t1" } }) } });
   const store = initPomoStore();
   const start = vi.spyOn(store, "startTimer").mockImplementation(() => {});
   const pause = vi.spyOn(store, "pauseTimer").mockImplementation(() => {});

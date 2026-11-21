@@ -169,16 +169,16 @@ export function initPomoStore() {
         else this.runTimer(running.endsAt);
       }
 
-      // Space starts or pauses the timer when on Pomodoro (or Zen Mode with its timer visible),
-      // unless the user is typing, on a control, or a dialog is open
+      // Space starts or pauses the timer when on Pomodoro (or Zen Mode, which shows the timer
+      // with each task), unless the user is typing, on a control, or a dialog is open
       document.addEventListener("keydown", (e: KeyboardEvent) => {
         if (e.code !== "Space") return;
         const target = e.target as Element | null;
         if (target?.closest("input, textarea, select, button, [role='button'], [contenteditable], [role='dialog']")) return;
         if (Array.from(document.querySelectorAll("[role='dialog']")).some(dialog => dialog.checkVisibility())) return;
         const activeTab = loadString("activeTab", "dashboard");
-        const settings = window.Alpine.store("settings") as { zenShowTimer?: boolean } | undefined;
-        const zenTimerActive = activeTab === "zenmode" && Boolean(settings?.zenShowTimer);
+        const todos = window.Alpine.store("todos") as PomoTodosApi | undefined;
+        const zenTimerActive = activeTab === "zenmode" && Boolean(todos?.nextTask);
         if (activeTab !== "pomodoro" && !zenTimerActive) return;
         e.preventDefault();
         this.isRunning ? this.pauseTimer() : this.startTimer();
