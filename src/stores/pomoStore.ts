@@ -439,7 +439,7 @@ export function initPomoStore() {
     toggleBreak(announceUndo = true): void {
       this.lastCompleted = null;
       if (announceUndo && this.started) {
-        this.offerUndo(this.isBreak ? "Switched to Focus" : "Switched to Break");
+        this.offerUndo(this.isBreak ? "Switched to focus" : "Switched to break");
       }
       this.isBreak = !this.isBreak;
       this.isLongBreak = false;
