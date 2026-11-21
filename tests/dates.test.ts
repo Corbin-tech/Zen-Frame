@@ -25,7 +25,7 @@ describe("due date helpers", () => {
     const later = dates.addDays(TODAY, 4);
 
     expect(dates.dueClass(pastDue, false, TODAY)).toBe(
-      "bg-warmth/35 text-gray-900 dark:bg-warmth/10 dark:text-warmth"
+      "bg-warmth/35 text-gray-900 dark:bg-warmth/10 dark:text-warmth-light"
     );
     expect(dates.dueClass(today, false, TODAY)).toBe(
       "bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300"
