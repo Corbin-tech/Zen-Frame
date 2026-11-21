@@ -1,0 +1,250 @@
+---
+import Layout from '../layouts/Layout.astro';
+import EnsoMark from '../components/EnsoMark.astro';
+import DarkModeToggle from '../components/darkModeToggle.astro';
+
+const principles = [
+	{
+		number: '01',
+		title: 'No guilt for unfinished work',
+		body: 'Plans change, energy dips, and days run short. Carrying a task into tomorrow is normal, not a failure. Zen Frame removes red overdue warnings and streak counters in favor of warm, neutral reminders that help you pick back up without dread.',
+		inAppLabel: 'In the app',
+		inApp: 'Past-due tasks use a soft Warmth tint and plain language ("2 carried over. Pick one to start."). Red is reserved strictly for destructive actions like deleting an item.',
+		warmthDot: true,
+	},
+	{
+		number: '02',
+		title: 'One next step, not everything at once',
+		body: 'Looking at forty tasks at once makes starting harder, not easier. Our mark — an open circle with a single dot at the opening — is the whole layout philosophy: leave room to begin, and focus on one concrete step.',
+		inAppLabel: 'In the app',
+		inApp: 'Views are grouped into three quiet areas — Today, Focus, and Library — and Next step mode pairs a single task and its rough time estimate with one calm Begin focus action.',
+		warmthDot: false,
+	},
+	{
+		number: '03',
+		title: 'Your work stays on your device',
+		body: 'You should not have to create an account, hand over an email address, or accept background tracking just to write down a to-do list. Your tasks, schedules, notes, and focus sessions live in your browser\u2019s local storage, nowhere else.',
+		inAppLabel: 'In the app',
+		inApp: 'Zero accounts, zero analytics, zero third-party CDNs, and full JSON backup export whenever you want it.',
+		warmthDot: false,
+	},
+	{
+		number: '04',
+		title: 'Readable and accessible by default',
+		body: 'Calm design only works if everyone can read and navigate it comfortably. Every color pairing is measured for contrast, every state is shown in words as well as color, and motion stays subtle.',
+		inAppLabel: 'In the app',
+		inApp: 'WCAG 2.2 AA contrast across light mode, dark mode, and all 9 accent colors; explicit task states (Ready, In focus, Done); self-hosted Newsreader, Inter, Lexend, and Atkinson Hyperlegible fonts; and automatic support for reduced motion.',
+		warmthDot: false,
+	},
+	{
+		number: '05',
+		title: 'Assistance that asks first, never takes over',
+		body: 'Sometimes the hardest part of a task is breaking it into pieces, sorting a messy brain dump, or guessing how long it will actually take. As we build optional AI helpers for Zen Frame Plus, they will follow the same calm rules as the rest of the app: literal wording, realistic time ranges, and human control.',
+		inAppLabel: 'Coming in Plus',
+		inApp: 'Every helper — Breakdown, Brain dump, and Estimate — shows an editable preview first and never changes your list without your click. Nothing you send is logged, stored, or used to train models.',
+		warmthDot: false,
+	},
+];
+
+const comparisonRows = [
+	{
+		area: 'Price and account',
+		core: 'Free forever, no account required',
+		plus: 'Optional paid tier with a free trial allowance; account used only for billing',
+	},
+	{
+		area: 'Where tasks live',
+		core: 'Locally in your browser (localStorage)',
+		plus: 'Still locally in your browser — Plus never locks or syncs your data',
+	},
+	{
+		area: 'Network and privacy',
+		core: 'Zero outbound requests or tracking',
+		plus: 'Opt-in only; sends only the text you submit to a helper, with zero retention',
+	},
+	{
+		area: 'Core features',
+		core: 'Tasks, Board, Schedule, Timer, Next step, Goals, Stillpoint recaps, manual estimates',
+		plus: 'Adds AI Breakdown, Brain dump, Estimate ranges, and Learning your pace',
+	},
+	{
+		area: 'Control',
+		core: 'Everything stays manual and predictable',
+		plus: 'Preview-only suggestions you can edit, accept, or discard before anything changes',
+	},
+];
+---
+
+<Layout title="Calm Design Principles — Zen Frame">
+	<div class="mx-auto max-w-3xl pt-4 sm:pt-8">
+		<header class="flex items-center justify-between gap-4 border-b border-gray-200/80 pb-4 dark:border-white/10">
+			<a
+				href="/"
+				class="touch-target inline-flex items-center gap-2.5 rounded-lg text-gray-900 transition-opacity hover:opacity-80 dark:text-gray-50"
+			>
+				<EnsoMark class="h-6 w-6 shrink-0" />
+				<span class="text-base font-medium tracking-tight">Zen Frame</span>
+			</a>
+
+			<div class="flex items-center gap-2">
+				<DarkModeToggle />
+				<a href="/" class="btn-secondary touch-target">
+					<span>Open app</span>
+					<span aria-hidden="true">&rarr;</span>
+				</a>
+			</div>
+		</header>
+
+		<article class="mx-auto max-w-2xl space-y-12 py-10 sm:py-14">
+			<!-- Hero -->
+			<section aria-labelledby="principles-heading" class="space-y-6">
+				<p class="principles-eyebrow">Calm design principles</p>
+				<h1
+					id="principles-heading"
+					class="principles-serif text-3xl leading-tight tracking-tight text-gray-900 sm:text-5xl dark:text-gray-50"
+				>
+					A quieter way to begin.
+				</h1>
+				<div class="space-y-4 text-base leading-relaxed text-gray-700 sm:text-lg dark:text-gray-300">
+					<p>
+						Most productivity tools treat your attention like a ledger that is always behind. Red overdue counts,
+						broken streaks, and cluttered dashboards turn a small task into a wall before you even start.
+					</p>
+					<p>
+						Zen Frame is built for students and anyone who wants gentler support with executive function. It gives you
+						a warm paper surface, one clear next step, and a workspace that stays out of your way.
+					</p>
+				</div>
+				<p class="flex items-center gap-2.5 pt-2 text-sm font-medium text-gray-600 dark:text-gray-400">
+					<span class="inline-block h-2 w-2 shrink-0 rounded-full bg-[#D7B36A]" aria-hidden="true"></span>
+					<span>One next step. One clear action. No catching up.</span>
+				</p>
+			</section>
+
+			<!-- The five principles -->
+			<section aria-labelledby="five-principles-heading" class="space-y-6">
+				<h2 id="five-principles-heading" class="sr-only">Five calm design principles</h2>
+				<ol class="space-y-6">
+					{principles.map((item) => (
+						<li class="panel p-6 sm:p-8">
+							<p class="principles-eyebrow">{item.number}</p>
+							<h3 class="principles-serif mt-2 text-2xl leading-snug tracking-tight text-gray-900 dark:text-gray-50">
+								{item.title}
+							</h3>
+							<p class="mt-3 text-base leading-relaxed text-gray-700 dark:text-gray-300">
+								{item.body}
+							</p>
+							<p class="mt-5 flex items-start gap-2.5 border-t border-gray-200/80 pt-4 text-sm leading-relaxed text-gray-600 dark:border-white/10 dark:text-gray-400">
+								{item.warmthDot && (
+									<span
+										class="mt-1.5 inline-block h-2 w-2 shrink-0 rounded-full bg-[#D7B36A]"
+										aria-hidden="true"
+									></span>
+								)}
+								<span>
+									<strong class="font-medium text-gray-900 dark:text-gray-200">{item.inAppLabel}:</strong>{' '}
+									{item.inApp}
+								</span>
+							</p>
+						</li>
+					))}
+				</ol>
+			</section>
+
+			<!-- The boundary: Core vs Plus -->
+			<section aria-labelledby="boundary-heading" class="space-y-4">
+				<p class="principles-eyebrow">Our promise</p>
+				<h2
+					id="boundary-heading"
+					class="principles-serif text-2xl leading-snug tracking-tight text-gray-900 sm:text-3xl dark:text-gray-50"
+				>
+					What stays free, and what Plus adds.
+				</h2>
+				<p class="text-base leading-relaxed text-gray-700 dark:text-gray-300">
+					Core Zen Frame will always stay free, private, and local-first. Zen Frame Plus is an optional paid layer
+					solely for hosted AI helpers that cost money to run.
+				</p>
+
+				<div class="panel overflow-hidden">
+					<div class="overflow-x-auto">
+						<table class="w-full border-collapse text-left text-sm">
+							<thead>
+								<tr class="border-b border-gray-200/80 bg-gray-50/70 dark:border-white/10 dark:bg-slate-900/40">
+									<th scope="col" class="px-4 py-3.5 font-medium text-gray-900 sm:px-6 dark:text-gray-100">
+										Area
+									</th>
+									<th scope="col" class="px-4 py-3.5 font-medium text-gray-900 sm:px-6 dark:text-gray-100">
+										Zen Frame (Core)
+									</th>
+									<th scope="col" class="px-4 py-3.5 font-medium text-gray-900 sm:px-6 dark:text-gray-100">
+										Zen Frame Plus (Planned)
+									</th>
+								</tr>
+							</thead>
+							<tbody class="divide-y divide-gray-200/70 dark:divide-white/10">
+								{comparisonRows.map((row) => (
+									<tr class="align-top">
+										<th scope="row" class="px-4 py-4 font-medium text-gray-900 sm:px-6 dark:text-gray-100">
+											{row.area}
+										</th>
+										<td class="px-4 py-4 leading-relaxed text-gray-700 sm:px-6 dark:text-gray-300">
+											{row.core}
+										</td>
+										<td class="px-4 py-4 leading-relaxed text-gray-700 sm:px-6 dark:text-gray-300">
+											{row.plus}
+										</td>
+									</tr>
+								))}
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</section>
+
+			<!-- Closing and quiet CTA -->
+			<section aria-labelledby="closing-heading" class="panel relative overflow-hidden p-8 sm:p-10">
+				<div class="ripples text-teal-700 dark:text-teal-300" aria-hidden="true"></div>
+				<div class="relative space-y-4">
+					<h2
+						id="closing-heading"
+						class="principles-serif text-2xl tracking-tight text-gray-900 sm:text-3xl dark:text-gray-50"
+					>
+						Starting small counts.
+					</h2>
+					<p class="max-w-xl text-base leading-relaxed text-gray-700 dark:text-gray-300">
+						Open Zen Frame in your browser — no sign-up, no setup wizard, just a clear space for your next step.
+					</p>
+					<div class="flex flex-wrap items-center gap-4 pt-2">
+						<a href="/" class="btn-primary touch-target">
+							<span>Open Zen Frame</span>
+							<span aria-hidden="true">&rarr;</span>
+						</a>
+						<a
+							href="/"
+							class="text-sm font-medium text-teal-700 underline decoration-teal-700/40 underline-offset-4 transition-colors hover:text-teal-800 dark:text-teal-300 dark:decoration-teal-300/40 dark:hover:text-teal-200"
+						>
+							Tell us what would help most in the app
+						</a>
+					</div>
+				</div>
+			</section>
+		</article>
+	</div>
+</Layout>
+
+<style>
+	.principles-eyebrow {
+		@apply text-xs font-medium uppercase tracking-[0.14em] text-gray-500 dark:text-gray-400;
+	}
+
+	/* Uses Newsreader once Phase 3 (@fontsource-variable/newsreader) is merged, with a calm serif fallback. */
+	.principles-serif {
+		font-family: 'Newsreader Variable', ui-serif, Georgia, Cambria, 'Times New Roman', serif;
+		font-weight: 400;
+	}
+
+	/* Respects the user's chosen accessibility font (Lexend, Atkinson Hyperlegible, Outfit) from Settings. */
+	:global(:root[data-font]:not([data-font='inter'])) .principles-serif {
+		font-family: inherit;
+	}
+</style>
