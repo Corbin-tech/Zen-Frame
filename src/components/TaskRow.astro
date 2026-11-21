@@ -69,7 +69,7 @@ const menuDanger = 'hover:!text-red-600 hover:!bg-red-50 dark:hover:!text-red-40
             </div>
         </div>
 
-        <div class="relative flex flex-1 flex-wrap items-center gap-2 pl-14 sm:contents">
+        <div class="relative flex flex-1 min-w-0 flex-wrap items-center gap-2 pl-14 sm:contents">
             <!-- Estimate: the same picker chip, always present. On touch an unset
                  one folds into the sheet while the popover stays usable. -->
             <div class="row-estimate contents sm:block relative shrink-0" x-bind:class="task.estimateMinutes ? '' : 'row-estimate-add'">
@@ -78,7 +78,7 @@ const menuDanger = 'hover:!text-red-600 hover:!bg-red-50 dark:hover:!text-red-40
 
             <!-- Meta chips: In progress, steps, due date. The date input under them
                  is the chip's picker, as on the board card's pencil form. -->
-            <div class="relative shrink-0 flex items-center gap-1.5">
+            <div class="contents sm:relative sm:shrink-0 sm:flex sm:items-center sm:gap-1.5">
                 <span
                     x-show="!task.completed && $store.pomoState.isRunning && !$store.pomoState.isBreak && $store.pomoState.selectedTaskId === task.id"
                     x-cloak
