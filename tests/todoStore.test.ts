@@ -747,3 +747,57 @@ test("Undo for a task whose cluster was deleted since brings it back as a loose 
   expect(store.items.map(item => item.id)).toEqual(["task"]);
   expect(store.items[0].parentId).toBeNull();
 });
+
+test("shifting and positioning open tasks skips completed siblings in the same list", () => {
+  const store = setupStore<{
+    items: Todo[];
+    saveTodos(): void;
+    siblingsOf(task: Todo, sameCompletion?: boolean): Todo[];
+    shiftTask(taskId: string, direction: -1 | 1): void;
+    getTaskPosition(taskId: string): number;
+    isFirstTask(taskId: string): boolean;
+    isLastTask(taskId: string): boolean;
+    milestoneOf(task: Todo): string;
+  }>();
+  const alpha = clusterOf("alpha");
+  const doneBefore = made({ id: "done-before", todo: "Done before", completed: true, parentId: "alpha" });
+  const openFirst = made({ id: "open-first", todo: "Open first", parentId: "alpha" });
+  const doneMiddle = made({ id: "done-middle", todo: "Done middle", completed: true, parentId: "alpha" });
+  const openSecond = made({ id: "open-second", todo: "Open second", parentId: "alpha" });
+  const doneAfter = made({ id: "done-after", todo: "Done after", completed: true, parentId: "alpha" });
+  store.items = [alpha, doneBefore, openFirst, doneMiddle, openSecond, doneAfter];
+
+  expect(store.siblingsOf(openFirst).map(item => item.id)).toEqual(["open-first", "open-second"]);
+  expect(store.getTaskPosition("open-first")).toBe(1);
+  expect(store.getTaskPosition("open-second")).toBe(2);
+  expect(store.isFirstTask("open-first")).toBe(true);
+  expect(store.isLastTask("open-first")).toBe(false);
+  expect(store.isFirstTask("open-second")).toBe(false);
+  expect(store.isLastTask("open-second")).toBe(true);
+
+  // Moving past the open edges is a no-op and does not swap with hidden completed tasks
+  store.shiftTask("open-first", -1);
+  store.shiftTask("open-second", 1);
+  expect(store.items.map(item => item.id)).toEqual(["alpha", "done-before", "open-first", "done-middle", "open-second", "done-after"]);
+  expect(store.saveTodos).not.toHaveBeenCalled();
+
+  // Moving up skips the completed task in between in one step
+  store.shiftTask("open-second", -1);
+  expect(store.items.filter(item => !item.isCluster && !item.completed).map(item => item.id)).toEqual(["open-second", "open-first"]);
+  expect(store.items.filter(item => !item.isCluster && item.completed).map(item => item.id)).toEqual(["done-before", "done-middle", "done-after"]);
+  expect(store.getTaskPosition("open-second")).toBe(1);
+  expect(store.isFirstTask("open-second")).toBe(true);
+  expect(store.isLastTask("open-first")).toBe(true);
+
+  // Completed tasks reorder among themselves without swapping with open tasks
+  store.shiftTask("done-middle", -1);
+  expect(store.items.filter(item => !item.isCluster && item.completed).map(item => item.id)).toEqual(["done-middle", "done-before", "done-after"]);
+  expect(store.items.filter(item => !item.isCluster && !item.completed).map(item => item.id)).toEqual(["open-second", "open-first"]);
+
+  // Cluster milestones still consider every task in the cluster, open and completed
+  expect(store.milestoneOf(doneBefore)).toBe("task");
+  const beta = clusterOf("beta");
+  const betaDone = made({ id: "beta-done", todo: "Beta done", completed: true, parentId: "beta" });
+  store.items.push(beta, betaDone);
+  expect(store.milestoneOf(betaDone)).toBe("cluster");
+});
