@@ -18,9 +18,43 @@ test('Begin focus in Next step starts a session for the shown task, then pauses 
     return { running: pomo.isRunning, task: pomo.focusTask?.todo };
   })).toEqual({ running: true, task: 'Read chapter 4' });
 
-  // Before the first tick the timer still counts as not started, and the button says "Begin focus"
-  await expect.poll(() => page.evaluate(() => (window as any).Alpine.store('pomoState').started)).toBe(true);
+  // Wait for the first tick so the timer counts as started and pausing shows "Resume"
+  await expect.poll(() => page.evaluate(() => (window as any).Alpine.store('pomoState').started), { timeout: 5000 }).toBe(true);
   await zen.getByRole('button', { name: 'Pause' }).click();
+  await expect(zen.getByRole('button', { name: 'Resume' })).toBeVisible();
   await zen.getByRole('button', { name: 'Resume' }).click();
   await expect(zen.getByRole('button', { name: 'Pause' })).toBeVisible();
+});
+
+test('Next step shows No estimate yet when unestimated, and Resume only for the same paused focus task', async ({ page }) => {
+  await page.goto('/');
+  await page.evaluate(() => {
+    const todos = (window as any).Alpine.store('todos');
+    todos.addTodo('Write summary');
+    todos.addTodo('Review slides', { estimateMinutes: 15 });
+  });
+  await page.locator('button[data-tab="zenmode"]').click();
+  const zen = page.locator('[x-data="zenTodoList"]');
+
+  // Unestimated task explicitly shows "No estimate yet"
+  await expect(zen.getByText('No estimate yet')).toBeVisible();
+
+  // Start and pause focus on the first task -> shows "Resume"
+  await zen.getByRole('button', { name: 'Begin focus' }).click();
+  await expect.poll(() => page.evaluate(() => (window as any).Alpine.store('pomoState').started), { timeout: 5000 }).toBe(true);
+  await zen.getByRole('button', { name: 'Pause' }).click();
+  await expect(zen.getByRole('button', { name: 'Resume' })).toBeVisible();
+
+  // Skipping to a different task flips "Resume" back to "Begin focus"
+  await zen.getByRole('button', { name: 'Not now: skip this task' }).click();
+  await expect(zen.getByText('Review slides')).toBeVisible();
+  await expect(zen.getByRole('button', { name: 'Begin focus' })).toBeVisible();
+
+  // Paused during a break also shows "Begin focus", not "Resume"
+  await page.evaluate(() => {
+    const pomo = (window as any).Alpine.store('pomoState');
+    pomo.toggleBreak(false);
+    pomo.timeLeft = pomo.totalTime - 5;
+  });
+  await expect(zen.getByRole('button', { name: 'Begin focus' })).toBeVisible();
 });

@@ -73,6 +73,8 @@ interface PomoTodosApi {
   clusterName?: (id: string | null) => string;
 }
 
+const todosApi = () => window.Alpine?.store("todos") as PomoTodosApi | undefined;
+
 interface PomoSnapshot {
   focusTask?: FocusTask | null;
   preset: PomoPreset;
@@ -177,11 +179,17 @@ export function initPomoStore() {
         if (target?.closest("input, textarea, select, button, [role='button'], [contenteditable], [role='dialog']")) return;
         if (Array.from(document.querySelectorAll("[role='dialog']")).some(dialog => dialog.checkVisibility())) return;
         const activeTab = loadString("activeTab", "dashboard");
-        const todos = window.Alpine.store("todos") as PomoTodosApi | undefined;
+        const todos = todosApi();
         const zenTimerActive = activeTab === "zenmode" && Boolean(todos?.nextTask);
         if (activeTab !== "pomodoro" && !zenTimerActive) return;
         e.preventDefault();
-        this.isRunning ? this.pauseTimer() : this.startTimer();
+        if (this.isRunning) {
+          this.pauseTimer();
+        } else if (activeTab === "zenmode") {
+          this.startFocus(todos?.nextTask?.id);
+        } else {
+          this.startTimer();
+        }
       });
     },
 
@@ -211,7 +219,7 @@ export function initPomoStore() {
     get activeTask(): PomoLinkedTask | null {
       if (!this.isBreak && this.focusTask !== undefined) return this.focusTask;
       if (this.selectedTaskId === "") return null;
-      const todos = window.Alpine.store("todos") as PomoTodosApi | undefined;
+      const todos = todosApi();
       if (this.selectedTaskId) {
         const chosen = todos?.find?.(this.selectedTaskId);
         if (chosen && !chosen.completed && !chosen.isCluster) return chosen;
@@ -265,7 +273,7 @@ export function initPomoStore() {
       if (this.timeLeft <= 0) this.resetTimer();
       if (!this.isBreak && this.focusTask === undefined) {
         const task = this.activeTask;
-        const todos = window.Alpine.store("todos") as PomoTodosApi | undefined;
+        const todos = todosApi();
         this.focusTask = task ? { ...task, clusterName: todos?.clusterName?.(task.parentId) ?? "" } : null;
       }
 
@@ -392,7 +400,7 @@ export function initPomoStore() {
         this.loadSessions();
         if (!this.sessions.some((session) => session?.completedAt === completedAt)) {
           const task = this.focusTask === undefined ? this.activeTask : this.focusTask;
-          const todos = window.Alpine.store("todos") as PomoTodosApi | undefined;
+          const todos = todosApi();
           const session: FocusSession = {
             completedAt,
             minutes: this.totalTime / 60,

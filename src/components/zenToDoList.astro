@@ -4,7 +4,7 @@ import TaskSteps from './TaskSteps.astro';
 
 <script>
     import { celebrate } from '../lib/confetti';
-    import { totalLabel } from '../lib/estimates';
+    import { estimateLabel } from '../lib/estimates';
 
     document.addEventListener('alpine:init', () => {
         Alpine.data('zenTodoList', () => ({
@@ -42,12 +42,11 @@ import TaskSteps from './TaskSteps.astro';
                 return `${position}/${clusterTasks.length}`;
             },
 
-            // "About 10 min · Biology (2/5)": the estimate, then the cluster when that setting is on
+            // "About 10 min · Biology (2/5)" (or "No estimate yet" when unestimated)
             get currentMeta() {
                 const task = this.currentTodo;
                 if (!task) return '';
-                const parts = [];
-                if (task.estimateMinutes) parts.push(totalLabel([task]));
+                const parts = [estimateLabel(task.estimateMinutes)];
                 if (this.currentClusterName && this.$store.settings.zenShowCluster) {
                     parts.push(`${this.currentClusterName} (${this.currentClusterProgress})`);
                 }
@@ -151,7 +150,7 @@ import TaskSteps from './TaskSteps.astro';
                             <p
                                 x-ref="currentTaskTitle"
                                 tabindex="-1"
-                                class="-mt-2 editorial text-2xl sm:text-3xl font-normal tracking-tight text-gray-900 dark:text-gray-100"
+                                class="-mt-2 editorial text-2xl sm:text-3xl font-normal tracking-tight text-gray-900 dark:text-gray-100 break-words max-w-full"
                                 x-text="currentTodo?.todo"
                             ></p>
                             <!-- "About 10 min · Biology (2/5)" -->
@@ -164,18 +163,18 @@ import TaskSteps from './TaskSteps.astro';
                             ></span>
                             <TaskSteps taskId="currentTodo?.id" fallbackFocus="$refs.currentTaskTitle" zen />
                             <div class="flex flex-col items-center sm:items-start gap-2 pt-2">
-                                <button type="button" x-on:click="toggleFocus" class="btn-primary px-6 py-2.5">
+                                <button type="button" x-on:click="toggleFocus" class="btn-primary touch-target px-6 py-2.5">
                                     <span x-text="focusLabel"></span>
                                     <span x-show="focusLabel === 'Begin focus'" aria-hidden="true">→</span>
                                 </button>
                                 <p class="text-sm text-gray-500 dark:text-gray-400">Starting small counts.</p>
                             </div>
-                            <div class="flex flex-wrap justify-center sm:justify-start gap-2">
+                            <div class="flex flex-wrap items-center justify-center sm:justify-start gap-2">
                                 <button
                                     type="button"
                                     x-on:click="completeCurrentTodo"
                                     aria-label="Mark current task as done"
-                                    class="btn-secondary"
+                                    class="btn-secondary touch-target"
                                 >
                                     Done
                                 </button>
@@ -183,7 +182,7 @@ import TaskSteps from './TaskSteps.astro';
                                     type="button"
                                     x-on:click="skipTask"
                                     aria-label="Not now: skip this task"
-                                    class="btn-secondary"
+                                    class="btn-secondary touch-target"
                                 >
                                     Not now
                                 </button>
@@ -192,7 +191,7 @@ import TaskSteps from './TaskSteps.astro';
                                     x-on:click="skipCluster"
                                     x-show="currentTodo?.parentId"
                                     aria-label="Skip this cluster of tasks"
-                                    class="btn-secondary"
+                                    class="touch-target inline-flex items-center justify-center px-3 py-2 rounded-xl text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-900/5 dark:text-gray-300 dark:hover:text-white dark:hover:bg-white/10 transition-colors"
                                 >
                                     Skip this cluster
                                 </button>
@@ -201,7 +200,7 @@ import TaskSteps from './TaskSteps.astro';
 
                         <!-- Focus timer ring, at the length of the current phase -->
                         <div class="relative justify-self-center w-40 h-40 sm:w-44 sm:h-44">
-                            <svg class="w-full h-full" viewBox="0 0 100 100" aria-hidden="true">
+                            <svg class="w-full h-full transition-opacity" x-bind:class="$store.pomoState.status === 'idle' && 'opacity-80'" viewBox="0 0 100 100" aria-hidden="true">
                                 <circle cx="50" cy="50" r="42" fill="none" stroke="currentColor" stroke-width="5" class="text-gray-200 dark:text-slate-700" />
                                 <circle
                                     cx="50" cy="50" r="42" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"
@@ -224,7 +223,7 @@ import TaskSteps from './TaskSteps.astro';
                         <button
                             type="button"
                             x-on:click="$dispatch('open-quick-add')"
-                            class="btn-primary mt-4"
+                            class="btn-primary touch-target mt-4"
                         >
                             New task
                         </button>
@@ -260,7 +259,7 @@ import TaskSteps from './TaskSteps.astro';
             <button
                 type="button"
                 x-on:click="$dispatch('open-quick-add')"
-                class="btn-primary mt-4"
+                class="btn-primary touch-target mt-4"
             >
                 New task
             </button>
