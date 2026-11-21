@@ -110,7 +110,7 @@ function daysAgoText(key: string, todayKey: string = toDateKey()): string {
 const DUE_TONE_CLASSES: Record<DueTone, string> = {
   overdue: "bg-warmth/35 text-gray-900 dark:bg-warmth/10 dark:text-warmth-light",
   today: "bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300",
-  soon: "ring-1 ring-teal-600/30 text-teal-700 dark:ring-teal-400/30 dark:text-teal-300",
+  soon: "ring-1 ring-teal-600/80 text-teal-700 dark:ring-teal-400 dark:text-teal-300",
   later: "bg-gray-100 text-gray-600 dark:bg-slate-700 dark:text-gray-300"
 };
 

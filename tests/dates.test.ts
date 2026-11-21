@@ -31,7 +31,7 @@ describe("due date helpers", () => {
       "bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300"
     );
     expect(dates.dueClass(soon, false, TODAY)).toBe(
-      "ring-1 ring-teal-600/30 text-teal-700 dark:ring-teal-400/30 dark:text-teal-300"
+      "ring-1 ring-teal-600/80 text-teal-700 dark:ring-teal-400 dark:text-teal-300"
     );
     expect(dates.dueClass(later, false, TODAY)).toBe(
       "bg-gray-100 text-gray-600 dark:bg-slate-700 dark:text-gray-300"
