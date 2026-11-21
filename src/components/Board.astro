@@ -287,9 +287,11 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-1 rou
                     <!-- Empty column -->
                     <li
                         x-show="!tasksIn(column.id).length && adding !== column.id"
-                        class="board-empty h-full min-h-[7rem] grid place-items-center rounded-xl border-2 border-dashed border-gray-200 dark:border-slate-700 px-4 text-center text-sm text-gray-500 dark:text-gray-400"
-                        x-text="column.empty"
-                    ></li>
+                        class="board-empty h-full min-h-[7rem] flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-gray-200 dark:border-slate-700 px-4 py-4 text-center text-sm text-gray-500 dark:text-gray-400"
+                    >
+                        <span x-text="column.empty"></span>
+                        <button x-show="column.id === 'todo'" type="button" class="btn-secondary" x-on:click="startAdding(column.id)">Add a task</button>
+                    </li>
                 </ol>
 
                 <!-- New card -->

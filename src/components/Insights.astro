@@ -187,7 +187,8 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
         <!-- By cluster -->
         <section class={`${panel} p-5`}>
             <h2 class={`${panelTitle} mb-1`}>By cluster</h2>
-            <p class="text-sm text-gray-500 dark:text-gray-400 mb-4" x-text="view.clusters.length ? `${$plural(view.summary.tasks, 'task')} in ${rangeLabel}` : `Nothing finished in ${rangeLabel}`"></p>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-4" x-text="view.clusters.length ? `${$plural(view.summary.tasks, 'task')} in ${rangeLabel}` : `Nothing finished in ${rangeLabel}. Finished tasks show here.`"></p>
+            <button x-show="!view.clusters.length" type="button" class="btn-secondary" x-on:click="$dispatch('change-tab', { tab: 'taskmanager' })">Open tasks</button>
             <ul class="space-y-3" x-show="view.clusters.length">
                 <template x-for="cluster in view.clusters" :key="cluster.key">
                     <li>
