@@ -3,39 +3,5 @@
     "siteName": "Zen Frame",
     "siteDescription": "A calmer way from intention to action. Focus, without the pressure.",
     "feedbackEmail": "",
-    "recapName": "Stillpoint",
-    "pages": [
-        {
-            "title": "Overview",
-            "href": "#dashboard"
-        },
-        {
-            "title": "Tasks",
-            "href": "#taskmanager"
-        },
-        {
-            "title": "Board",
-            "href": "#board"
-        },
-        {
-            "title": "Schedule",
-            "href": "#schedule"
-        },
-        {
-            "title": "Goals",
-            "href": "#goals"
-        },
-        {
-            "title": "Insights",
-            "href": "#insights"
-        },
-        {
-            "title": "Timer",
-            "href": "#pomodoro"
-        },
-        {
-            "title": "Next step",
-            "href": "#zenmode"
-        }
-    ]
+    "recapName": "Stillpoint"
 }
