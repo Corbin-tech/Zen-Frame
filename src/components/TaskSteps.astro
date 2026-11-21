@@ -13,7 +13,7 @@ const {
     fallbackFocus = '$refs.checklistSummary?.getClientRects().length ? $refs.checklistSummary : $root.closest(".task-item")?.querySelector("[name=task-name]")'
 } = Astro.props;
 const box = 'rounded-xl border border-gray-200 bg-white/85 p-3 text-left dark:border-slate-600 dark:bg-slate-900/70';
-const checkbox = 'h-5 w-5 shrink-0 rounded border-gray-400 text-teal-700 focus:ring-teal-500 dark:border-slate-500 dark:bg-slate-800';
+const checkbox = 'h-5 w-5 shrink-0 rounded-full border-gray-400 text-teal-700 focus:ring-teal-500 dark:border-slate-500 dark:bg-slate-800';
 const action = 'min-h-9 rounded-lg px-2 py-1 text-sm font-medium text-teal-800 hover:bg-teal-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 dark:text-teal-300 dark:hover:bg-slate-700';
 ---
 

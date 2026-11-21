@@ -11,7 +11,7 @@ const { id } = Astro.props;
 const panel = 'panel';
 const panelTitle = 'text-base font-semibold text-gray-900 dark:text-white';
 const linkButton = 'text-sm font-medium text-teal-700 dark:text-teal-400 hover:text-teal-800 dark:hover:text-teal-300 transition-colors';
-const checkbox = 'w-4 h-4 shrink-0 rounded border-gray-300 dark:border-slate-500 text-teal-600 focus:ring-teal-500 dark:bg-slate-700 cursor-pointer';
+const checkbox = 'w-4 h-4 shrink-0 rounded-full border-gray-300 dark:border-slate-500 text-teal-600 focus:ring-teal-500 dark:bg-slate-700 cursor-pointer';
 ---
 
 {id === 'brain-dump' && (
@@ -51,7 +51,7 @@ const checkbox = 'w-4 h-4 shrink-0 rounded border-gray-300 dark:border-slate-500
                         ></p>
                         <p class="text-xs text-gray-500 dark:text-gray-400 truncate" x-text="block.detail"></p>
                         <!-- Time left in the current block -->
-                        <div x-show="block.status === 'now'" class="mt-1.5 h-1 rounded-full bg-teal-100 dark:bg-teal-900/60 overflow-hidden">
+                        <div x-show="block.status === 'now'" class="mt-1.5 h-1 rounded-full bg-gray-200 dark:bg-slate-700 overflow-hidden">
                             <div class="h-full rounded-full bg-teal-600 dark:bg-teal-400 transition-[width] duration-700" x-bind:style="`width: ${block.progress}%;`"></div>
                         </div>
                     </div>
@@ -85,7 +85,7 @@ const checkbox = 'w-4 h-4 shrink-0 rounded border-gray-300 dark:border-slate-500
             <button
                 type="button"
                 x-on:click="$dispatch('change-tab', { tab: 'schedule' })"
-                class="mt-4 px-4 py-2 text-sm font-medium rounded-lg bg-teal-600 text-white hover:bg-teal-700 shadow-sm transition-colors"
+                class="btn-primary mt-4"
             >Plan your day</button>
         </div>
     </section>
@@ -296,9 +296,9 @@ const checkbox = 'w-4 h-4 shrink-0 rounded border-gray-300 dark:border-slate-500
         </div>
         <div class="flex items-center gap-4">
             <svg class="w-16 h-16 shrink-0" viewBox="0 0 100 100" aria-hidden="true">
-                <circle cx="50" cy="50" r="42" fill="none" stroke="currentColor" stroke-width="9" class="text-gray-200 dark:text-slate-700" />
+                <circle cx="50" cy="50" r="42" fill="none" stroke="currentColor" stroke-width="6" class="text-gray-200 dark:text-slate-700" />
                 <circle
-                    cx="50" cy="50" r="42" fill="none" stroke="currentColor" stroke-width="9" stroke-linecap="round"
+                    cx="50" cy="50" r="42" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round"
                     transform="rotate(-90 50 50)" stroke-dasharray="263.9"
                     x-bind:stroke-dashoffset="263.9 - 263.9 * $store.pomoState.percentComplete / 100"
                     x-bind:class="$store.pomoState.isRunning ? 'text-teal-600 dark:text-teal-400' : 'text-gray-500 dark:text-gray-400'"
@@ -313,7 +313,7 @@ const checkbox = 'w-4 h-4 shrink-0 rounded border-gray-300 dark:border-slate-500
             <button
                 type="button"
                 x-on:click="$store.pomoState.isRunning ? $store.pomoState.pauseTimer() : $store.pomoState.startTimer()"
-                class="flex-1 px-3 py-2 text-sm font-semibold rounded-lg bg-teal-600 text-white hover:bg-teal-700 shadow-sm transition-colors"
+                class="btn-primary flex-1"
                 x-text="$store.pomoState.status === 'running' ? 'Pause' : ($store.pomoState.status === 'paused' ? 'Resume' : 'Start')"
             ></button>
             <button
@@ -339,7 +339,7 @@ const checkbox = 'w-4 h-4 shrink-0 rounded border-gray-300 dark:border-slate-500
                         <span class="min-w-0 truncate font-medium text-gray-900 dark:text-white" x-text="goal.title"></span>
                         <span class="shrink-0 tabular-nums text-gray-600 dark:text-gray-300" x-text="`${goal.percent}%`"></span>
                     </div>
-                    <div class="mt-1.5 h-1.5 rounded-full bg-teal-100 dark:bg-teal-900/50 overflow-hidden" role="progressbar" aria-valuemin="0" aria-valuemax="100" x-bind:aria-valuenow="goal.percent" x-bind:aria-label="goal.title">
+                    <div class="mt-1.5 h-1.5 rounded-full bg-gray-200 dark:bg-slate-700 overflow-hidden" role="progressbar" aria-valuemin="0" aria-valuemax="100" x-bind:aria-valuenow="goal.percent" x-bind:aria-label="goal.title">
                         <div class="h-full rounded-full bg-teal-600 dark:bg-teal-400 transition-[width] duration-700" x-bind:style="`width: ${goal.percent}%;`"></div>
                     </div>
                     <p x-show="goal.targetDate" class="mt-1 text-xs text-gray-500 dark:text-gray-400" x-text="goal.targetDate ? `Target ${$dates.formatDate(goal.targetDate)}` : ''"></p>

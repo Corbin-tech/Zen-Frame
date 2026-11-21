@@ -34,7 +34,7 @@ const prompts = [
                 <form class="flex gap-2 mb-4" x-on:submit.prevent="addGoal()">
                     <label for="new-goal" class="sr-only">New goal</label>
                     <input id="new-goal" name="new-goal" type="text" x-model="newGoal" placeholder="Add a goal, for example Pass Network+" class={field} />
-                    <button type="submit" class="shrink-0 px-4 py-2 text-sm font-medium rounded-lg bg-teal-600 text-white hover:bg-teal-700 shadow-sm">Add</button>
+                    <button type="submit" class="btn-primary shrink-0">Add</button>
                 </form>
 
                 <ul class="space-y-3">
@@ -44,7 +44,7 @@ const prompts = [
                                 <input
                                     type="checkbox"
                                     name="goal-done"
-                                    class="mt-1 w-4 h-4 rounded border-gray-300 dark:border-slate-500 text-teal-600 focus:ring-teal-500 dark:bg-slate-700"
+                                    class="mt-1 w-4 h-4 rounded-full border-gray-300 dark:border-slate-500 text-teal-600 focus:ring-teal-500 dark:bg-slate-700"
                                     x-bind:checked="goal.done"
                                     x-on:change="$store.goals.updateGoal(goal.id, { done: $event.target.checked })"
                                     x-bind:aria-label="`Mark ${goal.title} ${goal.done ? 'not reached' : 'reached'}`"
@@ -174,7 +174,7 @@ const prompts = [
 
                     <div class="flex items-center justify-end gap-3">
                         <span class="text-xs text-gray-500 dark:text-gray-400" x-text="saveStatus"></span>
-                        <button type="submit" class="px-4 py-2 text-sm font-medium rounded-lg bg-teal-600 text-white hover:bg-teal-700 shadow-sm">Save check-in</button>
+                        <button type="submit" class="btn-primary">Save check-in</button>
                     </div>
                 </form>
             </section>

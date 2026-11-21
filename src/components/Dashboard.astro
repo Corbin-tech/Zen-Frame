@@ -7,7 +7,7 @@ const toolButton = 'p-1 rounded-full text-gray-500 hover:text-gray-900 hover:bg-
 const panel = 'panel';
 const panelTitle = 'text-base font-semibold text-gray-900 dark:text-white';
 const linkButton = 'text-sm font-medium text-teal-700 dark:text-teal-400 hover:text-teal-800 dark:hover:text-teal-300 transition-colors';
-const checkbox = 'w-4 h-4 shrink-0 rounded border-gray-300 dark:border-slate-500 text-teal-600 focus:ring-teal-500 dark:bg-slate-700 cursor-pointer';
+const checkbox = 'w-4 h-4 shrink-0 rounded-full border-gray-300 dark:border-slate-500 text-teal-600 focus:ring-teal-500 dark:bg-slate-700 cursor-pointer';
 ---
 
 <div x-data="dashboard" class="space-y-6">
@@ -21,8 +21,8 @@ const checkbox = 'w-4 h-4 shrink-0 rounded border-gray-300 dark:border-slate-500
         <button
             type="button"
             x-on:click="editing = !editing"
-            class="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg ring-1 transition-colors"
-            x-bind:class="editing ? 'bg-teal-600 text-white ring-teal-600 hover:bg-teal-700' : 'bg-white text-gray-700 ring-black/10 hover:bg-gray-50 dark:bg-slate-800 dark:text-gray-200 dark:ring-white/10 dark:hover:bg-slate-700'"
+            class="shrink-0"
+            x-bind:class="editing ? 'btn-primary' : 'btn-secondary'"
             x-bind:aria-pressed="editing"
         >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h10M4 18h7m9-3l-3 3-3-3m3 3v-7" /></svg>
