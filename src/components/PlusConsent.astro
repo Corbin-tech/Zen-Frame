@@ -30,15 +30,15 @@ const primary = "rounded-lg bg-teal-700 px-3 py-2 text-sm font-medium text-white
             <li>Brain dump: the text you type, up to 6,000 characters.</li>
             <li>Estimate: the task’s text.</li>
             <li>Nothing else from your planner leaves this device. Your tasks stay in this browser.</li>
-            <li>Suggestions only appear as a preview. Nothing changes until you choose Accept.</li>
+            <li>Each suggestion is a preview. Nothing changes until you choose Accept.</li>
         </ul>
     </details>
 
     <p class="text-sm text-gray-600 dark:text-gray-300" x-show="!$store.assist.consent">
-        You can turn the helpers off again here at any time.
+        You can turn them off here at any time.
     </p>
     <p class="text-sm text-gray-600 dark:text-gray-300" x-show="$store.assist.consent">
-        Turning them off stops sending right away and clears any suggestion you haven’t accepted.
+        Turning them off stops sending right away. Any suggestion you haven’t accepted is cleared.
     </p>
 
     <div class="flex flex-wrap gap-2">
