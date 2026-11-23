@@ -1,4 +1,6 @@
 import { cleanCompile, cleanMinutes, cleanText } from './assist/sanitize';
+import { trapFocus } from './focusTrap';
+import { plural } from './plural';
 import { loadSessionJson, removeSession, saveSessionJson } from './storage';
 import type { initAssistStore } from '../stores/assistStore';
 import type { AlpineComponent } from 'alpinejs';
@@ -61,22 +63,22 @@ export function brainDump() {
       if (typeof input?.text === 'string' && input.text) {
         this.text = `${this.text}${this.text ? '\n' : ''}${input.text}`.slice(0, 6000);
       }
-      const detail = { name: 'brain-dump', opener: null as HTMLElement | null };
-      window.dispatchEvent(new CustomEvent('overlay-opened', { detail }));
-      this.opener = detail.opener || document.activeElement as HTMLElement;
+      if (!this.open) {
+        const detail = { name: 'brain-dump', opener: null as HTMLElement | null };
+        window.dispatchEvent(new CustomEvent('overlay-opened', { detail }));
+        this.opener = detail.opener || document.activeElement as HTMLElement;
+      }
       this.open = true;
       this.$nextTick(() => this.$refs.draft.focus());
     },
-    close() {
+    close(restoreFocus = true) {
       this.open = false;
-      this.opener?.focus();
+      const opener = this.opener;
+      this.opener = null;
+      if (restoreFocus && opener?.isConnected && opener.focus) this.$nextTick(() => opener.focus());
     },
     trap(event: KeyboardEvent) {
-      const elements = Array.from((this.$refs.dialog as HTMLElement).querySelectorAll<HTMLElement>('button:not(:disabled), textarea, input, select'))
-        .filter(element => element.getClientRects().length);
-      const first = elements[0], last = elements[elements.length - 1];
-      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
-      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+      trapFocus(event, this.$refs.dialog as HTMLElement);
     },
     existing(name: string) {
       const match = todos().clusters.find(item => item.todo.trim().toLowerCase() === cleanText(name, 60).toLowerCase());
@@ -108,7 +110,7 @@ export function brainDump() {
       assist().discard();
       this.text = '';
       this.$nextTick(() => removeSession(KEY));
-      this.announcement = `Added ${count} tasks. Your draft is cleared.`;
+      this.announcement = `Added ${plural(count, 'task')}. Your draft is cleared.`;
     },
     discard() { assist().discard(); this.announcement = 'Preview discarded. Your draft is kept.'; }
   });
