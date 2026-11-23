@@ -116,3 +116,31 @@ test('clean goal and note fields still refresh from cross-tab edits', async ({ c
   await expect(b.locator('textarea[name="goal-notes"]')).toHaveValue('Updated why');
   await expect(b.getByRole('textbox', { name: 'Note', exact: true })).toHaveValue('Updated note');
 });
+
+test('undoing a draft after a remote edit catches up on blur', async ({ context, page: a }) => {
+  await a.goto('/');
+  await a.locator('button[data-tab="goals"]').click();
+  await a.getByRole('textbox', { name: 'New goal', exact: true }).fill('Ship release');
+  await a.getByRole('button', { name: 'Add', exact: true }).click();
+  await a.getByRole('button', { name: 'Add notes & settings', exact: true }).click();
+  await a.locator('textarea[name="goal-notes"]').fill('Original why');
+  await a.locator('textarea[name="goal-notes"]').blur();
+
+  const b = await context.newPage();
+  await b.goto('/');
+  await b.locator('button[data-tab="goals"]').click();
+  await b.getByRole('button', { name: 'Notes & settings', exact: true }).click();
+  const bNotes = b.locator('textarea[name="goal-notes"]');
+  await expect(bNotes).toHaveValue('Original why');
+
+  // Start a local draft in Tab B, then save a remote edit in Tab A
+  await bNotes.fill('Temporary draft');
+  await a.locator('textarea[name="goal-notes"]').fill('Remote why');
+  await a.locator('textarea[name="goal-notes"]').blur();
+  await expect(bNotes).toHaveValue('Temporary draft');
+
+  // Undo back to the pre-focus value and blur (browser fires blur without change)
+  await bNotes.fill('Original why');
+  await bNotes.blur();
+  await expect(bNotes).toHaveValue('Remote why');
+});

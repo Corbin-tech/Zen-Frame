@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { syncDraft } from '../src/lib/syncDraft';
+import { resetDraft, syncDraft } from '../src/lib/syncDraft';
 
 describe('syncDraft', () => {
   it('initializes an input and refreshes it when clean', () => {
@@ -35,5 +35,21 @@ describe('syncDraft', () => {
     syncDraft(el, 'Saved locally');
     syncDraft(el, 'Later remote edit');
     expect(el.value).toBe('Later remote edit');
+  });
+
+  it('catches up to remote edits when a canceled draft blurs without firing change', () => {
+    const el = { value: '' };
+    syncDraft(el, 'Original');
+    el.value = 'Draft';
+    syncDraft(el, 'Remote edit');
+    expect(el.value).toBe('Draft');
+
+    // User undoes back to Original and blurs (no change event fires)
+    el.value = 'Original';
+    resetDraft(el, 'Remote edit');
+    expect(el.value).toBe('Remote edit');
+
+    syncDraft(el, 'Next remote edit');
+    expect(el.value).toBe('Next remote edit');
   });
 });
