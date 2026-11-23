@@ -1,5 +1,5 @@
 import { formatTime, minutesNow } from "../lib/dates.ts";
-import { loadJson, loadString, saveJson } from "../lib/storage.ts";
+import { loadJson, saveJson } from "../lib/storage.ts";
 import { UNDO_TOAST_MS } from "../lib/notifications.ts";
 
 export const CYCLE_LENGTH = 4;
@@ -171,21 +171,23 @@ export function initPomoStore() {
         else this.runTimer(running.endsAt);
       }
 
-      // Space starts or pauses the timer when on Pomodoro (or Zen Mode, which shows the timer
-      // with each task), unless the user is typing, on a control, or a dialog is open
+      // Space starts or pauses the timer only while a timer is on screen (the Timer view, or the
+      // ring in Next step, where it starts focus on the shown task), unless the user is typing,
+      // on a control, holding a modifier, or a dialog is open
       document.addEventListener("keydown", (e: KeyboardEvent) => {
-        if (e.code !== "Space") return;
+        if (e.code !== "Space" || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
         const target = e.target as Element | null;
         if (target?.closest("input, textarea, select, button, [role='button'], [contenteditable], [role='dialog']")) return;
         if (Array.from(document.querySelectorAll("[role='dialog']")).some(dialog => dialog.checkVisibility())) return;
-        const activeTab = loadString("activeTab", "dashboard");
+        const timer = Array.from(document.querySelectorAll<HTMLElement>("[data-pomo-timer]")).find(el => el.checkVisibility());
+        if (!timer) return;
+        const inNextStep = timer.dataset.pomoTimer === "zenmode";
         const todos = todosApi();
-        const zenTimerActive = activeTab === "zenmode" && Boolean(todos?.nextTask);
-        if (activeTab !== "pomodoro" && !zenTimerActive) return;
+        if (inNextStep && !this.isRunning && !todos?.nextTask) return;
         e.preventDefault();
         if (this.isRunning) {
           this.pauseTimer();
-        } else if (activeTab === "zenmode") {
+        } else if (inNextStep) {
           this.startFocus(todos?.nextTask?.id);
         } else {
           this.startTimer();
