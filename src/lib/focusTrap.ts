@@ -1,4 +1,5 @@
 export function trapFocus(event: KeyboardEvent, panel: HTMLElement) {
+    if (event.altKey || event.ctrlKey || event.metaKey) return;
     const focusable = Array.from(panel.querySelectorAll<HTMLElement>('a[href], button, input, select, textarea, [tabindex]'))
         .filter(element => element.tabIndex >= 0 && !element.matches(':disabled') && element.getClientRects().length);
     const first = focusable[0], last = focusable[focusable.length - 1];

@@ -5,6 +5,7 @@ import { dispatchToast } from "../lib/notifications";
 import type { Milestone } from "./settingsStore";
 import { blockMinutes } from "../lib/estimates";
 import { cleanStepTotal } from "../lib/assist/sanitize";
+import { mergeLists } from "../lib/mergeLists";
 
 export interface Todo {
   id: string;
@@ -96,19 +97,9 @@ const NEW_CLUSTER_NAME = "New cluster";
 const PERSISTED_KEYS = ["todos", "skippedClusters", "scheduledItems", "planning", "history"] as const;
 type PersistedKey = typeof PERSISTED_KEYS[number];
 
-function mergeLists<T extends string | { id: string } | CompletionRecord>(base: T[], local: T[], remote: T[]): T[] {
-  const identity = (entry: string | { id: string } | CompletionRecord): string => typeof entry === "string" ? entry
+function persistedIdentity(entry: string | { id: string } | CompletionRecord): string {
+  return typeof entry === "string" ? entry
     : "id" in entry ? entry.id : JSON.stringify([entry.taskId, entry.at, entry.blockId]);
-  const before = new Map(base.map(entry => [identity(entry), JSON.stringify(entry)]));
-  const current = new Map(local.map(entry => [identity(entry), entry]));
-  const merged = new Map(remote.map(entry => [identity(entry), entry]));
-  for (const id of before.keys()) {
-    if (!current.has(id)) merged.delete(id);
-  }
-  for (const [id, entry] of current) {
-    if (before.get(id) !== JSON.stringify(entry)) merged.set(id, entry);
-  }
-  return [...merged.values()];
 }
 
 // Cluster colors, picked in this order for new clusters. Each key is a CSS variable
@@ -130,10 +121,6 @@ function createTodosStore() {
 
     get clusters(): Todo[] {
       return this.items.filter(item => item.isCluster);
-    },
-
-    get hasCompletedTasks(): boolean {
-      return this.items.some(item => item.completed);
     },
 
     // What statistics count: finished tasks, plus one entry for each ticked day of a repeating
@@ -192,7 +179,7 @@ function createTodosStore() {
       const dirty = merge && base !== undefined && JSON.stringify(local) !== base;
       const load = <T extends string | { id: string } | CompletionRecord>(remote: T[]): T[] => {
         this.savedJson[key] = JSON.stringify(remote);
-        return dirty ? mergeLists<T>(JSON.parse(base!), local as T[], remote) : remote;
+        return dirty ? mergeLists<T>(JSON.parse(base!), local as T[], remote, persistedIdentity) : remote;
       };
       switch (key) {
         case "todos": this.items = load(loadJson<Todo[]>(key, [])); break;
@@ -622,7 +609,7 @@ function createTodosStore() {
     // The biggest thing a just-finished task wraps up: every open task, its cluster, or only itself
     milestoneOf(task: Todo): Milestone {
       if (!this.openTasks.length) return "all";
-      return this.siblingsOf(task).every(item => item.completed) ? "cluster" : "task";
+      return this.siblingsOf(task, false).every(item => item.completed) ? "cluster" : "task";
     },
 
     // Set completion with toggleTodo, not here, so history stays in step.
@@ -653,6 +640,7 @@ function createTodosStore() {
       const task = this.find(taskId);
       if (!task || task.isCluster) return false;
       const clusterId = target.clusterId ?? null;
+      const sameCluster = (task.parentId ?? null) === clusterId;
 
       if (target.beforeId || target.afterId) {
         if (target.beforeId === taskId || target.afterId === taskId) return false; // Dropped on itself
@@ -662,10 +650,11 @@ function createTodosStore() {
         const index = items.findIndex(item => item.id === anchor.id);
         if (index === -1) return false;
         items.splice(index + (target.beforeId ? 0 : 1), 0, task);
-        // The same place it already sat: nothing to save
-        if (items.every((item, i) => item === this.items[i])) return false;
-        this.items = items;
-      } else if ((task.parentId ?? null) === clusterId) {
+        const sameOrder = items.every((item, i) => item === this.items[i]);
+        // The same place in the same cluster: nothing to save
+        if (sameOrder && sameCluster) return false;
+        if (!sameOrder) this.items = items;
+      } else if (sameCluster) {
         return false;
       }
 
@@ -707,9 +696,16 @@ function createTodosStore() {
       this.saveTodos();
     },
 
-    // Tasks in the same cluster, or all unclustered tasks
-    siblingsOf(task: Todo): Todo[] {
-      return this.items.filter(item => !item.isCluster && item.parentId === task.parentId);
+    // Tasks in the same cluster (or all unclustered tasks). By default matches the
+    // task's completion state so reordering and position helpers stay within the
+    // rendered list (open vs completed) and skip hidden siblings.
+    siblingsOf(task: Todo, sameCompletion = true): Todo[] {
+      const parentId = task.parentId ?? null;
+      return this.items.filter(item =>
+        !item.isCluster
+        && (item.parentId ?? null) === parentId
+        && (!sameCompletion || item.completed === task.completed)
+      );
     },
 
     swapItems(firstId: string, secondId: string): void {
@@ -724,16 +720,18 @@ function createTodosStore() {
 
     shiftTask(taskId: string, direction: -1 | 1): void {
       const task = this.find(taskId);
-      if (!task) return;
+      if (!task || task.isCluster) return;
 
       const siblings = this.siblingsOf(task);
-      const neighbor = siblings[siblings.findIndex(item => item.id === taskId) + direction];
+      const index = siblings.findIndex(item => item.id === taskId);
+      if (index === -1) return;
+      const neighbor = siblings[index + direction];
       if (neighbor) this.swapItems(taskId, neighbor.id);
     },
 
     getTaskPosition(taskId: string): number {
       const task = this.find(taskId);
-      if (!task) return 0;
+      if (!task || task.isCluster) return 0;
       return this.siblingsOf(task).findIndex(item => item.id === taskId) + 1;
     },
 
@@ -743,7 +741,8 @@ function createTodosStore() {
 
     isLastTask(taskId: string): boolean {
       const task = this.find(taskId);
-      return Boolean(task) && this.getTaskPosition(taskId) === this.siblingsOf(task).length;
+      if (!task || task.isCluster) return false;
+      return this.getTaskPosition(taskId) === this.siblingsOf(task).length;
     },
 
     shiftCluster(clusterId: string, direction: -1 | 1): void {

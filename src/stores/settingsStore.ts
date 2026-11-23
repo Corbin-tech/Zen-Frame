@@ -8,10 +8,10 @@ import { applyAccentFavicon } from "../lib/favicon";
 // the matching CSS lives in src/styles/preferences.css.
 
 const ACCENTS = [
-  { id: "teal", label: "Teal", swatch: "#047481" },
+  { id: "teal", label: "Teal", swatch: "#036672" },
   { id: "ocean", label: "Ocean", swatch: "#0284c7" },
   { id: "lavender", label: "Lavender", swatch: "#7c3aed" },
-  { id: "rose", label: "Rose", swatch: "#e11d48" },
+  { id: "rose", label: "Rose", swatch: "#be123c" },
   { id: "sunset", label: "Sunset", swatch: "#ea580c" },
   { id: "forest", label: "Forest", swatch: "#059669" },
   { id: "midnight", label: "Midnight", swatch: "#4f46e5" },
@@ -65,7 +65,7 @@ export const DASHBOARD_WIDGETS = [
   { id: "clusters", label: "Clusters", hint: "Progress for each cluster", zone: "column" },
   { id: "completed", label: "Tasks completed", hint: "The last 7 days", zone: "column" },
   { id: "upnext", label: "Up next", hint: "The next task, with a focus button", zone: "column" },
-  { id: "deadlines", label: "Deadlines", hint: "Overdue and the next 14 days", zone: "column" },
+  { id: "deadlines", label: "Deadlines", hint: "Past due and the next 14 days", zone: "column" },
   { id: "recent", label: "Recently completed", hint: "Your last few finished tasks", zone: "column" },
   { id: "focus", label: "Focus timer", hint: "Start a Pomodoro from here", zone: "column" },
   { id: "goals", label: "Goals", hint: "Progress on your open goals", zone: "column" },
@@ -257,6 +257,7 @@ function loadSettings(): Settings {
 export function initSettingsStore() {
   return {
     ...DEFAULTS,
+    savedJson: {} as Partial<Record<keyof Settings, string>>,
     accents: ACCENTS,
     fonts: FONTS,
     textSizes: TEXT_SIZES,
@@ -272,9 +273,14 @@ export function initSettingsStore() {
 
     // Alpine calls init() when the store is registered
     init(): void {
-      Object.assign(this, loadSettings());
+      this.load();
       this.notificationPermission = permission();
       this.apply();
+      window.addEventListener("storage", event => {
+        if (event.storageArea !== localStorage || (event.key !== null && event.key !== "settings")) return;
+        this.load();
+        this.apply();
+      });
     },
 
     get firstName(): string {
@@ -306,9 +312,25 @@ export function initSettingsStore() {
       this.setDashboardLayout(structuredClone(DEFAULT_DASHBOARD));
     },
 
-    save(this: Settings): void {
+    load(): void {
+      const remote = loadSettings();
+      for (const key of Object.keys(DEFAULTS) as (keyof Settings)[]) {
+        const base = this.savedJson[key];
+        if (base === undefined || JSON.stringify(this[key]) === base) {
+          Object.assign(this, { [key]: remote[key] });
+        }
+        this.savedJson[key] = JSON.stringify(remote[key]);
+      }
+    },
+
+    save(): void {
+      this.load();
       const saved = Object.fromEntries(Object.keys(DEFAULTS).map(key => [key, this[key as keyof Settings]]));
-      saveJson("settings", saved);
+      const dirty = (Object.keys(DEFAULTS) as (keyof Settings)[]).some(key => JSON.stringify(this[key]) !== this.savedJson[key]);
+      if (dirty && saveJson("settings", saved)) {
+        for (const key of Object.keys(DEFAULTS) as (keyof Settings)[]) this.savedJson[key] = JSON.stringify(this[key]);
+      }
+      this.apply();
     },
 
     // Turning reminders on asks the browser for permission (it must follow a click).

@@ -4,6 +4,8 @@ import { cleanMinutes } from "./sanitize.ts";
 export function normalizeLoadedTodo(item: Todo): Todo {
   return {
     ...item,
+    // Templates call string methods on the title, so a task without one gets an empty title
+    todo: typeof item.todo === "string" ? item.todo : "",
     parentId: item.parentId ?? null,
     // A restored backup may carry anything here, so keep only well-formed values
     estimateMinutes: cleanMinutes(item.estimateMinutes),

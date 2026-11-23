@@ -12,7 +12,7 @@ const button = 'rounded-lg px-3 py-2 text-sm font-medium focus-visible:outline f
             </header>
             <p class="text-sm text-gray-500 dark:text-gray-400">Get it out of your head. Review and edit before adding anything.</p>
             <label class="block text-sm font-medium">What's on your mind?
-                <textarea x-ref="draft" x-model="text" maxlength="6000" rows="4" class={`${field} mt-1`} placeholder="Things to do, errands, ideas…"></textarea>
+                <textarea name="brain-dump-text" x-ref="draft" x-model="text" maxlength="6000" rows="4" class={`${field} mt-1`} placeholder="Things to do, errands, ideas…"></textarea>
             </label>
             <p id="brain-dump-gate" x-show="$store.assist.aiStatus !== 'ready'" class="text-sm text-gray-500 dark:text-gray-400">Brain dump is part of Plus (20 free requests to try it). You can still draft here.</p>
             <div class="flex items-center gap-3">
@@ -29,19 +29,19 @@ const button = 'rounded-lg px-3 py-2 text-sm font-medium focus-visible:outline f
                     <template x-for="cluster in clusters" :key="cluster.id">
                         <section class="rounded-xl border border-gray-200 dark:border-slate-700 p-3 space-y-3" x-on:dragover.prevent x-on:drop.prevent="drop(cluster.id)">
                             <label class="block text-sm font-medium">Cluster name
-                                <input type="text" maxlength="60" x-model="cluster.name" class={`${field} mt-1`} />
+                                <input type="text" name="brain-dump-cluster-name" autocomplete="off" maxlength="60" x-model="cluster.name" class={`${field} mt-1`} />
                             </label>
                             <p class="text-xs text-teal-700 dark:text-teal-300" x-show="existing(cluster.name)" x-text="existing(cluster.name)"></p>
                             <template x-for="task in cluster.tasks" :key="task.id">
                                 <div class="rounded-lg bg-gray-50 dark:bg-slate-800/50 p-2 space-y-2">
                                     <div class="flex items-center gap-2">
-                                        <label class="flex items-center gap-2 text-xs shrink-0"><input type="checkbox" x-model="task.included" class="rounded text-teal-600 focus:ring-teal-500" /> Keep</label>
+                                        <label class="flex items-center gap-2 text-xs shrink-0"><input type="checkbox" name="brain-dump-keep" x-model="task.included" class="rounded text-teal-600 focus:ring-teal-500" /> Keep</label>
                                         <span draggable="true" x-on:dragstart="dragging = { cluster: cluster.id, task: task.id }; $event.dataTransfer.setData('text/plain', 'brain-dump-task')" x-on:dragend="dragging = null" class="cursor-grab text-xs text-gray-500 dark:text-gray-400" title="Drag task to a cluster">⠿ Drag</span>
                                         <span class="text-sm truncate" x-text="task.text"></span>
                                     </div>
-                                    <label class="block text-xs">Task text<input type="text" maxlength="200" x-model="task.text" x-on:change="normalize(task)" class={`${field} mt-1`} /></label>
+                                    <label class="block text-xs">Task text<input type="text" name="brain-dump-task-text" autocomplete="off" maxlength="200" x-model="task.text" x-on:change="normalize(task)" class={`${field} mt-1`} /></label>
                                     <div class="grid grid-cols-2 gap-2">
-                                        <label class="text-xs">Minutes<input type="number" min="1" max="480" step="1" x-model="task.minutes" x-on:change="normalize(task)" class={`${field} mt-1`} /></label>
+                                        <label class="text-xs">Minutes<input type="number" name="brain-dump-task-minutes" autocomplete="off" min="1" max="480" step="1" x-model="task.minutes" x-on:change="normalize(task)" class={`${field} mt-1`} /></label>
                                         <label class="text-xs">Move to<select x-bind:id="'brain-move-' + task.id" x-bind:value="cluster.id" x-on:change="move(cluster.id, task.id, Number($event.target.value))" class={`${field} mt-1`}>
                                             <template x-for="target in clusters" :key="target.id"><option x-bind:value="target.id" x-bind:selected="target.id === cluster.id" x-text="target.name"></option></template>
                                         </select></label>

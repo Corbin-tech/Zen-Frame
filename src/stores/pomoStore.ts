@@ -3,9 +3,9 @@ import { loadJson, loadString, saveJson } from "../lib/storage.ts";
 import { UNDO_TOAST_MS } from "../lib/notifications.ts";
 
 export const CYCLE_LENGTH = 4;
-export const MIN_MINUTES = 1;
-export const MAX_WORK_MINUTES = 180;
-export const MAX_BREAK_MINUTES = 60;
+const MIN_MINUTES = 1;
+const MAX_WORK_MINUTES = 180;
+const MAX_BREAK_MINUTES = 60;
 
 export interface CustomDurations {
   work: number;
@@ -13,7 +13,7 @@ export interface CustomDurations {
   longBreak: number;
 }
 
-export const DEFAULT_CUSTOM: CustomDurations = { work: 30, break: 5, longBreak: 15 };
+const DEFAULT_CUSTOM: CustomDurations = { work: 30, break: 5, longBreak: 15 };
 
 // Minutes for each built-in preset
 export const POMO_DURATIONS = {
@@ -152,6 +152,10 @@ export function initPomoStore() {
     // Alpine calls init() when the store is registered
     init(): void {
       this.loadState();
+      window.addEventListener("storage", event => {
+        if (event.storageArea !== localStorage) return;
+        if (event.key === null || event.key === "pomoSessions") this.loadSessions();
+      });
       const running = loadRunningTimer();
       if (running) {
         this.preset = running.preset;
@@ -319,15 +323,17 @@ export function initPomoStore() {
       };
       this.clearUndo();
       this.undoSnapshot = snapshot;
+      // Read it back: in an Alpine store this is a reactive proxy, which never equals the raw object.
+      const stored = this.undoSnapshot;
       this.undoTimer = setTimeout(() => {
-        if (this.undoSnapshot === snapshot) this.clearUndo();
+        if (this.undoSnapshot === stored) this.clearUndo();
       }, UNDO_WINDOW_MS);
       window.dispatchEvent(new CustomEvent("app-toast", {
         detail: {
           title,
           body: "",
           actionLabel: "Undo",
-          onAction: () => this.restoreSnapshot(snapshot)
+          onAction: () => this.restoreSnapshot(stored)
         }
       }));
     },
@@ -385,8 +391,7 @@ export function initPomoStore() {
       const finishedMinutes = Math.round(this.totalTime / 60);
       if (!finishedWasBreak) {
         const completedAt = new Date(endsAt).toISOString();
-        const saved = loadJson<FocusSession[]>("pomoSessions", this.sessions);
-        this.sessions = Array.isArray(saved) ? saved : [];
+        this.loadSessions();
         if (!this.sessions.some((session) => session?.completedAt === completedAt)) {
           const task = this.focusTask === undefined ? this.activeTask : this.focusTask;
           const todos = window.Alpine.store("todos") as PomoTodosApi | undefined;
@@ -436,7 +441,7 @@ export function initPomoStore() {
     toggleBreak(announceUndo = true): void {
       this.lastCompleted = null;
       if (announceUndo && this.started) {
-        this.offerUndo(this.isBreak ? "Switched to Focus" : "Switched to Break");
+        this.offerUndo(this.isBreak ? "Switched to focus" : "Switched to break");
       }
       this.isBreak = !this.isBreak;
       this.isLongBreak = false;
@@ -517,8 +522,13 @@ export function initPomoStore() {
         : 0;
       this.isLongBreak = Boolean(state.isLongBreak && this.isBreak);
       this.selectedTaskId = typeof state.selectedTaskId === "string" ? state.selectedTaskId : null;
-      const savedSessions = loadJson<FocusSession[]>("pomoSessions", []);
-      this.sessions = Array.isArray(savedSessions) ? savedSessions : [];
+      this.loadSessions([]);
+    },
+
+    // A missing key means the history was cleared (here or in another tab), so it is empty.
+    // A failed read keeps `fallback`, which is the in-memory history unless the caller passes one.
+    loadSessions(fallback?: FocusSession[]): void {
+      this.sessions = loadJson<FocusSession[]>("pomoSessions", fallback ?? this.sessions, []);
     }
   };
 }

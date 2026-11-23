@@ -16,6 +16,7 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
     x-on:open-feedback.window="open()"
     x-on:overlay-opened.window="if (isOpen && $event.detail.name !== 'feedback') { $event.detail.opener = returnFocus; close(false); }"
     x-on:keydown.escape.window="isOpen && close()"
+    x-on:keydown.tab.window="if (isOpen) trap($event)"
 >
     <div x-show="isOpen" x-cloak x-transition.opacity.duration.200ms class="fixed inset-0 z-[55] bg-slate-900/40 backdrop-blur-sm" x-on:click="close()" aria-hidden="true"></div>
 
@@ -26,6 +27,7 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
         x-transition:enter-start="opacity-0 translate-y-3 scale-[0.98]"
         x-transition:enter-end="opacity-100 translate-y-0 scale-100"
         class="fixed z-[56] inset-x-3 bottom-3 sm:inset-x-auto sm:bottom-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:w-[28rem] max-h-[calc(100vh-1.5rem)] overflow-y-auto rounded-2xl bg-white dark:bg-slate-900 shadow-2xl ring-1 ring-black/5 dark:ring-white/10"
+        x-ref="panel"
         role="dialog"
         aria-modal="true"
         aria-labelledby="feedback-title"
@@ -94,7 +96,7 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
             </div>
 
             <label class="flex items-start gap-3 cursor-pointer">
-                <input type="checkbox" x-model="includeDetails" class="mt-0.5 w-4 h-4 rounded border-gray-300 dark:border-slate-500 text-teal-600 focus:ring-teal-500 dark:bg-slate-700" />
+                <input type="checkbox" name="feedback-include-details" x-model="includeDetails" class="mt-0.5 w-4 h-4 rounded border-gray-300 dark:border-slate-500 text-teal-600 focus:ring-teal-500 dark:bg-slate-700" />
                 <span>
                     <span class="block text-sm font-medium text-gray-900 dark:text-white">Include app details</span>
                     <span class="block text-xs text-gray-500 dark:text-gray-400">Browser, screen size, and the open tab. Never your tasks or notes.</span>
@@ -125,13 +127,14 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
             <p class="mt-1 text-sm text-gray-500 dark:text-gray-400" x-text="email
                 ? 'Your email app should open with the message ready. Press send there to deliver it.'
                 : 'Your feedback is copied. Paste it into an email or message.'"></p>
-            <button type="button" x-on:click="close()" class="mt-6 px-4 py-2 text-sm font-semibold rounded-lg bg-teal-600 text-white hover:bg-teal-700">Done</button>
+            <button type="button" x-ref="done" x-on:click="close()" class="mt-6 px-4 py-2 text-sm font-semibold rounded-lg bg-teal-600 text-white hover:bg-teal-700">Done</button>
         </div>
     </div>
 </div>
 
 <script>
     import { loadJson, loadString, saveJson } from '../lib/storage';
+    import { trapFocus } from '../lib/focusTrap';
 
     const KINDS = [
         { id: 'idea', label: 'Idea', prompt: 'What would make Zen Frame better?' },
@@ -176,6 +179,10 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
                 if (restoreFocus) this.returnFocus?.focus?.();
             },
 
+            trap(event) {
+                trapFocus(event, this.$refs.panel);
+            },
+
             details() {
                 return [
                     `Tab: ${loadString('activeTab', 'dashboard')}`,
@@ -212,6 +219,7 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
                 this.step = 'sent';
                 this.message = '';
                 this.rating = 0;
+                this.$nextTick(() => this.$refs.done.focus());
             }
         }));
     });
