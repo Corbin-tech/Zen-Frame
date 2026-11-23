@@ -192,7 +192,9 @@ const fieldLabel = 'block text-xs font-medium text-gray-500 dark:text-gray-400 m
                 if (this.open || event.defaultPrevented || event.key.toLowerCase() !== 'n' || event.metaKey || event.ctrlKey || event.altKey) return;
                 const target = event.target instanceof Element ? event.target : null;
                 if (target?.closest('input, textarea, select, [contenteditable], [role="dialog"]')) return;
-                if (Array.from(document.querySelectorAll('[role="dialog"]')).some(dialog => dialog.checkVisibility())) return;
+                if (Array.from(document.querySelectorAll('[role="dialog"]')).some(dialog =>
+                    typeof dialog.checkVisibility === 'function' ? dialog.checkVisibility() : dialog.getClientRects().length > 0
+                )) return;
                 event.preventDefault();
                 this.show();
             },
