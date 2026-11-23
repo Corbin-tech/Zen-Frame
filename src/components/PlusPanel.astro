@@ -7,10 +7,10 @@ const primary = "rounded-lg bg-teal-700 px-3 py-2 text-sm font-medium text-white
 <section x-data x-cloak aria-labelledby="plus-title" class="space-y-4 rounded-xl border border-gray-200 p-5 text-gray-900 dark:border-slate-700 dark:text-white">
     <header>
         <h2 id="plus-title" class="text-lg font-semibold" tabindex="-1" x-ref="title">Zen Frame Plus</h2>
-        <p class="text-sm text-gray-600 dark:text-gray-300">AI task helpers for breaking down tasks, organizing a brain dump, and estimating time.</p>
+        <p class="text-sm text-gray-600 dark:text-gray-300">Optional AI help for breaking tasks into steps, sorting a brain dump, and estimating time.</p>
     </header>
 
-    <p x-show="$store.plus.error" x-text="$store.plus.error" role="alert" class="text-sm text-red-700 dark:text-red-300"></p>
+    <p x-show="$store.plus.error" x-text="$store.plus.error" role="alert" class="rounded-lg bg-warmth/35 px-3 py-2 text-sm text-gray-900 dark:bg-warmth/10 dark:text-warmth-light"></p>
 
     <p role="status" class="sr-only" x-text="$store.plus.refreshing ? 'Checking your sign-in…' : $store.plus.error"></p>
 

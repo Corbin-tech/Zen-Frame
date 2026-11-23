@@ -15,7 +15,7 @@ const {
     fallbackFocus = '$refs.checklistSummary?.getClientRects().length ? $refs.checklistSummary : $root.closest(".task-item")?.querySelector("[name=task-name]")'
 } = Astro.props;
 const box = 'rounded-xl border border-gray-200 bg-white/85 p-3 text-left dark:border-slate-600 dark:bg-slate-900/70';
-const checkbox = 'h-5 w-5 shrink-0 rounded border-gray-400 text-teal-700 focus:ring-teal-500 dark:border-slate-500 dark:bg-slate-800';
+const checkbox = 'h-5 w-5 shrink-0 rounded-full border-gray-400 text-teal-700 focus:ring-teal-500 dark:border-slate-500 dark:bg-slate-800';
 const action = 'min-h-9 rounded-lg px-2 py-1 text-sm font-medium text-teal-800 hover:bg-teal-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 dark:text-teal-300 dark:hover:bg-slate-700';
 ---
 
@@ -34,7 +34,7 @@ const action = 'min-h-9 rounded-lg px-2 py-1 text-sm font-medium text-teal-800 h
                 <p class="text-gray-600 dark:text-gray-300" x-text="stepProgress"></p>
             </div>
             <label x-show="nextStep" class="mt-1 flex min-h-10 cursor-pointer items-center gap-3 text-gray-900 dark:text-gray-100">
-                <input type="checkbox" class={checkbox} x-bind:checked="false" x-on:change="finishNextStep($event.currentTarget)" />
+                <input type="checkbox" name="task-next-step" class={checkbox} x-bind:checked="false" x-on:change="finishNextStep($event.currentTarget)" />
                 <span class="min-w-0 flex-1 break-words" x-text="nextStep?.text"></span>
                 <span x-show="nextStep?.minutes" class="shrink-0 text-xs text-gray-600 dark:text-gray-300" x-text="`${nextStep?.minutes} min`"></span>
             </label>
@@ -49,7 +49,7 @@ const action = 'min-h-9 rounded-lg px-2 py-1 text-sm font-medium text-teal-800 h
                 <template x-for="step in savedSteps" x-bind:key="step.id">
                     <li>
                         <label class="flex min-h-9 cursor-pointer items-center gap-3 text-sm text-gray-900 dark:text-gray-100">
-                            <input type="checkbox" class={checkbox} x-bind:checked="step.done" x-on:change="toggleSavedStep(step.id)" />
+                            <input type="checkbox" name="task-saved-step" class={checkbox} x-bind:checked="step.done" x-on:change="toggleSavedStep(step.id)" />
                             <span class="min-w-0 flex-1 break-words" x-text="step.text"></span>
                             <span x-show="step.minutes" class="shrink-0 text-xs text-gray-600 dark:text-gray-300" x-text="`${step.minutes} min`"></span>
                         </label>
@@ -61,7 +61,7 @@ const action = 'min-h-9 rounded-lg px-2 py-1 text-sm font-medium text-teal-800 h
     <div x-show="savedSteps.length" class="text-left">
         <button x-bind:hidden="confirming" type="button" x-ref="promote" x-on:click="showPromotion()" class={action}>Promote steps to cluster</button>
         <div hidden x-bind:hidden="!confirming" x-on:keydown.escape.stop="hidePromotion()" class={box}>
-            <p class="text-sm text-gray-700 dark:text-gray-200">Each promotion creates a separate cluster and adds any checked steps to your completion history. The original task and checklist stay as they are.</p>
+            <p class="text-sm text-gray-700 dark:text-gray-200">Create a separate cluster from these steps. Checked steps are added to your completion history. Your original task and checklist stay as they are.</p>
             <div class="mt-2 flex flex-wrap gap-2">
                 <button type="button" x-ref="promoteCancel" x-on:click="hidePromotion()" class={action}>Cancel</button>
                 <button type="button" x-on:click="promote()" class="min-h-9 rounded-lg bg-teal-700 px-3 py-1 text-sm font-medium text-white hover:bg-teal-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">Create cluster</button>

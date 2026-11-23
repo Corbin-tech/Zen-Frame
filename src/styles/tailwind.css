@@ -17,13 +17,22 @@
    a hairline edge, a faint top highlight, and a shadow only as deep as it needs to be. */
 @layer components {
 	.panel {
-		@apply rounded-2xl ring-1 ring-stone-900/[0.07] dark:ring-white/[0.08];
+		@apply rounded-xl ring-1 ring-gray-900/[0.07] dark:ring-white/[0.08];
 		background-color: var(--card-bg);
 		/* The ring variables come first so the ring-1 edge and hover:ring-* colors still show */
-		box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), 0 1px 2px rgb(28 25 23 / 0.04), 0 4px 12px -6px rgb(28 25 23 / 0.06);
+		box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), 0 1px 2px rgb(23 63 58 / 0.03), 0 2px 8px -4px rgb(23 63 58 / 0.04);
 	}
 	:root.dark .panel {
-		box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), inset 0 1px 0 rgb(255 255 255 / 0.04), 0 1px 2px rgb(0 0 0 / 0.25);
+		box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), inset 0 1px 0 rgb(255 255 255 / 0.04), 0 1px 2px rgb(0 0 0 / 0.18);
+	}
+
+	/* Unified button system: soft corners, Inter 500, accent primary and neutral secondary. */
+	.btn-primary {
+		@apply inline-flex items-center justify-center gap-1.5 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-teal-700 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-800 disabled:opacity-50 disabled:cursor-not-allowed;
+	}
+
+	.btn-secondary {
+		@apply inline-flex items-center justify-center gap-1.5 rounded-lg bg-white px-3 py-2 text-sm font-medium text-gray-700 ring-1 ring-black/10 hover:bg-gray-50 dark:bg-slate-800 dark:text-gray-200 dark:ring-white/10 dark:hover:bg-slate-700 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed;
 	}
 
 	/* Raked-sand ripples: the app's one decorative motif. Concentric rings that
@@ -38,5 +47,20 @@
 		opacity: 0.14;
 		-webkit-mask-image: radial-gradient(circle at 100% 0%, black, transparent 70%);
 		mask-image: radial-gradient(circle at 100% 0%, black, transparent 70%);
+	}
+
+	/* Typography: Newsreader for page titles and reflective copy; Inter for eyebrows and controls.
+	   preferences.css overrides font-family to inherit when the user picks another font in Settings. */
+	.page-title {
+		font-family: 'Newsreader Variable', ui-serif, Georgia, serif;
+		@apply text-3xl sm:text-4xl font-normal tracking-tight text-gray-900 dark:text-white;
+	}
+
+	.editorial {
+		font-family: 'Newsreader Variable', ui-serif, Georgia, serif;
+	}
+
+	.eyebrow {
+		@apply text-xs font-medium uppercase tracking-[0.14em] text-gray-500 dark:text-gray-400;
 	}
 }

@@ -1,8 +1,11 @@
 ---
 import { createHash } from 'node:crypto';
+import AppToasts from '../components/AppToasts.astro';
+import Feedback from '../components/Feedback.astro';
 import Footer from '../components/footer.astro';
 import '../styles/tailwind.css';
 import '@fontsource-variable/inter';
+import '@fontsource-variable/newsreader';
 // The browser downloads a font only when it's the one picked in Settings
 import '@fontsource-variable/outfit';
 import '@fontsource-variable/lexend';
@@ -12,9 +15,12 @@ import siteData from '../data/site.json';
 
 interface Props {
 	title: string;
+	description?: string;
 }
 
-const { title } = Astro.props;
+const { title, description = siteData.siteDescription } = Astro.props;
+const canonicalUrl = Astro.site ? new URL(Astro.url.pathname, Astro.site).href : undefined;
+const ogImageUrl = Astro.site ? new URL('/og-image.png', Astro.site).href : undefined;
 
 // Theme, accent, font, text size, and navigation from Settings, applied before the first paint.
 // It has to run inline and first, so the Content Security Policy below allows it by its hash.
@@ -64,11 +70,28 @@ const contentSecurityPolicy = [
 		<script is:inline set:html={preferenceScript}></script>
 
 		<meta name="viewport" content="width=device-width" />
-		<meta name="description" content={siteData.siteDescription} />
+		<meta name="description" content={description} />
 		<meta property="og:title" content={title} />
-		<meta property="og:description" content={siteData.siteDescription} />
+		<meta property="og:description" content={description} />
 		<meta property="og:type" content="website" />
+		{canonicalUrl && <meta property="og:url" content={canonicalUrl} />}
+		{ogImageUrl && (
+			<>
+				<meta property="og:image" content={ogImageUrl} />
+				<meta property="og:image:width" content="1200" />
+				<meta property="og:image:height" content="630" />
+				<meta property="og:image:alt" content="Zen Frame — A calmer way from intention to action. Focus, without the pressure." />
+			</>
+		)}
+		<meta name="twitter:card" content="summary_large_image" />
+		<meta name="twitter:title" content={title} />
+		<meta name="twitter:description" content={description} />
+		{ogImageUrl && <meta name="twitter:image" content={ogImageUrl} />}
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+		<link rel="manifest" href="/site.webmanifest" />
+		<!-- The browser's UI color. themeStore.ts sets it to the page color of the current theme. -->
+		<meta name="theme-color" content="#F7F5EF" />
 		<meta name="generator" content={Astro.generator} />
 		<title>{title}</title>
 		
@@ -140,57 +163,62 @@ const contentSecurityPolicy = [
 		
 		<style is:global>
 			:root {
-				--bg-color: rgb(245 245 244);
+				/* Paper page, white cards (the same white as the bg-white classes) */
+				--bg-color: rgb(247 245 239);
 				--card-bg: rgb(255, 255, 255);
 				--cluster-bg: rgb(255, 255, 255);
 				--task-bg: rgb(255, 255, 255);
 				--teal-primary: rgb(var(--accent-600));
 
-				/* Accent wash, ripple lines and grain behind the page, and the frosted header */
-				--glow-1: rgb(var(--accent-400) / 0.14);
+				/* Ripple lines and grain behind the page, and the frosted header */
 				--ripple: rgb(var(--accent-700) / 0.07);
 				--grain-opacity: 0.18;
-				--glass: rgb(245 245 244 / 0.78);
+				--glass: rgb(247 245 239 / 0.85);
 
-				/* Cluster colors (see CLUSTER_COLORS in todoStore.ts) */
-				--c-teal: #14b8a6;
-				--c-indigo: #6366f1;
-				--c-amber: #f59e0b;
-				--c-sky: #0ea5e9;
-				--c-rose: #f43f5e;
-				--c-violet: #8b5cf6;
-				--c-emerald: #10b981;
-				--c-orange: #f97316;
-				--c-pink: #ec4899;
-				--c-lime: #84cc16;
-				--c-cyan: #06b6d4;
-				--c-fuchsia: #d946ef;
-				--c-none: #94a3b8;
+				/* Cluster colors (see CLUSTER_COLORS in todoStore.ts). Muted, and dark enough
+				   for 4.5:1 as chip text on their own 15% tint (Board.astro, taskManager.astro). */
+				--c-teal: #2d6f67;
+				--c-indigo: #4f5cb7;
+				--c-amber: #7b6132;
+				--c-sky: #386988;
+				--c-rose: #a54454;
+				--c-violet: #7d4bb6;
+				--c-emerald: #2e704f;
+				--c-orange: #8f563a;
+				--c-pink: #a04179;
+				--c-lime: #576c2c;
+				--c-cyan: #316d77;
+				--c-fuchsia: #96419e;
+				--c-none: #9da39a;
 			}
 			
+			/* Pine-tinted dark surfaces: the slate-900, slate-800 and slate-700 steps in tailwind.config.mjs */
 			:root.dark {
-				--bg-color: rgb(15 23 42);
-				--card-bg: rgb(30, 41, 59);
-				--cluster-bg: rgb(51, 65, 85);
-				--task-bg: rgb(30, 41, 59);
+				--bg-color: rgb(13 25 24);
+				--card-bg: rgb(23, 44, 42);
+				--cluster-bg: rgb(36, 70, 66);
+				--task-bg: rgb(23, 44, 42);
 				--teal-primary: rgb(var(--accent-500));
 
-				--glow-1: rgb(var(--accent-500) / 0.12);
 				--ripple: rgb(var(--accent-300) / 0.05);
 				--grain-opacity: 0.3;
-				--glass: rgb(15 23 42 / 0.78);
+				--glass: rgb(13 25 24 / 0.78);
 
-				/* Darker steps keep the cluster colors in a readable band on dark surfaces */
-				--c-teal: #0d9488;
-				--c-amber: #d97706;
-				--c-sky: #0284c7;
-				--c-emerald: #059669;
-				--c-orange: #ea580c;
-				--c-pink: #db2777;
-				--c-lime: #65a30d;
-				--c-cyan: #0891b2;
-				--c-fuchsia: #c026d3;
-				--c-none: #64748b;
+				/* Lighter steps keep cluster-colored chip text at 4.5:1 or more on the lightest
+				   dark surface, the Board card (dark:bg-slate-700/70) */
+				--c-teal: #77ccc0;
+				--c-indigo: #b4bbe3;
+				--c-amber: #d3b98b;
+				--c-sky: #9cc2da;
+				--c-rose: #e0afb7;
+				--c-violet: #c9b4e2;
+				--c-emerald: #7dcea5;
+				--c-orange: #dbb4a0;
+				--c-pink: #e0adca;
+				--c-lime: #a9c86d;
+				--c-cyan: #87c8d1;
+				--c-fuchsia: #dbace0;
+				--c-none: #547a75;
 			}
 
 			html, body {
@@ -212,16 +240,14 @@ const contentSecurityPolicy = [
 				-moz-osx-font-smoothing: grayscale;
 			}
 
-			/* One soft wash of the accent color, with raked-sand ripples spreading from the top right */
+			/* Raked-sand ripples spreading from the top right, over flat paper */
 			body::before {
 				content: '';
 				position: fixed;
 				inset: 0;
 				z-index: -1;
 				pointer-events: none;
-				background:
-					repeating-radial-gradient(circle at 100% 0%, transparent 0 27px, var(--ripple) 27px 28px),
-					radial-gradient(44rem 30rem at 10% -8%, var(--glow-1), transparent 70%);
+				background: repeating-radial-gradient(circle at 100% 0%, transparent 0 27px, var(--ripple) 27px 28px);
 				-webkit-mask-image: linear-gradient(to bottom, black, transparent 75%);
 				mask-image: linear-gradient(to bottom, black, transparent 75%);
 			}
@@ -247,7 +273,7 @@ const contentSecurityPolicy = [
 
 			* {
 				scrollbar-width: thin;
-				scrollbar-color: rgb(148 163 184 / 0.5) transparent;
+				scrollbar-color: rgb(157 163 154 / 0.5) transparent;
 			}
 
 			@media (prefers-reduced-motion: reduce) {
@@ -279,6 +305,8 @@ const contentSecurityPolicy = [
 					<slot />
 				</main>
 			</div>
+			<AppToasts />
+			<Feedback />
 			<Footer />
 		</div>
 	</body>

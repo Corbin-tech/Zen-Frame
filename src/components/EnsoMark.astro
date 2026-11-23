@@ -1,0 +1,17 @@
+---
+// The Zen Frame mark: the refined ensō, in the text color (currentColor) and with no tile.
+// The shape comes from src/lib/favicon.ts, so the mark and the browser-tab icon match.
+import { ENSO_ARC, ENSO_DOT } from '../lib/favicon';
+
+interface Props {
+	class?: string;
+}
+
+const { class: className } = Astro.props;
+---
+
+<!-- The viewBox crops the 32 x 32 grid to the mark, so the mark fills the box -->
+<svg class={className} viewBox="5 5 22 22" aria-hidden="true">
+	<path d={ENSO_ARC} fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+	<circle cx={ENSO_DOT.cx} cy={ENSO_DOT.cy} r="1.45" fill="currentColor" stroke="none" />
+</svg>

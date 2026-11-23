@@ -8,7 +8,7 @@ const field = 'block w-full rounded-lg border-gray-200 dark:border-slate-700 bg-
 const fieldLabel = 'block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1';
 ---
 
-<div x-data="quickAdd" x-on:open-quick-add.window="show($event.detail)" x-on:overlay-opened.window="if (open && $event.detail.name !== 'quick-add') { $event.detail.opener = opener; close(false); }" x-on:keydown.window="shortcut($event)">
+<div x-data="quickAdd" x-on:open-quick-add.window="show($event.detail)" x-on:overlay-opened.window="if (open && $event.detail.name !== 'quick-add') { $event.detail.opener = opener; close(false); }" x-on:keydown.window="shortcut($event)" x-on:keydown.escape.window="if (open) close()" x-on:keydown.tab.window="if (open) trap($event)">
     <!-- Backdrop -->
     <div
         x-show="open"
@@ -29,7 +29,7 @@ const fieldLabel = 'block text-xs font-medium text-gray-500 dark:text-gray-400 m
         x-transition:leave="transition ease-in duration-100"
         x-transition:leave-start="opacity-100"
         x-transition:leave-end="opacity-0"
-        x-on:keydown.escape.stop="close()"
+        x-ref="panel"
         class="fixed z-50 left-1/2 top-[12vh] -translate-x-1/2 w-[calc(100%-2rem)] max-w-lg rounded-2xl bg-white dark:bg-slate-900 shadow-2xl ring-1 ring-black/5 dark:ring-white/10"
         role="dialog"
         aria-modal="true"
@@ -146,6 +146,8 @@ const fieldLabel = 'block text-xs font-medium text-gray-500 dark:text-gray-400 m
 <BrainDump />
 
 <script>
+    import { trapFocus } from '../lib/focusTrap';
+
     document.addEventListener('alpine:init', () => {
         window.Alpine.data('quickAdd', () => ({
             open: false,
@@ -179,6 +181,10 @@ const fieldLabel = 'block text-xs font-medium text-gray-500 dark:text-gray-400 m
                 const opener = this.opener;
                 this.opener = null;
                 if (restoreFocus && opener?.isConnected && opener.focus) this.$nextTick(() => opener.focus());
+            },
+
+            trap(event) {
+                trapFocus(event, this.$refs.panel);
             },
 
             // N opens the window, unless the user is typing somewhere

@@ -64,10 +64,12 @@ export function removeSession(key: string): boolean {
   }
 }
 
-export function loadJson<T>(key: string, fallback: T): T {
+// `fallback` is returned when the read or parse fails, and `missing` when nothing is stored.
+// They differ only for a caller that must tell cleared data from unreadable data.
+export function loadJson<T>(key: string, fallback: T, missing: T = fallback): T {
   try {
     const saved = localStorage.getItem(key);
-    return saved ? normalizeStoredData(key, JSON.parse(saved)) as T : fallback;
+    return saved ? normalizeStoredData(key, JSON.parse(saved)) as T : missing;
   } catch {
     console.error(`Could not read "${key}" from storage; starting empty.`);
     return fallback;

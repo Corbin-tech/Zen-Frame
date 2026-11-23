@@ -39,15 +39,15 @@ const field = 'w-full min-w-0 rounded-lg border border-gray-300 bg-white text-sm
         <div x-bind:hidden="editing" class="space-y-3">
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">
                 Detail level
-                <select x-ref="level" x-model="level" x-bind:disabled="working" class={`${field} mt-1 min-h-10 max-w-xs`}>
+                <select name="breakdown-level" x-ref="level" x-model="level" x-bind:disabled="working" class={`${field} mt-1 min-h-10 max-w-xs`}>
                     <template x-for="option in detailLevels" x-bind:key="option.id">
                         <option x-bind:value="option.id" x-text="option.label"></option>
                     </template>
                 </select>
             </label>
             <p x-show="working" class="text-sm text-gray-600 dark:text-gray-300">Finding steps…</p>
-            <p x-show="error" role="alert" class="text-sm text-red-700 dark:text-red-300" x-text="error"></p>
-            <p x-show="open && !canSuggest && !working" class="text-sm text-gray-600 dark:text-gray-300">Plus suggestions are unavailable.</p>
+            <p x-show="error" role="alert" class="rounded-lg bg-warmth/35 px-3 py-2 text-sm text-gray-900 dark:bg-warmth/10 dark:text-warmth-light" x-text="error"></p>
+            <p x-show="open && !canSuggest && !working" class="text-sm text-gray-600 dark:text-gray-300">Suggestions aren’t available right now. You can still edit this task by hand.</p>
             <div class="flex flex-wrap gap-2">
                 <button
                     x-bind:hidden="working"
@@ -70,6 +70,7 @@ const field = 'w-full min-w-0 rounded-lg border border-gray-300 bg-white text-sm
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">
                             <span x-text="`Step ${index + 1}`"></span>
                             <textarea
+                                name="breakdown-step"
                                 rows="2"
                                 maxlength="200"
                                 x-model="step.text"

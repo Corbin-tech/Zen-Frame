@@ -65,6 +65,11 @@ for (const path of ["load", "import"]) {
     expect(read("pomoSessions", [{ completedAt: at, minutes: 25, taskTitle: null }])).toEqual([
       { completedAt: at, minutes: 25 }]);
   });
+  test(`${path}: gives every todo a string title`, () => {
+    const todos = read("todos", [{ id: "missing", text: "Ship a feature" }, { id: "null", todo: null },
+      { id: "number", todo: 42 }, { id: "object", todo: {} }, { id: "valid", todo: "Write" }]);
+    expect(todos.map((todo: { todo: unknown }) => todo.todo)).toEqual(["", "", "", "", "Write"]);
+  });
   test(`${path}: normalizes existing todo fields and keeps valid values`, () => {
     const [todo] = read("todos", [{ id: "a", zenDeferredStart: at, estimateMinutes: -1,
       steps: [null, { text: "step", id: "s", done: "yes", minutes: -1 }] }]);
