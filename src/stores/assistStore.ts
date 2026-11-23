@@ -1,7 +1,7 @@
 import { DETAIL_LEVELS, pickProvider, type AssistProvider, type CompiledCluster, type DetailLevel, type EstimateResult, type ProviderStatus, type StepSuggestion } from "../lib/assist/index.ts";
 import { loadJson, saveJson } from "../lib/storage.ts";
 import { AssistError } from "../lib/assist/cloudProvider.ts";
-import type { initPlusStore } from "./plusStore";
+import type { initPlusStore } from "./plusStore.ts";
 
 // The task helpers, registered as $store.assist. Saved under "assist" in localStorage
 // (preferences only, never task text).
@@ -40,10 +40,12 @@ interface TodosApi {
 }
 
 const todos = () => window.Alpine.store("todos") as unknown as TodosApi;
+const plusStore = () => (typeof window !== "undefined" ? window.Alpine?.store("plus") : undefined) as ReturnType<typeof initPlusStore> | undefined;
 
 export function initAssistStore() {
   let provider: AssistProvider | null = null;
   let controller: AbortController | null = null;
+  let consentAccount: string | null = null; // Email of the account that gave consent. Memory only, never saved.
 
   return {
     prefs: { ...DEFAULT_PREFS } as AssistPrefs,
@@ -60,6 +62,7 @@ export function initAssistStore() {
     },
 
     async refresh(): Promise<void> {
+      this.checkConsentOwner();
       const picked = await pickProvider(this.consent);
       this.aiStatus = picked.status;
       provider = picked.provider;
@@ -68,15 +71,40 @@ export function initAssistStore() {
 
     giveConsent(): void {
       this.consent = true;
+      consentAccount = plusStore()?.account?.email ?? null;
       saveJson('assistConsent', true);
       void this.refresh();
     },
 
     withdrawConsent(): void {
+      this.clearConsent();
+      void this.refresh();
+    },
+
+    clearConsent(): void {
       this.consent = false;
+      consentAccount = null;
       saveJson('assistConsent', false);
       this.discard();
-      void this.refresh();
+    },
+
+    // Consent belongs to the person who gave it. Clear it when another tab cleared it, when
+    // Plus confirms that nobody is signed in (sign-out or expired session), or when a different
+    // account is signed in, so the next person on this browser sees the consent card again.
+    checkConsentOwner(): void {
+      if (!this.consent) return;
+      if (loadJson<unknown>('assistConsent', false) !== true) {
+        this.clearConsent();
+        return;
+      }
+      const plus = plusStore();
+      if (plus?.account) {
+        consentAccount ??= plus.account.email;
+        if (plus.account.email === consentAccount) return;
+      } else if (!plus?.ready) {
+        return;
+      }
+      this.clearConsent();
     },
 
     setPrefs(changes: Partial<AssistPrefs>): void {
@@ -99,7 +127,7 @@ export function initAssistStore() {
       this.error = "";
       try {
         const result = await work(provider, current.signal);
-        if (result !== null) void (window.Alpine.store('plus') as ReturnType<typeof initPlusStore> | undefined)?.refresh();
+        if (result !== null && !current.signal.aborted) void plusStore()?.refresh();
         return current.signal.aborted ? null : result;
       } catch (error) {
         if (!current.signal.aborted) {

@@ -45,8 +45,7 @@ import TaskSteps from './TaskSteps.astro';
             get upcoming() {
                 const todos = this.$store.todos;
                 const current = this.currentTodo;
-                return [...todos.openTasks]
-                    .sort((a, b) => Number(Boolean(b.startedAt)) - Number(Boolean(a.startedAt)))
+                return todos.zenTaskOrder
                     .filter(task => task.id !== current?.id && (!task.parentId || !todos.skippedClusters.includes(task.parentId)))
                     .slice(0, 2);
             },
@@ -73,7 +72,7 @@ import TaskSteps from './TaskSteps.astro';
             },
             
             skipTask() {
-                if (this.currentTodo?.parentId) {
+                if (this.currentTodo) {
                     this.$store.todos.skipTaskToEndOfCluster(this.currentTodo.id);
                 }
             },
@@ -176,7 +175,6 @@ import TaskSteps from './TaskSteps.astro';
         >
             <button 
                 @click="skipTask"
-                x-show="currentTodo?.parentId"
                 aria-label="Skip this task for now"
                 class="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg ring-1 bg-white text-gray-700 ring-black/10 hover:bg-gray-50 dark:bg-slate-800 dark:text-gray-200 dark:ring-white/10 dark:hover:bg-slate-700 transition-colors"
             >
@@ -206,10 +204,10 @@ import TaskSteps from './TaskSteps.astro';
                 <span class="relative inline-flex w-2 h-2 rounded-full" x-bind:class="$store.pomoState.isRunning ? 'bg-teal-500' : 'bg-gray-400'"></span>
             </span>
             <span class="text-lg font-semibold tabular-nums text-gray-900 dark:text-white" x-text="`${$store.pomoState.digits.slice(0, 2)}:${$store.pomoState.digits.slice(2)}`"></span>
-            <span class="text-sm text-gray-500 dark:text-gray-400" x-text="$store.pomoState.currentPresetName"></span>
+            <span class="text-sm text-gray-500 dark:text-gray-400" x-text="$store.pomoState.phaseLabel"></span>
             <button
                 type="button"
-                x-on:click="$store.pomoState.isRunning ? $store.pomoState.pauseTimer() : $store.pomoState.startFocus()"
+                x-on:click="$store.pomoState.isRunning ? $store.pomoState.pauseTimer() : $store.pomoState.startFocus(currentTodo?.id)"
                 class="ml-1 px-3 py-1 text-sm font-semibold rounded-full bg-teal-600 text-white hover:bg-teal-700 transition-colors"
                 x-text="$store.pomoState.isRunning ? 'Pause' : 'Focus'"
             ></button>

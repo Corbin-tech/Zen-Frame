@@ -16,6 +16,10 @@ export interface Completion {
 export interface FocusSession {
   completedAt: string;
   minutes: number;
+  taskId?: string | null;
+  taskTitle?: string;
+  clusterId?: string | null;
+  clusterName?: string;
 }
 
 export interface CheckInEnergy {
@@ -29,7 +33,7 @@ export interface DayRange {
   to: string;
 }
 
-export const dayOf = (iso: string): string => toDateKey(new Date(iso));
+const dayOf = (iso: string): string => toDateKey(new Date(iso));
 
 const inRange = (day: string, range: DayRange) => day >= range.from && day <= range.to;
 
@@ -93,6 +97,7 @@ export interface ClusterCount {
   clusterId: string | null;
   name: string;
   count: number;
+  focusMinutes: number;
 }
 
 export interface Summary {
@@ -123,7 +128,7 @@ export function summarize(completions: Completion[], sessions: FocusSession[], r
 
   for (const record of done) {
     const key = record.clusterId ?? "";
-    const entry = clusters.get(key) ?? { clusterId: record.clusterId, name: record.clusterName || "No cluster", count: 0 };
+    const entry = clusters.get(key) ?? { clusterId: record.clusterId, name: record.clusterName || "No cluster", count: 0, focusMinutes: 0 };
     entry.count++;
     clusters.set(key, entry);
 
@@ -143,6 +148,12 @@ export function summarize(completions: Completion[], sessions: FocusSession[], r
   for (const session of focus) {
     const day = dayOf(session.completedAt);
     focusPerDay.set(day, (focusPerDay.get(day) ?? 0) + session.minutes);
+    if (session.taskId || session.clusterId) {
+      const key = session.clusterId ?? "";
+      const entry = clusters.get(key) ?? { clusterId: session.clusterId ?? null, name: session.clusterName || "No cluster", count: 0, focusMinutes: 0 };
+      entry.focusMinutes += session.minutes;
+      clusters.set(key, entry);
+    }
   }
 
   const busiest = [...perDay].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0];
@@ -156,7 +167,7 @@ export function summarize(completions: Completion[], sessions: FocusSession[], r
     activeDays: new Set(days).size,
     longestStreak: longestRun(days, range),
     onTimePercent: dueCount ? Math.round(onTime / dueCount * 100) : null,
-    byCluster: [...clusters.values()].sort((a, b) => b.count - a.count),
+    byCluster: [...clusters.values()].sort((a, b) => b.count - a.count || b.focusMinutes - a.focusMinutes),
     byWeekday,
     byHour,
     busiestDay: busiest ? { date: busiest[0], count: busiest[1] } : null,

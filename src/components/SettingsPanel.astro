@@ -14,11 +14,12 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
 ---
 
 <div
-    x-data="{ open: false, returnFocus: null, close(restoreFocus = true) { this.open = false; if (restoreFocus && this.returnFocus?.isConnected) this.returnFocus.focus(); this.returnFocus = null; } }"
+    x-data="settingsPanel"
     x-init="$watch('open', value => window.dispatchEvent(new CustomEvent('settings-panel', { detail: { open: value } })))"
     x-on:overlay-opened.window="if (open && $event.detail.name !== 'settings') { $event.detail.opener = returnFocus; close(false); }"
     x-on:open-settings.window="if (!open) { const opened = { name: 'settings' }; window.dispatchEvent(new CustomEvent('overlay-opened', { detail: opened })); returnFocus = opened.opener || document.activeElement; } open = true; const section = $event.detail?.section; $nextTick(() => { $refs.close.focus(); if (section && /^[a-z0-9-]+$/i.test(section)) $el.querySelector(`[data-settings-section='${section}']`)?.scrollIntoView({ block: 'start' }); })"
     x-on:keydown.escape.window="if (open) close()"
+    x-on:keydown.tab.window="if (open) trap($event)"
 >
     <!-- Backdrop -->
     <div
@@ -41,6 +42,7 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
         x-transition:leave-start="translate-x-0"
         x-transition:leave-end="translate-x-full"
         class="fixed inset-y-0 right-0 z-50 w-full sm:max-w-md flex flex-col bg-white dark:bg-slate-900 shadow-2xl ring-1 ring-black/5 dark:ring-white/10"
+        x-ref="panel"
         role="dialog"
         aria-modal="true"
         aria-labelledby="settings-title"
@@ -384,7 +386,7 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
             </section>
 
             <!-- Timer -->
-            <section class={section}>
+            <section class={`${section} scroll-mt-6`} data-settings-section="timer">
                 <h3 class={sectionTitle}>Timer</h3>
 
                 <div>
@@ -406,6 +408,46 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
                         </template>
                     </div>
                 </div>
+
+                <label for="settings-auto-break" class="flex items-start justify-between gap-4 cursor-pointer">
+                    <span>
+                        <span class={label}>Start breaks automatically</span>
+                        <span class="block text-xs text-gray-500 dark:text-gray-400">Begin the break timer right after a focus session finishes.</span>
+                    </span>
+                    <span class="relative shrink-0 mt-0.5">
+                        <input
+                            id="settings-auto-break"
+                            name="settings-auto-break"
+                            type="checkbox"
+                            role="switch"
+                            class="peer sr-only"
+                            x-bind:checked="$store.settings.pomoAutoStartBreak"
+                            x-on:change="$store.settings.update({ pomoAutoStartBreak: $event.target.checked })"
+                        />
+                        <span class="block w-11 h-6 rounded-full bg-gray-200 dark:bg-slate-700 peer-checked:bg-teal-600 peer-focus-visible:ring-2 peer-focus-visible:ring-teal-500 peer-focus-visible:ring-offset-2 transition-colors"></span>
+                        <span class="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-5"></span>
+                    </span>
+                </label>
+
+                <label for="settings-auto-focus" class="flex items-start justify-between gap-4 cursor-pointer">
+                    <span>
+                        <span class={label}>Start focus after a break</span>
+                        <span class="block text-xs text-gray-500 dark:text-gray-400">Begin the next focus session automatically when a break ends.</span>
+                    </span>
+                    <span class="relative shrink-0 mt-0.5">
+                        <input
+                            id="settings-auto-focus"
+                            name="settings-auto-focus"
+                            type="checkbox"
+                            role="switch"
+                            class="peer sr-only"
+                            x-bind:checked="$store.settings.pomoAutoStartFocus"
+                            x-on:change="$store.settings.update({ pomoAutoStartFocus: $event.target.checked })"
+                        />
+                        <span class="block w-11 h-6 rounded-full bg-gray-200 dark:bg-slate-700 peer-checked:bg-teal-600 peer-focus-visible:ring-2 peer-focus-visible:ring-teal-500 peer-focus-visible:ring-offset-2 transition-colors"></span>
+                        <span class="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-5"></span>
+                    </span>
+                </label>
 
                 <p class={label}>Alarm sound</p>
                 <ul class="space-y-1.5" role="radiogroup" aria-label="Alarm sound">
@@ -481,6 +523,7 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
                     <input
                         type="file"
                         x-ref="file"
+                        tabindex="-1"
                         accept="application/json,.json"
                         class="sr-only"
                         x-on:change="restore($event)"
@@ -508,8 +551,25 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
 <script>
     import { exportBackup, importBackup } from '../lib/storage';
     import { toDateKey } from '../lib/dates';
+    import { trapFocus } from '../lib/focusTrap';
 
     document.addEventListener('alpine:init', () => {
+        window.Alpine.data('settingsPanel', () => ({
+            open: false,
+            returnFocus: null as HTMLElement | null,
+
+            close(restoreFocus = true) {
+                this.open = false;
+                if (restoreFocus && this.returnFocus?.isConnected) this.returnFocus.focus();
+                this.returnFocus = null;
+            },
+
+            // aria-modal alone does not stop Tab from reaching the page behind, so wrap it inside the panel
+            trap(event: KeyboardEvent) {
+                trapFocus(event, this.$refs.panel as HTMLElement);
+            },
+        }));
+
         window.Alpine.data('backupPanel', () => ({
             error: '',
 
@@ -547,6 +607,7 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
                     }
                     // Storage now holds the restored lists; reload, but never write ours back over them
                     (window.Alpine.store('todos') as { suspendWrites?: () => void } | undefined)?.suspendWrites?.();
+                    (window.Alpine.store('pomoState') as { stopTimer?: () => void } | undefined)?.stopTimer?.();
                     window.location.reload();
                 } catch {
                     this.error = 'Could not read the selected file.';

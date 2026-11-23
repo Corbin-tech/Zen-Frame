@@ -72,6 +72,60 @@ assert.equal(assist.aiStatus, 'needs-plus');
 await assert.rejects(() => stale.compile('fixture'), { code: 'unauthorized' });
 assert.equal(tokens, previousTokens);
 
+// Consent belongs to the account that gave it
+assert.equal(assist.consent, true); // Plus has not confirmed a sign-out yet (ready is unset)
+plus.account = { email: 'other@example.com' };
+await assist.refresh();
+assert.equal(assist.consent, false);
+assert.equal(saved.get('assistConsent'), 'false');
+assert.equal(assist.aiStatus, 'needs-consent');
+plus.account = { email: 'fixture@example.com' };
+assist.giveConsent();
+await assist.refresh();
+plus.account = null;
+plus.ready = true; // Plus confirmed that nobody is signed in
+await assist.refresh();
+assert.equal(assist.consent, false);
+assert.equal(saved.get('assistConsent'), 'false');
+saved.set('assistConsent', 'true');
+const reloaded = initAssistStore();
+assert.equal(reloaded.consent, true);
+plus.account = { email: 'fixture@example.com' };
+await reloaded.refresh(); // The saved consent is adopted by the account signed in at load
+assert.equal(reloaded.consent, true);
+plus.account = { email: 'other@example.com' };
+await reloaded.refresh();
+assert.equal(reloaded.consent, false);
+assert.equal(saved.get('assistConsent'), 'false');
+plus.account = { email: 'fixture@example.com' };
+assist.giveConsent();
+saved.set('assistConsent', 'false'); // Another tab signed out
+await assist.refresh();
+assert.equal(assist.consent, false);
+saved.set('assistConsent', 'true');
+const outage = initAssistStore(); // Loaded while the Plus session check failed
+plus.account = null;
+plus.ready = false;
+await outage.refresh();
+assert.equal(outage.consent, true);
+saved.set('assistConsent', 'false'); // Meanwhile another tab: A signs out, B signs in
+plus.account = { email: 'other@example.com' };
+await outage.refresh();
+assert.equal(outage.consent, false);
+plus.ready = true;
+plus.account = { email: 'fixture@example.com' };
+assist.giveConsent();
+await assist.refresh();
+const gated = (await pickProvider(true)).provider;
+plus.account = { email: 'other@example.com' }; // Account switch, no refresh yet
+const tokensBeforeSwitch = tokens;
+await assert.rejects(() => gated.compile('fixture'), { code: 'unauthorized' });
+assert.equal(tokens, tokensBeforeSwitch);
+assert.equal(assist.consent, false);
+delete plus.ready;
+plus.account = { email: 'fixture@example.com' };
+assist.giveConsent();
+
 const panelUrl = new URL('../../scripts/BreakdownPanel.ts', import.meta.url);
 const hooks = registerHooks({ resolve(specifier, context, nextResolve) {
   return nextResolve(specifier === '../lib/assist' && context.parentURL === panelUrl.href
@@ -146,6 +200,25 @@ for (const mode of ['success', 'error', 'abort', 'late-response']) {
     assert.equal(panel.editing, true);
     assert.equal(panel.draft.length, 4);
     assert.equal(refreshes, beforeRefresh + 1);
+    // Withdrawing consent: Accept cannot save the draft, and the panel discards it
+    assist.withdrawConsent();
+    await assist.refresh();
+    panel.accept();
+    assert.equal(writes, 0);
+    assert.deepEqual(task.steps, [{ text: 'Existing step', minutes: 1 }]);
+    const watchers = {};
+    panel.$watch = (key, callback) => { watchers[key] = callback; };
+    panel.$root.contains = () => false;
+    panel.init();
+    globalThis.document = { activeElement: null };
+    watchers.plusReady(panel.plusReady);
+    delete globalThis.document;
+    assert.equal(panel.open, false);
+    assert.equal(panel.editing, false);
+    assert.deepEqual(panel.draft, []);
+    assert.equal(panel.announcement, 'Task helpers are off. The suggestion was discarded.');
+    assist.giveConsent();
+    await assist.refresh();
   } else {
     assert.equal(panel.editing, false);
     assert.deepEqual(panel.draft, []);

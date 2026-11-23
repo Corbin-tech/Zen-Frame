@@ -50,9 +50,18 @@ export function registerBreakdownPanel() {
                 return Boolean(this.task?.todo.trim() && !this.task.isCluster && !this.task.completed
                     && assist().aiStatus === 'ready' && assist().source === 'plus');
             },
+            get plusReady(): boolean { return assist().aiStatus === 'ready' && assist().source === 'plus'; },
             get hasValidStep(): boolean { return this.draft.some(step => cleanText(step.text)); },
 
-            init() { this.$watch('breakdownTaskId', () => this.close(false)); },
+            init() {
+                this.$watch('breakdownTaskId', () => this.close(false));
+                // Consent withdrawn or signed out: discard the draft, as the consent card promises
+                this.$watch('plusReady', (ready: boolean) => {
+                    if (ready || !this.open) return;
+                    this.close(this.$root.contains(document.activeElement));
+                    this.announcement = 'Task helpers are off. The suggestion was discarded.';
+                });
+            },
             destroy() { request?.abort(); },
             show() {
                 if (!this.canSuggest) return;
@@ -163,7 +172,7 @@ export function registerBreakdownPanel() {
             },
             accept() {
                 const task = this.task;
-                if (!this.editing || !task || task.isCluster || task.completed) return;
+                if (!this.editing || !this.plusReady || !task || task.isCluster || task.completed) return;
                 const { steps } = cleanBreakdown({ steps: this.draft });
                 if (!steps.length) return;
                 todos().setSteps(task.id, steps);

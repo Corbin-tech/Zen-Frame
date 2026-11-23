@@ -4,12 +4,14 @@ import BreakdownPanel from './BreakdownPanel.astro';
 interface Props {
     taskId?: string; // Alpine expression; TaskRow provides task.id
     zen?: boolean;
+    showChecklist?: boolean;
     fallbackFocus?: string;
 }
 
 const {
     taskId = 'task.id',
     zen = false,
+    showChecklist = true,
     fallbackFocus = '$refs.checklistSummary?.getClientRects().length ? $refs.checklistSummary : $root.closest(".task-item")?.querySelector("[name=task-name]")'
 } = Astro.props;
 const box = 'rounded-xl border border-gray-200 bg-white/85 p-3 text-left dark:border-slate-600 dark:bg-slate-900/70';
@@ -24,7 +26,7 @@ const action = 'min-h-9 rounded-lg px-2 py-1 text-sm font-medium text-teal-800 h
     x-cloak
     class:list={['min-w-0 space-y-2', zen ? 'w-full max-w-xl' : 'w-full']}
 >
-    {zen ? (
+    {showChecklist && (zen ? (
         <div x-show="savedSteps.length" class={box}>
             <p role="status" class="sr-only" x-text="nextStep ? `Next step: ${nextStep.text}. ${stepProgress}.` : `All steps complete. ${stepProgress}.`"></p>
             <div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-sm">
@@ -55,7 +57,7 @@ const action = 'min-h-9 rounded-lg px-2 py-1 text-sm font-medium text-teal-800 h
                 </template>
             </ul>
         </details>
-    )}
+    ))}
     <div x-show="savedSteps.length" class="text-left">
         <button x-bind:hidden="confirming" type="button" x-ref="promote" x-on:click="showPromotion()" class={action}>Promote steps to cluster</button>
         <div hidden x-bind:hidden="!confirming" x-on:keydown.escape.stop="hidePromotion()" class={box}>

@@ -12,10 +12,13 @@ export async function pickProvider(consent = false): Promise<{ provider: AssistP
   if (!consent) return { provider: null, status: 'needs-consent' };
   return {
     provider: createCloudProvider({ getToken: async () => {
-      const assist = window.Alpine.store('assist') as { consent: boolean } | undefined;
+      // Check the consent owner here too, so the gate does not wait for the next refresh
+      const assist = window.Alpine.store('assist') as { consent: boolean; checkConsentOwner?: () => void } | undefined;
+      assist?.checkConsentOwner?.();
       if (!assist?.consent || !plus.account) return null;
       const email = plus.account.email;
       const token = await plus.getToken();
+      assist.checkConsentOwner?.();
       return assist.consent && plus.account?.email === email ? token : null;
     } }),
     status: 'ready'
