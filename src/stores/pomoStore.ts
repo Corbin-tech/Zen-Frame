@@ -74,6 +74,7 @@ interface PomoTodosApi {
 }
 
 interface PomoSnapshot {
+  selectedTaskId: string | null;
   focusTask?: FocusTask | null;
   preset: PomoPreset;
   isBreak: boolean;
@@ -311,6 +312,7 @@ export function initPomoStore() {
 
     offerUndo(title: string): void {
       const snapshot: PomoSnapshot = {
+        selectedTaskId: this.selectedTaskId,
         focusTask: this.focusTask,
         preset: this.preset,
         isBreak: this.isBreak,
@@ -351,6 +353,7 @@ export function initPomoStore() {
       this.custom = { ...target.custom };
       this.totalTime = target.totalTime;
       this.timeLeft = target.timeLeft;
+      this.selectedTaskId = target.selectedTaskId;
       this.focusTask = target.focusTask;
       this.saveState();
       if (target.wasRunning) this.startTimer();

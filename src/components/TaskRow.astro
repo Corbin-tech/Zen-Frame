@@ -80,7 +80,7 @@ const menuDanger = 'hover:!text-red-600 hover:!bg-red-50 dark:hover:!text-red-40
                  is the chip's picker, as on the board card's pencil form. -->
             <div class="contents sm:relative sm:shrink-0 sm:flex sm:items-center sm:gap-1.5">
                 <span
-                    x-show="!task.completed && $store.pomoState.isRunning && !$store.pomoState.isBreak && $store.pomoState.selectedTaskId === task.id"
+                    x-show="!task.completed && $store.pomoState.isRunning && !$store.pomoState.isBreak && $store.pomoState.activeTaskId === task.id"
                     x-cloak
                     class="inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-md bg-teal-50 text-teal-700 ring-1 ring-teal-600/20 dark:bg-teal-900/30 dark:text-teal-300 dark:ring-teal-400/20"
                 >

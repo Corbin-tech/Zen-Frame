@@ -102,3 +102,33 @@ test("Undo stays available for as long as the toast shows its button", () => {
   store.restoreSnapshot(); // the toast is gone, so the snapshot is too
   expect(store.isBreak).toBe(true);
 });
+
+test.each([null, "a"])("Undo after switching tasks restores selectedTaskId (%s)", (initialSelection) => {
+  vi.useFakeTimers();
+  const data = new Map<string, string>();
+  const storage = { getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, value: string) => data.set(key, value), removeItem: (key: string) => data.delete(key) };
+  vi.stubGlobal("localStorage", storage);
+  vi.stubGlobal("sessionStorage", storage);
+  const taskA = { id: "a", todo: "Task A", parentId: null, completed: false };
+  const taskB = { id: "b", todo: "Task B", parentId: null, completed: false };
+  const todos = { nextTask: taskA, find: (id: string) => [taskA, taskB].find(task => task.id === id), clusterName: () => "" };
+  vi.stubGlobal("window", { addEventListener: vi.fn(), Alpine: { store: (name: string) => name === "todos" ? todos : {} }, dispatchEvent: vi.fn() });
+  vi.stubGlobal("CustomEvent", class {});
+  const store = initPomoStore();
+  if (initialSelection !== null) store.setTask(initialSelection);
+  store.startTimer();
+  vi.advanceTimersByTime(2000);
+
+  store.startFocus("b");
+  expect(store.selectedTaskId).toBe("b");
+  expect(store.activeTaskId).toBe("b");
+
+  store.restoreSnapshot();
+  expect(store.selectedTaskId).toBe(initialSelection);
+  expect(store.activeTaskId).toBe("a");
+  expect(JSON.parse(data.get("pomoState")!).selectedTaskId).toBe(initialSelection);
+
+  // Once the restored focus block resets, activeTaskId should still follow the restored selection, not "b".
+  store.resetTimer();
+  expect(store.activeTaskId).toBe("a");
+});
