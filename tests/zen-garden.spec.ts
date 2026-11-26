@@ -55,6 +55,7 @@ for (const theme of ['light', 'dark']) {
     expect(await animation.evaluate((svg: SVGSVGElement) => svg.getCurrentTime())).toBe(time);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     expect(await garden.locator('animateTransform').evaluate(element => getComputedStyle(element.parentElement!).stroke)).toBe('none');
+    expect(await garden.locator('.zen-garden-grain').evaluate(element => getComputedStyle(element).fill)).toContain('#zg-grain');
     // Landmarks must remain in the canvas, not disappear into a center-cropped wide scene.
     for (const landmark of ['.zen-garden-stones', '.zen-garden-pine', '.zen-garden-steps']) {
       const visibleFraction = await garden.locator(landmark).evaluate((element) => {

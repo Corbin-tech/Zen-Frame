@@ -31,7 +31,7 @@ const pineTufts = [
             <stop offset="0" class="[stop-color:#D7B36A] dark:[stop-color:#DCE7DC]" stop-opacity="0.15" />
             <stop offset="1" class="[stop-color:#D7B36A] dark:[stop-color:#DCE7DC]" stop-opacity="0" />
         </radialGradient>
-        <pattern id="zg-grain" width="29" height="23" patternUnits="userSpaceOnUse">
+        <pattern id="zg-grain" width="29" height="23" patternUnits="userSpaceOnUse" class="fill-gray-600 dark:fill-gray-300">
             <circle cx="4" cy="6" r="0.7" />
             <circle cx="19" cy="17" r="0.6" />
         </pattern>
@@ -41,7 +41,7 @@ const pineTufts = [
          and stay in frame even when the task makes the mobile canvas very tall. -->
     <svg class="stroke-none" width="100%" height="100%" viewBox="0 0 1000 700" preserveAspectRatio="none">
         <rect width="1000" height="700" fill="url(#zg-sand)" />
-        <rect width="1000" height="700" fill="url(#zg-grain)" class="text-gray-600 dark:text-gray-300" style="fill: currentColor" opacity="0.1" />
+        <rect class="zen-garden-grain" width="1000" height="700" fill="url(#zg-grain)" opacity="0.1" />
         <g fill="none" class="stroke-gray-400/30 dark:stroke-slate-400/20" stroke-width="1.4">
             {rakeLines.map(d => <path d={d} />)}
         </g>
