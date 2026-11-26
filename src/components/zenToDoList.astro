@@ -117,13 +117,16 @@ import TaskSteps from './TaskSteps.astro';
     }
 </style>
 
-<!-- Zen Mode Component. With a background chosen, the scene behind it (ZenBackdrop, placed in
-     tabs.astro so it also runs behind the quote) is the card, so this one drops its own surface. -->
+<!-- Zen Mode Component. The wrapper in tabs.astro provides the shared task-and-quote
+     card surface, with ZenBackdrop behind both when a background is chosen. -->
 <div
     x-data="zenTodoList"
     x-cloak
     class="relative isolate overflow-hidden w-full max-w-4xl mx-auto rounded-2xl p-6"
+    x-bind:class="$store.settings.zenBackground === 'desk' && 'pt-32'"
 >
+    <!-- The garden gets a small open vista above the frosted task surface, so its stones
+         and pine stay visible instead of hiding behind the task or quote on tall screens. -->
     <div class="flex flex-col items-center justify-center">
         <!-- Current Todo Display: the next step on the left, the focus timer on the right -->
         <div 

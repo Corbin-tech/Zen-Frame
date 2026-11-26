@@ -1,4 +1,6 @@
 ---
+import ZenGarden from './ZenGarden.astro';
+
 // Moving scenes behind Zen mode, picked in Settings (zenBackground in settingsStore.ts).
 // Each is an SVG that fills the card and animates with SMIL, slowly enough not to pull focus.
 // Under reduced motion the scenes are drawn but paused. Only the chosen one is rendered (x-if).
@@ -220,12 +222,26 @@ const wingDown = 'M-12 2 Q-6 4 0 0 Q6 4 12 2';
     class="absolute inset-0 -z-10 pointer-events-none transform-gpu transition-opacity duration-500 ease-out"
     aria-hidden="true"
     x-data="{
-        still: matchMedia('(prefers-reduced-motion: reduce)').matches,
+        motionQuery: matchMedia('(prefers-reduced-motion: reduce)'),
+        motionListener: null,
+        still: false,
         settingsOpen: false,
         confettiActive: false,
         // activeTab belongs to the tabs component this sits inside
         phase: activeTab === 'zenmode' ? 'active' : 'inactive',
         resumeTimer: null,
+        init() {
+            this.still = this.motionQuery.matches;
+            this.motionListener = event => {
+                this.still = event.matches;
+                this.sync();
+            };
+            this.motionQuery.addEventListener('change', this.motionListener);
+        },
+        destroy() {
+            this.motionQuery.removeEventListener('change', this.motionListener);
+            clearTimeout(this.resumeTimer);
+        },
         get paused() {
             return this.still || this.settingsOpen || this.confettiActive || this.phase !== 'active';
         },
@@ -274,21 +290,9 @@ const wingDown = 'M-12 2 Q-6 4 0 0 Q6 4 12 2';
         </div>
     </template>
 
-    <!-- Quiet desk: warm paper, window light falling across the desk and drifting as the day goes -->
+    <!-- Keep the saved 'desk' id: existing Quiet desk selections now show Zen garden. -->
     <template x-if="$store.settings.zenBackground === 'desk'">
-        <div class="absolute inset-0 overflow-hidden bg-gradient-to-b from-[#EEE9DE] to-[#E5DCCA] dark:from-slate-900 dark:to-[#0B1716]">
-            <div class="absolute inset-x-0 bottom-0 h-[18%] border-t border-white/70 bg-gradient-to-b from-[#E2D7C2] to-[#D8CCB4] dark:border-white/[0.04] dark:from-[#081110] dark:to-[#060D0C]"></div>
-            <span class="zen-desk-glow absolute top-1/4 left-1/4 w-[55%] h-[55%] rounded-full bg-warmth/20 dark:bg-warmth/[0.05] blur-3xl"></span>
-            <!-- Four panes of light; the window frame shows as the soft shadow between them -->
-            <div class="zen-desk-light absolute -top-[8%] left-[6%] w-[60%] h-[88%]">
-                <div class="grid grid-cols-2 grid-rows-2 gap-3 sm:gap-4 w-full h-full -skew-x-[18deg] blur-sm">
-                    <span class="rounded-sm bg-white/75 dark:bg-slate-200/[0.06]"></span>
-                    <span class="rounded-sm bg-white/75 dark:bg-slate-200/[0.06]"></span>
-                    <span class="rounded-sm bg-white/75 dark:bg-slate-200/[0.06]"></span>
-                    <span class="rounded-sm bg-white/75 dark:bg-slate-200/[0.06]"></span>
-                </div>
-            </div>
-        </div>
+        <ZenGarden />
     </template>
 
     <!-- Koi pond: koi circling under lily pads, light through the water, the odd ripple -->
@@ -878,26 +882,10 @@ const wingDown = 'M-12 2 Q-6 4 0 0 Q6 4 12 2';
     .zen-orb { animation: zen-drift 14s ease-in-out infinite alternate; }
     .zen-orb-2 { animation-duration: 18s; animation-direction: alternate-reverse; }
     .zen-orb-3 { animation-duration: 22s; }
-    /* Quiet desk: the window light drifts across, and its warmth breathes */
-    .zen-desk-light { animation: zen-desk-drift 36s ease-in-out infinite alternate; }
-    .zen-desk-glow { animation: zen-desk-breathe 24s ease-in-out infinite alternate; }
-    .zen-backdrop-held .zen-orb,
-    .zen-backdrop-held .zen-desk-light,
-    .zen-backdrop-held .zen-desk-glow { animation-play-state: paused; }
-    @media (prefers-reduced-motion: reduce) {
-        .zen-desk-light, .zen-desk-glow { animation-play-state: paused; }
-    }
+    .zen-backdrop-held .zen-orb { animation-play-state: paused; }
     @keyframes zen-drift {
         0% { transform: translate(0, 0) scale(1); }
         50% { transform: translate(3rem, 2rem) scale(1.15); }
         100% { transform: translate(-2rem, 3rem) scale(0.95); }
-    }
-    @keyframes zen-desk-drift {
-        0% { transform: translateX(0); opacity: 0.8; }
-        100% { transform: translateX(4rem); opacity: 1; }
-    }
-    @keyframes zen-desk-breathe {
-        0% { transform: scale(1); opacity: 0.6; }
-        100% { transform: scale(1.08); opacity: 1; }
     }
 </style>
