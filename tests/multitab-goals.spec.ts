@@ -213,3 +213,25 @@ test('a cross-tab note pin reorder does not commit an active note draft early', 
   }).toMatchObject({ text: 'Note One\ndraft', pinned: true });
   await expect.poll(() => b.getByRole('textbox', { name: 'Note', exact: true }).first().inputValue()).toBe('Note One\ndraft');
 });
+
+test('deleting a focused note in another tab does not leave note sorting frozen', async ({ context, page: a }) => {
+  await a.goto('/');
+  await a.locator('button[data-tab="goals"]').click();
+  await a.getByRole('textbox', { name: 'New note', exact: true }).fill('Older note');
+  await a.getByRole('button', { name: 'Add note', exact: true }).click();
+  await a.getByRole('textbox', { name: 'New note', exact: true }).fill('Focused note');
+  await a.getByRole('button', { name: 'Add note', exact: true }).click();
+
+  const b = await context.newPage();
+  await b.goto('/');
+  await b.locator('button[data-tab="goals"]').click();
+  await b.getByRole('textbox', { name: 'Note', exact: true }).first().focus();
+
+  // Delete the focused note from Tab A, then add a newer note
+  await a.getByRole('button', { name: 'Delete note', exact: true }).first().click();
+  await expect(b.getByRole('textbox', { name: 'Note', exact: true })).toHaveCount(1);
+  await a.getByRole('textbox', { name: 'New note', exact: true }).fill('Newest note');
+  await a.getByRole('button', { name: 'Add note', exact: true }).click();
+
+  await expect.poll(() => b.getByRole('textbox', { name: 'Note', exact: true }).evaluateAll(els => els.map(el => (el as HTMLTextAreaElement).value))).toEqual(['Newest note', 'Older note']);
+});

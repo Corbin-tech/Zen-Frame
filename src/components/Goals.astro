@@ -56,7 +56,7 @@ const prompts = [
                                             name="goal-title"
                                             aria-label="Goal"
                                             x-effect="syncDraft($el, goal.title)"
-                                            x-on:focus="frozenGoalOrder = goals.map(g => g.id)"
+                                            x-on:focus="frozenGoalOrder = { id: goal.id, order: goals.map(g => g.id) }"
                                             x-on:change="saveGoalTitle(goal, $event.target)"
                                             x-on:blur="resetDraft($el, goal.title); frozenGoalOrder = null"
                                             class="flex-1 min-w-0 p-0 bg-transparent border-none focus:ring-0 text-sm font-semibold"
@@ -104,7 +104,7 @@ const prompts = [
                                         </label>
                                         <label class="block text-xs font-medium text-gray-500 dark:text-gray-400">
                                             Notes
-                                            <textarea name="goal-notes" rows="3" class={`${field} mt-1`} placeholder="Why this matters, next steps, resources…" x-effect="syncDraft($el, goal.why)" x-on:focus="frozenGoalOrder = goals.map(g => g.id)" x-on:change="saveGoalNotes(goal, $event.target)" x-on:blur="resetDraft($el, goal.why); frozenGoalOrder = null"></textarea>
+                                            <textarea name="goal-notes" rows="3" class={`${field} mt-1`} placeholder="Why this matters, next steps, resources…" x-effect="syncDraft($el, goal.why)" x-on:focus="frozenGoalOrder = { id: goal.id, order: goals.map(g => g.id) }" x-on:change="saveGoalNotes(goal, $event.target)" x-on:blur="resetDraft($el, goal.why); frozenGoalOrder = null"></textarea>
                                         </label>
                                         <button type="button" x-on:click="confirm(`Delete the goal “${goal.title}”?`) && $store.goals.removeGoal(goal.id)" class="text-xs font-medium text-red-600 dark:text-red-400 hover:underline">Delete goal</button>
                                     </div>
@@ -211,7 +211,7 @@ const prompts = [
                                 aria-label="Note"
                                 rows="1"
                                 x-effect="syncDraft($el, note.text); if (activeTab === 'goals') { $nextTick(() => { $el.style.height = 'auto'; $el.style.height = $el.scrollHeight + 'px' }) }"
-                                x-on:focus="frozenNoteOrder = notes.map(n => n.id)"
+                                x-on:focus="frozenNoteOrder = { id: note.id, order: notes.map(n => n.id) }"
                                 x-on:input="$el.style.height = 'auto'; $el.style.height = $el.scrollHeight + 'px'"
                                 x-on:change="saveNoteText(note, $event.target)"
                                 x-on:blur="resetDraft($el, note.text); $el.style.height = 'auto'; $el.style.height = $el.scrollHeight + 'px'; frozenNoteOrder = null"
@@ -272,9 +272,9 @@ const prompts = [
         .reduce((total, session) => total + session.minutes, 0);
 
     // Hold existing item order while a field inside the list is focused so cross-tab reorders do not drop focus.
-    const orderBy = (items, ids) => {
-        if (!ids) return items;
-        const rank = new Map(ids.map((id, index) => [id, index]));
+    const orderBy = (items, frozen) => {
+        if (!frozen || !items.some(item => item.id === frozen.id)) return items;
+        const rank = new Map(frozen.order.map((id, index) => [id, index]));
         return [...items].sort((a, b) => (rank.get(a.id) ?? Infinity) - (rank.get(b.id) ?? Infinity));
     };
 
