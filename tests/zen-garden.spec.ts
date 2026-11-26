@@ -31,9 +31,12 @@ test('saved Quiet desk becomes Zen garden and the picker persists it', async ({ 
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('settings')!).zenBackground)).toBe('desk');
 });
 
-for (const theme of ['light', 'dark']) {
-  test(`garden stays still with reduced motion on a narrow ${theme} screen`, async ({ page }) => {
-    await page.setViewportSize({ width: 390, height: 844 });
+const mobileCases = [320, 390].flatMap(width =>
+  ['light', 'dark'].map(theme => ({ width, theme }))
+);
+for (const { width, theme } of mobileCases) {
+  test(`garden stays still with reduced motion on a ${width}px ${theme} screen`, async ({ page }) => {
+    await page.setViewportSize({ width, height: width === 320 ? 640 : 844 });
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.addInitScript((savedTheme) => {
       localStorage.setItem('theme', savedTheme);
@@ -60,7 +63,7 @@ for (const theme of ['light', 'dark']) {
     for (const landmark of ['.zen-garden-stones', '.zen-garden-pine', '.zen-garden-steps']) {
       const visibleFraction = await garden.locator(landmark).evaluate((element) => {
         const box = element.getBoundingClientRect();
-        const canvas = element.ownerSVGElement!.getBoundingClientRect();
+        const canvas = (element as SVGElement).ownerSVGElement!.getBoundingClientRect();
         const width = Math.max(0, Math.min(box.right, canvas.right) - Math.max(box.left, canvas.left));
         const height = Math.max(0, Math.min(box.bottom, canvas.bottom) - Math.max(box.top, canvas.top));
         return width * height / (box.width * box.height);
@@ -73,3 +76,35 @@ for (const theme of ['light', 'dark']) {
     expect(landmarksBottom).toBeLessThanOrEqual(taskTop);
   });
 }
+
+test('garden honors live reduced-motion changes without overriding other pauses', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.addInitScript(() => {
+    localStorage.setItem('settings', JSON.stringify({ zenBackground: 'desk' }));
+  });
+  await page.goto('/#zenmode');
+  const garden = page.locator('svg.zen-garden');
+  const animation = garden.locator('animateTransform').locator('xpath=../..');
+  await expect(garden).toBeVisible();
+  await expect.poll(() => animation.evaluate((svg: SVGSVGElement) => svg.animationsPaused())).toBe(false);
+
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await expect.poll(() => animation.evaluate((svg: SVGSVGElement) => svg.animationsPaused())).toBe(true);
+  const time = await animation.evaluate((svg: SVGSVGElement) => svg.getCurrentTime());
+  await page.waitForTimeout(250);
+  expect(await animation.evaluate((svg: SVGSVGElement) => svg.getCurrentTime())).toBe(time);
+
+  await page.getByRole('button', { name: 'Open settings' }).first().click();
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  // Disabling reduced motion must not resume a scene held by Settings.
+  expect(await animation.evaluate((svg: SVGSVGElement) => svg.animationsPaused())).toBe(true);
+  await page.keyboard.press('Escape');
+  await expect.poll(() => animation.evaluate((svg: SVGSVGElement) => svg.animationsPaused())).toBe(false);
+
+  await page.locator('button[data-tab="dashboard"]').click();
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  expect(await animation.evaluate((svg: SVGSVGElement) => svg.animationsPaused())).toBe(true);
+  await page.locator('button[data-tab="zenmode"]').click();
+  await expect.poll(() => animation.evaluate((svg: SVGSVGElement) => svg.animationsPaused())).toBe(false);
+});

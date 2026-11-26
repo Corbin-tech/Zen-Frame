@@ -55,7 +55,7 @@ Zen Frame is a calm, browser-only focus and planning app built around executive-
 | Channel | Strategic role | Core formats | Cadence |
 |---|---|---|---|
 | X / Bluesky | Design craft, build-in-public, indie-web and accessibility community | Before/after UI cards, WCAG/token breakdowns, Newsreader editorial cards | 2–3x / week |
-| TikTok / Reels / Shorts | Reaching students and ADHD/executive-function audiences organically | 10–20s "Quiet desk" loops (natural light, picking one task, clicking *Begin focus*, timer ring ticking) with zero voiceover | 2x / week |
+| TikTok / Reels / Shorts | Reaching students and ADHD/executive-function audiences organically | 10–20s "Zen garden" loops (raked sand, moss and pine, picking one task, clicking *Begin focus*, timer ring ticking) with zero voiceover | 2x / week |
 | Reddit and niche communities | High-intent early adopters (ADHD, study, indie-web, Astro/Tailwind) | Honest builder notes on anti-shame copy and local-first privacy; no hard sell | Milestone-based |
 | LinkedIn and portfolio | Engineering credibility, design systems, accessibility craft | Short case studies on Phase 1–6 decisions (hex neutral scales, state machines, CSP, WCAG across 9 accents) | 1x / 2 weeks |
 | Product Hunt / Show HN | Concentrated launch moments and feedback collection | Clean demo GIF of Today / Focus / Library + Next step screen, transparent privacy overview | Launch and Plus milestones |
@@ -101,8 +101,8 @@ Link to the app: [production-url]
 
 I would appreciate honest feedback on the flow, keyboard navigation, and whether optional zero-retention AI helpers (task breakdown, brain dump sorting, time estimates) would be useful as a future paid add-on.
 
-### Post 3 — TikTok / Reels / Shorts (Quiet desk loop #1)
-- **Visual (15s, no voiceover, subtle ambient room tone):** Natural window light on a quiet desk. Screen shows Zen Frame's Next step view: *"Read 3 pages · About 10 minutes · Biology"*. Cursor clicks **Begin focus →**. Timer ring starts counting down calmly.
+### Post 3 — TikTok / Reels / Shorts (Zen garden loop #1)
+- **Visual (15s, no voiceover, subtle ambient room tone):** Zen Frame's Next step view with the Zen garden backdrop: raked sand, moss and pine frame *"Read 3 pages · About 10 minutes · Biology"*. Cursor clicks **Begin focus →**. Timer ring starts counting down calmly.
 - **On-screen text (Newsreader 400):** `Just this, for now.` (0–4s) -> `One task. Ten minutes.` (5–10s) -> `Starting small counts.` (11–15s)
 - **Caption:** When the whole list feels too loud, narrow the frame to one step. Zen Frame runs in your browser with no account required.
 
@@ -150,8 +150,8 @@ Inter (sans) handles every control, label, and number.
 
 And if you prefer Lexend or Atkinson Hyperlegible for easier reading, one toggle overrides everything cleanly with no external font requests.
 
-### Post 8 — TikTok / Reels / Shorts (Quiet desk loop #2)
-- **Visual (15s, no voiceover):** Today view showing `"2 carried over. Pick one to start."` in warm ink with a subtle Warmth dot. User clicks one task, moves to Focus, marks it **Done**, and sees `"Starting small counts."`
+### Post 8 — TikTok / Reels / Shorts (Zen garden loop #2)
+- **Visual (15s, no voiceover):** Today view showing `"2 carried over. Pick one to start."` in warm ink with a subtle Warmth dot. User clicks one task, moves to Focus with the Zen garden backdrop, marks it **Done**, and sees `"Starting small counts."`
 - **On-screen text (Newsreader 400):** `Unfinished work is not a failure.` (0–5s) -> `Pick one small thing.` (6–10s) -> `Focus, without the pressure.` (11–15s)
 - **Caption:** A gentler way to return to a list after a busy week. Local-first, private, and free in your browser.
 
@@ -237,6 +237,6 @@ Detailed deliverables, gates, and next steps are tracked in `docs/roadmap/media-
 
 - **M1 (Nov–Dec 2026) — Production domain and live metadata:** Set `site` in `astro.config.mjs` (activates automatic `og:image`, `og:url`, and `twitter:image` tags in `Layout.astro`), configure `feedbackEmail` in `src/data/site.json`, replace `[production-url]` placeholders in this kit, and verify social card unfurls on X, Bluesky, and LinkedIn.
 - **M2 (Dec 2026) — Phase 5 calm copy and Warmth overdue pass:** Replace red overdue pills and `"overdue"` copy in `src/lib/dates.ts`, `src/lib/notifications.ts`, and `src/lib/taskFilters.ts` with Warmth (`#D7B36A`) styling and plain carried-over phrasing; update `/principles` Principle 01 and unlock Posts 1, 2, 6, and 8.
-- **M3 (Jan–Feb 2027) — Quiet community launch:** Generate reusable Paper/Pine social cards, record two 15-second Quiet desk clips, publish Posts 1–6 across X/Bluesky, Show HN, and student/executive-function communities, and collect Plus demand signal via Feedback.
-- **M4 (Mar–May 2027) — Stillpoint share cards and organic loop:** Add optional, client-rendered Paper/Pine Stillpoint recap cards (zero task text exposed, zero outbound requests) alongside a 2x/week Quiet desk clip cadence.
+- **M3 (Jan–Feb 2027) — Quiet community launch:** Generate reusable Paper/Pine social cards, record two 15-second Zen garden clips, publish Posts 1–6 across X/Bluesky, Show HN, and student/executive-function communities, and collect Plus demand signal via Feedback.
+- **M4 (Mar–May 2027) — Stillpoint share cards and organic loop:** Add optional, client-rendered Paper/Pine Stillpoint recap cards (zero task text exposed, zero outbound requests) alongside a 2x/week Zen garden clip cadence.
 - **M5 (Jun–Dec 2027) — Zen Frame Plus beta and back-to-school campaign:** Ship opt-in Breakdown, Brain dump, and Estimate helpers (`docs/roadmap/neuro-tools.md`) with a zero-retention privacy page and consent screen, update `/principles` to reflect live Plus features, and run a fall student push featuring Learning your pace.
