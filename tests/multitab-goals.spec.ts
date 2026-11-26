@@ -24,13 +24,13 @@ for (const kind of ['goal', 'note'] as const) {
 
 test('an unsaved goal-note draft survives another tab editing the same goal', async ({ context, page: a }) => {
   await a.goto('/');
-  await a.locator('button[data-tab="goals"]').click();
+  await openView(a, 'goals');
   await a.getByRole('textbox', { name: 'New goal', exact: true }).fill('Ship release');
   await a.getByRole('button', { name: 'Add', exact: true }).click();
 
   const b = await context.newPage();
   await b.goto('/');
-  await b.locator('button[data-tab="goals"]').click();
+  await openView(b, 'goals');
   await b.getByRole('button', { name: 'Add notes & settings', exact: true }).click();
   const goalNotes = b.locator('textarea[name="goal-notes"]');
   await goalNotes.fill('Draft why this matters');
@@ -48,13 +48,13 @@ test('an unsaved goal-note draft survives another tab editing the same goal', as
 
 test('an unsaved goal-title draft survives another tab editing the same goal', async ({ context, page: a }) => {
   await a.goto('/');
-  await a.locator('button[data-tab="goals"]').click();
+  await openView(a, 'goals');
   await a.getByRole('textbox', { name: 'New goal', exact: true }).fill('Original title');
   await a.getByRole('button', { name: 'Add', exact: true }).click();
 
   const b = await context.newPage();
   await b.goto('/');
-  await b.locator('button[data-tab="goals"]').click();
+  await openView(b, 'goals');
   const goalTitle = b.getByRole('textbox', { name: 'Goal', exact: true });
   await goalTitle.fill('Draft title');
 
@@ -71,13 +71,13 @@ test('an unsaved goal-title draft survives another tab editing the same goal', a
 
 test('an unsaved note draft survives another tab pinning the same note', async ({ context, page: a }) => {
   await a.goto('/');
-  await a.locator('button[data-tab="goals"]').click();
+  await openView(a, 'goals');
   await a.getByRole('textbox', { name: 'New note', exact: true }).fill('Original note');
   await a.getByRole('button', { name: 'Add note', exact: true }).click();
 
   const b = await context.newPage();
   await b.goto('/');
-  await b.locator('button[data-tab="goals"]').click();
+  await openView(b, 'goals');
   const note = b.getByRole('textbox', { name: 'Note', exact: true });
   await note.fill('Unsaved note draft');
 
@@ -94,7 +94,7 @@ test('an unsaved note draft survives another tab pinning the same note', async (
 
 test('clean goal and note fields still refresh from cross-tab edits', async ({ context, page: a }) => {
   await a.goto('/');
-  await a.locator('button[data-tab="goals"]').click();
+  await openView(a, 'goals');
   await a.getByRole('textbox', { name: 'New goal', exact: true }).fill('Original title');
   await a.getByRole('button', { name: 'Add', exact: true }).click();
   await a.getByRole('textbox', { name: 'New note', exact: true }).fill('Original note');
@@ -102,7 +102,7 @@ test('clean goal and note fields still refresh from cross-tab edits', async ({ c
 
   const b = await context.newPage();
   await b.goto('/');
-  await b.locator('button[data-tab="goals"]').click();
+  await openView(b, 'goals');
   await b.getByRole('button', { name: 'Add notes & settings', exact: true }).click();
 
   await a.getByRole('textbox', { name: 'Goal', exact: true }).fill('Updated title');
@@ -120,7 +120,7 @@ test('clean goal and note fields still refresh from cross-tab edits', async ({ c
 
 test('undoing a draft after a remote edit catches up on blur', async ({ context, page: a }) => {
   await a.goto('/');
-  await a.locator('button[data-tab="goals"]').click();
+  await openView(a, 'goals');
   await a.getByRole('textbox', { name: 'New goal', exact: true }).fill('Ship release');
   await a.getByRole('button', { name: 'Add', exact: true }).click();
   await a.getByRole('button', { name: 'Add notes & settings', exact: true }).click();
@@ -129,7 +129,7 @@ test('undoing a draft after a remote edit catches up on blur', async ({ context,
 
   const b = await context.newPage();
   await b.goto('/');
-  await b.locator('button[data-tab="goals"]').click();
+  await openView(b, 'goals');
   await b.getByRole('button', { name: 'Notes & settings', exact: true }).click();
   const bNotes = b.locator('textarea[name="goal-notes"]');
   await expect(bNotes).toHaveValue('Original why');
@@ -148,7 +148,7 @@ test('undoing a draft after a remote edit catches up on blur', async ({ context,
 
 test('a cross-tab goal completion reorder does not commit an active goal-title draft early', async ({ context, page: a }) => {
   await a.goto('/');
-  await a.locator('button[data-tab="goals"]').click();
+  await openView(a, 'goals');
   await a.getByRole('textbox', { name: 'New goal', exact: true }).fill('Goal Alpha');
   await a.getByRole('button', { name: 'Add', exact: true }).click();
   await a.getByRole('textbox', { name: 'New goal', exact: true }).fill('Goal Beta');
@@ -156,7 +156,7 @@ test('a cross-tab goal completion reorder does not commit an active goal-title d
 
   const b = await context.newPage();
   await b.goto('/');
-  await b.locator('button[data-tab="goals"]').click();
+  await openView(b, 'goals');
   const alphaTitle = b.getByRole('textbox', { name: 'Goal', exact: true }).first();
   await expect(alphaTitle).toHaveValue('Goal Alpha');
   await alphaTitle.fill('Goal Alpha draft');
@@ -181,7 +181,7 @@ test('a cross-tab goal completion reorder does not commit an active goal-title d
 
 test('a cross-tab note pin reorder does not commit an active note draft early', async ({ context, page: a }) => {
   await a.goto('/');
-  await a.locator('button[data-tab="goals"]').click();
+  await openView(a, 'goals');
   await a.getByRole('textbox', { name: 'New note', exact: true }).fill('Note One');
   await a.getByRole('button', { name: 'Add note', exact: true }).click();
   await a.getByRole('textbox', { name: 'New note', exact: true }).fill('Note Two');
@@ -189,7 +189,7 @@ test('a cross-tab note pin reorder does not commit an active note draft early', 
 
   const b = await context.newPage();
   await b.goto('/');
-  await b.locator('button[data-tab="goals"]').click();
+  await openView(b, 'goals');
   // Locate the second note (Note One, since newest notes appear first)
   const noteOneIndex = await b.getByRole('textbox', { name: 'Note', exact: true }).evaluateAll(els => els.findIndex(el => (el as HTMLTextAreaElement).value === 'Note One'));
   expect(noteOneIndex).toBe(1);
@@ -217,7 +217,7 @@ test('a cross-tab note pin reorder does not commit an active note draft early', 
 
 test('deleting a focused note in another tab does not leave note sorting frozen', async ({ context, page: a }) => {
   await a.goto('/');
-  await a.locator('button[data-tab="goals"]').click();
+  await openView(a, 'goals');
   await a.getByRole('textbox', { name: 'New note', exact: true }).fill('Older note');
   await a.getByRole('button', { name: 'Add note', exact: true }).click();
   await a.getByRole('textbox', { name: 'New note', exact: true }).fill('Focused note');
@@ -225,7 +225,7 @@ test('deleting a focused note in another tab does not leave note sorting frozen'
 
   const b = await context.newPage();
   await b.goto('/');
-  await b.locator('button[data-tab="goals"]').click();
+  await openView(b, 'goals');
   await b.getByRole('textbox', { name: 'Note', exact: true }).first().focus();
 
   // Delete the focused note from Tab A, then add a newer note
