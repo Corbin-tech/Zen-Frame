@@ -23,7 +23,7 @@ async function seedTaskManager(page: import('@playwright/test').Page) {
   await expect(page.locator('.task-item:visible')).toHaveCount(1);
 }
 
-test('Enter activates focused Task Manager buttons outside rows', async ({ page }) => {
+test('Enter activates focused Tasks buttons outside rows', async ({ page }) => {
   await seedTaskManager(page);
 
   // "New cluster" button opens the QuickAdd dialog in cluster mode

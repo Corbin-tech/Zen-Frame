@@ -12,7 +12,7 @@ function key(key: string, overrides: Partial<Parameters<typeof tmKeyIntent>[0]> 
   return { key, altKey: false, ctrlKey: false, metaKey: false, shiftKey: false, ...overrides };
 }
 
-// The Task Manager tab visible with focus on a task row, nothing else competing for the keys
+// The Tasks tab visible with focus on a task row, nothing else competing for the keys
 const ready = { typing: false, tabActive: true, overlayOpen: false, rowMenuOpen: false, rowFocus: "row" as const };
 
 describe("tmKeys", () => {

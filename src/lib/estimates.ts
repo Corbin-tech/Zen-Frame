@@ -23,12 +23,17 @@ export function totalEstimate(tasks: Estimated[]): { minutes: number; unestimate
   return { minutes, unestimated };
 }
 
-export function totalLabel(tasks: Estimated[]): string {
-  const { minutes, unestimated } = totalEstimate(tasks);
+export function estimateLabel(minutes?: number | null): string {
+  if (!minutes || minutes <= 0) return "No estimate yet";
   const hours = Math.floor(minutes / 60);
   const rest = minutes % 60;
   const duration = [hours ? `${hours} hr` : "", rest ? `${rest} min` : ""].filter(Boolean).join(" ");
-  const base = minutes ? `About ${duration}` : "No estimate yet";
+  return `About ${duration}`;
+}
+
+export function totalLabel(tasks: Estimated[]): string {
+  const { minutes, unestimated } = totalEstimate(tasks);
+  const base = estimateLabel(minutes);
   return unestimated ? `${base} · ${unestimated} not estimated` : base;
 }
 
