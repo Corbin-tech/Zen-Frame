@@ -1,8 +1,7 @@
 import { createAnthropicClient } from '../../../server/assist/anthropic.ts';
 import { handleAssist, jsonResponse } from '../../../server/assist/handler.ts';
-import type { EntitlementGate } from '../../../server/assist/ports.ts';
+import type { EntitlementGate, RateLimiter } from '../../../server/assist/ports.ts';
 import { createEntitlementService, type EntitlementEnv } from '../../../server/auth/entitlement.ts';
-import type { RateLimiter } from '../../../server/assist/ports.ts';
 import { createD1RateLimiter } from '../../../server/assist/rateLimit.ts';
 import type { AssistDatabase, RateLimitScope } from '../../../server/assist/rateLimit.ts';
 interface Env {
