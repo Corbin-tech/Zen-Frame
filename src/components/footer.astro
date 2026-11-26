@@ -11,6 +11,7 @@ import data from "../data/site.json";
 const normalizedPath = Astro.url.pathname.replace(/\/$/, '') || '/';
 const isAppPage = normalizedPath === '/' || normalizedPath === '/index.html';
 const isPrinciples = normalizedPath === '/principles' || normalizedPath === '/principles.html';
+const isRoadmap = normalizedPath === '/roadmap' || normalizedPath === '/roadmap.html';
 ---
 
 <footer class="w-full px-3 sm:px-6 border-t border-gray-900/[0.07] dark:border-white/[0.06] mt-auto transition-colors">
@@ -63,6 +64,18 @@ const isPrinciples = normalizedPath === '/principles' || normalizedPath === '/pr
             ]}
           >
             Calm design principles
+          </a>
+        </li>
+        <li>
+          <a
+            href="/roadmap"
+            aria-current={isRoadmap ? 'page' : undefined}
+            class:list={[
+              'px-2 py-2 sm:p-0 inline-block hover:underline hover:text-gray-900 dark:hover:text-gray-100',
+              isRoadmap && 'text-gray-900 dark:text-gray-100 underline underline-offset-4',
+            ]}
+          >
+            Roadmap
           </a>
         </li>
         <li>
