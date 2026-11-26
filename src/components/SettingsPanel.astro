@@ -175,7 +175,7 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
                 </div>
             </section>
 
-            <!-- Zen mode: the only place its options are changed. Zen mode's Customize button opens the panel here. -->
+            <!-- Next step (data-settings-section="zen" kept stable for existing store and event keys). -->
             <section class={`${section} scroll-mt-6`} data-settings-section="zen">
                 <h3 class={sectionTitle}>Next step</h3>
                 <template x-for="option in $store.settings.zenOptions" :key="option.key">

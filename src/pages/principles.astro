@@ -3,13 +3,16 @@ import Layout from '../layouts/Layout.astro';
 import EnsoMark from '../components/EnsoMark.astro';
 import DarkModeToggle from '../components/darkModeToggle.astro';
 
+const pageDescription =
+	'Five calm design principles behind Zen Frame: no guilt for unfinished work, one next step, local-first privacy, accessible contrast, and opt-in assistance.';
+
 const principles = [
 	{
 		number: '01',
 		title: 'No guilt for unfinished work',
-		body: 'Plans change, energy dips, and days run short. Carrying a task into tomorrow is normal, not a failure. Zen Frame removes red overdue warnings and streak counters in favor of warm, neutral reminders that help you pick back up without dread.',
+		body: 'Plans change, energy dips, and days run short. Carrying a task into tomorrow is normal, not a failure. Zen Frame avoids streak counters and guilt metrics in favor of calm reminders that help you pick back up without dread.',
 		inAppLabel: 'In the app',
-		inApp: 'Past-due tasks use a soft Warmth tint and plain language ("2 carried over. Pick one to start."). Red is reserved strictly for destructive actions like deleting an item.',
+		inApp: 'Zero streak counters anywhere. We are completing the calm-copy pass that moves past-due reminders to a soft Warmth tint and plain carried-over wording, reserving red strictly for destructive actions.',
 		warmthDot: true,
 	},
 	{
@@ -17,7 +20,7 @@ const principles = [
 		title: 'One next step, not everything at once',
 		body: 'Looking at forty tasks at once makes starting harder, not easier. Our mark — an open circle with a single dot at the opening — is the whole layout philosophy: leave room to begin, and focus on one concrete step.',
 		inAppLabel: 'In the app',
-		inApp: 'Views are grouped into three quiet areas — Today, Focus, and Library — and Next step mode pairs a single task and its rough time estimate with one calm Begin focus action.',
+		inApp: 'Zen Mode isolates one task at a time with nothing else in view, alongside focused Dashboard, Task Manager, Board, Schedule, Goals, Insights, and Pomodoro views.',
 		warmthDot: false,
 	},
 	{
@@ -33,7 +36,7 @@ const principles = [
 		title: 'Readable and accessible by default',
 		body: 'Calm design only works if everyone can read and navigate it comfortably. Every color pairing is measured for contrast, every state is shown in words as well as color, and motion stays subtle.',
 		inAppLabel: 'In the app',
-		inApp: 'WCAG 2.2 AA contrast across light mode, dark mode, and all 9 accent colors; explicit task states (Ready, In focus, Done); self-hosted Newsreader, Inter, Lexend, and Atkinson Hyperlegible fonts; and automatic support for reduced motion.',
+		inApp: 'WCAG 2.2 AA contrast across light mode, dark mode, and all 9 accent colors; explicit In focus task badges alongside completion states; self-hosted Newsreader, Inter, Lexend, and Atkinson Hyperlegible fonts; and automatic support for reduced motion.',
 		warmthDot: false,
 	},
 	{
@@ -64,7 +67,7 @@ const comparisonRows = [
 	},
 	{
 		area: 'Core features',
-		core: 'Tasks, Board, Schedule, Timer, Next step, Goals, Stillpoint recaps, manual estimates',
+		core: 'Dashboard, Task Manager, Board, Schedule, Goals, Insights (Stillpoint recaps), Pomodoro, Zen Mode, and manual time estimates',
 		plus: 'Adds AI Breakdown, Brain dump, Estimate ranges, and Learning your pace',
 	},
 	{
@@ -75,7 +78,7 @@ const comparisonRows = [
 ];
 ---
 
-<Layout title="Calm Design Principles — Zen Frame">
+<Layout title="Calm design principles — Zen Frame" description={pageDescription}>
 	<div class="mx-auto max-w-3xl pt-4 sm:pt-8">
 		<header class="flex items-center justify-between gap-4 border-b border-gray-200/80 pb-4 dark:border-white/10">
 			<a
@@ -98,10 +101,10 @@ const comparisonRows = [
 		<article class="mx-auto max-w-2xl space-y-12 py-10 sm:py-14">
 			<!-- Hero -->
 			<section aria-labelledby="principles-heading" class="space-y-6">
-				<p class="principles-eyebrow">Calm design principles</p>
+				<p class="eyebrow">Calm design principles</p>
 				<h1
 					id="principles-heading"
-					class="principles-serif text-3xl leading-tight tracking-tight text-gray-900 sm:text-5xl dark:text-gray-50"
+					class="editorial font-normal text-3xl leading-tight tracking-tight text-gray-900 sm:text-5xl dark:text-gray-50"
 				>
 					A quieter way to begin.
 				</h1>
@@ -127,8 +130,8 @@ const comparisonRows = [
 				<ol class="space-y-6">
 					{principles.map((item) => (
 						<li class="panel p-6 sm:p-8">
-							<p class="principles-eyebrow">{item.number}</p>
-							<h3 class="principles-serif mt-2 text-2xl leading-snug tracking-tight text-gray-900 dark:text-gray-50">
+							<p class="eyebrow">{item.number}</p>
+							<h3 class="editorial font-normal mt-2 text-2xl leading-snug tracking-tight text-gray-900 dark:text-gray-50">
 								{item.title}
 							</h3>
 							<p class="mt-3 text-base leading-relaxed text-gray-700 dark:text-gray-300">
@@ -153,10 +156,10 @@ const comparisonRows = [
 
 			<!-- The boundary: Core vs Plus -->
 			<section aria-labelledby="boundary-heading" class="space-y-4">
-				<p class="principles-eyebrow">Our promise</p>
+				<p class="eyebrow">Our promise</p>
 				<h2
 					id="boundary-heading"
-					class="principles-serif text-2xl leading-snug tracking-tight text-gray-900 sm:text-3xl dark:text-gray-50"
+					class="editorial font-normal text-2xl leading-snug tracking-tight text-gray-900 sm:text-3xl dark:text-gray-50"
 				>
 					What stays free, and what Plus adds.
 				</h2>
@@ -166,8 +169,8 @@ const comparisonRows = [
 				</p>
 
 				<div class="panel overflow-hidden">
-					<div class="overflow-x-auto">
-						<table class="w-full border-collapse text-left text-sm">
+					<div class="overflow-x-auto" tabindex="0" role="region" aria-label="Zen Frame Core versus Plus comparison">
+						<table class="w-full min-w-[32rem] border-collapse text-left text-sm">
 							<thead>
 								<tr class="border-b border-gray-200/80 bg-gray-50/70 dark:border-white/10 dark:bg-slate-900/40">
 									<th scope="col" class="px-4 py-3.5 font-medium text-gray-900 sm:px-6 dark:text-gray-100">
@@ -202,49 +205,33 @@ const comparisonRows = [
 			</section>
 
 			<!-- Closing and quiet CTA -->
-			<section aria-labelledby="closing-heading" class="panel relative overflow-hidden p-8 sm:p-10">
+			<section aria-labelledby="closing-heading" class="panel relative isolate overflow-hidden p-8 sm:p-10">
 				<div class="ripples text-teal-700 dark:text-teal-300" aria-hidden="true"></div>
 				<div class="relative space-y-4">
 					<h2
 						id="closing-heading"
-						class="principles-serif text-2xl tracking-tight text-gray-900 sm:text-3xl dark:text-gray-50"
+						class="editorial font-normal text-2xl tracking-tight text-gray-900 sm:text-3xl dark:text-gray-50"
 					>
 						Starting small counts.
 					</h2>
 					<p class="max-w-xl text-base leading-relaxed text-gray-700 dark:text-gray-300">
 						Open Zen Frame in your browser — no sign-up, no setup wizard, just a clear space for your next step.
 					</p>
-					<div class="flex flex-wrap items-center gap-4 pt-2">
+					<div class="flex flex-wrap items-center gap-4 pt-2" x-data>
 						<a href="/" class="btn-primary touch-target">
 							<span>Open Zen Frame</span>
 							<span aria-hidden="true">&rarr;</span>
 						</a>
-						<a
-							href="/"
-							class="text-sm font-medium text-teal-700 underline decoration-teal-700/40 underline-offset-4 transition-colors hover:text-teal-800 dark:text-teal-300 dark:decoration-teal-300/40 dark:hover:text-teal-200"
+						<button
+							type="button"
+							x-on:click="$dispatch('open-feedback')"
+							class="touch-target inline-flex items-center text-sm font-medium text-teal-700 underline decoration-teal-700/40 underline-offset-4 transition-colors hover:text-teal-800 dark:text-teal-300 dark:decoration-teal-300/40 dark:hover:text-teal-200 cursor-pointer"
 						>
-							Tell us what would help most in the app
-						</a>
+							Tell us what would help most
+						</button>
 					</div>
 				</div>
 			</section>
 		</article>
 	</div>
 </Layout>
-
-<style>
-	.principles-eyebrow {
-		@apply text-xs font-medium uppercase tracking-[0.14em] text-gray-500 dark:text-gray-400;
-	}
-
-	/* Uses Newsreader once Phase 3 (@fontsource-variable/newsreader) is merged, with a calm serif fallback. */
-	.principles-serif {
-		font-family: 'Newsreader Variable', ui-serif, Georgia, Cambria, 'Times New Roman', serif;
-		font-weight: 400;
-	}
-
-	/* Respects the user's chosen accessibility font (Lexend, Atkinson Hyperlegible, Outfit) from Settings. */
-	:global(:root[data-font]:not([data-font='inter'])) .principles-serif {
-		font-family: inherit;
-	}
-</style>

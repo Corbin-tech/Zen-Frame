@@ -3,9 +3,9 @@ import { loadJson, loadString, saveJson } from "../lib/storage.ts";
 import { UNDO_TOAST_MS } from "../lib/notifications.ts";
 
 export const CYCLE_LENGTH = 4;
-export const MIN_MINUTES = 1;
-export const MAX_WORK_MINUTES = 180;
-export const MAX_BREAK_MINUTES = 60;
+const MIN_MINUTES = 1;
+const MAX_WORK_MINUTES = 180;
+const MAX_BREAK_MINUTES = 60;
 
 export interface CustomDurations {
   work: number;
@@ -13,7 +13,7 @@ export interface CustomDurations {
   longBreak: number;
 }
 
-export const DEFAULT_CUSTOM: CustomDurations = { work: 30, break: 5, longBreak: 15 };
+const DEFAULT_CUSTOM: CustomDurations = { work: 30, break: 5, longBreak: 15 };
 
 // Minutes for each built-in preset
 export const POMO_DURATIONS = {
@@ -72,6 +72,8 @@ interface PomoTodosApi {
   find?: (id: string) => PomoLinkedTask | undefined;
   clusterName?: (id: string | null) => string;
 }
+
+const todosApi = () => window.Alpine?.store("todos") as PomoTodosApi | undefined;
 
 interface PomoSnapshot {
   focusTask?: FocusTask | null;
@@ -177,11 +179,17 @@ export function initPomoStore() {
         if (target?.closest("input, textarea, select, button, [role='button'], [contenteditable], [role='dialog']")) return;
         if (Array.from(document.querySelectorAll("[role='dialog']")).some(dialog => dialog.checkVisibility())) return;
         const activeTab = loadString("activeTab", "dashboard");
-        const todos = window.Alpine.store("todos") as PomoTodosApi | undefined;
+        const todos = todosApi();
         const zenTimerActive = activeTab === "zenmode" && Boolean(todos?.nextTask);
         if (activeTab !== "pomodoro" && !zenTimerActive) return;
         e.preventDefault();
-        this.isRunning ? this.pauseTimer() : this.startTimer();
+        if (this.isRunning) {
+          this.pauseTimer();
+        } else if (activeTab === "zenmode") {
+          this.startFocus(todos?.nextTask?.id);
+        } else {
+          this.startTimer();
+        }
       });
     },
 
@@ -211,7 +219,7 @@ export function initPomoStore() {
     get activeTask(): PomoLinkedTask | null {
       if (!this.isBreak && this.focusTask !== undefined) return this.focusTask;
       if (this.selectedTaskId === "") return null;
-      const todos = window.Alpine.store("todos") as PomoTodosApi | undefined;
+      const todos = todosApi();
       if (this.selectedTaskId) {
         const chosen = todos?.find?.(this.selectedTaskId);
         if (chosen && !chosen.completed && !chosen.isCluster) return chosen;
@@ -265,7 +273,7 @@ export function initPomoStore() {
       if (this.timeLeft <= 0) this.resetTimer();
       if (!this.isBreak && this.focusTask === undefined) {
         const task = this.activeTask;
-        const todos = window.Alpine.store("todos") as PomoTodosApi | undefined;
+        const todos = todosApi();
         this.focusTask = task ? { ...task, clusterName: todos?.clusterName?.(task.parentId) ?? "" } : null;
       }
 
@@ -323,15 +331,17 @@ export function initPomoStore() {
       };
       this.clearUndo();
       this.undoSnapshot = snapshot;
+      // Read it back: in an Alpine store this is a reactive proxy, which never equals the raw object.
+      const stored = this.undoSnapshot;
       this.undoTimer = setTimeout(() => {
-        if (this.undoSnapshot === snapshot) this.clearUndo();
+        if (this.undoSnapshot === stored) this.clearUndo();
       }, UNDO_WINDOW_MS);
       window.dispatchEvent(new CustomEvent("app-toast", {
         detail: {
           title,
           body: "",
           actionLabel: "Undo",
-          onAction: () => this.restoreSnapshot(snapshot)
+          onAction: () => this.restoreSnapshot(stored)
         }
       }));
     },
@@ -392,7 +402,7 @@ export function initPomoStore() {
         this.loadSessions();
         if (!this.sessions.some((session) => session?.completedAt === completedAt)) {
           const task = this.focusTask === undefined ? this.activeTask : this.focusTask;
-          const todos = window.Alpine.store("todos") as PomoTodosApi | undefined;
+          const todos = todosApi();
           const session: FocusSession = {
             completedAt,
             minutes: this.totalTime / 60,

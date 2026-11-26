@@ -10,8 +10,6 @@ import Insights from './Insights.astro';
 import DarkModeToggle from './darkModeToggle.astro';
 import SettingsPanel from './SettingsPanel.astro';
 import QuickAdd from './QuickAdd.astro';
-import AppToasts from './AppToasts.astro';
-import Feedback from './Feedback.astro';
 import ZenQuote from './ZenQuote.astro';
 import ZenBackdrop from './ZenBackdrop.astro';
 import EnsoMark from './EnsoMark.astro';
@@ -78,7 +76,7 @@ const tabOf = (id: string) => tabs.find((tab) => tab.id === id);
         x-data="{ get collapsed() { return $store.settings.sidebarCollapsed } }"
     >
         <div class="flex items-center gap-2 px-1 pt-1" x-bind:class="collapsed && 'flex-col'">
-            <button type="button" x-on:click="activeTab = 'dashboard'" class="flex items-center gap-2 min-w-0 rounded-lg" aria-label="Zen Frame, go to the dashboard">
+            <button type="button" x-on:click="activeTab = 'dashboard'" class="flex items-center gap-2 min-w-0 rounded-lg" aria-label="Zen Frame, go to the overview">
                 <span class="grid place-items-center w-8 h-8 shrink-0">
                     <EnsoMark class="w-7 h-7 text-gray-900 dark:text-gray-50" />
                 </span>
@@ -185,7 +183,7 @@ const tabOf = (id: string) => tabs.find((tab) => tab.id === id);
         x-bind:class="$store.settings.navLayout === 'side' && 'xl:hidden'"
         class="sticky top-0 z-40 mb-6 py-2 before:absolute before:inset-y-0 before:left-1/2 before:-z-10 before:w-screen before:-translate-x-1/2 before:bg-gray-50 dark:before:bg-slate-900 before:border-b before:border-gray-900/[0.07] dark:before:border-white/[0.06]">
         <div class="flex items-center gap-1.5 sm:gap-3">
-            <button type="button" x-on:click="activeTab = 'dashboard'" class="hidden sm:flex items-center gap-2 shrink-0 rounded-lg" aria-label="Zen Frame, go to the dashboard">
+            <button type="button" x-on:click="activeTab = 'dashboard'" class="hidden sm:flex items-center gap-2 shrink-0 rounded-lg" aria-label="Zen Frame, go to the overview">
                 <span class="grid place-items-center w-8 h-8">
                     <EnsoMark class="w-7 h-7 text-gray-900 dark:text-gray-50" />
                 </span>
@@ -293,8 +291,6 @@ const tabOf = (id: string) => tabs.find((tab) => tab.id === id);
 
     <SettingsPanel />
     <QuickAdd />
-    <AppToasts />
-    <Feedback />
 
     <!-- Tab Content -->
     <div>
@@ -371,6 +367,12 @@ const tabOf = (id: string) => tabs.find((tab) => tab.id === id);
             },
 
             init() {
+                const hashTab = window.location.hash.replace(/^#/, '');
+                if (VALID_TABS.has(hashTab)) {
+                    this.activeTab = hashTab;
+                    saveString('activeTab', hashTab);
+                    history.replaceState(null, '', window.location.pathname + window.location.search);
+                }
                 this.lastView[this.activeArea] = this.activeTab;
                 this.$watch('activeTab', (value) => {
                     const valid = safeTab(value);

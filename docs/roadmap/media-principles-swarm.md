@@ -1,118 +1,73 @@
-# Swarm brief: review and push Zen Frame media kit, OG card, and Principles page
+# Brand, media, and principles roadmap
 
-## Mission
+Status and next milestones following the initial brand media, typography, and Calm Design Principles merges on `main`.
 
-Review the four new/updated brand and media additions in `astro-zen-frame`, fix any issues found, verify all checks pass, and push a clean branch and PR to GitHub (`Corbin-tech/Zen-Frame`).
+## 1. Shipped baseline
 
-### Files in scope
-
-| File | State | Purpose |
+| Deliverable | Status | Location |
 |---|---|---|
-| `docs/media-kit.md` | New | Brand foundation, bios, channel plan, first 10 launch posts, Calm Design Principles copy, and 2026–2027 milestones |
-| `public/og-image.png` | New | 1200x630 Pine (`#173F3A`) and Paper (`#F7F5EF`) social card based on Panel 01 with exact `src/lib/favicon.ts` ensō geometry |
-| `src/pages/principles.astro` | New | Static `/principles` page bridging local-first Core Zen Frame with planned Plus helpers |
-| `src/components/footer.astro` | Modified | Adds subtle `Calm design principles` link to `/principles` with `aria-current="page"` |
+| Phase 3 typography (Newsreader `.page-title`, `.editorial`, `.eyebrow`, font overrides) | Shipped (PR #90) | `src/styles/tailwind.css`, `src/styles/preferences.css`, `src/layouts/Layout.astro` |
+| Phase 4 components (panels, unified buttons, `In focus` badges, footer tagline) | Shipped (PR #89) | `src/styles/tailwind.css`, `src/components/*` |
+| Media kit, Panel 01 OG card (`1200x630`), `/principles` page, footer link | Shipped (PR #89) | `docs/media-kit.md`, `public/og-image.png`, `src/pages/principles.astro`, `src/components/footer.astro` |
+| Principles and footer polish (working `/principles` footer navigation & Feedback dialog, `.ripples` isolation, shared `.eyebrow`/`.editorial` reuse, page description & `Astro.site`-ready OG/Twitter meta tags, copy aligned with shipped UI) | Shipped (this PR) | `src/layouts/Layout.astro`, `src/pages/principles.astro`, `src/components/footer.astro`, `src/components/tabs.astro` |
 
-### Explicit exclusions (do not stage or commit)
+## 2. Ground rules (apply to every milestone)
 
-The working tree currently contains local review, audit, and board files that must stay untracked and out of git:
+- **Stack:** Astro 7 (`output: 'static'`, `assetsInlineLimit: 0`), Alpine.js 3, Tailwind CSS 3, TypeScript 7. Do not upgrade Tailwind or Flowbite without approval.
+- **Dependencies:** No new runtime npm packages (`vitest` and `@playwright/test` are approved dev-only test tools).
+- **Security:** Zero XSS sinks (`x-html`, `innerHTML`, `outerHTML`, `eval`, `new Function`). Zero external fonts, CDNs, analytics, or outbound `fetch()` calls until Plus P1. Preserve the CSP in `src/layouts/Layout.astro` and `public/_headers`. Every `target="_blank"` link must include `rel="noopener noreferrer"`.
+- **Voice:** Calm, clear, encouraging. Sentence case for headings, labels, and buttons. Zero exclamation marks. No "catching up" language, streak pressure, or hype copy.
+- **Accessibility:** WCAG 2.2 AA contrast (4.5:1+ text, 3:1+ UI) across light mode, dark mode, and all 9 accents; 44px touch targets on phone widths; keyboard navigation; `prefers-reduced-motion`; respect user font overrides (`data-font`).
 
-- `Zen-Frame-Visual-Identity-Board.png`
-- `brand-refresh-plan-2026-11-20.md`
-- `pr-review-*.md` (all local PR review and Slack summary files)
-- `security-audit-2026-11-20.md`
-- Standard repo exclusions: `AGENTS.md`, `.astro/`, `.env`, `.claude/`
+## 3. Milestones
 
-## Ground rules for every agent
+### M1 — Production domain and live social metadata (Item 2.5)
+**Goal:** Make social previews, canonical URLs, and feedback delivery work in production.
+- **Human gate:** Owner supplies the production domain and optional `feedbackEmail`.
+- **Deliverables:**
+  1. Set `site: 'https://<production-domain>'` in `astro.config.mjs` (automatically activates `og:url`, `og:image`, and `twitter:image` in `src/layouts/Layout.astro`).
+  2. Set `feedbackEmail` in `src/data/site.json` (or confirm copy-to-clipboard fallback is preferred for now).
+  3. Replace `[production-url]` placeholders in `docs/media-kit.md`.
+- **Done when:** `npm run build` outputs absolute `og:image` (`https://<domain>/og-image.png`) and `og:url` meta tags in `dist/index.html` and `dist/principles.html`, and live unfurlers (X, Bluesky, LinkedIn, Open Graph debugger) render `public/og-image.png` cleanly.
 
-- **Stack:** Astro 7.4.12 (`output: 'static'`, `assetsInlineLimit: 0`), Alpine.js 3.17.5, Tailwind CSS 3.4.19, Flowbite 2.5.2, TypeScript 7.0.2. Do not upgrade Tailwind or Flowbite.
-- **Dependencies:** No new npm packages.
-- **Security:** Zero XSS sinks (`x-html`, `innerHTML`, `outerHTML`, `eval`, `new Function`). Zero external fonts, CDNs, analytics, or outbound `fetch()` calls. Preserve the CSP in `src/layouts/Layout.astro` and `public/_headers`. Every `target="_blank"` link must include `rel="noopener noreferrer"`.
-- **Branch safety:** The repo is currently checked out on `brand/components` (Phase 4). `src/pages/principles.astro` relies on `.btn-primary` and `.btn-secondary` introduced on `brand/components`. Cut a clean branch `brand/media-and-principles` from `brand/components` (do not commit directly to `main`, do not force-push, and do not mix unrelated files).
-- **Voice rules (Phase 5):** Calm, clear, encouraging. Sentence case, zero exclamation marks, no "catching up" language, no hype copy.
-- **Report format:** Structure every agent report as `Goal -> Context -> Constraints -> Done-when -> Report (1 line per changed file)` followed by verification output.
+### M2 — Phase 5 calm copy and Warmth overdue pass
+**Goal:** Bring the in-app past-due experience in line with Principle 01 and unlock anti-shame launch posts.
+- **Deliverables:**
+  1. Update `src/lib/dates.ts` (`DUE_TONE_CLASSES.overdue` and relative labels), `src/lib/notifications.ts`, and `src/lib/taskFilters.ts` to replace red overdue badges and `"overdue"` framing with Warmth (`#D7B36A` / accessible warm amber ink) and plain carried-over copy.
+  2. Verify contrast of Warmth tints and text in both light mode (Paper `#F7F5EF` and white `.panel`) and dark mode (`slate-800` and `slate-700/70` cards) across all 9 accents.
+  3. Update Principle 01 in `src/pages/principles.astro` and `docs/media-kit.md` to reflect the shipped copy, and remove the M2 hold note on launch Posts 1, 2, 6, and 8.
+- **Done when:** Zero red badges remain on past-due tasks (red is reserved strictly for destructive actions), unit and Playwright tests pass, and contrast is verified >= 4.5:1.
 
-## Order of work
+### M3 — Quiet community launch and social asset kit
+**Goal:** Ship the first wave of public launch assets and gather real-world feedback on Core and Plus.
+- **Depends on:** M1 (live URL) and M2 (for anti-shame posts).
+- **Deliverables:**
+  1. Build reusable light Paper (`#F7F5EF`) and dark Pine (`#173F3A`) social card exports matching Section 3 of `docs/media-kit.md` (before/after anti-shame card, ensō construction card, typography split card, privacy statement card).
+  2. Capture two 15-second Quiet desk clips (no voiceover) demonstrating focus flow and carried-over task recovery.
+  3. Publish Posts 1–6 across X/Bluesky, Show HN, LinkedIn, and student/executive-function communities.
+  4. Triage incoming Feedback submissions for Plus demand signal and real task/brain-dump test cases.
+- **Done when:** Launch posts are live with working social cards and at least 50 real tasks / 10 brain dumps are collected (feeding `docs/roadmap/neuro-tools.md` launch quality bar).
 
-| Workstream | Suggested model | Depends on | Can start |
-|---|---|---|---|
-| R1 Visual, accessibility, and brand audit | `mistral-large-4-0` | — | Now |
-| R2 Security, CSP, and copy accuracy audit | `mistral-large-4-0` | — | Now |
-| R3 Build, unit, and e2e verification | `zai-glm-5-3` | — | Now |
-| R4 Fixes (if any), branch, commit, push, and PR | `zai-glm-5-3` | R1, R2, R3 | After R1–R3 pass |
+### M4 — Stillpoint share cards and organic loop
+**Goal:** Let users optionally export a calm visual recap without exposing private task text or adding outbound network calls.
+- **Depends on:** M3.
+- **Deliverables:**
+  1. Add a client-side Stillpoint recap card generator (Paper and Pine variants, Canvas/SVG -> PNG download) inside `src/components/Recap.astro` showing aggregate focus minutes and completed count only — never task titles or notes.
+  2. Verify zero external requests and strict CSP compliance.
+- **Done when:** Users can download a crisp 1200x630 or 1080x1350 Stillpoint card offline in both themes with unit + e2e coverage.
 
-R1, R2, and R3 run in parallel. Chief of Staff consolidates findings, routes any fixes back to the owning file, re-runs R3 if code changed, and then authorizes R4.
+### M5 — Zen Frame Plus beta alignment
+**Goal:** Keep the brand manifesto, privacy promises, and UI aligned as `docs/roadmap/neuro-tools.md` (P0–P7) ships.
+- **Depends on:** `docs/roadmap/neuro-tools.md` P0–P7.
+- **Deliverables:**
+  1. Add a dedicated `/privacy` page naming the AI provider, zero-retention guarantees, and Core vs Plus data boundaries (linked from `footer.astro` and `principles.astro`).
+  2. Update `src/pages/principles.astro` and `docs/media-kit.md` to move Plus features from *Planned* to live as they ship.
+  3. Run back-to-school student campaign around Learning your pace and time-blindness buffers.
+- **Done when:** `/principles`, `/privacy`, and the in-app consent screen agree word-for-word on data handling and zero retention.
 
-## Workstreams
+## 4. Immediate next steps
 
-### R1: Visual, accessibility, and brand audit
-
-- **Suggested model:** `mistral-large-4-0` (vision-capable).
-- **Inspect:**
-  - `public/og-image.png`: Confirm exact `1200 x 630` PNG dimensions, `#173F3A` Pine background, `#F7F5EF` Paper mark and text, exact ensō gap/dot geometry matching `src/lib/favicon.ts`, crisp typography, and Panel 01 fidelity.
-  - `src/pages/principles.astro` rendered in a browser at `375px` (phone) and `1440px` (desktop), in both light and dark themes:
-    - Confirm WCAG 2.2 AA contrast (4.5:1+ for text, 3:1+ for UI elements) across Paper, white `.panel`, and dark Pine `slate-800`/`slate-900` surfaces.
-    - Confirm 44px touch targets on phone widths (`touch-target` on header links/buttons and CTA).
-    - Confirm `data-font` override works when switching to Lexend, Atkinson Hyperlegible Next, or Outfit (`.principles-serif` yields to `font-family: inherit`).
-    - Confirm `prefers-reduced-motion` and keyboard focus outlines (`:focus-visible`) work cleanly across header, table, and CTA.
-  - `src/components/footer.astro`: Confirm the `Calm design principles` link aligns cleanly at phone and desktop widths and sets `aria-current="page"` on `/principles`.
-- **Done when:** All visual and accessibility checks pass with no contrast, overflow, or alignment regressions.
-
-### R2: Security, CSP, and copy accuracy audit
-
-- **Suggested model:** `mistral-large-4-0` (high reasoning).
-- **Inspect:**
-  - `src/pages/principles.astro` and `src/components/footer.astro`:
-    - Zero XSS sinks (`x-html`, `innerHTML`, `eval`).
-    - Zero external URLs, third-party embeds, or inline scripts that could alter the `Layout.astro` CSP hash.
-    - `public/_headers` untouched.
-  - `docs/media-kit.md` and `src/pages/principles.astro` copy accuracy:
-    - All statements about Core Zen Frame match the actual codebase (`localStorage`, zero accounts/tracking, WCAG 2.2 AA across 9 accents, self-hosted fonts, Stillpoint recap).
-    - All statements about Zen Frame Plus accurately reflect `docs/roadmap/neuro-tools.md` (explicitly marked as *planned* / *coming in Plus*, opt-in, preview-never-auto-apply, zero retention).
-    - Strict adherence to Phase 5 voice rules (sentence case, zero exclamation marks, no "catching up" pressure).
-    - Zero accidental local filesystem paths, personal tokens, or secrets.
-- **Done when:** Security and copy audit signs off with zero blockers.
-
-### R3: Build, unit, and e2e verification
-
-- **Suggested model:** `zai-glm-5-3`.
-- **Run:**
-  1. `npm run type-check` (must exit 0).
-  2. `npm run build` (must exit 0; verify `dist/principles.html` and `dist/og-image.png` are present).
-  3. `npm run test` (all Vitest and Node tests must pass).
-  4. `npm run test:e2e` (all Playwright specs must pass — note: if port 4321 already has an Astro dev server running, build and preview on a dedicated port per `brand-refresh-plan-2026-11-20.md` and stop the preview server afterward).
-- **Check:** Confirm the added footer link does not break any existing e2e selectors or layout wrap assertions.
-- **Done when:** All four verification commands pass with 0 errors and clean output.
-
-### R4: Branch, commit, push, and PR
-
-- **Suggested model:** `zai-glm-5-3`.
-- **Precondition:** R1, R2, and R3 are all signed off with 0 errors. If any edits were made during review, re-run `npm run type-check && npm run build && npm run test` first.
-- **Steps:**
-  1. Check `git status` and confirm current branch (`brand/components`).
-  2. Create and switch to `brand/media-and-principles`:
-     ```bash
-     git checkout -b brand/media-and-principles
-     ```
-  3. Stage **only** the four scoped files (never use `git add -A` or `git add .`):
-     ```bash
-     git add docs/media-kit.md public/og-image.png src/pages/principles.astro src/components/footer.astro
-     ```
-     *(Include `docs/roadmap/media-principles-swarm.md` only if the human owner explicitly asks to commit the swarm brief.)*
-  4. Verify `git diff --cached --stat` lists only the intended files and none of the excluded local files.
-  5. Commit with a concise, clear message:
-     ```bash
-     git commit -m "Add media kit, Panel 01 social card, and Calm Design Principles page"
-     ```
-  6. Push the branch to `origin`:
-     ```bash
-     git push -u origin brand/media-and-principles
-     ```
-  7. Open a GitHub PR targeting `brand/components` (or note in the PR description to retarget `main` once `brand/components` merges), including the R1–R3 verification summary and noting that Item 2.5 (`site` in `astro.config.mjs` and `og:image` meta tags in `Layout.astro`) remains gated on the production URL.
-- **Done when:** Branch is pushed to `origin`, working tree has no unintended staged changes, and PR link is reported to the owner.
-
-## Human gates
-
-- **Merging to `main`:** Human approves and merges the PR.
-- **Item 2.5 completion:** Human supplies the production domain to set `site` in `astro.config.mjs`, wire `og:image` in `src/layouts/Layout.astro`, and replace `[production-url]` in `docs/media-kit.md`.
-- **Publishing:** Human publishes external social posts from `docs/media-kit.md`.
+1. **Owner (M1 gate):** Provide the production domain to set `site` in `astro.config.mjs` (and optionally `feedbackEmail` in `src/data/site.json`).
+2. **Engineering (M2):** Run the Phase 5 calm-copy & Warmth overdue pass across `src/lib/dates.ts`, `src/lib/notifications.ts`, `src/lib/taskFilters.ts`, and any task/board due-date chips.
+3. **Engineering (optional IA decision):** Confirm whether the 8-tab navigation stays as-is or consolidates into `Today / Focus / Library` + `Next step` (Phase 6), and update Posts 2, 3, and 6 in `docs/media-kit.md` accordingly before M3 launch.
+4. **Media (M3):** Export the first 4 static social cards from `docs/media-kit.md` once M1 and M2 land.
