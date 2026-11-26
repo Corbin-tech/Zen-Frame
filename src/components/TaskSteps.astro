@@ -4,15 +4,13 @@ import BreakdownPanel from './BreakdownPanel.astro';
 interface Props {
     taskId?: string; // Alpine expression; TaskRow provides task.id
     zen?: boolean;
-    showChecklist?: boolean;
     fallbackFocus?: string;
 }
 
 const {
     taskId = 'task.id',
     zen = false,
-    showChecklist = true,
-    fallbackFocus = '$refs.checklistSummary?.getClientRects().length ? $refs.checklistSummary : $root.closest(".task-item")?.querySelector("[name=task-name]")'
+    fallbackFocus = '$root.closest(".task-item")?.querySelector("[name=task-name]")'
 } = Astro.props;
 const box = 'rounded-xl border border-gray-200 bg-white/85 p-3 text-left dark:border-slate-600 dark:bg-slate-900/70';
 const checkbox = 'h-5 w-5 shrink-0 rounded-full border-gray-400 text-teal-700 focus:ring-teal-500 dark:border-slate-500 dark:bg-slate-800';
@@ -26,7 +24,7 @@ const action = 'min-h-9 rounded-lg px-2 py-1 text-sm font-medium text-teal-800 h
     x-cloak
     class:list={['min-w-0 space-y-2', zen ? 'w-full max-w-xl' : 'w-full']}
 >
-    {showChecklist && (zen ? (
+    {zen && (
         <div x-show="savedSteps.length" class={box}>
             <p role="status" class="sr-only" x-text="nextStep ? `Next step: ${nextStep.text}. ${stepProgress}.` : `All steps complete. ${stepProgress}.`"></p>
             <div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-sm">
@@ -39,25 +37,7 @@ const action = 'min-h-9 rounded-lg px-2 py-1 text-sm font-medium text-teal-800 h
                 <span x-show="nextStep?.minutes" class="shrink-0 text-xs text-gray-600 dark:text-gray-300" x-text="`${nextStep?.minutes} min`"></span>
             </label>
         </div>
-    ) : (
-        <details x-show="savedSteps.length" class={box}>
-            <summary x-ref="checklistSummary" class="min-h-9 cursor-pointer py-1 text-sm font-semibold text-gray-800 dark:text-gray-100">
-                <span x-text="stepProgress"></span>
-            </summary>
-            <p role="status" class="sr-only" x-text="stepProgress"></p>
-            <ul class="space-y-1">
-                <template x-for="step in savedSteps" x-bind:key="step.id">
-                    <li>
-                        <label class="flex min-h-9 cursor-pointer items-center gap-3 text-sm text-gray-900 dark:text-gray-100">
-                            <input type="checkbox" name="task-saved-step" class={checkbox} x-bind:checked="step.done" x-on:change="toggleSavedStep(step.id)" />
-                            <span class="min-w-0 flex-1 break-words" x-text="step.text"></span>
-                            <span x-show="step.minutes" class="shrink-0 text-xs text-gray-600 dark:text-gray-300" x-text="`${step.minutes} min`"></span>
-                        </label>
-                    </li>
-                </template>
-            </ul>
-        </details>
-    ))}
+    )}
     <div x-show="savedSteps.length" class="text-left">
         <button x-bind:hidden="confirming" type="button" x-ref="promote" x-on:click="showPromotion()" class={action}>Promote steps to cluster</button>
         <div hidden x-bind:hidden="!confirming" x-on:keydown.escape.stop="hidePromotion()" class={box}>
