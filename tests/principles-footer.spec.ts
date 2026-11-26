@@ -36,8 +36,9 @@ test('principles page footer navigation, feedback dialog, and accessibility font
   const overriddenFont = await heading.evaluate((el) => getComputedStyle(el).fontFamily);
   expect(overriddenFont.toLowerCase()).toContain('lexend');
 
-  // Clicking a footer app link on /principles navigates to / and activates that tab
-  await page.locator('footer a[href="/#board"]').click();
+  // Clicking a footer area link on /principles navigates to / and opens that area's first view
+  await page.locator('footer').getByRole('link', { name: 'Library' }).click();
   await expect(page).toHaveURL(/\/$/);
-  await expect(page.locator('button[data-tab="board"]')).toHaveAttribute('aria-current', 'page');
+  await expect(page.locator('button[data-area="library"]')).toHaveAttribute('aria-current', 'page');
+  await expect(page.locator('button[data-tab="taskmanager"]')).toHaveAttribute('aria-current', 'page');
 });

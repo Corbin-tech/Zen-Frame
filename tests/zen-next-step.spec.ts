@@ -34,7 +34,7 @@ test('Next step shows No estimate yet when unestimated, and Resume only for the 
     todos.addTodo('Write summary');
     todos.addTodo('Review slides', { estimateMinutes: 15 });
   });
-  await page.locator('button[data-tab="zenmode"]').click();
+  await openView(page, 'zenmode');
   const zen = page.locator('[x-data="zenTodoList"]');
 
   // Unestimated task explicitly shows "No estimate yet"
@@ -48,7 +48,7 @@ test('Next step shows No estimate yet when unestimated, and Resume only for the 
 
   // Skipping to a different task flips "Resume" back to "Begin focus"
   await zen.getByRole('button', { name: 'Not now: skip this task' }).click();
-  await expect(zen.getByText('Review slides')).toBeVisible();
+  await expect(zen.locator('[x-ref="currentTaskTitle"]')).toHaveText('Review slides');
   await expect(zen.getByRole('button', { name: 'Begin focus' })).toBeVisible();
 
   // Paused during a break also shows "Begin focus", not "Resume"
