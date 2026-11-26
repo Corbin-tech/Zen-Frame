@@ -67,7 +67,7 @@ export const DASHBOARD_WIDGETS = [
   { id: "upnext", label: "Up next", hint: "The next task, with a focus button", zone: "column" },
   { id: "deadlines", label: "Deadlines", hint: "Past due and the next 14 days", zone: "column" },
   { id: "recent", label: "Recently completed", hint: "Your last few finished tasks", zone: "column" },
-  { id: "focus", label: "Focus timer", hint: "Start a Pomodoro from here", zone: "column" },
+  { id: "focus", label: "Focus timer", hint: "Start a focus session from here", zone: "column" },
   { id: "goals", label: "Goals", hint: "Progress on your open goals", zone: "column" },
   { id: "notes", label: "Notes", hint: "Pinned and recent notes", zone: "column" },
   { id: "quote", label: "Quote of the day", hint: "A new one each morning", zone: "column" },
@@ -86,12 +86,12 @@ const DEFAULT_DASHBOARD: DashboardLayout = {
   side: ["upnext", "deadlines", "recent"]
 };
 
-// Zen mode extras, each a switch under Settings > Zen mode
+// Next step extras, each a switch under Settings > Next step
 const ZEN_OPTIONS = [
   { key: "zenShowCluster", label: "Cluster and position", hint: "Which cluster the task is in, and where" },
   { key: "zenShowDue", label: "Due date", hint: "When the task is due" },
   { key: "zenShowNext", label: "Up next", hint: "The two tasks after this one" },
-  { key: "zenShowTimer", label: "Focus timer", hint: "Start a Pomodoro without leaving Zen mode" },
+  { key: "zenShowTimer", label: "Focus timer", hint: "Start a focus session from the Next step view" },
   { key: "zenShowProgress", label: "Progress bar", hint: "Tasks completed out of all tasks" },
   { key: "showQuotes", label: "Calming quotes", hint: "A quote that changes each time you finish a task" }
 ] as const;
