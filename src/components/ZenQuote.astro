@@ -1,22 +1,20 @@
 ---
 // A calming quote under Zen mode. It changes whenever a task is completed,
 // anywhere in the app. Turn it off in Settings.
-// With a Zen background chosen, the scene runs behind the quote, which sits on a frosted
-// panel strong enough to keep the text readable over every scene in light and dark mode.
+// It sits inside the Zen task card, under the task, with or without a background. With a
+// background chosen, the scene runs behind it and a frosted panel keeps the text readable.
 ---
 
 <section
     x-data="zenQuote"
     x-show="$store.settings.showQuotes"
     x-cloak
-    class="relative overflow-hidden isolate px-6 py-8 sm:px-10 sm:py-10 text-center"
+    class="relative overflow-hidden isolate mx-6 mb-6 rounded-lg px-6 py-8 sm:px-10 sm:py-10 text-center"
     x-bind:class="$store.settings.zenBackground === 'none'
-        ? 'w-full max-w-4xl mx-auto mt-6 panel'
-        : 'mx-6 mb-6 rounded-lg bg-white/80 dark:bg-slate-900/75 backdrop-blur-md shadow-inner'"
+        ? 'bg-gray-50 dark:bg-slate-700/40 ring-1 ring-black/5 dark:ring-white/5'
+        : 'bg-white/80 dark:bg-slate-900/75 backdrop-blur-md shadow-inner'"
     aria-label="Quote"
 >
-    <!-- Soft accent glow -->
-    <span class="absolute -z-10 left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 w-72 h-40 rounded-full bg-teal-400/15 blur-3xl" aria-hidden="true"></span>
 
     <svg class="mx-auto w-8 h-8 text-teal-500/60 dark:text-teal-400/50" viewBox="0 0 24 24" aria-hidden="true">
         <path stroke="none" fill="currentColor" d="M9.6 6C6.5 7.3 4.5 10 4.5 13.4V18h5.7v-5.7H7.3c.1-2 1.3-3.6 3.2-4.5L9.6 6zm9.4 0c-3.1 1.3-5.1 4-5.1 7.4V18h5.7v-5.7h-2.9c.1-2 1.3-3.6 3.2-4.5L19 6z" />
