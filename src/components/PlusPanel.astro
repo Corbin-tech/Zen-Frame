@@ -12,7 +12,7 @@ const primary = "rounded-lg bg-teal-700 px-3 py-2 text-sm font-medium text-white
 
     <p x-show="$store.plus.error" x-text="$store.plus.error" role="alert" class="rounded-lg bg-warmth/35 px-3 py-2 text-sm text-gray-900 dark:bg-warmth/10 dark:text-warmth-light"></p>
 
-    <p role="status" class="sr-only" x-text="$store.plus.refreshing ? 'Checking your sign-in…' : $store.plus.error"></p>
+    <p role="status" class="sr-only" x-text="$store.plus.refreshing ? 'Checking your sign-in…' : ''"></p>
 
     <div x-bind:hidden="$store.plus.ready">
         <button type="button" class={`${button} inline-grid focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500`}
