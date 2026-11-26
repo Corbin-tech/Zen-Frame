@@ -144,3 +144,72 @@ test('undoing a draft after a remote edit catches up on blur', async ({ context,
   await bNotes.blur();
   await expect(bNotes).toHaveValue('Remote why');
 });
+
+test('a cross-tab goal completion reorder does not commit an active goal-title draft early', async ({ context, page: a }) => {
+  await a.goto('/');
+  await a.locator('button[data-tab="goals"]').click();
+  await a.getByRole('textbox', { name: 'New goal', exact: true }).fill('Goal Alpha');
+  await a.getByRole('button', { name: 'Add', exact: true }).click();
+  await a.getByRole('textbox', { name: 'New goal', exact: true }).fill('Goal Beta');
+  await a.getByRole('button', { name: 'Add', exact: true }).click();
+
+  const b = await context.newPage();
+  await b.goto('/');
+  await b.locator('button[data-tab="goals"]').click();
+  const alphaTitle = b.getByRole('textbox', { name: 'Goal', exact: true }).first();
+  await expect(alphaTitle).toHaveValue('Goal Alpha');
+  await alphaTitle.fill('Goal Alpha draft');
+
+  // Complete Goal Alpha in Tab A (would reorder Goal Alpha below Goal Beta)
+  await a.getByRole('checkbox', { name: 'Mark Goal Alpha reached', exact: true }).check();
+  await expect(b.getByRole('checkbox', { name: 'Mark Goal Alpha not reached', exact: true })).toBeChecked();
+  await expect(alphaTitle).toBeFocused();
+  await expect(alphaTitle).toHaveValue('Goal Alpha draft');
+
+  // Draft must not have been committed early to localStorage / Tab A
+  const beforeBlur = await a.evaluate(() => JSON.parse(localStorage.getItem('goals') || '[]'));
+  expect(beforeBlur.find((g: { title: string }) => g.title === 'Goal Alpha')).toMatchObject({ title: 'Goal Alpha', done: true });
+
+  await alphaTitle.blur();
+  await expect.poll(async () => {
+    const goals = await a.evaluate(() => JSON.parse(localStorage.getItem('goals') || '[]'));
+    return goals.find((g: { title: string }) => g.title === 'Goal Alpha draft');
+  }).toMatchObject({ title: 'Goal Alpha draft', done: true });
+  await expect.poll(() => b.getByRole('textbox', { name: 'Goal', exact: true }).evaluateAll(els => els.map(el => (el as HTMLInputElement).value))).toEqual(['Goal Beta', 'Goal Alpha draft']);
+});
+
+test('a cross-tab note pin reorder does not commit an active note draft early', async ({ context, page: a }) => {
+  await a.goto('/');
+  await a.locator('button[data-tab="goals"]').click();
+  await a.getByRole('textbox', { name: 'New note', exact: true }).fill('Note One');
+  await a.getByRole('button', { name: 'Add note', exact: true }).click();
+  await a.getByRole('textbox', { name: 'New note', exact: true }).fill('Note Two');
+  await a.getByRole('button', { name: 'Add note', exact: true }).click();
+
+  const b = await context.newPage();
+  await b.goto('/');
+  await b.locator('button[data-tab="goals"]').click();
+  // Locate the second note (Note One, since newest notes appear first)
+  const noteOneIndex = await b.getByRole('textbox', { name: 'Note', exact: true }).evaluateAll(els => els.findIndex(el => (el as HTMLTextAreaElement).value === 'Note One'));
+  expect(noteOneIndex).toBe(1);
+  const bNoteOne = b.getByRole('textbox', { name: 'Note', exact: true }).nth(noteOneIndex);
+  await bNoteOne.fill('Note One\ndraft');
+
+  // Pin Note One in Tab A (would reorder Note One above Note Two)
+  const aNoteOneIndex = await a.getByRole('textbox', { name: 'Note', exact: true }).evaluateAll(els => els.findIndex(el => (el as HTMLTextAreaElement).value === 'Note One'));
+  await a.getByRole('button', { name: 'Pin note', exact: true }).nth(aNoteOneIndex).click();
+  await expect(b.getByRole('button', { name: 'Unpin note', exact: true })).toBeVisible();
+  await expect(bNoteOne).toBeFocused();
+  await expect(bNoteOne).toHaveValue('Note One\ndraft');
+
+  // Draft must not have been committed early to localStorage / Tab A
+  const beforeBlur = await a.evaluate(() => JSON.parse(localStorage.getItem('notes') || '[]'));
+  expect(beforeBlur.find((n: { text: string }) => n.text === 'Note One')).toMatchObject({ text: 'Note One', pinned: true });
+
+  await bNoteOne.blur();
+  await expect.poll(async () => {
+    const notes = await a.evaluate(() => JSON.parse(localStorage.getItem('notes') || '[]'));
+    return notes.find((n: { text: string }) => n.text === 'Note One\ndraft');
+  }).toMatchObject({ text: 'Note One\ndraft', pinned: true });
+  await expect.poll(() => b.getByRole('textbox', { name: 'Note', exact: true }).first().inputValue()).toBe('Note One\ndraft');
+});
