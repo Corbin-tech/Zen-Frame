@@ -55,8 +55,10 @@ const prompts = [
                                             type="text"
                                             name="goal-title"
                                             aria-label="Goal"
-                                            x-bind:value="goal.title"
-                                            x-on:change="$event.target.value.trim() && $store.goals.updateGoal(goal.id, { title: $event.target.value.trim() })"
+                                            x-effect="syncDraft($el, goal.title)"
+                                            x-on:focus="frozenGoalOrder = { id: goal.id, order: goals.map(g => g.id) }"
+                                            x-on:change="saveGoalTitle(goal, $event.target)"
+                                            x-on:blur="resetDraft($el, goal.title); frozenGoalOrder = null"
                                             class="flex-1 min-w-0 p-0 bg-transparent border-none focus:ring-0 text-sm font-semibold"
                                             x-bind:class="goal.done ? 'line-through text-gray-500 dark:text-gray-400' : 'text-gray-900 dark:text-white'"
                                         />
@@ -102,7 +104,7 @@ const prompts = [
                                         </label>
                                         <label class="block text-xs font-medium text-gray-500 dark:text-gray-400">
                                             Notes
-                                            <textarea name="goal-notes" rows="3" class={`${field} mt-1`} placeholder="Why this matters, next steps, resources…" x-bind:value="goal.why" x-on:change="$store.goals.updateGoal(goal.id, { why: $event.target.value })"></textarea>
+                                            <textarea name="goal-notes" rows="3" class={`${field} mt-1`} placeholder="Why this matters, next steps, resources…" x-effect="syncDraft($el, goal.why)" x-on:focus="frozenGoalOrder = { id: goal.id, order: goals.map(g => g.id) }" x-on:change="saveGoalNotes(goal, $event.target)" x-on:blur="resetDraft($el, goal.why); frozenGoalOrder = null"></textarea>
                                         </label>
                                         <button type="button" x-on:click="confirm(`Delete the goal “${goal.title}”?`) && $store.goals.removeGoal(goal.id)" class="text-xs font-medium text-red-600 dark:text-red-400 hover:underline">Delete goal</button>
                                     </div>
@@ -202,16 +204,17 @@ const prompts = [
                     </div>
                 </form>
                 <ul class="space-y-2">
-                    <template x-for="note in $store.goals.sortedNotes" :key="note.id">
+                    <template x-for="note in notes" :key="note.id">
                         <li class="group rounded-xl p-3 ring-1 transition-colors" x-bind:class="note.pinned ? 'bg-amber-50/80 ring-amber-500/20 dark:bg-amber-900/15 dark:ring-amber-400/20' : 'bg-gray-50/80 ring-black/5 dark:bg-slate-700/30 dark:ring-white/10'">
                             <textarea
                                 name="note-text"
                                 aria-label="Note"
                                 rows="1"
-                                x-effect="if (activeTab === 'goals') { note.text; $nextTick(() => { $el.style.height = 'auto'; $el.style.height = $el.scrollHeight + 'px' }) }"
+                                x-effect="syncDraft($el, note.text); if (activeTab === 'goals') { $nextTick(() => { $el.style.height = 'auto'; $el.style.height = $el.scrollHeight + 'px' }) }"
+                                x-on:focus="frozenNoteOrder = { id: note.id, order: notes.map(n => n.id) }"
                                 x-on:input="$el.style.height = 'auto'; $el.style.height = $el.scrollHeight + 'px'"
-                                x-bind:value="note.text"
-                                x-on:change="$event.target.value.trim() ? $store.goals.updateNote(note.id, { text: $event.target.value }) : $store.goals.removeNote(note.id)"
+                                x-on:change="saveNoteText(note, $event.target)"
+                                x-on:blur="resetDraft($el, note.text); $el.style.height = 'auto'; $el.style.height = $el.scrollHeight + 'px'; frozenNoteOrder = null"
                                 class="block w-full p-0 bg-transparent border-none resize-none focus:ring-0 text-sm text-gray-800 dark:text-gray-100 whitespace-pre-wrap"
                             ></textarea>
                             <div class="mt-1.5 flex items-center justify-between text-[11px] text-gray-500 dark:text-gray-400">
@@ -260,12 +263,20 @@ const prompts = [
 
 <script>
     import { dates } from '../lib/dates';
+    import { resetDraft, syncDraft } from '../lib/syncDraft';
     import { weekOf } from '../stores/goalsStore';
 
     // Completed time in a week, from the timer's finished focus sessions
     const focusMinutes = (sessions, start, end) => sessions
         .filter(session => { const day = dates.toDateKey(new Date(session.completedAt)); return day >= start && day < end; })
         .reduce((total, session) => total + session.minutes, 0);
+
+    // Hold existing item order while a field inside the list is focused so cross-tab reorders do not drop focus.
+    const orderBy = (items, frozen) => {
+        if (!frozen || !items.some(item => item.id === frozen.id)) return items;
+        const rank = new Map(frozen.order.map((id, index) => [id, index]));
+        return [...items].sort((a, b) => (rank.get(a.id) ?? Infinity) - (rank.get(b.id) ?? Infinity));
+    };
 
     document.addEventListener('alpine:init', () => {
         window.Alpine.data('goalsPage', () => ({
@@ -274,6 +285,32 @@ const prompts = [
             week: weekOf(),
             draft: null,
             saveState: 'clean',
+            frozenGoalOrder: null,
+            frozenNoteOrder: null,
+            syncDraft,
+            resetDraft,
+
+            saveGoalTitle(goal, el) {
+                const title = el.value.trim();
+                if (!title) {
+                    el.value = goal.title;
+                    return;
+                }
+                el.value = title;
+                if (title !== goal.title) this.$store.goals.updateGoal(goal.id, { title });
+            },
+
+            saveGoalNotes(goal, el) {
+                if (el.value !== goal.why) this.$store.goals.updateGoal(goal.id, { why: el.value });
+            },
+
+            saveNoteText(note, el) {
+                if (!el.value.trim()) {
+                    this.$store.goals.removeNote(note.id);
+                    return;
+                }
+                if (el.value !== note.text) this.$store.goals.updateNote(note.id, { text: el.value });
+            },
 
             init() {
                 this.draft = { ...this.$store.goals.checkInFor(this.week) };
@@ -296,7 +333,12 @@ const prompts = [
             },
 
             get goals() {
-                return [...this.$store.goals.goals].sort((a, b) => Number(a.done) - Number(b.done));
+                const sorted = [...this.$store.goals.goals].sort((a, b) => Number(a.done) - Number(b.done));
+                return orderBy(sorted, this.frozenGoalOrder);
+            },
+
+            get notes() {
+                return orderBy(this.$store.goals.sortedNotes, this.frozenNoteOrder);
             },
 
             get summary() {
