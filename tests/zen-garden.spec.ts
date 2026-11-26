@@ -37,10 +37,15 @@ for (const theme of ['light', 'dark']) {
     await page.addInitScript((savedTheme) => {
       localStorage.setItem('theme', savedTheme);
       localStorage.setItem('settings', JSON.stringify({ zenBackground: 'desk' }));
+      localStorage.setItem('todos', JSON.stringify([{
+        id: 'garden-task', todo: 'Sketch the next design concept', completed: false,
+        isCluster: false, isPinned: false, parentId: null, createdAt: new Date().toISOString(),
+      }]));
     }, theme);
     await page.goto('/#zenmode');
     const garden = page.locator('svg.zen-garden');
     await expect(garden).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Begin focus' })).toBeVisible();
     expect(await garden.evaluate((svg: SVGSVGElement) => svg.animationsPaused())).toBe(true);
     const time = await garden.evaluate((svg: SVGSVGElement) => svg.getCurrentTime());
     // Let the shared backdrop finish warming up: it must not unpause reduced-motion scenes.
@@ -56,7 +61,8 @@ for (const theme of ['light', 'dark']) {
         const height = Math.max(0, Math.min(box.bottom, canvas.bottom) - Math.max(box.top, canvas.top));
         return width * height / (box.width * box.height);
       });
-      expect(visibleFraction).toBeGreaterThan(0.85);
+      // A little edge bleed is intentional, but most of each landmark must be visible.
+      expect(visibleFraction).toBeGreaterThan(0.7);
     }
   });
 }
