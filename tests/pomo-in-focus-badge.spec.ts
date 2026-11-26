@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { openView } from './nav';
 
 test('In focus badge follows the active Pomodoro task for default task and after Undo', async ({ page }) => {
   await page.clock.install();
@@ -27,12 +28,12 @@ test('In focus badge follows the active Pomodoro task for default task and after
   const boardCard2 = page.getByRole('listitem', { name: 'Review pull requests. Press [ or ] to move it.', exact: true });
 
   // Running on the default task (selectedTaskId === null) should still show "In focus"
-  await page.locator('button[data-tab="taskmanager"]').click();
+  await openView(page, 'taskmanager');
   await expect(tmRow1).toBeVisible();
   await expect(tmRow1.getByText('In focus', { exact: true })).toBeVisible();
   await expect(tmRow2.getByText('In focus', { exact: true })).toBeHidden();
 
-  await page.locator('button[data-tab="board"]').click();
+  await openView(page, 'board');
   await expect(boardCard1).toBeVisible();
   await expect(boardCard1.getByText('In focus', { exact: true })).toBeVisible();
   await expect(boardCard2.getByText('In focus', { exact: true })).toBeHidden();
@@ -46,7 +47,7 @@ test('In focus badge follows the active Pomodoro task for default task and after
   await expect(boardCard1.getByText('In focus', { exact: true })).toBeVisible();
   await expect(boardCard2.getByText('In focus', { exact: true })).toBeHidden();
 
-  await page.locator('button[data-tab="taskmanager"]').click();
+  await openView(page, 'taskmanager');
   await expect(tmRow1.getByText('In focus', { exact: true })).toBeVisible();
   await expect(tmRow2.getByText('In focus', { exact: true })).toBeHidden();
 
