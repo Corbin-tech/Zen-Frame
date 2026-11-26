@@ -97,7 +97,7 @@ test.each([
 test("Space in Next step starts focus for the shown task rather than a previously paused one", () => {
   vi.useFakeTimers();
   let keydown: (event: unknown) => void = () => {};
-  const data = new Map<string, string>([["activeTab", "zenmode"]]);
+  const data = new Map<string, string>();
   const storage = { getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, value: string) => data.set(key, value), removeItem: (key: string) => data.delete(key) };
   vi.stubGlobal("localStorage", storage);
   vi.stubGlobal("sessionStorage", storage);
