@@ -80,8 +80,6 @@ for (const populated of [true, false]) {
 test('activity heatmap tooltip stays inside its card and viewport', async ({ page }) => {
   await page.clock.setFixedTime(new Date('2026-06-17T12:00:00'));
   await page.addInitScript(() => {
-    if (sessionStorage.getItem('seeded')) return;
-    sessionStorage.setItem('seeded', '1');
     localStorage.clear();
     localStorage.setItem('activeTab', 'insights');
     localStorage.setItem('todos', JSON.stringify([
@@ -102,6 +100,12 @@ test('activity heatmap tooltip stays inside its card and viewport', async ({ pag
   const tooltip = activityCard.locator('[x-show="hovered"]');
   await expect(days).toHaveCount(179);
 
+  const targets = [
+    { index: 0, date: 'Sun, Dec 21' },
+    { index: 87, date: 'Wed, Mar 18' },
+    { index: 178, date: 'Wed, Jun 17' },
+  ];
+
   for (const viewport of [
     { width: 320, height: 640 },
     { width: 390, height: 844 },
@@ -109,9 +113,11 @@ test('activity heatmap tooltip stays inside its card and viewport', async ({ pag
   ]) {
     await page.setViewportSize(viewport);
 
-    for (const index of [0, 87, 178]) {
+    for (const { index, date } of targets) {
       await days.nth(index).focus();
       await expect(tooltip).toBeVisible();
+      await expect(tooltip).toContainText('1 task · 25m focus');
+      await expect(tooltip).toContainText(date);
       const card = await activityCard.boundingBox();
       const tip = await tooltip.boundingBox();
       expect(card).not.toBeNull();
@@ -123,5 +129,19 @@ test('activity heatmap tooltip stays inside its card and viewport', async ({ pag
       expect(tip!.y, `top edge at ${viewport.width}px col index ${index}`).toBeGreaterThanOrEqual(card!.y);
       expect(tip!.y + tip!.height, `bottom edge at ${viewport.width}px col index ${index}`).toBeLessThanOrEqual(card!.y + card!.height);
     }
+  }
+
+  // Also exercise pointer hover on both edge columns
+  await days.nth(178).blur();
+  await expect(tooltip).toBeHidden();
+  for (const { index, date } of [targets[0], targets[2]]) {
+    await days.nth(index).hover();
+    await expect(tooltip).toBeVisible();
+    await expect(tooltip).toContainText('1 task · 25m focus');
+    await expect(tooltip).toContainText(date);
+    const card = await activityCard.boundingBox();
+    const tip = await tooltip.boundingBox();
+    expect(tip!.x).toBeGreaterThanOrEqual(card!.x);
+    expect(tip!.x + tip!.width).toBeLessThanOrEqual(card!.x + card!.width);
   }
 });
