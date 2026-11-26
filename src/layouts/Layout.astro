@@ -16,9 +16,10 @@ import siteData from '../data/site.json';
 interface Props {
 	title: string;
 	description?: string;
+	workspace?: boolean;
 }
 
-const { title, description = siteData.siteDescription } = Astro.props;
+const { title, description = siteData.siteDescription, workspace = true } = Astro.props;
 const canonicalUrl = Astro.site ? new URL(Astro.url.pathname, Astro.site).href : undefined;
 const ogImageUrl = Astro.site ? new URL('/og-image.png', Astro.site).href : undefined;
 
@@ -113,6 +114,8 @@ const contentSecurityPolicy = [
 			document.addEventListener('alpine:init', () => {
 				window.Alpine.store('theme', initThemeStore());
 				window.Alpine.store('settings', initSettingsStore());
+				// Informational pages need preferences, not task state or hidden timers.
+				if (!document.body.hasAttribute('data-workspace')) return;
 				window.Alpine.store('goals', initGoalsStore());
 				window.Alpine.store('pomoState', initPomoStore());
 				initStores();
@@ -128,6 +131,7 @@ const contentSecurityPolicy = [
 
 			// Block and due-date reminders, once every store is ready
 			document.addEventListener('alpine:initialized', () => {
+				if (!document.body.hasAttribute('data-workspace')) return;
 				window.notify = (kind, title, body) => notify(window.Alpine, kind, title, body);
 				startReminders(window.Alpine);
 			});
@@ -290,7 +294,7 @@ const contentSecurityPolicy = [
 			}
 		</style>
 	</head>
-	<body>
+	<body data-workspace={workspace ? '' : undefined}>
 		<div class="min-h-screen flex flex-col overflow-x-clip">
 			<!-- Content Wrapper -->
 			<div class="flex-1">
