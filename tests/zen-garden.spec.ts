@@ -8,22 +8,23 @@ test('saved Quiet desk becomes Zen garden and the picker persists it', async ({ 
   });
   await page.goto('/#zenmode');
   const garden = page.locator('svg.zen-garden');
+  const animation = garden.locator('animateTransform').locator('xpath=../..');
   await expect(garden).toBeVisible();
-  await expect.poll(() => garden.evaluate((svg: SVGSVGElement) => svg.animationsPaused())).toBe(false);
+  await expect.poll(() => animation.evaluate((svg: SVGSVGElement) => svg.animationsPaused())).toBe(false);
 
   await page.getByRole('button', { name: 'Open settings' }).first().click();
   const settings = page.getByRole('dialog', { name: 'Settings' });
   const choice = settings.getByRole('button', { name: 'Zen garden' });
   await expect(choice).toHaveAttribute('aria-pressed', 'true');
-  expect(await garden.evaluate((svg: SVGSVGElement) => svg.animationsPaused())).toBe(true);
+  expect(await animation.evaluate((svg: SVGSVGElement) => svg.animationsPaused())).toBe(true);
 
   await settings.getByRole('button', { name: 'None Just the card' }).click();
   await expect(garden).toHaveCount(0);
   await choice.click();
   await expect(garden).toHaveCount(1);
-  expect(await garden.evaluate((svg: SVGSVGElement) => svg.animationsPaused())).toBe(true);
+  expect(await animation.evaluate((svg: SVGSVGElement) => svg.animationsPaused())).toBe(true);
   await page.keyboard.press('Escape');
-  await expect.poll(() => garden.evaluate((svg: SVGSVGElement) => svg.animationsPaused())).toBe(false);
+  await expect.poll(() => animation.evaluate((svg: SVGSVGElement) => svg.animationsPaused())).toBe(false);
 
   await page.reload();
   await expect(garden).toBeVisible();
@@ -44,13 +45,14 @@ for (const theme of ['light', 'dark']) {
     }, theme);
     await page.goto('/#zenmode');
     const garden = page.locator('svg.zen-garden');
+    const animation = garden.locator('animateTransform').locator('xpath=../..');
     await expect(garden).toBeVisible();
     await expect(page.getByRole('button', { name: 'Begin focus' })).toBeVisible();
-    expect(await garden.evaluate((svg: SVGSVGElement) => svg.animationsPaused())).toBe(true);
-    const time = await garden.evaluate((svg: SVGSVGElement) => svg.getCurrentTime());
+    expect(await animation.evaluate((svg: SVGSVGElement) => svg.animationsPaused())).toBe(true);
+    const time = await animation.evaluate((svg: SVGSVGElement) => svg.getCurrentTime());
     // Let the shared backdrop finish warming up: it must not unpause reduced-motion scenes.
     await page.waitForTimeout(250);
-    expect(await garden.evaluate((svg: SVGSVGElement) => svg.getCurrentTime())).toBe(time);
+    expect(await animation.evaluate((svg: SVGSVGElement) => svg.getCurrentTime())).toBe(time);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     expect(await garden.locator('animateTransform').evaluate(element => getComputedStyle(element.parentElement!).stroke)).toBe('none');
     // Landmarks must remain in the canvas, not disappear into a center-cropped wide scene.

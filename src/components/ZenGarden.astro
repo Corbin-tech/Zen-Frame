@@ -99,8 +99,9 @@ const pineTufts = [
     </g>
     </svg>
 
-    <!-- Only the ambient light moves, on the shared backdrop pause/reduced-motion clock. -->
-    <svg class="stroke-none" width="100%" height="100%" viewBox="0 0 1000 700" preserveAspectRatio="none">
+    <!-- Nested SVGs have their own SMIL clock: pause this on insertion too, before any
+         Settings/tab event can sync it, including when selected under reduced motion. -->
+    <svg class="stroke-none" width="100%" height="100%" viewBox="0 0 1000 700" preserveAspectRatio="none" x-init="(still || paused) && $el.pauseAnimations()">
     <ellipse cx="340" cy="220" rx="540" ry="380" fill="url(#zg-light)">
         <animateTransform attributeName="transform" type="translate" values="0 0; 45 20; 0 0" dur="60s" repeatCount="indefinite" />
     </ellipse>
