@@ -52,12 +52,13 @@ test.each(["completed", "deleted", "paused", "reloaded", "expired", "reset", "ge
 });
 
 test.each([
-  { name: "dialog hidden by its backdrop", visible: false, tab: "pomodoro", starts: true },
-  { name: "visible dialog", visible: true, tab: "pomodoro", starts: false },
-  { name: "no dialogs", visible: null, tab: "pomodoro", starts: true },
-  { name: "hidden dialog in Zen mode", visible: false, tab: "zenmode", starts: true },
-  { name: "unrelated tab", visible: false, tab: "dashboard", starts: false },
-])("Space respects $name", ({ visible, tab, starts }) => {
+  { name: "dialog hidden by its backdrop", visible: false, tab: "pomodoro", hasNext: true, starts: true },
+  { name: "visible dialog", visible: true, tab: "pomodoro", hasNext: true, starts: false },
+  { name: "no dialogs", visible: null, tab: "pomodoro", hasNext: true, starts: true },
+  { name: "hidden dialog in Zen mode", visible: false, tab: "zenmode", hasNext: true, starts: true },
+  { name: "Zen mode with no next task", visible: false, tab: "zenmode", hasNext: false, starts: false },
+  { name: "unrelated tab", visible: false, tab: "dashboard", hasNext: true, starts: false },
+])("Space respects $name", ({ visible, tab, hasNext, starts }) => {
   let keydown: (event: unknown) => void = () => {};
   const dialog = visible === null ? null : { checkVisibility: () => visible };
   vi.stubGlobal("document", {
@@ -65,22 +66,59 @@ test.each([
     querySelector: () => dialog,
     querySelectorAll: () => dialog ? [dialog] : [],
   });
-  vi.stubGlobal("localStorage", { getItem: (key: string) => key === "activeTab" ? tab : null });
-  vi.stubGlobal("sessionStorage", { getItem: () => null });
-  vi.stubGlobal("window", { addEventListener: vi.fn(), Alpine: { store: () => ({ zenShowTimer: true }) } });
+  vi.stubGlobal("localStorage", { getItem: (key: string) => key === "activeTab" ? tab : null, setItem: vi.fn() });
+  vi.stubGlobal("sessionStorage", { getItem: () => null, setItem: vi.fn(), removeItem: vi.fn() });
+  vi.stubGlobal("window", {
+    addEventListener: vi.fn(),
+    Alpine: { store: (name: string) => name === "todos" ? { nextTask: hasNext ? { id: "t1" } : null } : {} },
+  });
   const store = initPomoStore();
-  const start = vi.spyOn(store, "startTimer").mockImplementation(() => {});
+  const start = vi.spyOn(store, tab === "zenmode" ? "startFocus" : "startTimer").mockImplementation(() => {});
   const pause = vi.spyOn(store, "pauseTimer").mockImplementation(() => {});
   store.init();
   const preventDefault = vi.fn();
   keydown({ code: "Space", target: { closest: () => null }, preventDefault });
   expect(start).toHaveBeenCalledTimes(starts ? 1 : 0);
+  if (starts && tab === "zenmode") expect(start).toHaveBeenCalledWith("t1");
   expect(preventDefault).toHaveBeenCalledTimes(starts ? 1 : 0);
   if (starts) {
     store.isRunning = true;
     keydown({ code: "Space", target: { closest: () => null }, preventDefault });
     expect(pause).toHaveBeenCalledOnce();
   }
+});
+
+test("Space in Next step starts focus for the shown task rather than a previously paused one", () => {
+  vi.useFakeTimers();
+  let keydown: (event: unknown) => void = () => {};
+  const data = new Map<string, string>([["activeTab", "zenmode"]]);
+  const storage = { getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, value: string) => data.set(key, value), removeItem: (key: string) => data.delete(key) };
+  vi.stubGlobal("localStorage", storage);
+  vi.stubGlobal("sessionStorage", storage);
+  vi.stubGlobal("document", {
+    addEventListener: (_: string, listener: typeof keydown) => { keydown = listener; },
+    querySelectorAll: () => [],
+  });
+  const taskA = { id: "a", todo: "Task A", parentId: null, completed: false };
+  const taskB = { id: "b", todo: "Task B", parentId: null, completed: false };
+  const todos = { nextTask: taskA, find: (id: string) => [taskA, taskB].find(t => t.id === id), clusterName: () => "" };
+  vi.stubGlobal("window", {
+    addEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+    Alpine: { store: (name: string) => name === "todos" ? todos : {} },
+  });
+  vi.stubGlobal("CustomEvent", class {});
+  const store = initPomoStore();
+  store.init();
+  store.startFocus("a");
+  vi.advanceTimersByTime(2000);
+  store.pauseTimer();
+  expect(store.focusTask?.id).toBe("a");
+
+  todos.nextTask = taskB;
+  keydown({ code: "Space", target: { closest: () => null }, preventDefault: vi.fn() });
+  expect(store.isRunning).toBe(true);
+  expect(store.focusTask?.id).toBe("b");
 });
 
 test("Undo stays available for as long as the toast shows its button", () => {

@@ -91,7 +91,6 @@ const ZEN_OPTIONS = [
   { key: "zenShowCluster", label: "Cluster and position", hint: "Which cluster the task is in, and where" },
   { key: "zenShowDue", label: "Due date", hint: "When the task is due" },
   { key: "zenShowNext", label: "Up next", hint: "The two tasks after this one" },
-  { key: "zenShowTimer", label: "Focus timer", hint: "Start a focus session from the Next step view" },
   { key: "zenShowProgress", label: "Progress bar", hint: "Tasks completed out of all tasks" },
   { key: "showQuotes", label: "Calming quotes", hint: "A quote that changes each time you finish a task" }
 ] as const;
@@ -145,7 +144,6 @@ interface Settings {
   zenShowCluster: boolean;
   zenShowDue: boolean;
   zenShowNext: boolean;
-  zenShowTimer: boolean;
   zenShowProgress: boolean;
   zenBackground: ZenBackground;
   dashboardLayout: DashboardLayout;
@@ -176,7 +174,6 @@ const DEFAULTS: Settings = {
   zenShowCluster: true,
   zenShowDue: true,
   zenShowNext: false,
-  zenShowTimer: false,
   zenShowProgress: true,
   zenBackground: "none",
   dashboardLayout: DEFAULT_DASHBOARD,
@@ -234,7 +231,6 @@ function loadSettings(): Settings {
     zenShowCluster: flag(saved.zenShowCluster, DEFAULTS.zenShowCluster),
     zenShowDue: flag(saved.zenShowDue, DEFAULTS.zenShowDue),
     zenShowNext: flag(saved.zenShowNext, DEFAULTS.zenShowNext),
-    zenShowTimer: flag(saved.zenShowTimer, DEFAULTS.zenShowTimer),
     zenShowProgress: flag(saved.zenShowProgress, DEFAULTS.zenShowProgress),
     // Older saves had an on/off "zenAmbient" switch, which was the soft glow
     zenBackground: pick(saved.zenBackground, ZEN_BACKGROUNDS, (saved as { zenAmbient?: boolean }).zenAmbient ? "glow" : DEFAULTS.zenBackground),

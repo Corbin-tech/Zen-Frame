@@ -151,6 +151,7 @@ const checkbox = 'w-4 h-4 shrink-0 rounded-full border-gray-300 dark:border-slat
 
 <script>
     import { dates } from '../lib/dates';
+    import { estimateLabel } from '../lib/estimates';
     import { QUOTES } from '../lib/quotes';
     import { activeDays, streaks } from '../lib/insights';
     import { DASHBOARD_WIDGETS } from '../stores/settingsStore';
@@ -232,6 +233,10 @@ const checkbox = 'w-4 h-4 shrink-0 rounded-full border-gray-300 dark:border-slat
 
             get nextTask() {
                 return this.$store.todos.nextTask;
+            },
+
+            get nextEstimate() {
+                return this.nextTask?.estimateMinutes ? estimateLabel(this.nextTask.estimateMinutes) : '';
             },
 
             // From the history too: a finished task stays listed after it's cleared from the task list

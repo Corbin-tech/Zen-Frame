@@ -211,6 +211,7 @@ const checkbox = 'w-4 h-4 shrink-0 rounded-full border-gray-300 dark:border-slat
             <div>
                 <p class="mt-2 text-xl font-semibold leading-snug" x-text="nextTask.todo"></p>
                 <div class="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                    <span x-show="nextEstimate" class="px-2 py-0.5 rounded-full bg-white/15" x-text="nextEstimate"></span>
                     <span x-show="nextTask.parentId" class="px-2 py-0.5 rounded-full bg-white/15" x-text="$store.todos.clusterName(nextTask.parentId)"></span>
                     <span x-show="nextTask.dueDate" class="px-2 py-0.5 rounded-full bg-white/15" x-text="nextTask.dueDate ? $dates.dueText(nextTask.dueDate).replace(/^d/, 'D') : ''"></span>
                 </div>
