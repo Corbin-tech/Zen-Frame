@@ -26,7 +26,7 @@
   "devDependencies": {
     "@playwright/test": "^1.65.1",
     "@types/alpinejs": "^3.17.0",
-    "autoprefixer": "^10.6.2",
+    "autoprefixer": "^10.7.0",
     "flowbite": "^2.5.2",
     "typescript": "^7.0.2",
     "vitest": "^4.1.12"
