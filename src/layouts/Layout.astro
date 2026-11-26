@@ -119,10 +119,15 @@ const contentSecurityPolicy = [
 				initStores();
 				if (!window.Alpine.store('plus')) window.Alpine.store('plus', initPlusStore());
 				window.Alpine.store('assist', initAssistStore());
+				let assistEffectStarted = false;
 				window.Alpine.effect(() => {
 					const plus = window.Alpine.store('plus') as ReturnType<typeof initPlusStore>;
 					void plus.account;
 					void plus.ready;
+					if (!assistEffectStarted) {
+						assistEffectStarted = true;
+						return;
+					}
 					void (window.Alpine.store('assist') as ReturnType<typeof initAssistStore>).refresh();
 				});
 				registerBreakdownPanel();
