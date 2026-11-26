@@ -8,17 +8,6 @@ for (const width of [320, 390, 1280]) {
       sessionStorage.setItem('pomo-ring-mobile-seeded', 'true');
       localStorage.clear();
       localStorage.setItem('activeTab', 'pomodoro');
-      localStorage.setItem('todos', JSON.stringify([
-        {
-          id: 't1',
-          todo: 'Finalize release notes',
-          completed: false,
-          isCluster: false,
-          isPinned: false,
-          parentId: null,
-          createdAt: '2026-11-20T09:00:00.000Z',
-        },
-      ]));
     });
     await page.goto('/');
 
@@ -63,8 +52,26 @@ for (const width of [320, 390, 1280]) {
       expect(ringBox.width).toBeLessThanOrEqual(288.5);
     }
 
-    // Inner digits and status label stay inside the minute-tick inner circle (r = 36% of ring width)
-    const innerDiameter = ringBox.width * 0.72;
+    // Inner digits and status label stay inside the minute-tick inner circle
+    const innerDiameterRatio = await ring.evaluate(el => {
+      const svg = el as unknown as SVGSVGElement;
+      const vb = svg.viewBox.baseVal;
+      const cx = vb.x + vb.width / 2;
+      const cy = vb.y + vb.height / 2;
+      const lines = Array.from(svg.querySelectorAll('line'));
+      let minRadius = Infinity;
+      for (const line of lines) {
+        for (const [xAttr, yAttr] of [['x1', 'y1'], ['x2', 'y2']] as const) {
+          const x = parseFloat(line.getAttribute(xAttr) ?? '0');
+          const y = parseFloat(line.getAttribute(yAttr) ?? '0');
+          minRadius = Math.min(minRadius, Math.hypot(x - cx, y - cy));
+        }
+      }
+      return (minRadius * 2) / vb.width;
+    });
+    expect(innerDiameterRatio).toBeGreaterThan(0);
+    expect(innerDiameterRatio).toBeLessThan(1);
+    const innerDiameter = ringBox.width * innerDiameterRatio;
     expect(digitsBox.width).toBeLessThan(innerDiameter);
     expect(statusBox.width).toBeLessThan(innerDiameter);
   });

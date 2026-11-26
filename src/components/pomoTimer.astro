@@ -147,7 +147,7 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
         
         <!-- Timer Circle: the classic face. The others are in TimerFaces.astro, picked in Settings. -->
         <template x-if="$store.settings.timerStyle === 'classic'">
-        <div class="relative w-full max-w-[18rem] aspect-square sm:w-72 sm:h-72 mb-8">
+        <div class="relative w-full max-w-[18rem] aspect-square mb-8">
             <p class="sr-only" role="timer" x-text="`${Math.floor($store.pomoState.timeLeft / 60)} minutes ${$store.pomoState.timeLeft % 60} seconds left`"></p>
             <svg class="relative w-full h-full"
                 viewBox="0 0 100 100"
