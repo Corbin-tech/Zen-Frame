@@ -15,7 +15,6 @@ test('saved Quiet desk becomes Zen garden and the picker persists it', async ({ 
   const settings = page.getByRole('dialog', { name: 'Settings' });
   const choice = settings.getByRole('button', { name: 'Zen garden' });
   await expect(choice).toHaveAttribute('aria-pressed', 'true');
-  await expect(garden).toHaveJSProperty('nodeName', 'svg');
   expect(await garden.evaluate((svg: SVGSVGElement) => svg.animationsPaused())).toBe(true);
 
   await settings.getByRole('button', { name: 'None Just the card' }).click();
@@ -48,5 +47,16 @@ for (const theme of ['light', 'dark']) {
     await page.waitForTimeout(250);
     expect(await garden.evaluate((svg: SVGSVGElement) => svg.getCurrentTime())).toBe(time);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    // Landmarks must remain in the canvas, not disappear into a center-cropped wide scene.
+    for (const landmark of ['.zen-garden-stones', '.zen-garden-pine', '.zen-garden-steps']) {
+      const visibleFraction = await garden.locator(landmark).evaluate((element) => {
+        const box = element.getBoundingClientRect();
+        const canvas = element.ownerSVGElement!.getBoundingClientRect();
+        const width = Math.max(0, Math.min(box.right, canvas.right) - Math.max(box.left, canvas.left));
+        const height = Math.max(0, Math.min(box.bottom, canvas.bottom) - Math.max(box.top, canvas.top));
+        return width * height / (box.width * box.height);
+      });
+      expect(visibleFraction).toBeGreaterThan(0.85);
+    }
   });
 }
