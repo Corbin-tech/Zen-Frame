@@ -10,7 +10,7 @@ const hooks = registerHooks({
     },
     load(url, context, next) {
         return url === storeUrl.href
-            ? { format: 'module', source: stripTypeScriptTypes(readFileSync(storeUrl, 'utf8'), { mode: 'transform' }), shortCircuit: true }
+            ? { format: 'module', source: stripTypeScriptTypes(readFileSync(storeUrl, 'utf8')), shortCircuit: true }
             : next(url, context);
     }
 });

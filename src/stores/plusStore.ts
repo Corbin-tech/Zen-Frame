@@ -8,8 +8,13 @@ type AccountStatus = { email: string; billingAvailable: boolean } & (
 type SessionReply = AccountStatus & { token: string; expiresAt: number };
 
 class PlusError extends Error {
-    constructor(readonly code: string, readonly status: number) {
+    readonly code: string;
+    readonly status: number;
+
+    constructor(code: string, status: number) {
         super(code);
+        this.code = code;
+        this.status = status;
     }
 }
 
