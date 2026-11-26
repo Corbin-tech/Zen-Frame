@@ -19,7 +19,7 @@ const pickerItem = 'w-full flex items-center gap-2.5 px-3 py-2 text-left rounded
     <!-- Header -->
     <header class="flex flex-wrap items-end justify-between gap-4">
         <div>
-            <p class="eyebrow">Task Manager</p>
+            <p class="eyebrow">Tasks</p>
             <h1 class="page-title">Everything on your list</h1>
             <p
                 class="mt-1 text-gray-500 dark:text-gray-400"
@@ -330,12 +330,13 @@ const pickerItem = 'w-full flex items-center gap-2.5 px-3 py-2 text-left rounded
         </template>
         
         <!-- No tasks and no clusters at all (spec item 20): one quiet centered line
-             in the panels' place, with a small echo of the page's raked sand. A
-             search that hides everything says so in the header instead. -->
+             in the panels' place. A search that hides everything says so in the
+             header instead. -->
         <div x-show="!$store.todos.items.length" class="py-10 flex flex-col items-center text-center">
-            <span class="tm-raked-sand block w-40 h-8 mb-2" aria-hidden="true"></span>
-            <p class="text-sm text-gray-500 dark:text-gray-400">
-                Press <kbd class="px-1.5 py-0.5 rounded border border-gray-200 dark:border-slate-700 font-sans">N</kbd> to add a task
+            <p class="text-sm text-gray-500 dark:text-gray-400">Add your first task.</p>
+            <button type="button" class="btn-primary mt-3" x-on:click="$dispatch('open-quick-add')">New task</button>
+            <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                Or press <kbd class="px-1.5 py-0.5 rounded border border-gray-200 dark:border-slate-700 font-sans">N</kbd>
             </p>
         </div>
     </div>
@@ -398,14 +399,6 @@ const pickerItem = 'w-full flex items-center gap-2.5 px-3 py-2 text-left rounded
     .cluster-card[data-drop-active] {
         box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--teal-primary) 45%, transparent);
         background-color: color-mix(in srgb, var(--teal-primary) 5%, transparent) !important;
-    }
-
-    /* A small echo of the page's raked-sand ripples (see Layout.astro's body::before),
-       one quiet band over the empty-state line, trailing off to the left. */
-    .tm-raked-sand {
-        background: repeating-radial-gradient(circle at 100% 0%, transparent 0 27px, var(--ripple) 27px 28px);
-        -webkit-mask-image: linear-gradient(to left, black 45%, transparent);
-        mask-image: linear-gradient(to left, black 45%, transparent);
     }
 </style>
 

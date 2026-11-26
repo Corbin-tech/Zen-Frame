@@ -1,11 +1,12 @@
 import { test, expect } from '@playwright/test';
+import { openView } from './nav';
 
 test('a filtered Board card can be renamed and saves on blur', async ({ page }) => {
   const original = 'Review invoices';
   const renamed = 'file invoices';
 
   await page.goto('/');
-  await page.locator('button[data-tab="board"]').click();
+  await openView(page, 'board');
   await page.getByRole('button', { name: 'Add a task to To do', exact: true }).click();
   const newTask = page.getByRole('textbox', { name: 'New task', exact: true });
   await newTask.fill(original);

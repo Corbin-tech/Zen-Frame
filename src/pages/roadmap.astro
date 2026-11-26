@@ -1,0 +1,143 @@
+---
+import Layout from '../layouts/Layout.astro';
+import EnsoMark from '../components/EnsoMark.astro';
+import DarkModeToggle from '../components/darkModeToggle.astro';
+
+const plannedFeatures = [
+	{
+		category: 'A little help getting started',
+		title: 'Turn a big task into a small next step.',
+		body: 'Optional Zen Frame Plus AI helpers will suggest manageable steps, turn a brain dump into tasks, and offer realistic time estimates. You can edit or discard a preview before anything changes.',
+		detail: 'Suggestions, not decisions. You stay in control.',
+		icon: 'M8 5h12M8 12h8M8 19h4M3 5h.01M3 12h.01M3 19h.01',
+	},
+	{
+		category: 'Less clutter, more room',
+		title: 'Helpful tools. A quieter task list.',
+		body: 'Compact breakdown controls will keep help close to the task without crowding your list. In Zen Mode, just the next step will take the spotlight.',
+		detail: 'More space for the work in front of you.',
+		icon: 'M4 5h16M4 12h10M4 19h16M18 10l3 2-3 2',
+	},
+	{
+		category: 'Your choice, always',
+		title: 'Know what you share. Choose when.',
+		body: 'Before you use Plus task helpers, clear privacy information and an opt-in choice will explain what text is sent for a suggestion. You will be able to turn the helpers off again.',
+		detail: 'Optional assistance, with permission first.',
+		icon: 'M12 3l8 3v6c0 4-5 8-8 9-3-1-8-5-8-9V6l8-3ZM8 12l3 3 5-6',
+	},
+	{
+		category: 'Progress at a glance',
+		title: 'See the next step, not the whole mountain.',
+		body: 'A saved checklist will fold into one calm progress line, showing how far you have come and what is next. Expand it when you want the details; keep it tucked away when you do not.',
+		detail: 'Small steps, with a little more breathing room.',
+		icon: 'M4 12l4 4 6-8M14 16h6M17 9h3',
+	},
+];
+---
+
+<Layout
+	title="Roadmap — Zen Frame"
+	workspace={false}
+	description="A look at what is ahead for Zen Frame: optional Plus task helpers, quieter controls, clear privacy choices, and simpler checklist progress. Planned, not available yet."
+>
+	<div class="mx-auto max-w-6xl pt-4 sm:pt-8">
+		<header class="flex items-center justify-between gap-3 border-b border-gray-900/10 pb-4 dark:border-white/10">
+			<a href="/" class="touch-target inline-flex items-center gap-2.5 rounded-lg text-gray-900 transition-opacity hover:opacity-80 dark:text-gray-50">
+				<EnsoMark class="h-6 w-6 shrink-0" />
+				<span class="text-base font-medium tracking-tight">Zen Frame</span>
+			</a>
+			<div class="flex items-center gap-2">
+				<DarkModeToggle />
+				<a href="/" class="btn-secondary touch-target">Open app <span aria-hidden="true">&rarr;</span></a>
+			</div>
+		</header>
+
+		<article class="py-10 sm:py-16">
+			<section aria-labelledby="roadmap-heading" class="grid items-center gap-10 lg:grid-cols-[1.2fr_1fr] lg:gap-20">
+				<div>
+					<p class="eyebrow flex items-center gap-2.5">
+						<span class="h-1.5 w-1.5 rounded-full bg-[#D7B36A]" aria-hidden="true"></span>
+						The Zen Frame roadmap
+					</p>
+					<h1 id="roadmap-heading" class="editorial mt-6 text-5xl font-normal leading-[1.05] tracking-tight text-gray-900 sm:text-6xl lg:text-7xl dark:text-gray-50">
+						A little space.<br />A path forward.
+					</h1>
+					<p class="mt-6 max-w-lg text-base leading-relaxed text-gray-600 sm:text-lg dark:text-gray-300">
+						We are making the everyday feel calmer first. Here is a quiet look at what we plan to add next, without getting in the way of what helps today.
+					</p>
+					<a href="#planned" class="touch-target mt-6 inline-flex items-center gap-3 rounded text-sm font-medium text-teal-700 underline decoration-teal-700/30 underline-offset-4 hover:text-teal-800 dark:text-teal-300 dark:decoration-teal-300/40 dark:hover:text-teal-200">
+						Explore what is ahead <span aria-hidden="true">&darr;</span>
+					</a>
+				</div>
+
+				<aside aria-labelledby="focus-heading" class="relative isolate overflow-hidden rounded-2xl bg-[#173F3A] p-7 text-[#F7F5EF] sm:p-9">
+					<div class="ripples text-[#DCE7DC]" aria-hidden="true"></div>
+					<EnsoMark class="mb-10 h-14 w-14 text-[#DCE7DC]" />
+					<p class="text-xs font-medium uppercase tracking-[0.14em] text-[#DCE7DC]">Our focus right now</p>
+					<h2 id="focus-heading" class="editorial mt-3 max-w-xs text-3xl font-normal leading-tight sm:text-4xl">The essentials,<br />with room to breathe.</h2>
+					<p class="mt-4 max-w-xs text-sm leading-relaxed text-[#DCE7DC]">Polishing your everyday workspace comes first. Optional extras can wait.</p>
+					<div class="mt-8 flex items-center gap-3 border-t border-white/15 pt-5 text-sm text-[#DCE7DC]">
+						<span class="h-2 w-2 shrink-0 rounded-full bg-[#D7B36A]" aria-hidden="true"></span>
+						One thoughtful step at a time.
+					</div>
+				</aside>
+			</section>
+
+			<section aria-labelledby="available-heading" class="mt-12 flex flex-col gap-4 rounded-xl border border-teal-700/15 bg-teal-50/60 p-6 sm:mt-16 sm:flex-row sm:items-center sm:gap-8 dark:border-teal-300/15 dark:bg-teal-900/20">
+				<div class="shrink-0">
+					<p class="eyebrow">Available now</p>
+					<h2 id="available-heading" class="mt-1 text-base font-medium text-gray-900 dark:text-gray-100">Your everyday workspace</h2>
+				</div>
+				<p class="text-sm leading-relaxed text-gray-600 dark:text-gray-300">Plan tasks, arrange your schedule, and find focus with Pomodoro and Zen Mode. Free to use, with no account required.</p>
+			</section>
+
+			<section id="planned" aria-labelledby="planned-heading" class="scroll-mt-8 pt-14 sm:pt-20">
+				<div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+					<div>
+						<p class="eyebrow">On the horizon</p>
+						<h2 id="planned-heading" class="editorial mt-3 text-3xl font-normal tracking-tight text-gray-900 sm:text-4xl dark:text-gray-50">Small changes. A gentler flow.</h2>
+					</div>
+					<p class="max-w-xs text-sm leading-relaxed text-gray-500 dark:text-gray-400">These ideas are planned, not available yet. Timing and details may change.</p>
+				</div>
+
+				<ul class="mt-8 grid gap-5 md:grid-cols-2">
+					{plannedFeatures.map((feature) => (
+						<li class="panel flex flex-col p-6 sm:p-8">
+							<div class="mb-7 flex items-center justify-between gap-4">
+								<div class="flex h-11 w-11 items-center justify-center rounded-full bg-teal-50 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300" aria-hidden="true">
+									<svg viewBox="0 0 24 24" class="h-5 w-5" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d={feature.icon} /></svg>
+								</div>
+								<span class="rounded-full border border-gray-200 px-3 py-1 text-xs font-medium text-gray-600 dark:border-white/15 dark:text-gray-300">Planned</span>
+							</div>
+							<p class="eyebrow">{feature.category}</p>
+							<h3 class="editorial mt-3 max-w-sm text-3xl font-normal leading-tight tracking-tight text-gray-900 dark:text-gray-50">{feature.title}</h3>
+							<p class="mb-7 mt-4 text-sm leading-relaxed text-gray-600 sm:text-base dark:text-gray-300">{feature.body}</p>
+							<p class="mt-auto border-t border-gray-900/[0.07] pt-4 text-sm leading-relaxed text-teal-700 dark:border-white/10 dark:text-teal-300">{feature.detail}</p>
+						</li>
+					))}
+				</ul>
+			</section>
+
+			<section aria-labelledby="promise-heading" class="mt-14 grid gap-6 border-y border-gray-900/10 py-8 sm:mt-16 sm:grid-cols-[1fr_1.5fr] sm:gap-16 dark:border-white/10">
+				<div>
+					<p class="eyebrow">What will not change</p>
+					<h2 id="promise-heading" class="editorial mt-3 text-3xl font-normal tracking-tight text-gray-900 dark:text-gray-50">A quiet place to begin.</h2>
+				</div>
+				<div class="space-y-4 text-sm leading-relaxed text-gray-600 sm:text-base dark:text-gray-300">
+					<p>Core Zen Frame stays free and local-first. Your everyday planning will not require a Plus account, and your tasks stay in your browser.</p>
+					<p>Plus is planned as an optional paid addition for hosted AI helpers, not a requirement to keep using the app.</p>
+					<a href="/principles" class="touch-target inline-flex items-center gap-2 rounded font-medium text-teal-700 underline decoration-teal-700/30 underline-offset-4 hover:text-teal-800 dark:text-teal-300 dark:decoration-teal-300/40 dark:hover:text-teal-200">Read our calm design principles <span aria-hidden="true">&rarr;</span></a>
+				</div>
+			</section>
+
+			<section aria-labelledby="feedback-heading" class="pt-12 text-center sm:pt-16">
+				<p class="eyebrow">Built around real days</p>
+				<h2 id="feedback-heading" class="editorial mt-3 text-3xl font-normal tracking-tight text-gray-900 sm:text-4xl dark:text-gray-50">What would make starting easier?</h2>
+				<p class="mx-auto mt-4 max-w-lg text-sm leading-relaxed text-gray-600 sm:text-base dark:text-gray-300">Your feedback helps shape the next step. Tell us what feels useful, what feels noisy, or what you wish was simpler.</p>
+				<div class="mt-6" x-data>
+					<button type="button" x-on:click="$dispatch('open-feedback')" class="btn-primary touch-target cursor-pointer">Share a thought <span aria-hidden="true">&rarr;</span></button>
+				</div>
+			</section>
+		</article>
+	</div>
+</Layout>

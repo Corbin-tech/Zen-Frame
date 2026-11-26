@@ -123,3 +123,64 @@ test('Feedback dialog traps Tab focus and restores focus on Escape', async ({ pa
   await expect(dialog).toBeHidden();
   await expect(opener).toBeFocused();
 });
+
+test('Brain dump dialog traps Tab focus, hands off opener, closes on Escape after heading click, and pluralizes task counts', async ({ page }) => {
+  await page.goto('/');
+  const opener = page.getByRole('button', { name: 'New task or cluster (N)' }).first();
+  await opener.click();
+  await page.getByRole('dialog', { name: 'New task' }).getByRole('button', { name: 'Brain dump' }).click();
+
+  const dialog = page.getByRole('dialog', { name: 'Brain dump' });
+  const close = dialog.getByRole('button', { name: 'Close', exact: true });
+  const draft = dialog.getByLabel("What's on your mind?");
+
+  await expect(dialog).toBeVisible();
+  await expect(draft).toBeFocused();
+
+  await close.focus();
+  await page.keyboard.press('Shift+Tab');
+  await expect(draft).toBeFocused();
+
+  await page.keyboard.press('Tab');
+  await expect(close).toBeFocused();
+
+  // Clicking non-focusable heading moves focus outside controls; Shift+Tab must stay trapped inside
+  await dialog.getByRole('heading', { name: 'Brain dump' }).click();
+  await page.keyboard.press('Shift+Tab');
+  await expect(draft).toBeFocused();
+
+  // Clicking heading then pressing Escape must close dialog and restore focus to original opener
+  await dialog.getByRole('heading', { name: 'Brain dump' }).click();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  await expect(opener).toBeFocused();
+
+  // Opening another overlay while Brain dump is open must hand off opener without stealing focus
+  await opener.click();
+  await page.getByRole('dialog', { name: 'New task' }).getByRole('button', { name: 'Brain dump' }).click();
+  await expect(dialog).toBeVisible();
+
+  const handoff = await opener.evaluate(openerEl => {
+    const detail: { name: string; opener?: HTMLElement | null } = { name: 'other-overlay' };
+    window.dispatchEvent(new CustomEvent('overlay-opened', { detail }));
+    return {
+      handedOffOpener: detail.opener === openerEl,
+      stoleFocusToOpener: document.activeElement === openerEl,
+    };
+  });
+  expect(handoff).toEqual({ handedOffOpener: true, stoleFocusToOpener: false });
+  await expect(dialog).toBeHidden();
+
+  // Accepting 1 task uses singular "1 task"
+  await opener.click();
+  await page.getByRole('dialog', { name: 'New task' }).getByRole('button', { name: 'Brain dump' }).click();
+  await expect(dialog).toBeVisible();
+  await page.evaluate(() => {
+    (window as unknown as { Alpine: { store: (name: string) => { preview: unknown } } }).Alpine.store('assist').preview = {
+      kind: 'compile',
+      clusters: [{ name: 'Errands', tasks: [{ text: 'Buy milk', minutes: 15 }] }],
+    };
+  });
+  await dialog.getByRole('button', { name: 'Accept', exact: true }).click();
+  await expect(dialog.locator('[aria-live="polite"]')).toHaveText('Added 1 task. Your draft is cleared.');
+});
