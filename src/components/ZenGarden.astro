@@ -39,7 +39,7 @@ const pineTufts = [
 
     <!-- Only the sand stretches to fit. Separately anchored landmarks keep their shapes
          and stay in frame even when the task makes the mobile canvas very tall. -->
-    <svg width="100%" height="100%" viewBox="0 0 1000 700" preserveAspectRatio="none">
+    <svg class="stroke-none" width="100%" height="100%" viewBox="0 0 1000 700" preserveAspectRatio="none">
         <rect width="1000" height="700" fill="url(#zg-sand)" />
         <rect width="1000" height="700" fill="url(#zg-grain)" class="text-gray-600 dark:text-gray-300" style="fill: currentColor" opacity="0.1" />
         <g fill="none" class="stroke-gray-400/30 dark:stroke-slate-400/20" stroke-width="1.4">
@@ -50,7 +50,7 @@ const pineTufts = [
     </svg>
 
     <!-- An island of three weathered stones and moss, with concentric rake marks. -->
-    <svg class="zen-garden-stones" x="-3%" y="55%" width="45%" height="40%" viewBox="-225 -125 450 250">
+    <svg class="zen-garden-stones stroke-none" x="-3%" y="0" width="45%" height="128" viewBox="-225 -125 450 250">
     <g transform="rotate(-18)">
         <ellipse rx="214" ry="104" class="fill-gray-200 dark:fill-slate-700" />
         <g fill="none" class="stroke-gray-400/50 dark:stroke-slate-400/30" stroke-width="1.5">
@@ -76,7 +76,7 @@ const pineTufts = [
     </svg>
 
     <!-- Pine and a low garden wall sit at the far edge, not behind the text. -->
-    <svg class="zen-garden-pine" x="62%" y="0" width="42%" height="36%" viewBox="650 0 400 250" preserveAspectRatio="xMaxYMin meet">
+    <svg class="zen-garden-pine stroke-none" x="62%" y="0" width="42%" height="128" viewBox="650 0 400 250" preserveAspectRatio="xMaxYMin meet">
     <path d="M1050 246 Q937 217 935 134 Q922 85 862 72 M939 158 Q865 142 807 98 M935 134 Q992 95 1021 47" fill="none" class="stroke-gray-800 dark:stroke-slate-900" stroke-width="15" stroke-linecap="round" />
     <g class="fill-[#294D43] dark:fill-[#173F3A]">
         {pineTufts.map(([cx, cy, rx, ry]) => (
@@ -90,7 +90,7 @@ const pineTufts = [
     </svg>
 
     <!-- A few flat stepping stones lead out of frame. -->
-    <svg class="zen-garden-steps" x="78%" y="72%" width="22%" height="28%" viewBox="820 490 170 220" preserveAspectRatio="xMaxYMax meet">
+    <svg class="zen-garden-steps stroke-none" x="42%" y="40" width="22%" height="88" viewBox="820 490 170 220" preserveAspectRatio="xMaxYMax meet">
     <g class="fill-gray-400/50 stroke-gray-500/25 dark:fill-slate-600/50 dark:stroke-slate-400/20" stroke-width="1.5">
         <path d="M846 710 Q835 686 856 672 L899 668 Q927 685 913 710Z" />
         <path d="M878 645 Q864 623 886 609 L924 612 Q947 628 927 648Z" />
@@ -100,7 +100,7 @@ const pineTufts = [
     </svg>
 
     <!-- Only the ambient light moves, on the shared backdrop pause/reduced-motion clock. -->
-    <svg width="100%" height="100%" viewBox="0 0 1000 700" preserveAspectRatio="none">
+    <svg class="stroke-none" width="100%" height="100%" viewBox="0 0 1000 700" preserveAspectRatio="none">
     <ellipse cx="340" cy="220" rx="540" ry="380" fill="url(#zg-light)">
         <animateTransform attributeName="transform" type="translate" values="0 0; 45 20; 0 0" dur="60s" repeatCount="indefinite" />
     </ellipse>

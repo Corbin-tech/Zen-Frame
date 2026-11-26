@@ -52,6 +52,7 @@ for (const theme of ['light', 'dark']) {
     await page.waitForTimeout(250);
     expect(await garden.evaluate((svg: SVGSVGElement) => svg.getCurrentTime())).toBe(time);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    expect(await garden.locator('animateTransform').evaluate(element => getComputedStyle(element.parentElement!).stroke)).toBe('none');
     // Landmarks must remain in the canvas, not disappear into a center-cropped wide scene.
     for (const landmark of ['.zen-garden-stones', '.zen-garden-pine', '.zen-garden-steps']) {
       const visibleFraction = await garden.locator(landmark).evaluate((element) => {
@@ -64,5 +65,8 @@ for (const theme of ['light', 'dark']) {
       // A little edge bleed is intentional, but most of each landmark must be visible.
       expect(visibleFraction).toBeGreaterThan(0.7);
     }
+    const landmarksBottom = await garden.locator('.zen-garden-stones').evaluate(element => element.getBoundingClientRect().bottom);
+    const taskTop = await page.locator('[x-data="zenTodoList"] > div').evaluate(element => element.getBoundingClientRect().top);
+    expect(landmarksBottom).toBeLessThanOrEqual(taskTop);
   });
 }
