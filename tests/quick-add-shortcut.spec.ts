@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { openView } from './nav';
 
 async function pressNAndFlush(page: Page) {
   await page.keyboard.press('n');
@@ -40,7 +41,7 @@ test('N shortcut does not open Quick Add while Settings, Recap, Feedback, or Bra
   await expect(feedback).toBeHidden();
 
   // Recap (Stillpoint) dialog
-  await page.locator('button[data-tab="insights"]').click();
+  await openView(page, 'insights');
   await page.getByRole('button', { name: 'Play Stillpoint', exact: true }).click();
   const recap = page.getByRole('dialog', { name: /Stillpoint/ });
   await expect(recap).toBeVisible();
