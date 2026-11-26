@@ -178,6 +178,7 @@ export function initAssistStore() {
 
     // Saves the (possibly edited) preview to the task list
     accept(): void {
+      if (!this.consent) return;
       const preview = this.preview;
       if (!preview) return;
       if (preview.kind === "breakdown") {

@@ -235,4 +235,27 @@ for (const mode of ['success', 'error', 'abort', 'late-response']) {
     assert.equal(writes, 0);
   }
 }
-console.log('Assist integration checks passed (status, consent, async token, allowance, errors, backup exclusion, Breakdown cancel/late response).');
+stores.todos.setEstimate = () => { writes++; };
+stores.todos.createCluster = () => { writes++; return 'new-cluster'; };
+stores.todos.addTodo = () => { writes++; };
+for (const preview of [
+  { kind: 'breakdown', taskId: task.id, steps: answer.steps },
+  { kind: 'estimate', taskId: task.id, result: { minutes: 20, low: 10, high: 30 } },
+  { kind: 'compile', clusters: [{ name: 'Home', tasks: [{ text: 'Open the notes', minutes: 5 }] }] }
+]) {
+  assist.withdrawConsent();
+  await assist.refresh();
+  const beforeWrites = writes;
+  assist.preview = preview; // A stale caller restores a preview after consent was cleared
+  assist.accept();
+  assert.equal(writes, beforeWrites);
+  assert.equal(assist.preview, preview);
+  assist.giveConsent();
+  await assist.refresh();
+  assist.accept();
+  assert.equal(writes, beforeWrites + (preview.kind === 'compile' ? 2 : 1));
+  assert.equal(assist.preview, null);
+  assist.accept(); // No preview is a no-op even with consent
+  assert.equal(writes, beforeWrites + (preview.kind === 'compile' ? 2 : 1));
+}
+console.log('Assist integration checks passed (status, consent, async token, allowance, errors, backup exclusion, Breakdown cancel/late response, consent-gated acceptance).');
