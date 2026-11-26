@@ -99,13 +99,13 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
     <!-- Key numbers -->
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <template x-for="tile in view.tiles" :key="tile.label">
-            <div class={`${panel} p-4`}>
+            <div class={`${panel} p-4 max-sm:min-w-0`}>
                 <p class="text-sm font-medium text-gray-500 dark:text-gray-400" x-text="tile.label"></p>
                 <p class="mt-2 text-3xl font-semibold tracking-tight tabular-nums text-gray-900 dark:text-white" x-text="tile.value"></p>
-                <p class="mt-1 flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
+                <p class="mt-1 flex max-sm:items-start sm:items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
                     <!-- Up or down against the previous period: an arrow and words, not color alone -->
-                    <svg x-show="tile.trend" class="w-3.5 h-3.5 shrink-0" x-bind:class="tile.trend === 'up' ? 'text-teal-600 dark:text-teal-400' : 'text-gray-500 dark:text-gray-400 rotate-180'" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 15l7-7 7 7" /></svg>
-                    <span class="truncate" x-text="tile.detail"></span>
+                    <svg x-show="tile.trend" class="w-3.5 h-3.5 shrink-0 max-sm:mt-px" x-bind:class="tile.trend === 'up' ? 'text-teal-600 dark:text-teal-400' : 'text-gray-500 dark:text-gray-400 rotate-180'" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 15l7-7 7 7" /></svg>
+                    <span class="min-w-0 break-words sm:truncate" x-text="tile.detail"></span>
                 </p>
             </div>
         </template>
