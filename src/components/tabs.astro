@@ -145,7 +145,7 @@ const tabOf = (id: string) => tabs.find((tab) => tab.id === id);
             x-on:click="activeTab = 'pomodoro'"
             :aria-label="$store.pomoState.isRunning ? 'Pomodoro timer running. Open the timer.' : 'Pomodoro timer paused. Open the timer.'"
             class="flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-white/80 dark:bg-slate-800/80 ring-1 ring-black/5 dark:ring-white/10 text-sm font-semibold tabular-nums"
-            :class="$store.pomoState.isRunning ? 'text-gray-800 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400 opacity-75'"
+            :class="$store.pomoState.isRunning ? 'text-gray-800 dark:text-gray-100' : 'text-gray-600 dark:text-gray-300'"
         >
             <span class="relative flex w-2 h-2 shrink-0" aria-hidden="true">
                 <span class="relative inline-flex w-2 h-2 rounded-full" :class="$store.pomoState.isRunning ? 'bg-teal-500 motion-safe:animate-breathe' : 'bg-gray-400'"></span>
@@ -190,7 +190,8 @@ const tabOf = (id: string) => tabs.find((tab) => tab.id === id);
                 <span class="hidden lg:block text-base font-medium tracking-tight text-gray-900 dark:text-gray-50">Zen Frame</span>
             </button>
 
-            <!-- Areas: darker text and an accent underline on the open one -->
+            <!-- Areas: darker text and an accent underline on the open one. Below 360px the timer
+                 chip does not fit, so a dot on Focus shows a running or paused session. -->
             <nav class="min-w-0 flex-1 flex overflow-x-auto [scrollbar-width:none]" aria-label="Sections">
                 {AREAS.map((area) => (
                     <button
@@ -198,9 +199,20 @@ const tabOf = (id: string) => tabs.find((tab) => tab.id === id);
                         data-area={area.id}
                         x-on:click={`setArea('${area.id}')`}
                         x-bind:class={`activeArea === '${area.id}' ? 'border-teal-600 text-gray-900 dark:border-teal-400 dark:text-white' : 'border-transparent text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white'`}
-                        x-bind:aria-current={`activeArea === '${area.id}' ? 'page' : null`}
-                        class="shrink-0 inline-flex items-center justify-center touch-target px-1.5 min-[400px]:px-2 sm:px-3 py-2 border-b-2 text-sm font-medium whitespace-nowrap select-none transition-colors focus-visible:-outline-offset-2"
-                    >{area.label}</button>
+                        x-bind:aria-current={`activeArea === '${area.id}' ? 'true' : null`}
+                        class="relative shrink-0 inline-flex items-center justify-center touch-target px-1.5 min-[400px]:px-2 sm:px-3 py-2 border-b-2 text-sm font-medium whitespace-nowrap select-none transition-colors focus-visible:-outline-offset-2"
+                    >
+                        {area.label}{area.id === 'focus' && (
+                            <span x-show="$store.pomoState.status !== 'idle'" class="min-[360px]:hidden">
+                                <span
+                                    class="absolute top-2.5 right-0 w-1.5 h-1.5 rounded-full"
+                                    :class="$store.pomoState.isRunning ? 'bg-teal-500 motion-safe:animate-breathe' : 'bg-gray-500 dark:bg-gray-400'"
+                                    aria-hidden="true"
+                                ></span>
+                                <span class="sr-only" x-text="$store.pomoState.isRunning ? ', timer running' : ', timer paused'"></span>
+                            </span>
+                        )}
+                    </button>
                 ))}
             </nav>
 
@@ -212,10 +224,9 @@ const tabOf = (id: string) => tabs.find((tab) => tab.id === id);
                 x-on:click="activeTab = 'pomodoro'"
                 :aria-label="$store.pomoState.isRunning ? 'Pomodoro timer running. Open the timer.' : 'Pomodoro timer paused. Open the timer.'"
                 class="shrink-0 max-[359px]:!hidden inline-flex items-center justify-center gap-2 touch-target px-2.5 sm:pr-2 py-1.5 rounded-full bg-white/80 dark:bg-slate-800/80 ring-1 ring-black/5 dark:ring-white/10 shadow-sm"
-                :class="$store.pomoState.isRunning ? '' : 'opacity-75'"
             >
                 <span class="text-sm font-semibold tabular-nums"
-                     :class="$store.pomoState.isRunning ? 'text-gray-800 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400'">
+                     :class="$store.pomoState.isRunning ? 'text-gray-800 dark:text-gray-100' : 'text-gray-600 dark:text-gray-300'">
                     <span x-text="Math.floor($store.pomoState.timeLeft / 60).toString().padStart(2, '0')"></span>:<span x-text="($store.pomoState.timeLeft % 60).toString().padStart(2, '0')"></span>
                 </span>
                 <!-- Phones hide the ring, so the top row fits at 375px -->
@@ -341,7 +352,7 @@ const tabOf = (id: string) => tabs.find((tab) => tab.id === id);
     import { loadString, saveString } from '../lib/storage';
     import { AREAS, areaOf } from '../lib/nav';
 
-    const VALID_TABS = new Set(['dashboard', 'taskmanager', 'board', 'schedule', 'goals', 'insights', 'pomodoro', 'zenmode']);
+    const VALID_TABS = new Set(AREAS.flatMap((area) => area.views));
     const safeTab = (tab) => (VALID_TABS.has(tab) ? tab : 'dashboard');
 
     document.addEventListener('alpine:init', () => {

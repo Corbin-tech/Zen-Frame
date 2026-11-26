@@ -39,6 +39,6 @@ test('principles page footer navigation, feedback dialog, and accessibility font
   // Clicking a footer area link on /principles navigates to / and opens that area's first view
   await page.locator('footer').getByRole('link', { name: 'Library' }).click();
   await expect(page).toHaveURL(/\/$/);
-  await expect(page.locator('button[data-area="library"]')).toHaveAttribute('aria-current', 'page');
+  await expect(page.locator('button[data-area="library"]')).toHaveAttribute('aria-current', 'true');
   await expect(page.locator('button[data-tab="taskmanager"]')).toHaveAttribute('aria-current', 'page');
 });
