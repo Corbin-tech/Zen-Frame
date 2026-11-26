@@ -67,7 +67,7 @@ export const DASHBOARD_WIDGETS = [
   { id: "upnext", label: "Up next", hint: "The next task, with a focus button", zone: "column" },
   { id: "deadlines", label: "Deadlines", hint: "Past due and the next 14 days", zone: "column" },
   { id: "recent", label: "Recently completed", hint: "Your last few finished tasks", zone: "column" },
-  { id: "focus", label: "Focus timer", hint: "Start a Pomodoro from here", zone: "column" },
+  { id: "focus", label: "Focus timer", hint: "Start a focus session from here", zone: "column" },
   { id: "goals", label: "Goals", hint: "Progress on your open goals", zone: "column" },
   { id: "notes", label: "Notes", hint: "Pinned and recent notes", zone: "column" },
   { id: "quote", label: "Quote of the day", hint: "A new one each morning", zone: "column" },
@@ -86,7 +86,7 @@ const DEFAULT_DASHBOARD: DashboardLayout = {
   side: ["upnext", "deadlines", "recent"]
 };
 
-// Zen mode extras, each a switch under Settings > Zen mode
+// Next step extras, each a switch under Settings > Next step
 const ZEN_OPTIONS = [
   { key: "zenShowCluster", label: "Cluster and position", hint: "Which cluster the task is in, and where" },
   { key: "zenShowDue", label: "Due date", hint: "When the task is due" },
@@ -99,7 +99,7 @@ const ZEN_OPTIONS = [
 const ZEN_BACKGROUNDS = [
   { id: "none", label: "None", hint: "Just the card" },
   { id: "glow", label: "Soft glow", hint: "Drifting colored light" },
-  { id: "desk", label: "Quiet desk", hint: "Paper and slow light" },
+  { id: "desk", label: "Zen garden", hint: "Raked sand, moss and pine" },
   { id: "koi", label: "Koi pond", hint: "Koi under lily pads" },
   { id: "swirly", label: "Swirly night", hint: "Spirals and stars" },
   { id: "birds", label: "Birds", hint: "Flocks across the sky" },

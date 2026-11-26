@@ -2,9 +2,9 @@
 // The view ids do not change: stores, backups, and change-tab events still use them.
 
 export type ViewId = "dashboard" | "schedule" | "zenmode" | "pomodoro" | "taskmanager" | "board" | "goals" | "insights";
-export type AreaId = "today" | "focus" | "library";
+type AreaId = "today" | "focus" | "library";
 
-export interface Area {
+interface Area {
   id: AreaId;
   label: string;
   views: readonly ViewId[];
