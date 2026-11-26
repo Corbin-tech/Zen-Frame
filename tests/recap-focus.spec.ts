@@ -1,8 +1,9 @@
 import { test, expect } from '@playwright/test';
+import { openView } from './nav';
 
 test('paused recap traps focus and preserves slide navigation and focus return', async ({ page }) => {
   await page.goto('/');
-  await page.locator('button[data-tab="insights"]').click();
+  await openView(page, 'insights');
   const opener = page.getByRole('button', { name: 'Play Stillpoint', exact: true });
   await opener.click();
   const dialog = page.getByRole('dialog', { name: /Stillpoint/ });

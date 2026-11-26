@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { openView } from './nav';
 
 for (const populated of [true, false]) {
   test(`activity card matches chart cards with ${populated ? 'activity' : 'no activity'}`, async ({ page }) => {
@@ -39,7 +40,7 @@ for (const populated of [true, false]) {
       localStorage.setItem('activeTab', 'dashboard');
     }, populated);
     await page.goto('/');
-    await page.locator('button[data-tab="insights"]').click();
+    await openView(page, 'insights');
     const heatmap = page.getByRole('list', { name: 'Activity per day for the last 26 weeks' });
     const days = heatmap.getByRole('listitem');
     await expect(days).toHaveCount(179);

@@ -13,6 +13,7 @@ import QuickAdd from './QuickAdd.astro';
 import ZenQuote from './ZenQuote.astro';
 import ZenBackdrop from './ZenBackdrop.astro';
 import EnsoMark from './EnsoMark.astro';
+import { AREAS } from '../lib/nav';
 
 const tabs = [
     {
@@ -56,12 +57,14 @@ const tabs = [
         icon: 'M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z'
     }
 ];
+const tabOf = (id: string) => tabs.find((tab) => tab.id === id);
 ---
 
 <div
     x-data="tabs"
     x-cloak
     @change-tab.window="setTab($event.detail?.tab)"
+    @change-area.window="setArea($event.detail?.area)"
     class="w-full"
 >
     <!-- Sidebar: the same tabs down the left edge, chosen in Settings. Screens 1280px and wider. -->
@@ -102,27 +105,37 @@ const tabs = [
             <span x-show="!collapsed">New</span>
         </button>
 
-        <nav class="flex-1 min-h-0 overflow-y-auto -mx-0.5 px-0.5" aria-label="Sections">
-            <ul class="space-y-0.5">
-                {tabs.map((tab) => (
-                    <li>
-                        <button
-                            type="button"
-                            x-on:click={`activeTab = '${tab.id}'`}
-                            x-bind:class={`activeTab === '${tab.id}' ? 'bg-white text-gray-900 shadow-sm ring-1 ring-black/5 dark:bg-white/[0.14] dark:text-white dark:ring-white/10' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-900/[0.04] dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-white/[0.06]'`}
-                            x-bind:aria-current={`activeTab === '${tab.id}' ? 'page' : null`}
-                            class="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-colors"
-                            aria-label={tab.label}
-                            title={tab.label}
-                        >
-                            <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={tab.icon} />
-                            </svg>
-                            <span x-show="!collapsed" class="truncate">{tab.label}</span>
-                        </button>
-                    </li>
-                ))}
-            </ul>
+        <!-- The sidebar and the top bar never show at the same time, so both navs can be "Sections" -->
+        <nav class="flex-1 min-h-0 overflow-y-auto -mx-0.5 px-0.5 space-y-3" aria-label="Sections">
+            {AREAS.map((area, index) => (
+                <div>
+                    <p x-show="!collapsed" id={`side-area-${area.id}`} class="eyebrow px-3 pb-1">{area.label}</p>
+                    {index > 0 && <div x-show="collapsed" class="mx-2 mb-3 border-t border-black/5 dark:border-white/10" aria-hidden="true"></div>}
+                    <ul class="space-y-0.5" aria-labelledby={`side-area-${area.id}`}>
+                        {area.views.map((id) => {
+                            const tab = tabOf(id);
+                            return tab && (
+                                <li>
+                                    <button
+                                        type="button"
+                                        x-on:click={`activeTab = '${tab.id}'`}
+                                        x-bind:class={`activeTab === '${tab.id}' ? 'bg-white text-gray-900 shadow-sm ring-1 ring-teal-600 dark:bg-white/[0.14] dark:text-white dark:ring-teal-400' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-900/[0.04] dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-white/[0.06]'`}
+                                        x-bind:aria-current={`activeTab === '${tab.id}' ? 'page' : null`}
+                                        class="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-colors"
+                                        aria-label={tab.label}
+                                        title={tab.label}
+                                    >
+                                        <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={tab.icon} />
+                                        </svg>
+                                        <span x-show="!collapsed" class="truncate">{tab.label}</span>
+                                    </button>
+                                </li>
+                            );
+                        })}
+                    </ul>
+                </div>
+            ))}
         </nav>
 
         <!-- Timer status (shows only when a timer is running or paused) -->
@@ -132,7 +145,7 @@ const tabs = [
             x-on:click="activeTab = 'pomodoro'"
             :aria-label="$store.pomoState.isRunning ? 'Pomodoro timer running. Open the timer.' : 'Pomodoro timer paused. Open the timer.'"
             class="flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-white/80 dark:bg-slate-800/80 ring-1 ring-black/5 dark:ring-white/10 text-sm font-semibold tabular-nums"
-            :class="$store.pomoState.isRunning ? 'text-gray-800 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400 opacity-75'"
+            :class="$store.pomoState.isRunning ? 'text-gray-800 dark:text-gray-100' : 'text-gray-600 dark:text-gray-300'"
         >
             <span class="relative flex w-2 h-2 shrink-0" aria-hidden="true">
                 <span class="relative inline-flex w-2 h-2 rounded-full" :class="$store.pomoState.isRunning ? 'bg-teal-500 motion-safe:animate-breathe' : 'bg-gray-400'"></span>
@@ -163,12 +176,13 @@ const tabs = [
         </div>
     </aside>
 
-    <!-- Top bar: brand, tab navigation, timer, theme -->
-    <!-- A floating frosted island that stays at the top while the page scrolls. With the sidebar on, wide screens hide it. -->
+    <!-- Top bar: brand, the three areas, timer, theme. Under it, the views of the open area. -->
+    <!-- A flat bar in the page color that stays at the top while the page scrolls. Its ::before paints
+         the color and the rule across the full window width. With the sidebar on, wide screens hide it. -->
     <header
         x-bind:class="$store.settings.navLayout === 'side' && 'xl:hidden'"
-        class="sticky top-3 z-40 mt-3 mb-6 pl-2 pr-1.5 py-1.5 rounded-2xl backdrop-blur-xl backdrop-saturate-150 ring-1 ring-black/5 dark:ring-white/10 shadow-lg shadow-slate-900/[0.04] dark:shadow-black/20" style="background-color: var(--glass);">
-        <div class="flex items-center gap-2 sm:gap-3">
+        class="sticky top-0 z-40 mb-6 py-2 before:absolute before:inset-y-0 before:left-1/2 before:-z-10 before:w-screen before:-translate-x-1/2 before:bg-gray-50 dark:before:bg-slate-900 before:border-b before:border-gray-900/[0.07] dark:before:border-white/[0.06]">
+        <div class="flex items-center gap-1.5 sm:gap-3">
             <button type="button" x-on:click="activeTab = 'dashboard'" class="hidden sm:flex items-center gap-2 shrink-0 rounded-lg" aria-label="Zen Frame, go to the overview">
                 <span class="grid place-items-center w-8 h-8">
                     <EnsoMark class="w-7 h-7 text-gray-900 dark:text-gray-50" />
@@ -176,33 +190,30 @@ const tabs = [
                 <span class="hidden lg:block text-base font-medium tracking-tight text-gray-900 dark:text-gray-50">Zen Frame</span>
             </button>
 
-            <!-- Tabs: a pill slides under the active one -->
-            <nav class="min-w-0 flex-1 flex lg:justify-center" aria-label="Sections">
-                <div x-ref="track" class="relative flex max-w-full overflow-x-auto scroll-smooth p-1 rounded-full bg-gray-900/[0.04] dark:bg-white/[0.06] ring-1 ring-black/5 dark:ring-white/10 [scrollbar-width:none]">
-                    <span
-                        class="tab-indicator absolute top-1 bottom-1 left-0 rounded-full bg-white dark:bg-white/[0.14] shadow-sm ring-1 ring-black/5 dark:ring-white/10"
-                        x-bind:style="`transform: translateX(${indicator.left}px); width: ${indicator.width}px; opacity: ${indicator.width ? 1 : 0};`"
-                        aria-hidden="true"
-                    ></span>
-                    {tabs.map((tab) => (
-                        <button
-                            type="button"
-                            data-tab={tab.id}
-                            x-on:click={`activeTab = '${tab.id}'`}
-                            x-bind:class={`activeTab === '${tab.id}' ? 'text-gray-900 dark:text-white' : 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200'`}
-                            x-bind:aria-current={`activeTab === '${tab.id}' ? 'page' : null`}
-                            class="relative z-10 shrink-0 flex items-center justify-center gap-1.5 touch-target px-2 sm:px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap select-none transition-colors"
-                            aria-label={tab.label}
-                            title={tab.label}
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={tab.icon} />
-                            </svg>
-                            <!-- Phones show icons only; medium screens add the active tab's label; very wide screens (2xl) show every label -->
-                            <span x-bind:class={`activeTab === '${tab.id}' ? 'hidden sm:inline' : 'hidden 2xl:inline'`}>{tab.label}</span>
-                        </button>
-                    ))}
-                </div>
+            <!-- Areas: darker text and an accent underline on the open one. Below 360px the timer
+                 chip does not fit, so a dot on Focus shows a running or paused session. -->
+            <nav class="min-w-0 flex-1 flex overflow-x-auto [scrollbar-width:none]" aria-label="Sections">
+                {AREAS.map((area) => (
+                    <button
+                        type="button"
+                        data-area={area.id}
+                        x-on:click={`setArea('${area.id}')`}
+                        x-bind:class={`activeArea === '${area.id}' ? 'border-teal-600 text-gray-900 dark:border-teal-400 dark:text-white' : 'border-transparent text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white'`}
+                        x-bind:aria-current={`activeArea === '${area.id}' ? 'true' : null`}
+                        class="relative shrink-0 inline-flex items-center justify-center touch-target px-1.5 min-[400px]:px-2 sm:px-3 py-2 border-b-2 text-sm font-medium whitespace-nowrap select-none transition-colors focus-visible:-outline-offset-2"
+                    >
+                        {area.label}{area.id === 'focus' && (
+                            <span x-show="$store.pomoState.status !== 'idle'" class="min-[360px]:hidden">
+                                <span
+                                    class="absolute top-2.5 right-0 w-1.5 h-1.5 rounded-full"
+                                    :class="$store.pomoState.isRunning ? 'bg-teal-500 motion-safe:animate-breathe' : 'bg-gray-500 dark:bg-gray-400'"
+                                    aria-hidden="true"
+                                ></span>
+                                <span class="sr-only" x-text="$store.pomoState.isRunning ? ', timer running' : ', timer paused'"></span>
+                            </span>
+                        )}
+                    </button>
+                ))}
             </nav>
 
             <!-- Timer status (shows only when a timer is running or paused) -->
@@ -212,14 +223,14 @@ const tabs = [
                 x-transition.opacity
                 x-on:click="activeTab = 'pomodoro'"
                 :aria-label="$store.pomoState.isRunning ? 'Pomodoro timer running. Open the timer.' : 'Pomodoro timer paused. Open the timer.'"
-                class="shrink-0 inline-flex items-center gap-2 pl-2.5 pr-2 py-1.5 rounded-full bg-white/80 dark:bg-slate-800/80 ring-1 ring-black/5 dark:ring-white/10 shadow-sm"
-                :class="$store.pomoState.isRunning ? '' : 'opacity-75'"
+                class="shrink-0 max-[359px]:!hidden inline-flex items-center justify-center gap-2 touch-target px-2.5 sm:pr-2 py-1.5 rounded-full bg-white/80 dark:bg-slate-800/80 ring-1 ring-black/5 dark:ring-white/10 shadow-sm"
             >
                 <span class="text-sm font-semibold tabular-nums"
-                     :class="$store.pomoState.isRunning ? 'text-gray-800 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400'">
+                     :class="$store.pomoState.isRunning ? 'text-gray-800 dark:text-gray-100' : 'text-gray-600 dark:text-gray-300'">
                     <span x-text="Math.floor($store.pomoState.timeLeft / 60).toString().padStart(2, '0')"></span>:<span x-text="($store.pomoState.timeLeft % 60).toString().padStart(2, '0')"></span>
                 </span>
-                <svg class="w-5 h-5 rotate-90 -scale-y-100" viewBox="0 0 100 100" aria-hidden="true">
+                <!-- Phones hide the ring, so the top row fits at 375px -->
+                <svg class="hidden sm:block w-5 h-5 rotate-90 -scale-y-100" viewBox="0 0 100 100" aria-hidden="true">
                     <circle cx="50" cy="50" r="40" fill="transparent" stroke="currentColor" stroke-width="8" class="text-gray-200 dark:text-slate-700" />
                     <circle
                         cx="50" cy="50" r="40"
@@ -257,6 +268,33 @@ const tabs = [
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
             </button>
         </div>
+
+        <!-- Views of the open area. The other areas' groups are display: none, so their buttons cannot take focus. -->
+        <nav class="flex mt-1" x-bind:aria-label="activeAreaLabel + ' views'">
+            {AREAS.map((area) => (
+                <div x-show={`activeArea === '${area.id}'`} class="flex max-w-full overflow-x-auto p-1 rounded-full bg-gray-900/[0.04] dark:bg-white/[0.06] ring-1 ring-black/5 dark:ring-white/10 [scrollbar-width:none]">
+                    {area.views.map((id) => {
+                        const tab = tabOf(id);
+                        return tab && (
+                            <button
+                                type="button"
+                                data-tab={tab.id}
+                                x-on:click={`activeTab = '${tab.id}'`}
+                                x-bind:class={`activeTab === '${tab.id}' ? 'bg-white text-gray-900 shadow-sm ring-1 ring-teal-600 dark:bg-white/[0.14] dark:text-white dark:ring-teal-400' : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'`}
+                                x-bind:aria-current={`activeTab === '${tab.id}' ? 'page' : null`}
+                                class="shrink-0 flex items-center justify-center gap-1.5 touch-target px-2.5 sm:px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap select-none transition-colors focus-visible:-outline-offset-2"
+                            >
+                                <!-- Phones show labels only, so the four Library views fit at 320px -->
+                                <svg xmlns="http://www.w3.org/2000/svg" class="hidden sm:block w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={tab.icon} />
+                                </svg>
+                                {tab.label}
+                            </button>
+                        );
+                    })}
+                </div>
+            ))}
+        </nav>
     </header>
 
     <!-- Keeps the content clear of the top edge when the top bar is hidden -->
@@ -312,17 +350,31 @@ const tabs = [
 
 <script>
     import { loadString, saveString } from '../lib/storage';
+    import { AREAS, areaOf } from '../lib/nav';
 
-    const VALID_TABS = new Set(['dashboard', 'taskmanager', 'board', 'schedule', 'goals', 'insights', 'pomodoro', 'zenmode']);
+    const VALID_TABS = new Set(AREAS.flatMap((area) => area.views));
     const safeTab = (tab) => (VALID_TABS.has(tab) ? tab : 'dashboard');
 
     document.addEventListener('alpine:init', () => {
         window.Alpine.data('tabs', () => ({
             activeTab: safeTab(loadString('activeTab')),
-            indicator: { left: 0, width: 0 },
+            // The view last open in each area, in memory only, so an area button reopens it
+            lastView: Object.fromEntries(AREAS.map((area) => [area.id, area.views[0]])),
+
+            get activeArea() {
+                return areaOf(this.activeTab).id;
+            },
+
+            get activeAreaLabel() {
+                return areaOf(this.activeTab).label;
+            },
 
             setTab(tab) {
                 if (VALID_TABS.has(tab)) this.activeTab = tab;
+            },
+
+            setArea(id) {
+                if (AREAS.some((area) => area.id === id)) this.activeTab = this.lastView[id];
             },
 
             init() {
@@ -332,6 +384,7 @@ const tabs = [
                     saveString('activeTab', hashTab);
                     history.replaceState(null, '', window.location.pathname + window.location.search);
                 }
+                this.lastView[this.activeArea] = this.activeTab;
                 this.$watch('activeTab', (value) => {
                     const valid = safeTab(value);
                     if (valid !== value) {
@@ -339,32 +392,9 @@ const tabs = [
                         return;
                     }
                     saveString('activeTab', valid);
-                    this.$nextTick(() => this.placeIndicator());
+                    this.lastView[areaOf(valid).id] = valid;
                 });
-                // Labels and fonts change tab widths, so measure whenever the track resizes
-                new ResizeObserver(() => this.placeIndicator()).observe(this.$refs.track);
-                this.$nextTick(() => this.placeIndicator());
-            },
-
-            placeIndicator() {
-                const button = this.$refs.track.querySelector(`[data-tab="${CSS.escape(this.activeTab)}"]`);
-                if (!button) return;
-                this.indicator = { left: button.offsetLeft, width: button.offsetWidth };
-                // Scrolls the track only, never the page. The track's scroll-smooth class eases it,
-                // and the reduced-motion rule in Layout.astro turns that off.
-                const track = this.$refs.track;
-                if (button.offsetLeft < track.scrollLeft) {
-                    track.scrollTo({ left: button.offsetLeft - 4 });
-                } else if (button.offsetLeft + button.offsetWidth > track.scrollLeft + track.clientWidth) {
-                    track.scrollTo({ left: button.offsetLeft + button.offsetWidth - track.clientWidth + 4 });
-                }
             }
         }));
     });
 </script>
-
-<style>
-    .tab-indicator {
-        transition: transform 380ms ease-out, width 380ms ease-out, opacity 150ms;
-    }
-</style>

@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { openView } from './nav';
 
 test('saved Quiet desk becomes Zen garden and the picker persists it', async ({ page }) => {
   await page.addInitScript(() => {
@@ -101,10 +102,10 @@ test('garden honors live reduced-motion changes without overriding other pauses'
   await page.keyboard.press('Escape');
   await expect.poll(() => animation.evaluate((svg: SVGSVGElement) => svg.animationsPaused())).toBe(false);
 
-  await page.locator('button[data-tab="dashboard"]').click();
+  await openView(page, 'dashboard');
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   expect(await animation.evaluate((svg: SVGSVGElement) => svg.animationsPaused())).toBe(true);
-  await page.locator('button[data-tab="zenmode"]').click();
+  await openView(page, 'zenmode');
   await expect.poll(() => animation.evaluate((svg: SVGSVGElement) => svg.animationsPaused())).toBe(false);
 });

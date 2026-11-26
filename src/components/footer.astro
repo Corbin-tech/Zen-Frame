@@ -1,12 +1,14 @@
 ---
 /*
  * Footer Component
- * - Displays brand tagline, copyright information, and site navigation links
- * - Centered rows at every width, lined up with the page content (max-w-6xl)
- *
+ * - Displays the brand tagline and copyright information
+ * - Shows links to the three app areas, the principles page, and feedback
+ * - Two centered rows at every width, lined up with the page content (max-w-6xl)
+ * 
  * Uses site.json for configuration
  */
 import data from "../data/site.json";
+import { AREAS } from "../lib/nav";
 
 const normalizedPath = Astro.url.pathname.replace(/\/$/, '') || '/';
 const isAppPage = normalizedPath === '/' || normalizedPath === '/index.html';
@@ -23,7 +25,7 @@ const isRoadmap = normalizedPath === '/roadmap' || normalizedPath === '/roadmap.
     <span class="text-sm text-gray-500 dark:text-gray-400 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 transition-colors">
       <span>&copy; {new Date().getFullYear()}</span>
       <span>{data.siteName} by {data.owner}</span>
-      <a href="https://github.com/Corbin-tech/Zen-Frame" target="_blank" rel="noopener noreferrer" class="hover:underline flex items-center gap-1 text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300">
+      <a href="https://github.com/Corbin-tech/Zen-Frame" target="_blank" rel="noopener noreferrer" class="py-3 sm:py-1 hover:underline flex items-center gap-1 text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300">
         Star on GitHub
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4" aria-hidden="true">
           <path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
@@ -33,22 +35,22 @@ const isRoadmap = normalizedPath === '/roadmap' || normalizedPath === '/roadmap.
     <div>
       <ul class="flex flex-wrap justify-center gap-x-4 gap-y-1 text-sm font-medium text-gray-600 dark:text-gray-300">
         {
-          data.pages.map((page) => (
+          AREAS.map((area) => (
             <li>
               {isAppPage ? (
                 <button
                   type="button"
-                  @click={`$dispatch('change-tab', { tab: '${page.href.substring(1)}' })`}
-                  class="px-2 py-2 sm:p-0 hover:underline hover:text-gray-900 dark:hover:text-gray-100 cursor-pointer"
+                  @click={`$dispatch('change-area', { area: '${area.id}' })`}
+                  class="px-2 py-3 sm:px-0 sm:py-1 hover:underline hover:text-gray-900 dark:hover:text-gray-100 cursor-pointer"
                 >
-                  {page.title}
+                  {area.label}
                 </button>
               ) : (
                 <a
-                  href={`/${page.href}`}
-                  class="px-2 py-2 sm:p-0 inline-block hover:underline hover:text-gray-900 dark:hover:text-gray-100"
+                  href={`/#${area.views[0]}`}
+                  class="px-2 py-3 sm:px-0 sm:py-1 inline-block hover:underline hover:text-gray-900 dark:hover:text-gray-100"
                 >
-                  {page.title}
+                  {area.label}
                 </a>
               )}
             </li>
@@ -59,7 +61,7 @@ const isRoadmap = normalizedPath === '/roadmap' || normalizedPath === '/roadmap.
             href="/principles"
             aria-current={isPrinciples ? 'page' : undefined}
             class:list={[
-              'px-2 py-2 sm:p-0 inline-block hover:underline hover:text-gray-900 dark:hover:text-gray-100',
+              'px-2 py-3 sm:px-0 sm:py-1 inline-block hover:underline hover:text-gray-900 dark:hover:text-gray-100',
               isPrinciples && 'text-gray-900 dark:text-gray-100 underline underline-offset-4',
             ]}
           >
@@ -82,7 +84,7 @@ const isRoadmap = normalizedPath === '/roadmap' || normalizedPath === '/roadmap.
           <button
             type="button"
             @click="$dispatch('open-feedback')"
-            class="px-2 py-2 sm:p-0 inline-flex items-center gap-1 text-teal-600 dark:text-teal-400 hover:underline hover:text-teal-700 dark:hover:text-teal-300 cursor-pointer"
+            class="px-2 py-3 sm:px-0 sm:py-1 inline-flex items-center gap-1 text-teal-600 dark:text-teal-400 hover:underline hover:text-teal-700 dark:hover:text-teal-300 cursor-pointer"
           >
             Send feedback
           </button>

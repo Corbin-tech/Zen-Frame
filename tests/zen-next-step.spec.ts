@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { openView } from './nav';
 
 test('Begin focus in Next step starts a session for the shown task, then pauses and resumes it', async ({ page }) => {
   await page.goto('/');
@@ -6,7 +7,7 @@ test('Begin focus in Next step starts a session for the shown task, then pauses 
     const todos = (window as any).Alpine.store('todos');
     todos.addTodo('Read chapter 4', { estimateMinutes: 10 });
   });
-  await page.locator('button[data-tab="zenmode"]').click();
+  await openView(page, 'zenmode');
   const zen = page.locator('[x-data="zenTodoList"]');
   await expect(zen.getByText('About 10 min')).toBeVisible();
 
@@ -33,7 +34,7 @@ test('Next step shows No estimate yet when unestimated, and Resume only for the 
     todos.addTodo('Write summary');
     todos.addTodo('Review slides', { estimateMinutes: 15 });
   });
-  await page.locator('button[data-tab="zenmode"]').click();
+  await openView(page, 'zenmode');
   const zen = page.locator('[x-data="zenTodoList"]');
 
   // Unestimated task explicitly shows "No estimate yet"
@@ -47,7 +48,7 @@ test('Next step shows No estimate yet when unestimated, and Resume only for the 
 
   // Skipping to a different task flips "Resume" back to "Begin focus"
   await zen.getByRole('button', { name: 'Not now: skip this task' }).click();
-  await expect(zen.getByText('Review slides')).toBeVisible();
+  await expect(zen.locator('[x-ref="currentTaskTitle"]')).toHaveText('Review slides');
   await expect(zen.getByRole('button', { name: 'Begin focus' })).toBeVisible();
 
   // Paused during a break also shows "Begin focus", not "Resume"
