@@ -46,6 +46,7 @@ for (const populated of [true, false]) {
       await expect(details.nth(3)).toHaveText('Of tasks with a due date');
     } else {
       await expect(details.nth(0)).toHaveText('Nothing yet');
+      await expect(details.nth(1)).toHaveText('Nothing yet');
       await expect(details.nth(2)).toHaveText('Longest ever: 0 days');
       await expect(details.nth(3)).toHaveText('No due dates in this range');
     }
