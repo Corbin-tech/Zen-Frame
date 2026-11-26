@@ -323,11 +323,11 @@ const tabOf = (id: string) => tabs.find((tab) => tab.id === id);
                     <p class="mt-1 text-gray-500 dark:text-gray-400">Finish it, or choose not now.</p>
                 </div>
             </header>
-            <!-- With a background chosen, one scene runs behind the task card and the quote.
-                 With none, this wrapper adds nothing and the two cards look as they always have. -->
+            <!-- One card holds the task and the quote, with or without a background.
+                 With a background chosen, its scene runs behind both; with none, it is a plain panel. -->
             <div
-                class="relative isolate w-full max-w-4xl mx-auto"
-                x-bind:class="$store.settings.zenBackground !== 'none' && 'overflow-hidden rounded-2xl bg-white/80 dark:bg-slate-800/70 shadow-sm ring-1 ring-black/5 dark:ring-white/10'"
+                class="relative isolate w-full max-w-4xl mx-auto overflow-hidden rounded-2xl"
+                x-bind:class="$store.settings.zenBackground !== 'none' ? 'bg-white/80 dark:bg-slate-800/70 shadow-sm ring-1 ring-black/5 dark:ring-white/10' : 'panel'"
             >
                 <ZenBackdrop />
                 <ZenToDoList />
