@@ -1,17 +1,17 @@
 import { test, expect } from '@playwright/test';
+import { openView } from './nav';
 
 test('saved multiline note is fully visible after reloading and opening Goals', async ({ page }) => {
   await page.goto('/');
-  const goals = page.locator('button[data-tab="goals"]');
-  await goals.click();
+  await openView(page, 'goals');
   const text = 'Prepare for the next milestone\nReview the plan with the team\nCelebrate our progress';
   await page.getByRole('textbox', { name: 'New note', exact: true }).fill(text);
   await page.getByRole('button', { name: 'Add note', exact: true }).click();
   const note = page.getByRole('textbox', { name: 'Note', exact: true });
   await expect(note).toHaveValue(text);
-  await page.locator('button[data-tab="dashboard"]').click();
+  await openView(page, 'dashboard');
   await page.reload();
-  await goals.click();
+  await openView(page, 'goals');
   await expect(note).toHaveValue(text);
   await expect(page.getByRole('heading', { name: 'Goals & check-ins' })).toBeVisible();
   await expect(note).toBeVisible();

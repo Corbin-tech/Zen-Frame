@@ -3,9 +3,9 @@ import { type Account, type EntitlementEnv, unixTime } from "./db.ts";
 
 export type { EntitlementEnv } from "./db.ts";
 
-export const TRIAL_LIMIT = 20;
-export const MONTHLY_LIMIT = 1000;
-export const TOKEN_SECONDS = 5 * 60;
+const TRIAL_LIMIT = 20;
+const MONTHLY_LIMIT = 1000;
+const TOKEN_SECONDS = 5 * 60;
 const HOLD_SECONDS = 120;
 const TRIAL_PERIOD = "trial";
 const TOKEN_CONTEXT = "zen-frame/assist-entitlement/v1:";

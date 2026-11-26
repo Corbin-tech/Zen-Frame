@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 for (const width of [320, 390, 1280]) {
-  test(`Task Manager titles and metadata fit at ${width}px`, async ({ page }) => {
+  test(`Tasks titles and metadata fit at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 1000 });
     await page.addInitScript(() => {
       if (sessionStorage.getItem('taskrow-seeded')) return;

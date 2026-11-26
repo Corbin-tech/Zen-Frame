@@ -4,6 +4,7 @@ import TaskSteps from './TaskSteps.astro';
 
 <script>
     import { celebrate } from '../lib/confetti';
+    import { estimateLabel } from '../lib/estimates';
 
     document.addEventListener('alpine:init', () => {
         Alpine.data('zenTodoList', () => ({
@@ -39,6 +40,30 @@ import TaskSteps from './TaskSteps.astro';
                 const clusterTasks = this.tasks.filter(task => task.parentId === parentId);
                 const position = clusterTasks.findIndex(task => task.id === this.currentTodo.id) + 1;
                 return `${position}/${clusterTasks.length}`;
+            },
+
+            // "About 10 min · Biology (2/5)" (or "No estimate yet" when unestimated)
+            get currentMeta() {
+                const task = this.currentTodo;
+                if (!task) return '';
+                const parts = [estimateLabel(task.estimateMinutes)];
+                if (this.currentClusterName && this.$store.settings.zenShowCluster) {
+                    parts.push(`${this.currentClusterName} (${this.currentClusterProgress})`);
+                }
+                return parts.join(' · ');
+            },
+
+            // "Resume" only when the paused focus session is for this task. Else the button starts a new one.
+            get focusLabel() {
+                const pomo = this.$store.pomoState;
+                if (pomo.isRunning) return 'Pause';
+                const pausedHere = pomo.status === 'paused' && !pomo.isBreak && (pomo.focusTask?.id ?? '') === this.currentTodo?.id;
+                return pausedHere ? 'Resume' : 'Begin focus';
+            },
+
+            toggleFocus() {
+                const pomo = this.$store.pomoState;
+                pomo.isRunning ? pomo.pauseTimer() : pomo.startFocus(this.currentTodo?.id);
             },
 
             // The two tasks after this one, in the order Zen mode will show them
@@ -92,16 +117,18 @@ import TaskSteps from './TaskSteps.astro';
     }
 </style>
 
-<!-- Zen Mode Component. With a background chosen, the scene behind it (ZenBackdrop, placed in
-     tabs.astro so it also runs behind the quote) is the card, so this one drops its own surface. -->
+<!-- Zen Mode Component. The wrapper in tabs.astro provides the shared task-and-quote
+     card surface, with ZenBackdrop behind both when a background is chosen. -->
 <div
     x-data="zenTodoList"
     x-cloak
     class="relative isolate overflow-hidden w-full max-w-4xl mx-auto rounded-2xl p-6"
-    x-bind:class="$store.settings.zenBackground === 'none' && 'panel'"
+    x-bind:class="$store.settings.zenBackground === 'desk' && 'pt-32'"
 >
+    <!-- The garden gets a small open vista above the frosted task surface, so its stones
+         and pine stay visible instead of hiding behind the task or quote on tall screens. -->
     <div class="flex flex-col items-center justify-center">
-        <!-- Current Todo Display -->
+        <!-- Current Todo Display: the next step on the left, the focus timer on the right -->
         <div 
             x-show="!isAllTasksComplete" 
             x-transition:enter="transition ease-out duration-300"
@@ -112,47 +139,83 @@ import TaskSteps from './TaskSteps.astro';
             x-transition:leave-end="opacity-0 scale-95"
             class="w-full"
         >
-            <div class="flex flex-col items-center space-y-6 p-8 rounded-xl ring-1 ring-black/5 dark:ring-white/5 transition-colors" x-bind:class="$store.settings.zenBackground !== 'none' ? 'bg-white/60 dark:bg-slate-900/50 backdrop-blur-sm' : 'bg-gray-50 dark:bg-slate-700/40'">
+            <div class="p-6 sm:p-8 rounded-xl ring-1 ring-black/5 dark:ring-white/5 transition-colors" x-bind:class="$store.settings.zenBackground !== 'none' ? 'bg-white/60 dark:bg-slate-900/50 backdrop-blur-sm' : 'bg-gray-50 dark:bg-slate-700/40'">
                 <template x-if="hasCurrentTodo">
                     <div 
-                        class="flex flex-col items-center space-y-6"
+                        class="grid gap-8 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
                         x-transition:enter="transition ease-out duration-200 delay-150"
                         x-transition:enter-start="opacity-0 translate-y-4"
                         x-transition:enter-end="opacity-100 translate-y-0"
                     >
-                        <!-- Show cluster if the task belongs to one -->
-                        <div 
-                            x-show="currentClusterName && $store.settings.zenShowCluster" 
-                            class="text-sm px-3 py-1 bg-teal-100 dark:bg-teal-900/30 text-teal-800 dark:text-teal-300 rounded-full flex items-center gap-2"
-                        >
-                            <span x-text="currentClusterName"></span>
-                            <!-- Position of this task within its cluster -->
-                            <span 
-                                class="text-xs px-1.5 py-0.5 bg-white dark:bg-slate-800 text-teal-700 dark:text-teal-400 rounded-full whitespace-nowrap"
-                                x-text="currentClusterProgress"
+                        <div class="min-w-0 flex flex-col items-center sm:items-start text-center sm:text-left space-y-4">
+                            <p class="eyebrow">Your next step</p>
+                            <p
+                                x-ref="currentTaskTitle"
+                                tabindex="-1"
+                                class="-mt-2 editorial text-2xl sm:text-3xl font-normal tracking-tight text-gray-900 dark:text-gray-100 break-words max-w-full"
+                                x-text="currentTodo?.todo"
+                            ></p>
+                            <!-- "About 10 min · Biology (2/5)" -->
+                            <p x-show="currentMeta" class="-mt-2 text-sm text-gray-600 dark:text-gray-300" x-text="currentMeta"></p>
+                            <span
+                                x-show="currentTodo?.dueDate && $store.settings.zenShowDue"
+                                class="text-xs font-medium px-2 py-0.5 rounded-md"
+                                x-bind:class="currentTodo?.dueDate ? $dates.dueClass(currentTodo.dueDate) : ''"
+                                x-text="currentTodo?.dueDate ? $dates.dueText(currentTodo.dueDate).replace(/^d/, 'D') : ''"
                             ></span>
+                            <TaskSteps taskId="currentTodo?.id" fallbackFocus="$refs.currentTaskTitle" zen />
+                            <div class="flex flex-col items-center sm:items-start gap-2 pt-2">
+                                <button type="button" x-on:click="toggleFocus" class="btn-primary touch-target px-6 py-2.5">
+                                    <span x-text="focusLabel"></span>
+                                    <span x-show="focusLabel === 'Begin focus'" aria-hidden="true">→</span>
+                                </button>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">Starting small counts.</p>
+                            </div>
+                            <div class="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                                <button
+                                    type="button"
+                                    x-on:click="completeCurrentTodo"
+                                    aria-label="Mark current task as done"
+                                    class="btn-secondary touch-target"
+                                >
+                                    Done
+                                </button>
+                                <button
+                                    type="button"
+                                    x-on:click="skipTask"
+                                    aria-label="Not now: skip this task"
+                                    class="btn-secondary touch-target"
+                                >
+                                    Not now
+                                </button>
+                                <button
+                                    type="button"
+                                    x-on:click="skipCluster"
+                                    x-show="currentTodo?.parentId"
+                                    aria-label="Skip this cluster of tasks"
+                                    class="touch-target inline-flex items-center justify-center px-3 py-2 rounded-xl text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-900/5 dark:text-gray-300 dark:hover:text-white dark:hover:bg-white/10 transition-colors"
+                                >
+                                    Skip this cluster
+                                </button>
+                            </div>
                         </div>
-                        
-                        <p
-                            x-ref="currentTaskTitle"
-                            tabindex="-1"
-                            class="editorial text-2xl sm:text-3xl font-normal tracking-tight text-center text-gray-900 dark:text-gray-100"
-                            x-text="currentTodo?.todo"
-                        ></p>
-                        <span
-                            x-show="currentTodo?.dueDate && $store.settings.zenShowDue"
-                            class="-mt-3 text-xs font-medium px-2 py-0.5 rounded-md"
-                            x-bind:class="currentTodo?.dueDate ? $dates.dueClass(currentTodo.dueDate) : ''"
-                            x-text="currentTodo?.dueDate ? $dates.dueText(currentTodo.dueDate).replace(/^d/, 'D') : ''"
-                        ></span>
-                        <TaskSteps taskId="currentTodo?.id" fallbackFocus="$refs.currentTaskTitle" zen />
-                        <button 
-                            @click="completeCurrentTodo"
-                            aria-label="Mark current task as done"
-                            class="btn-primary px-6 py-2.5"
-                        >
-                            Done
-                        </button>
+
+                        <!-- Focus timer ring, at the length of the current phase -->
+                        <div data-pomo-timer="zenmode" class="relative justify-self-center w-40 h-40 sm:w-44 sm:h-44">
+                            <svg class="w-full h-full transition-opacity" x-bind:class="$store.pomoState.status === 'idle' && 'opacity-80'" viewBox="0 0 100 100" aria-hidden="true">
+                                <circle cx="50" cy="50" r="42" fill="none" stroke="currentColor" stroke-width="5" class="text-gray-200 dark:text-slate-700" />
+                                <circle
+                                    cx="50" cy="50" r="42" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"
+                                    transform="rotate(-90 50 50)" stroke-dasharray="263.9"
+                                    x-bind:stroke-dashoffset="263.9 - 263.9 * $store.pomoState.percentComplete / 100"
+                                    x-bind:class="$store.pomoState.isRunning ? 'text-teal-600 dark:text-teal-400' : 'text-gray-500 dark:text-gray-400'"
+                                />
+                            </svg>
+                            <div class="absolute inset-0 flex flex-col items-center justify-center">
+                                <span class="text-3xl font-semibold tabular-nums tracking-tight text-gray-900 dark:text-white" x-text="`${$store.pomoState.digits.slice(0, 2)}:${$store.pomoState.digits.slice(2)}`"></span>
+                                <span class="text-sm text-gray-500 dark:text-gray-400" x-text="$store.pomoState.phaseLabel"></span>
+                            </div>
+                        </div>
                     </div>
                 </template>
 
@@ -162,61 +225,13 @@ import TaskSteps from './TaskSteps.astro';
                         <button
                             type="button"
                             x-on:click="$dispatch('open-quick-add')"
-                            class="btn-primary mt-4"
+                            class="btn-primary touch-target mt-4"
                         >
                             New task
                         </button>
                     </div>
                 </template>
             </div>
-        </div>
-
-        <!-- Task Management Buttons -->
-        <div 
-            x-show="hasCurrentTodo" 
-            x-transition:enter="transition ease-out duration-300 delay-100"
-            x-transition:enter-start="opacity-0 scale-95"
-            x-transition:enter-end="opacity-100 scale-100"
-            class="flex justify-center gap-3 mt-4"
-        >
-            <button 
-                @click="skipTask"
-                aria-label="Not now: skip this task"
-                class="btn-secondary"
-            >
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 8.689c0-.864.933-1.406 1.683-.977l7.108 4.061a1.125 1.125 0 0 1 0 1.954l-7.108 4.061A1.125 1.125 0 0 1 3 16.811V8.69ZM12.75 8.689c0-.864.933-1.406 1.683-.977l7.108 4.061a1.125 1.125 0 0 1 0 1.954l-7.108 4.061a1.125 1.125 0 0 1-1.683-.977V8.69Z" />
-                </svg>
-                Not now
-            </button>
-            
-            <button 
-                @click="skipCluster"
-                x-show="currentTodo?.parentId"
-                aria-label="Skip this cluster of tasks"
-                class="btn-secondary"
-            >
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 8.689c0-.864.933-1.406 1.683-.977l7.108 4.061a1.125 1.125 0 0 1 0 1.954l-7.108 4.061A1.125 1.125 0 0 1 3 16.811V8.69ZM12.75 8.689c0-.864.933-1.406 1.683-.977l7.108 4.061a1.125 1.125 0 0 1 0 1.954l-7.108 4.061a1.125 1.125 0 0 1-1.683-.977V8.69Z" />
-                </svg>
-                Skip this cluster
-            </button>
-        </div>
-
-        <!-- Focus timer -->
-        <div x-show="$store.settings.zenShowTimer && hasCurrentTodo" x-cloak class="mt-6 flex items-center gap-3 px-4 py-2 rounded-full bg-white/70 dark:bg-slate-700/60 ring-1 ring-black/5 dark:ring-white/10">
-            <span class="relative flex w-2 h-2" aria-hidden="true">
-                <span x-show="$store.pomoState.isRunning" class="absolute inline-flex w-full h-full rounded-full bg-teal-400 opacity-75 animate-ping"></span>
-                <span class="relative inline-flex w-2 h-2 rounded-full" x-bind:class="$store.pomoState.isRunning ? 'bg-teal-500' : 'bg-gray-400'"></span>
-            </span>
-            <span class="text-lg font-semibold tabular-nums text-gray-900 dark:text-white" x-text="`${$store.pomoState.digits.slice(0, 2)}:${$store.pomoState.digits.slice(2)}`"></span>
-            <span class="text-sm text-gray-500 dark:text-gray-400" x-text="$store.pomoState.phaseLabel"></span>
-            <button
-                type="button"
-                x-on:click="$store.pomoState.isRunning ? $store.pomoState.pauseTimer() : $store.pomoState.startFocus(currentTodo?.id)"
-                class="btn-primary ml-1 px-3 py-1.5"
-                x-text="$store.pomoState.isRunning ? 'Pause' : 'Focus'"
-            ></button>
         </div>
 
         <!-- Up next -->
@@ -246,7 +261,7 @@ import TaskSteps from './TaskSteps.astro';
             <button
                 type="button"
                 x-on:click="$dispatch('open-quick-add')"
-                class="btn-primary mt-4"
+                class="btn-primary touch-target mt-4"
             >
                 New task
             </button>
