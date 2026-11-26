@@ -126,7 +126,7 @@ const checkbox = 'w-4 h-4 shrink-0 rounded-full border-gray-300 dark:border-slat
     <!-- Widgets that aren't on the dashboard, shown while customizing -->
     <section x-show="editing" x-cloak class="rounded-2xl p-5 bg-white/80 dark:bg-slate-800/70 ring-1 ring-black/5 dark:ring-white/10">
         <h2 class="text-base font-semibold text-gray-900 dark:text-white">Add widgets</h2>
-        <p class="text-sm text-gray-500 dark:text-gray-400 mb-4" x-text="hiddenWidgets.length ? 'Pick where each one goes.' : 'Every widget is on your dashboard.'"></p>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mb-4" x-text="hiddenWidgets.length ? 'Pick where each one goes.' : 'Every widget is on your overview.'"></p>
         <ul class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <template x-for="widget in hiddenWidgets" :key="widget.id">
                 <li class="flex flex-col rounded-xl p-4 bg-gray-50 dark:bg-slate-700/40 ring-1 ring-black/5 dark:ring-white/5">
