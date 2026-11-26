@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { openView } from './nav';
 
 for (const populated of [true, false]) {
   test(`activity card matches chart cards with ${populated ? 'activity' : 'no activity'}`, async ({ page }) => {
@@ -39,7 +40,7 @@ for (const populated of [true, false]) {
       localStorage.setItem('activeTab', 'dashboard');
     }, populated);
     await page.goto('/');
-    await page.locator('button[data-tab="insights"]').click();
+    await openView(page, 'insights');
     const heatmap = page.getByRole('list', { name: 'Activity per day for the last 26 weeks' });
     const days = heatmap.getByRole('listitem');
     await expect(days).toHaveCount(179);
@@ -76,3 +77,72 @@ for (const populated of [true, false]) {
     await expect(chart).toBeFocused();
   });
 }
+
+test('activity heatmap tooltip stays inside its card and viewport', async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-06-17T12:00:00'));
+  await page.addInitScript(() => {
+    localStorage.clear();
+    localStorage.setItem('activeTab', 'insights');
+    localStorage.setItem('todos', JSON.stringify([
+      { id: 'first', text: 'First day task', completed: true, completedAt: '2025-12-21T12:00:00.000Z', isCluster: false },
+      { id: 'mid', text: 'Middle day task', completed: true, completedAt: '2026-03-18T12:00:00.000Z', isCluster: false },
+      { id: 'last', text: 'Latest day task', completed: true, completedAt: '2026-06-17T12:00:00.000Z', isCluster: false },
+    ]));
+    localStorage.setItem('pomoSessions', JSON.stringify([
+      { completedAt: '2025-12-21T12:00:00.000Z', minutes: 25 },
+      { completedAt: '2026-03-18T12:00:00.000Z', minutes: 25 },
+      { completedAt: '2026-06-17T12:00:00.000Z', minutes: 25 },
+    ]));
+  });
+  await page.goto('/');
+
+  const activityCard = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Activity', exact: true }) });
+  const days = activityCard.getByRole('list', { name: 'Activity per day for the last 26 weeks' }).getByRole('listitem');
+  const tooltip = activityCard.locator('[x-show="hovered"]');
+  await expect(days).toHaveCount(179);
+
+  const targets = [
+    { index: 0, date: 'Sun, Dec 21' },
+    { index: 87, date: 'Wed, Mar 18' },
+    { index: 178, date: 'Wed, Jun 17' },
+  ];
+
+  for (const viewport of [
+    { width: 320, height: 640 },
+    { width: 390, height: 844 },
+    { width: 1280, height: 800 },
+  ]) {
+    await page.setViewportSize(viewport);
+
+    for (const { index, date } of targets) {
+      await days.nth(index).focus();
+      await expect(tooltip).toBeVisible();
+      await expect(tooltip).toContainText('1 task · 25m focus');
+      await expect(tooltip).toContainText(date);
+      const card = await activityCard.boundingBox();
+      const tip = await tooltip.boundingBox();
+      expect(card).not.toBeNull();
+      expect(tip).not.toBeNull();
+      expect(tip!.x, `left edge at ${viewport.width}px col index ${index}`).toBeGreaterThanOrEqual(card!.x);
+      expect(tip!.x + tip!.width, `right edge at ${viewport.width}px col index ${index}`).toBeLessThanOrEqual(card!.x + card!.width);
+      expect(tip!.x, `viewport left at ${viewport.width}px col index ${index}`).toBeGreaterThanOrEqual(0);
+      expect(tip!.x + tip!.width, `viewport right at ${viewport.width}px col index ${index}`).toBeLessThanOrEqual(viewport.width);
+      expect(tip!.y, `top edge at ${viewport.width}px col index ${index}`).toBeGreaterThanOrEqual(card!.y);
+      expect(tip!.y + tip!.height, `bottom edge at ${viewport.width}px col index ${index}`).toBeLessThanOrEqual(card!.y + card!.height);
+    }
+  }
+
+  // Also exercise pointer hover on both edge columns
+  await days.nth(178).blur();
+  await expect(tooltip).toBeHidden();
+  for (const { index, date } of [targets[0], targets[2]]) {
+    await days.nth(index).hover();
+    await expect(tooltip).toBeVisible();
+    await expect(tooltip).toContainText('1 task · 25m focus');
+    await expect(tooltip).toContainText(date);
+    const card = await activityCard.boundingBox();
+    const tip = await tooltip.boundingBox();
+    expect(tip!.x).toBeGreaterThanOrEqual(card!.x);
+    expect(tip!.x + tip!.width).toBeLessThanOrEqual(card!.x + card!.width);
+  }
+});

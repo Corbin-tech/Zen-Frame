@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { openView } from './nav';
 
 test('single completion uses singular count labels across views', async ({ page }) => {
   await page.addInitScript(() => {
@@ -12,11 +13,11 @@ test('single completion uses singular count labels across views', async ({ page 
     sessionStorage.setItem('count-labels-seeded', 'true');
   });
   await page.goto('/');
-  await page.locator('button[data-tab="insights"]').click();
+  await openView(page, 'insights');
   await expect(page.getByText('Last 26 weeks · 1 active day', { exact: true })).toBeVisible();
   await expect(page.getByText('1 task in the last 30 days', { exact: true })).toBeVisible();
-  await page.locator('button[data-tab="dashboard"]').click();
+  await openView(page, 'dashboard');
   await expect(page.getByText('In a row. Longest: 1 day.', { exact: true })).toBeVisible();
-  await page.locator('button[data-tab="board"]').click();
+  await openView(page, 'board');
   await expect(page.getByRole('region', { name: 'Done, 1 task', exact: true })).toBeVisible();
 });

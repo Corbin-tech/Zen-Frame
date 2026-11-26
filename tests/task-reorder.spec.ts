@@ -8,7 +8,7 @@ const SEEDED_TODOS = [
   { id: 'done-3', todo: 'Old cleanup', completed: true, isCluster: false, isPinned: false, parentId: null, createdAt: '2026-01-01T14:00:00Z', completedAt: '2026-01-01T15:00:00Z' },
 ];
 
-test('reordering open tasks in Task Manager skips hidden completed siblings', async ({ page }) => {
+test('reordering open tasks in Tasks skips hidden completed siblings', async ({ page }) => {
   await page.setViewportSize({ width: 480, height: 900 });
   await page.addInitScript((todos) => {
     if (sessionStorage.getItem('seeded')) return;

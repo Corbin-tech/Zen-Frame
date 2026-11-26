@@ -1,11 +1,12 @@
 import { test, expect } from '@playwright/test';
+import { openView } from './nav';
 
 test('focus history updates across tabs without changing the receiving countdown', async ({ context }) => {
   const first = await context.newPage();
   const second = await context.newPage();
   await first.goto('/');
   await second.goto('/');
-  await second.locator('button[data-tab="insights"]').click();
+  await openView(second, 'insights');
   await second.evaluate(() => {
     const pomo = (window as any).Alpine.store('pomoState');
     pomo.selectedTaskId = '';

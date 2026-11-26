@@ -1,4 +1,6 @@
 ---
+import ZenGarden from './ZenGarden.astro';
+
 // Moving scenes behind Zen mode, picked in Settings (zenBackground in settingsStore.ts).
 // Each is an SVG that fills the card and animates with SMIL, slowly enough not to pull focus.
 // Under reduced motion the scenes are drawn but paused. Only the chosen one is rendered (x-if).
@@ -220,12 +222,26 @@ const wingDown = 'M-12 2 Q-6 4 0 0 Q6 4 12 2';
     class="absolute inset-0 -z-10 pointer-events-none transform-gpu transition-opacity duration-500 ease-out"
     aria-hidden="true"
     x-data="{
-        still: matchMedia('(prefers-reduced-motion: reduce)').matches,
+        motionQuery: matchMedia('(prefers-reduced-motion: reduce)'),
+        motionListener: null,
+        still: false,
         settingsOpen: false,
         confettiActive: false,
         // activeTab belongs to the tabs component this sits inside
         phase: activeTab === 'zenmode' ? 'active' : 'inactive',
         resumeTimer: null,
+        init() {
+            this.still = this.motionQuery.matches;
+            this.motionListener = event => {
+                this.still = event.matches;
+                this.sync();
+            };
+            this.motionQuery.addEventListener('change', this.motionListener);
+        },
+        destroy() {
+            this.motionQuery.removeEventListener('change', this.motionListener);
+            clearTimeout(this.resumeTimer);
+        },
         get paused() {
             return this.still || this.settingsOpen || this.confettiActive || this.phase !== 'active';
         },
@@ -272,6 +288,11 @@ const wingDown = 'M-12 2 Q-6 4 0 0 Q6 4 12 2';
             <span class="zen-orb zen-orb-2 absolute -bottom-28 -right-10 w-96 h-96 rounded-full bg-indigo-400/20 blur-3xl"></span>
             <span class="zen-orb zen-orb-3 absolute top-1/3 left-1/2 w-64 h-64 rounded-full bg-fuchsia-400/10 blur-3xl"></span>
         </div>
+    </template>
+
+    <!-- Keep the saved 'desk' id: existing Quiet desk selections now show Zen garden. -->
+    <template x-if="$store.settings.zenBackground === 'desk'">
+        <ZenGarden />
     </template>
 
     <!-- Koi pond: koi circling under lily pads, light through the water, the odd ripple -->

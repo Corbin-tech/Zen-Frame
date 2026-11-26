@@ -3,9 +3,9 @@ const field = 'w-full rounded-lg border-gray-300 bg-white text-gray-900 focus:ri
 const button = 'rounded-lg px-3 py-2 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-500';
 ---
 
-<div x-data="brainDump" x-on:open-brain-dump.window="show($event.detail)" x-on:overlay-opened.window="if (open && $event.detail.name !== 'brain-dump') close()">
+<div x-data="brainDump" x-on:open-brain-dump.window="show($event.detail)" x-on:overlay-opened.window="if (open && $event.detail.name !== 'brain-dump') { $event.detail.opener = opener; close(false); }" x-on:keydown.escape.window="if (open) close()" x-on:keydown.tab.window="if (open) trap($event)">
     <div x-show="open" x-cloak class="fixed inset-0 z-50 bg-slate-900/40" x-on:click.self="close()">
-        <section x-ref="dialog" role="dialog" aria-modal="true" aria-labelledby="brain-dump-title" x-on:keydown.escape.stop="close()" x-on:keydown.tab="trap($event)" class="absolute inset-x-4 top-[5vh] mx-auto max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white p-5 shadow-xl dark:bg-slate-900 text-gray-900 dark:text-white space-y-4">
+        <section x-ref="dialog" role="dialog" aria-modal="true" aria-labelledby="brain-dump-title" class="absolute inset-x-4 top-[5vh] mx-auto max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white p-5 shadow-xl dark:bg-slate-900 text-gray-900 dark:text-white space-y-4">
             <header class="flex items-center justify-between gap-3">
                 <h2 id="brain-dump-title" class="text-xl font-semibold">Brain dump</h2>
                 <button type="button" class={button} x-on:click="close()">Close</button>

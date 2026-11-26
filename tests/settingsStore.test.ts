@@ -57,3 +57,14 @@ test("failed local writes survive a remote update and can be retried", () => {
   expect(JSON.parse(storage.getItem("settings")!)).toMatchObject({ name: "Alex", accent: "rose" });
   error.mockRestore();
 });
+
+test("legacy zenShowTimer key is ignored on load and dropped on save", () => {
+  const { a, storage } = sharedTabs();
+  storage.setItem("settings", JSON.stringify({ name: "Sam", zenShowTimer: true }));
+  a.dispatch();
+  expect("zenShowTimer" in a.store).toBe(false);
+  a.store.update({ accent: "ocean" });
+  const saved = JSON.parse(storage.getItem("settings")!);
+  expect(saved).toMatchObject({ name: "Sam", accent: "ocean" });
+  expect("zenShowTimer" in saved).toBe(false);
+});

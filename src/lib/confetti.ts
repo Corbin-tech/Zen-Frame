@@ -7,10 +7,13 @@ import { CONFETTI_TRIGGERS, type Milestone } from "../stores/settingsStore";
 // stops entirely between bursts. A "zen-confetti" window event tells ZenBackdrop to hold still.
 
 // Bigger milestones get a bigger burst
-const PIECES: Record<Milestone, number> = { task: 60, cluster: 120, all: 200 };
+const PIECES: Record<Milestone, number> = { task: 40, cluster: 80, all: 130 };
 
 // Accent shades (see src/styles/preferences.css) that show well on each theme's background
 const SHADES = { light: [300, 400, 500, 600, 700], dark: [200, 300, 400, 500, 600] };
+
+// Warmth from tailwind.config.mjs: the base gold, with warmth-deep on light and warmth-light on dark
+const WARMTH = { light: ["#D7B36A", "#9C7A2E"], dark: ["#D7B36A", "#E2C382"] };
 
 // Flight tuning in px and ms, carried over from js-confetti so bursts keep their look: launched
 // from the lower left and right corners, arcing up and over, tumbling as they flutter down.
@@ -57,15 +60,16 @@ interface CelebrationSettings {
   confettiTrigger: Milestone;
 }
 
-// The current accent as canvas colors. The CSS variables hold "R G B".
-function accentColors(): string[] {
+// The current accent as canvas colors, plus Warmth. The CSS variables hold "R G B".
+function burstColors(): string[] {
   const root = document.documentElement;
   const styles = getComputedStyle(root);
-  const shades = root.classList.contains("dark") ? SHADES.dark : SHADES.light;
-  return shades
+  const theme = root.classList.contains("dark") ? "dark" : "light";
+  return SHADES[theme]
     .map(shade => styles.getPropertyValue(`--accent-${shade}`).trim().split(/\s+/).join(", "))
     .filter(Boolean)
-    .map(rgb => `rgb(${rgb})`);
+    .map(rgb => `rgb(${rgb})`)
+    .concat(WARMTH[theme]);
 }
 
 function sizeCanvas(): void {
@@ -166,7 +170,7 @@ export function celebrate(milestone: Milestone): void {
   // Two frames let the completion's store update and re-render paint before the burst begins,
   // so the first pieces fly on a frame that is not still doing bookkeeping for the click.
   requestAnimationFrame(() => requestAnimationFrame(() => {
-    shades = accentColors();
+    shades = burstColors();
     if (!canvas && !ctx) {
       canvas = document.createElement("canvas");
       canvas.style.cssText = "position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1000;";
