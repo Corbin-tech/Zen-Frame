@@ -52,38 +52,44 @@ test.each(["completed", "deleted", "paused", "reloaded", "expired", "reset", "ge
 });
 
 test.each([
-  { name: "dialog hidden by its backdrop", visible: false, tab: "pomodoro", hasNext: true, starts: true },
-  { name: "visible dialog", visible: true, tab: "pomodoro", hasNext: true, starts: false },
-  { name: "no dialogs", visible: null, tab: "pomodoro", hasNext: true, starts: true },
-  { name: "hidden dialog in Zen mode", visible: false, tab: "zenmode", hasNext: true, starts: true },
-  { name: "Zen mode with no next task", visible: false, tab: "zenmode", hasNext: false, starts: false },
-  { name: "unrelated tab", visible: false, tab: "dashboard", hasNext: true, starts: false },
-])("Space respects $name", ({ visible, tab, hasNext, starts }) => {
+  { name: "dialog hidden by its backdrop", dialogVisible: false, timer: "pomodoro", timerVisible: true, starts: true },
+  { name: "visible dialog", dialogVisible: true, timer: "pomodoro", timerVisible: true, starts: false },
+  { name: "no dialogs", dialogVisible: null, timer: "pomodoro", timerVisible: true, starts: true },
+  { name: "hidden dialog in Next step", dialogVisible: false, timer: "zenmode", timerVisible: true, starts: true },
+  { name: "Next step with no next task", dialogVisible: false, timer: "zenmode", timerVisible: true, hasNext: false, starts: false },
+  { name: "hidden timer on another view", dialogVisible: false, timer: "pomodoro", timerVisible: false, starts: false },
+  { name: "no timer in the page (e.g. /principles)", dialogVisible: null, timer: null, timerVisible: false, starts: false },
+  { name: "Shift+Space", dialogVisible: null, timer: "pomodoro", timerVisible: true, shiftKey: true, starts: false },
+])("Space respects $name", ({ dialogVisible, timer, timerVisible, hasNext = true, shiftKey = false, starts }) => {
   let keydown: (event: unknown) => void = () => {};
-  const dialog = visible === null ? null : { checkVisibility: () => visible };
+  const dialog = dialogVisible === null ? null : { checkVisibility: () => dialogVisible };
+  const timerEl = timer === null ? null : { dataset: { pomoTimer: timer }, checkVisibility: () => timerVisible };
   vi.stubGlobal("document", {
     addEventListener: (_: string, listener: typeof keydown) => { keydown = listener; },
-    querySelector: () => dialog,
-    querySelectorAll: () => dialog ? [dialog] : [],
+    querySelectorAll: (selector: string) => {
+      if (selector === "[role='dialog']") return dialog ? [dialog] : [];
+      if (selector === "[data-pomo-timer]") return timerEl ? [timerEl] : [];
+      return [];
+    },
   });
-  vi.stubGlobal("localStorage", { getItem: (key: string) => key === "activeTab" ? tab : null, setItem: vi.fn() });
+  vi.stubGlobal("localStorage", { getItem: () => null, setItem: vi.fn() });
   vi.stubGlobal("sessionStorage", { getItem: () => null, setItem: vi.fn(), removeItem: vi.fn() });
   vi.stubGlobal("window", {
     addEventListener: vi.fn(),
     Alpine: { store: (name: string) => name === "todos" ? { nextTask: hasNext ? { id: "t1" } : null } : {} },
   });
   const store = initPomoStore();
-  const start = vi.spyOn(store, tab === "zenmode" ? "startFocus" : "startTimer").mockImplementation(() => {});
+  const start = vi.spyOn(store, timer === "zenmode" ? "startFocus" : "startTimer").mockImplementation(() => {});
   const pause = vi.spyOn(store, "pauseTimer").mockImplementation(() => {});
   store.init();
   const preventDefault = vi.fn();
-  keydown({ code: "Space", target: { closest: () => null }, preventDefault });
+  keydown({ code: "Space", shiftKey, target: { closest: () => null }, preventDefault });
   expect(start).toHaveBeenCalledTimes(starts ? 1 : 0);
-  if (starts && tab === "zenmode") expect(start).toHaveBeenCalledWith("t1");
+  if (starts && timer === "zenmode") expect(start).toHaveBeenCalledWith("t1");
   expect(preventDefault).toHaveBeenCalledTimes(starts ? 1 : 0);
   if (starts) {
     store.isRunning = true;
-    keydown({ code: "Space", target: { closest: () => null }, preventDefault });
+    keydown({ code: "Space", shiftKey, target: { closest: () => null }, preventDefault });
     expect(pause).toHaveBeenCalledOnce();
   }
 });
@@ -91,13 +97,13 @@ test.each([
 test("Space in Next step starts focus for the shown task rather than a previously paused one", () => {
   vi.useFakeTimers();
   let keydown: (event: unknown) => void = () => {};
-  const data = new Map<string, string>([["activeTab", "zenmode"]]);
+  const data = new Map<string, string>();
   const storage = { getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, value: string) => data.set(key, value), removeItem: (key: string) => data.delete(key) };
   vi.stubGlobal("localStorage", storage);
   vi.stubGlobal("sessionStorage", storage);
   vi.stubGlobal("document", {
     addEventListener: (_: string, listener: typeof keydown) => { keydown = listener; },
-    querySelectorAll: () => [],
+    querySelectorAll: (selector: string) => selector === "[data-pomo-timer]" ? [{ dataset: { pomoTimer: "zenmode" }, checkVisibility: () => true }] : [],
   });
   const taskA = { id: "a", todo: "Task A", parentId: null, completed: false };
   const taskB = { id: "b", todo: "Task B", parentId: null, completed: false };
