@@ -97,7 +97,7 @@ const name = data.recapName;
                     </div>
 
                     <div x-show="item.final" class="relative z-20 mt-8 flex flex-wrap gap-2">
-                        <button type="button" x-on:click.stop="copySummary()" x-on:pointerdown.stop class="px-4 py-2.5 rounded-full bg-white text-gray-900 text-sm font-semibold hover:bg-white/90 transition-colors">Copy summary</button>
+                        <button type="button" x-show="item.summaryText" x-on:click.stop="copySummary()" x-on:pointerdown.stop class="px-4 py-2.5 rounded-full bg-white text-gray-900 text-sm font-semibold hover:bg-white/90 transition-colors">Copy summary</button>
                         <button type="button" x-on:click.stop="index = 0; progress = 0" x-on:pointerdown.stop class="px-4 py-2.5 rounded-full bg-white/15 text-white text-sm font-semibold hover:bg-white/25 transition-colors">Watch again</button>
                     </div>
                 </div>
@@ -364,7 +364,8 @@ const name = data.recapName;
             },
 
             async copySummary() {
-                const text = this.slides.find(slide => slide.summaryText)?.summaryText ?? '';
+                const text = this.slides.find(slide => slide.summaryText)?.summaryText;
+                if (!text) return;
                 try {
                     await navigator.clipboard.writeText(text);
                     window.dispatchEvent(new CustomEvent('app-toast', { detail: { title: 'Summary copied', body: 'Paste it anywhere to share your month.' } }));
