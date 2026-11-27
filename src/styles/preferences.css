@@ -151,5 +151,5 @@
 :root { --sidebar-w: 14rem; }
 :root[data-sidebar="collapsed"] { --sidebar-w: 4rem; }
 @media (min-width: 1280px) {
-	:root[data-nav="side"] body { padding-left: calc(var(--sidebar-w) + 0.75rem); }
+	:root[data-nav="side"] body[data-workspace] { padding-left: calc(var(--sidebar-w) + 0.75rem); }
 }
