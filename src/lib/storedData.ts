@@ -81,6 +81,18 @@ function normalizeLoadedTodo(item: Todo & { steps?: unknown }): Todo | null {
   return cleaned;
 }
 
+function cleanAvailabilityWindow(window: Record<string, unknown>): Record<string, unknown> | null {
+  if (typeof window.id !== "string" || window.id.trim() === "") return null;
+  if (typeof window.start !== "number" || !Number.isFinite(window.start)) return null;
+  if (typeof window.end !== "number" || !Number.isFinite(window.end)) return null;
+  if (window.start < 0 || window.end <= window.start || window.end > 1440) return null;
+  const weekdays = Array.isArray(window.weekdays)
+    ? [...new Set(window.weekdays.filter((day): day is number => typeof day === "number" && Number.isInteger(day) && day >= 0 && day <= 6))]
+    : [];
+  if (!weekdays.length) return null;
+  return { id: window.id, weekdays, start: window.start, end: window.end };
+}
+
 function cleanNote(note: Record<string, unknown>): Record<string, unknown> | null {
   if (typeof note.id !== "string" || note.id.trim() === "") return null;
   if (typeof note.text !== "string") return null;
@@ -151,12 +163,17 @@ export function normalizeStoredData(key: string, value: unknown): unknown {
         ? value.filter(item => isObject(item) && typeof item.taskId === "string" && item.taskId !== "")
         : [];
     case "goals":
-      return Array.isArray(value) ? value.filter(item => isObject(item) && typeof item.id === "string" && typeof item.title === "string").map(goal => ({
+      return Array.isArray(value) ? value.filter(item => isObject(item) && typeof item.id === "string" && item.id !== "" && typeof item.title === "string").map(goal => ({
         ...goal,
         why: typeof goal.why === "string" ? goal.why : "",
         obstaclePlan: typeof goal.obstaclePlan === "string" ? goal.obstaclePlan : "",
         celebration: typeof goal.celebration === "string" ? goal.celebration : "",
-        reachedAt: isTimestamp(goal.reachedAt) ? goal.reachedAt : null
+        clusterId: typeof goal.clusterId === "string" && goal.clusterId ? goal.clusterId : null,
+        progress: typeof goal.progress === "number" && Number.isFinite(goal.progress) ? Math.min(100, Math.max(0, goal.progress)) : 0,
+        targetDate: isDateKey(goal.targetDate) ? goal.targetDate : null,
+        done: goal.done === true,
+        reachedAt: isTimestamp(goal.reachedAt) ? goal.reachedAt : null,
+        createdAt: isTimestamp(goal.createdAt) ? goal.createdAt : new Date().toISOString()
       })) : [];
     case "wins":
       return Array.isArray(value) ? value.filter(win => isObject(win)
@@ -190,7 +207,14 @@ export function normalizeStoredData(key: string, value: unknown): unknown {
       const planning = isObject(value) ? value : {};
       return {
         ...planning,
-        gap: typeof planning.gap === "number" && Number.isFinite(planning.gap) && planning.gap >= 0
+        availability: Array.isArray(planning.availability)
+          ? planning.availability.filter(isObject).map(cleanAvailabilityWindow)
+            .filter((window): window is Record<string, unknown> => window !== null)
+            .filter((window, index, windows) => windows.findIndex(other => other.id === window.id) === index)
+          : [],
+        duration: typeof planning.duration === "number" && Number.isFinite(planning.duration) && planning.duration > 0 && planning.duration <= 1440
+          ? planning.duration : 45,
+        gap: typeof planning.gap === "number" && Number.isFinite(planning.gap) && planning.gap >= 0 && planning.gap <= 1440
           ? planning.gap : 15
       };
     }

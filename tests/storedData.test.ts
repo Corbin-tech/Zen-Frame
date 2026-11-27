@@ -95,6 +95,39 @@ for (const path of ["load", "import"]) {
     expect(typeof result[0].createdAt).toBe("string");
     expect(result[1]).toEqual({ ...valid, estimateMinutes: null });
   });
+  test(`${path}: normalizes goal fields used in rendering`, () => {
+    const valid = { id: "g1", title: "Ship", why: "Because", obstaclePlan: "Plan", celebration: "Tea",
+      clusterId: "c1", progress: 65, targetDate: "2026-03-02", done: false, reachedAt: null, createdAt: at };
+    const result = read("goals", [
+      null, {}, { id: "", title: "missing id" },
+      { id: "bad", title: "Broken", targetDate: {}, progress: "50", done: "yes", clusterId: 7, createdAt: "bad" },
+      valid
+    ]);
+    expect(result).toHaveLength(2);
+    expect(result[0]).toMatchObject({ id: "bad", targetDate: null, progress: 0, done: false, clusterId: null, reachedAt: null });
+    expect(typeof result[0].createdAt).toBe("string");
+    expect(result[1]).toEqual(valid);
+  });
+  test(`${path}: normalizes planning windows and fallback durations`, () => {
+    const validWindow = { id: "w1", weekdays: [1, 3], start: 540, end: 720 };
+    expect(read("planning", {
+      availability: [
+        null, {}, { id: "bad-weekdays", weekdays: [], start: 540, end: 720 },
+        { id: "bad-time", weekdays: [1], start: 720, end: 540 },
+        { ...validWindow, weekdays: [1, 3, 9, -1, 1], extra: "dropped" },
+        validWindow
+      ],
+      duration: "45",
+      gap: 15
+    })).toEqual({
+      availability: [validWindow],
+      duration: 45,
+      gap: 15
+    });
+    expect(read("planning", { availability: null, duration: 0, gap: 2000 })).toEqual({
+      availability: [], duration: 45, gap: 15
+    });
+  });
   test(`${path}: drops malformed notes and normalizes timestamps`, () => {
     const valid = { id: "n1", text: "Remember", pinned: true, createdAt: at, updatedAt: at };
     const result = read("notes", [
