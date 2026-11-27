@@ -14,6 +14,8 @@ const pineTufts = [
 
 <svg
     class="zen-garden absolute inset-0 w-full h-full stroke-none"
+    viewBox="0 0 1000 700"
+    preserveAspectRatio="xMidYMid slice"
     aria-hidden="true"
     focusable="false"
     x-init="(still || paused) && $el.pauseAnimations()"
@@ -37,8 +39,9 @@ const pineTufts = [
         </pattern>
     </defs>
 
-    <!-- Only the sand stretches to fit. Separately anchored landmarks keep their shapes
-         and stay in frame even when the task makes the mobile canvas very tall. -->
+    <!-- Like the other backgrounds, the whole scene shares the 1000x700 viewBox and scales
+         with slice, so it crops the same way on any card shape. Landmarks are anchored in
+         that shared space below. -->
     <svg class="stroke-none" width="100%" height="100%" viewBox="0 0 1000 700" preserveAspectRatio="none">
         <rect width="1000" height="700" fill="url(#zg-sand)" />
         <rect class="zen-garden-grain" width="1000" height="700" fill="url(#zg-grain)" opacity="0.1" />
