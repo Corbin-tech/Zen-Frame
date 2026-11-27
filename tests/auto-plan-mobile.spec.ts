@@ -50,3 +50,41 @@ for (const width of [320, 390, 1280]) {
     await expect(remove).toHaveCount(0);
   });
 }
+
+test('Auto-plan time selects keep AM/PM readable at 330px with Mono font', async ({ page }) => {
+  await page.setViewportSize({ width: 330, height: 900 });
+  await page.addInitScript(() => {
+    if (sessionStorage.getItem('autoplan-mono-seeded')) return;
+    sessionStorage.setItem('autoplan-mono-seeded', 'true');
+    localStorage.clear();
+    localStorage.setItem('activeTab', 'schedule');
+    localStorage.setItem('settings', JSON.stringify({ font: 'mono' }));
+    localStorage.setItem('planning', JSON.stringify({
+      duration: 30,
+      gap: 0,
+      availability: [{ id: 'w1', weekdays: [1, 2, 3, 4, 5], start: 10 * 60, end: 22 * 60 }],
+    }));
+  });
+  await page.goto('/');
+
+  const section = page.locator('section[x-data="autoPlan"]');
+  await section.getByRole('button', { name: 'Auto-plan', exact: true }).click();
+  await section.getByRole('button', { name: 'Edit hours', exact: true }).click();
+
+  const start = section.locator('select[name="plan-hours-start"]');
+  const end = section.locator('select[name="plan-hours-end"]');
+  await expect(start).toBeVisible();
+
+  for (const select of [start, end]) {
+    const fits = await select.evaluate((el: HTMLSelectElement) => {
+      const style = getComputedStyle(el);
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d')!;
+      ctx.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+      const label = el.selectedOptions[0]?.textContent ?? '';
+      const available = el.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+      return available >= ctx.measureText(label).width;
+    });
+    expect(fits).toBe(true);
+  }
+});
