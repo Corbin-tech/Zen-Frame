@@ -27,9 +27,9 @@ function cleanWin(win: Record<string, unknown>): Record<string, unknown> {
   return {
     id: String(win.id),
     date: String(win.date),
-    text: String(win.text).slice(0, 500),
+    text: String(win.text),
     goalId: typeof win.goalId === "string" ? win.goalId : null,
-    goalTitle: typeof win.goalTitle === "string" ? win.goalTitle.slice(0, SESSION_TEXT_MAX) : null,
+    goalTitle: typeof win.goalTitle === "string" ? win.goalTitle : null,
     createdAt: isTimestamp(win.createdAt) ? win.createdAt : new Date().toISOString()
   };
 }
