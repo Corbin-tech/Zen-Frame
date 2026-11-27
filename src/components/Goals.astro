@@ -586,13 +586,19 @@ const prompts = [
                     const fields = [
                         'energy', 'wins', 'blockers', 'nextFocus',
                         'checkInPerson', 'checkInPersonTaskId', 'recharge',
-                        'mindfulPrompt', 'mindfulAnswer', 'mindfulDismissed'
+                        'mindfulDismissed'
                     ];
                     for (const field of fields) {
                         if (this.draft[field] !== before[field]) merged[field] = this.draft[field];
                     }
+                    // Keep the mindful question and answer paired so a remote question change cannot attach to a local answer
+                    if (this.draft.mindfulPrompt !== before.mindfulPrompt || this.draft.mindfulAnswer !== before.mindfulAnswer) {
+                        merged.mindfulPrompt = this.draft.mindfulPrompt;
+                        merged.mindfulAnswer = this.draft.mindfulAnswer;
+                    }
+                    const allFields = [...fields, 'mindfulPrompt', 'mindfulAnswer'];
                     this.draft = merged;
-                    this.saveState = fields.some(field => merged[field] !== remote[field]) ? 'dirty' : 'clean';
+                    this.saveState = allFields.some(field => merged[field] !== remote[field]) ? 'dirty' : 'clean';
                 });
             },
 
@@ -667,6 +673,7 @@ const prompts = [
                 const current = this.draft.mindfulPrompt || mindfulPromptForWeek(this.week);
                 const index = MINDFUL_PROMPTS.indexOf(current);
                 this.draft.mindfulPrompt = MINDFUL_PROMPTS[(index + 1) % MINDFUL_PROMPTS.length];
+                this.draft.mindfulAnswer = '';
                 this.saveState = 'dirty';
             },
 
