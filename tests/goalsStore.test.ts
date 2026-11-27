@@ -226,3 +226,22 @@ test("a corrupted checkIns value in storage hydrates to an empty object", () => 
     mindfulPrompt: mindfulPromptForWeek("2026-03-09")
   });
 });
+
+test("an unreadable list does not stop the others loading or get overwritten by the next save", () => {
+  vi.spyOn(console, "error").mockImplementation(() => {});
+  const win = { id: "w1", date: "2026-11-27", text: "Shipped it" };
+  const data = new Map<string, string>([["notes", "[null, 7]"], ["wins", JSON.stringify([win])]]);
+  vi.stubGlobal("localStorage", { getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, value: string) => { data.set(key, value); } });
+  vi.stubGlobal("window", { addEventListener: vi.fn(), dispatchEvent: vi.fn() });
+  const store = initGoalsStore();
+  // Force the notes list to fail even once the loader learns to clean it
+  const loadList = store.loadList.bind(store);
+  store.loadList = (key, merge) => { if (key === "notes") throw new TypeError("Cannot read properties of null (reading 'id')"); loadList(key, merge); };
+
+  expect(() => store.init()).not.toThrow();
+  expect(store.wins.map(item => item.text)).toEqual(["Shipped it"]);
+  store.addGoal("Run a 5k");
+  expect(data.get("notes")).toBe("[null, 7]");
+  expect(JSON.parse(data.get("wins")!).map((item: { text: string }) => item.text)).toEqual(["Shipped it"]);
+  vi.restoreAllMocks();
+});

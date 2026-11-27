@@ -53,19 +53,55 @@ function cleanWeeklyIntentions(value: unknown): Array<Record<string, unknown>> {
 
 // A restored backup may carry anything, so keep only well-formed values. The "steps"
 // checklist field from older saves is dropped: nothing reads it any more.
-function normalizeLoadedTodo(item: Todo & { steps?: unknown }): Todo {
+function normalizeLoadedTodo(item: Todo & { steps?: unknown }): Todo | null {
+  if (typeof item.id !== "string" || item.id.trim() === "") return null;
   const { steps: _steps, ...todo } = item;
   const cleaned: Todo = {
     ...todo,
+    id: item.id,
     // Templates call string methods on the title, so a task without one gets an empty title
     todo: typeof todo.todo === "string" ? todo.todo : "",
-    parentId: todo.parentId ?? null,
+    parentId: typeof todo.parentId === "string" && todo.parentId ? todo.parentId : null,
     estimateMinutes: cleanMinutes(todo.estimateMinutes)
   };
+  if (todo.completed !== undefined) cleaned.completed = todo.completed === true;
+  if (todo.isCluster !== undefined) cleaned.isCluster = todo.isCluster === true;
+  if (todo.isPinned !== undefined) cleaned.isPinned = todo.isPinned === true;
+  if (todo.dueDate !== undefined) {
+    cleaned.dueDate = isDateKey(todo.dueDate) ? todo.dueDate : null;
+  }
   if (todo.focusDate !== undefined) {
     cleaned.focusDate = isDateKey(todo.focusDate) ? todo.focusDate : null;
   }
+  if (cleaned.color !== undefined && typeof cleaned.color !== "string") delete cleaned.color;
+  if (cleaned.createdAt !== undefined && !isTimestamp(cleaned.createdAt)) cleaned.createdAt = new Date().toISOString();
+  for (const key of ["updatedAt", "startedAt", "completedAt"] as const) {
+    if (cleaned[key] !== undefined && !isTimestamp(cleaned[key])) delete cleaned[key];
+  }
   return cleaned;
+}
+
+function cleanAvailabilityWindow(window: Record<string, unknown>): Record<string, unknown> | null {
+  if (typeof window.id !== "string" || window.id.trim() === "") return null;
+  if (typeof window.start !== "number" || !Number.isFinite(window.start)) return null;
+  if (typeof window.end !== "number" || !Number.isFinite(window.end)) return null;
+  const weekdays = Array.isArray(window.weekdays)
+    ? [...new Set(window.weekdays.filter((day): day is number => typeof day === "number" && Number.isInteger(day) && day >= 0 && day <= 6))]
+    : [];
+  return { id: window.id, weekdays, start: window.start, end: window.end };
+}
+
+function cleanNote(note: Record<string, unknown>): Record<string, unknown> | null {
+  if (typeof note.id !== "string" || note.id.trim() === "") return null;
+  if (typeof note.text !== "string") return null;
+  const createdAt = isTimestamp(note.createdAt) ? note.createdAt : new Date().toISOString();
+  return {
+    id: note.id,
+    text: note.text,
+    pinned: note.pinned === true,
+    createdAt,
+    updatedAt: isTimestamp(note.updatedAt) ? note.updatedAt : createdAt
+  };
 }
 
 function cleanScheduledRepeat(value: unknown): ScheduledItem["repeat"] | undefined {
@@ -105,9 +141,13 @@ export function normalizeStoredData(key: string, value: unknown): unknown {
     case "todos":
       return Array.isArray(value) ? value.filter(isObject).map(item => {
         const todo = normalizeLoadedTodo(item as unknown as Todo);
-        if (!isTimestamp(todo.zenDeferredStart)) delete todo.zenDeferredStart;
+        if (todo && !isTimestamp(todo.zenDeferredStart)) delete todo.zenDeferredStart;
         return todo;
-      }) : [];
+      }).filter((todo): todo is Todo => todo !== null) : [];
+    case "notes":
+      return Array.isArray(value)
+        ? value.filter(isObject).map(cleanNote).filter((note): note is Record<string, unknown> => note !== null)
+        : [];
     case "skippedClusters":
       return Array.isArray(value)
         ? value.filter((id): id is string => typeof id === "string" && id !== "")
@@ -118,15 +158,21 @@ export function normalizeStoredData(key: string, value: unknown): unknown {
         : [];
     case "history":
       return Array.isArray(value)
-        ? value.filter(item => isObject(item) && typeof item.taskId === "string" && item.taskId !== "")
+        // Sorting and day grouping read `at`, so a record without a real timestamp is dropped
+        ? value.filter(item => isObject(item) && typeof item.taskId === "string" && item.taskId !== "" && isTimestamp(item.at))
         : [];
     case "goals":
-      return Array.isArray(value) ? value.filter(item => isObject(item) && typeof item.id === "string" && typeof item.title === "string").map(goal => ({
+      return Array.isArray(value) ? value.filter(item => isObject(item) && typeof item.id === "string" && item.id !== "" && typeof item.title === "string").map(goal => ({
         ...goal,
         why: typeof goal.why === "string" ? goal.why : "",
         obstaclePlan: typeof goal.obstaclePlan === "string" ? goal.obstaclePlan : "",
         celebration: typeof goal.celebration === "string" ? goal.celebration : "",
-        reachedAt: isTimestamp(goal.reachedAt) ? goal.reachedAt : null
+        clusterId: typeof goal.clusterId === "string" && goal.clusterId ? goal.clusterId : null,
+        progress: typeof goal.progress === "number" && Number.isFinite(goal.progress) ? Math.min(100, Math.max(0, goal.progress)) : 0,
+        targetDate: isDateKey(goal.targetDate) ? goal.targetDate : null,
+        done: goal.done === true,
+        reachedAt: isTimestamp(goal.reachedAt) ? goal.reachedAt : null,
+        createdAt: isTimestamp(goal.createdAt) ? goal.createdAt : new Date().toISOString()
       })) : [];
     case "wins":
       return Array.isArray(value) ? value.filter(win => isObject(win)
@@ -136,7 +182,8 @@ export function normalizeStoredData(key: string, value: unknown): unknown {
       if (!isObject(value)) return {};
       const cleaned: Record<string, Record<string, unknown>> = {};
       for (const [week, entry] of Object.entries(value)) {
-        if (!isObject(entry)) continue;
+        // Assigning a "__proto__" key would swap the object's prototype instead of adding an entry
+        if (week === "__proto__" || !isObject(entry)) continue;
         cleaned[week] = {
           ...entry,
           week: typeof entry.week === "string" && entry.week ? entry.week : week,
@@ -160,7 +207,14 @@ export function normalizeStoredData(key: string, value: unknown): unknown {
       const planning = isObject(value) ? value : {};
       return {
         ...planning,
-        gap: typeof planning.gap === "number" && Number.isFinite(planning.gap) && planning.gap >= 0
+        availability: Array.isArray(planning.availability)
+          ? planning.availability.filter(isObject).map(cleanAvailabilityWindow)
+            .filter((window): window is Record<string, unknown> => window !== null)
+            .filter((window, index, windows) => windows.findIndex(other => other.id === window.id) === index)
+          : [],
+        duration: typeof planning.duration === "number" && Number.isFinite(planning.duration) && planning.duration > 0 && planning.duration <= 1440
+          ? planning.duration : 45,
+        gap: typeof planning.gap === "number" && Number.isFinite(planning.gap) && planning.gap >= 0 && planning.gap <= 1440
           ? planning.gap : 15
       };
     }
