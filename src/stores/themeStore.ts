@@ -31,12 +31,23 @@ export function initThemeStore(): ThemeStore {
             this.current = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
             syncThemeColor();
 
+            const darkQuery = window.matchMedia('(prefers-color-scheme: dark)');
+
             // Follow system preference changes only if the user hasn't picked a theme
-            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+            darkQuery.addEventListener('change', (e) => {
                 if (!loadString('theme')) {
                     this.current = e.matches ? 'dark' : 'light';
                     this.applyTheme(this.current);
                 }
+            });
+
+            window.addEventListener('storage', (event) => {
+                if (event.storageArea !== localStorage || (event.key !== null && event.key !== 'theme')) return;
+                const saved = loadString('theme');
+                const next: Theme = saved === 'light' || saved === 'dark' ? saved : (darkQuery.matches ? 'dark' : 'light');
+                if (next === this.current) return;
+                this.current = next;
+                this.applyTheme(next);
             });
         },
 
