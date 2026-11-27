@@ -68,6 +68,7 @@ export const DASHBOARD_WIDGETS = [
   { id: "recent", label: "Recently completed", hint: "Your last few finished tasks", zone: "column" },
   { id: "focus", label: "Focus timer", hint: "Start a focus session from here", zone: "column" },
   { id: "goals", label: "Goals", hint: "Progress on your open goals", zone: "column" },
+  { id: "wins", label: "Daily win", hint: "Note one thing that went well today", zone: "column" },
   { id: "notes", label: "Notes", hint: "Pinned and recent notes", zone: "column" },
   { id: "quote", label: "Quote of the day", hint: "A new one each morning", zone: "column" },
   { id: "streak", label: "Streak", hint: "Days in a row and the last two weeks", zone: "column" }

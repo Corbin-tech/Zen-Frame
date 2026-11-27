@@ -23,6 +23,17 @@ function cleanSession(session: Record<string, unknown>): Record<string, unknown>
   return clean;
 }
 
+function cleanWin(win: Record<string, unknown>): Record<string, unknown> {
+  return {
+    id: String(win.id),
+    date: String(win.date),
+    text: String(win.text),
+    goalId: typeof win.goalId === "string" ? win.goalId : null,
+    goalTitle: typeof win.goalTitle === "string" ? win.goalTitle : null,
+    createdAt: isTimestamp(win.createdAt) ? win.createdAt : new Date().toISOString()
+  };
+}
+
 // A restored backup may carry anything, so keep only well-formed values. The "steps"
 // checklist field from older saves is dropped: nothing reads it any more.
 function normalizeLoadedTodo(item: Todo & { steps?: unknown }): Todo {
@@ -35,7 +46,6 @@ function normalizeLoadedTodo(item: Todo & { steps?: unknown }): Todo {
     estimateMinutes: cleanMinutes(todo.estimateMinutes)
   };
 }
-
 export function normalizeStoredData(key: string, value: unknown): unknown {
   switch (key) {
     case "todos":
@@ -44,6 +54,18 @@ export function normalizeStoredData(key: string, value: unknown): unknown {
         if (!isTimestamp(todo.zenDeferredStart)) delete todo.zenDeferredStart;
         return todo;
       }) : [];
+    case "goals":
+      return Array.isArray(value) ? value.filter(item => isObject(item) && typeof item.id === "string" && typeof item.title === "string").map(goal => ({
+        ...goal,
+        why: typeof goal.why === "string" ? goal.why : "",
+        obstaclePlan: typeof goal.obstaclePlan === "string" ? goal.obstaclePlan : "",
+        celebration: typeof goal.celebration === "string" ? goal.celebration : "",
+        reachedAt: isTimestamp(goal.reachedAt) ? goal.reachedAt : null
+      })) : [];
+    case "wins":
+      return Array.isArray(value) ? value.filter(win => isObject(win)
+        && typeof win.id === "string" && typeof win.date === "string"
+        && typeof win.text === "string" && win.text.trim() !== "").map(cleanWin) : [];
     case "planning": {
       const planning = isObject(value) ? value : {};
       return {

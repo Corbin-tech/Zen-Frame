@@ -10,6 +10,7 @@ const BACKUP_KEYS = [
   "goals",
   "checkIns",
   "notes",
+  "wins",
   "pomoState",
   "pomoSessions",
   "settings",
@@ -30,6 +31,7 @@ const ARRAY_KEYS = new Set<BackupKey>([
   "history",
   "goals",
   "notes",
+  "wins",
   "pomoSessions"
 ]);
 
