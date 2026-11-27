@@ -263,9 +263,90 @@ const prompts = [
                         </div>
                     ))}
 
-                    <div class="flex items-center justify-end gap-3">
-                        <span class="text-xs text-gray-500 dark:text-gray-400" x-text="saveStatus"></span>
-                        <button type="submit" class="btn-primary">Save check-in</button>
+                    <!-- Connection & rejuvenation -->
+                    <div class="space-y-4 pt-2 border-t border-gray-100 dark:border-slate-700/60">
+                        <div>
+                            <div class="flex flex-wrap items-baseline justify-between gap-2">
+                                <label for="checkin-person" class="editorial text-base font-normal text-gray-900 dark:text-white">Someone to check in on this week</label>
+                                <button
+                                    type="button"
+                                    x-show="draft.checkInPerson.trim() && !checkInPersonTaskAdded"
+                                    x-cloak
+                                    x-on:click="addCheckInPersonTask()"
+                                    class="text-xs font-medium text-teal-700 dark:text-teal-300 hover:underline"
+                                >Add as a task</button>
+                                <span
+                                    x-show="checkInPersonTaskAdded"
+                                    x-cloak
+                                    class="text-xs font-medium text-teal-700 dark:text-teal-300"
+                                >Added to tasks</span>
+                            </div>
+                            <input
+                                id="checkin-person"
+                                name="checkin-person"
+                                type="text"
+                                class={`${field} mt-1.5`}
+                                placeholder="A friend, family member, or teammate to message or call…"
+                                x-model="draft.checkInPerson"
+                            />
+                        </div>
+
+                        <label class="block">
+                            <span class="editorial text-base font-normal text-gray-900 dark:text-white">How will you recharge this week?</span>
+                            <input
+                                name="checkin-recharge"
+                                type="text"
+                                class={`${field} mt-1.5`}
+                                placeholder="A walk, screen-free evening, reading, rest…"
+                                x-model="draft.recharge"
+                            />
+                        </label>
+                    </div>
+
+                    <!-- Optional rotating mindful prompt -->
+                    <div
+                        x-show="!draft.mindfulDismissed"
+                        class="rounded-xl bg-gray-50/80 dark:bg-slate-700/30 ring-1 ring-black/5 dark:ring-white/10 p-3.5 space-y-2"
+                    >
+                        <div class="flex items-center justify-between gap-2">
+                            <p class="eyebrow">Optional prompt</p>
+                            <div class="flex items-center gap-3 text-xs">
+                                <button
+                                    type="button"
+                                    x-on:click="cycleMindfulPrompt()"
+                                    class="font-medium text-gray-500 hover:text-teal-700 dark:text-gray-400 dark:hover:text-teal-300 transition-colors"
+                                >Another</button>
+                                <button
+                                    type="button"
+                                    x-on:click="dismissMindfulPrompt()"
+                                    class="font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+                                >Hide</button>
+                            </div>
+                        </div>
+                        <label class="block">
+                            <span class="editorial text-base font-normal text-gray-900 dark:text-white" x-text="draft.mindfulPrompt"></span>
+                            <textarea
+                                name="checkin-mindful"
+                                rows="2"
+                                class={`${field} mt-1.5`}
+                                placeholder="Optional — skip if nothing comes to mind"
+                                x-model="draft.mindfulAnswer"
+                            ></textarea>
+                        </label>
+                    </div>
+
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <button
+                            type="button"
+                            x-show="draft.mindfulDismissed"
+                            x-cloak
+                            x-on:click="restoreMindfulPrompt()"
+                            class="text-xs font-medium text-gray-500 hover:text-teal-700 dark:text-gray-400 dark:hover:text-teal-300 transition-colors"
+                        >Show mindful prompt</button>
+                        <div class="ml-auto flex items-center gap-3">
+                            <span class="text-xs text-gray-500 dark:text-gray-400" x-text="saveStatus"></span>
+                            <button type="submit" class="btn-primary">Save check-in</button>
+                        </div>
                     </div>
                 </form>
             </section>
@@ -402,9 +483,10 @@ const prompts = [
 
 <script>
     import { celebrate } from '../lib/confetti';
+    import { mergeCheckInDraft } from '../lib/checkInMerge';
     import { dates } from '../lib/dates';
     import { resetDraft, syncDraft } from '../lib/syncDraft';
-    import { ACTIVE_GOAL_FOCUS_LIMIT, weekOf } from '../stores/goalsStore';
+    import { ACTIVE_GOAL_FOCUS_LIMIT, MINDFUL_PROMPTS, mindfulPromptForWeek, weekOf } from '../stores/goalsStore';
 
     // Completed time in a week, from the timer's finished focus sessions
     const focusMinutes = (sessions, start, end) => sessions
@@ -487,16 +569,26 @@ const prompts = [
                 this.draft = { ...this.$store.goals.checkInFor(this.week) };
                 this.$watch('$store.goals.checkIns[week]', (checkIn, previous) => {
                     if (JSON.stringify(checkIn) === JSON.stringify(previous)) return;
-                    const before = { energy: 0, wins: '', blockers: '', nextFocus: '', ...previous };
+                    const before = {
+                        energy: 0,
+                        wins: '',
+                        blockers: '',
+                        nextFocus: '',
+                        checkInPerson: '',
+                        checkInPersonTaskId: null,
+                        recharge: '',
+                        mindfulPrompt: mindfulPromptForWeek(this.week),
+                        mindfulAnswer: '',
+                        mindfulDismissed: false,
+                        ...previous
+                    };
                     const remote = this.$store.goals.checkInFor(this.week);
-                    const merged = { ...remote };
-                    const fields = ['energy', 'wins', 'blockers', 'nextFocus'];
-                    for (const field of fields) {
-                        if (this.draft[field] !== before[field]) merged[field] = this.draft[field];
-                    }
+                    const { merged, changed } = mergeCheckInDraft(before, this.draft, remote);
                     this.draft = merged;
-                    this.saveState = fields.some(field => merged[field] !== remote[field]) ? 'dirty' : 'clean';
+                    this.saveState = changed ? 'dirty' : 'clean';
                 });
+                // Switching the person re-links an already-open "Check in on <name>" task instead of a stale one
+                this.$watch('draft.checkInPerson', () => this.relinkCheckInPersonTask());
             },
 
             get thisWeek() {
@@ -545,6 +637,58 @@ const prompts = [
                 if (!fresh.length) return;
                 const added = fresh.map(line => `- ${line}`).join('\n');
                 this.draft.wins = existing ? `${existing}\n${added}` : added;
+                this.saveState = 'dirty';
+            },
+
+            get checkInPersonTaskAdded() {
+                const person = (this.draft?.checkInPerson ?? '').trim();
+                if (!person) return false;
+                const title = `Check in on ${person}`;
+                const id = this.draft?.checkInPersonTaskId;
+                const linked = id ? this.$store.todos.find(id) : null;
+                if (linked && !linked.completed && linked.todo === title) return true;
+                return this.$store.todos.items.some(task => !task.isCluster && !task.completed && task.todo === title);
+            },
+
+            // Point the draft at the open task for the current person, so saving never persists a stale link
+            relinkCheckInPersonTask() {
+                const person = (this.draft?.checkInPerson ?? '').trim();
+                if (!person) return;
+                const existing = this.$store.todos.items.find(task => !task.isCluster && !task.completed && task.todo === `Check in on ${person}`);
+                if (existing && this.draft.checkInPersonTaskId !== existing.id) {
+                    this.draft.checkInPersonTaskId = existing.id;
+                    this.saveState = 'dirty';
+                }
+            },
+
+            addCheckInPersonTask() {
+                const person = (this.draft?.checkInPerson ?? '').trim();
+                if (!person) return;
+                this.relinkCheckInPersonTask();
+                if (this.checkInPersonTaskAdded) return;
+                const today = dates.toDateKey();
+                const midWeek = dates.addDays(this.week, 2);
+                const dueDate = this.week === this.thisWeek ? (midWeek >= today ? midWeek : today) : null;
+                this.draft.checkInPersonTaskId = this.$store.todos.addTodo(`Check in on ${person}`, { dueDate });
+                this.saveState = 'dirty';
+            },
+
+            cycleMindfulPrompt() {
+                const current = this.draft.mindfulPrompt || mindfulPromptForWeek(this.week);
+                const index = MINDFUL_PROMPTS.indexOf(current);
+                this.draft.mindfulPrompt = MINDFUL_PROMPTS[(index + 1) % MINDFUL_PROMPTS.length];
+                this.draft.mindfulAnswer = '';
+                this.saveState = 'dirty';
+            },
+
+            dismissMindfulPrompt() {
+                this.draft.mindfulDismissed = true;
+                this.saveState = 'dirty';
+            },
+
+            restoreMindfulPrompt() {
+                this.draft.mindfulDismissed = false;
+                if (!this.draft.mindfulPrompt) this.draft.mindfulPrompt = mindfulPromptForWeek(this.week);
                 this.saveState = 'dirty';
             },
 
@@ -624,6 +768,7 @@ const prompts = [
             },
 
             saveCheckIn() {
+                this.relinkCheckInPersonTask();
                 this.$store.goals.saveCheckIn({ ...this.draft, week: this.week });
                 this.saveState = 'saved';
             }

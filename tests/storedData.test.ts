@@ -78,4 +78,31 @@ for (const path of ["load", "import"]) {
     expect(read("planning", { gap: 0 }).gap).toBe(0);
     expect(read("pomoSessions", [])).toEqual([]);
   });
+  test(`${path}: normalizes check-in entries and drops malformed ones`, () => {
+    const result = read("checkIns", {
+      "2026-03-02": { week: "2026-03-02", energy: 4, wins: "Shipped", savedAt: at },
+      "2026-03-09": { energy: "high", mindfulDismissed: "yes", checkInPersonTaskId: 42, mindfulPrompt: 7, mindfulAnswer: null, recharge: 5 },
+      malformed: 42
+    });
+    expect(result["2026-03-02"]).toMatchObject({
+      week: "2026-03-02", energy: 4, wins: "Shipped", savedAt: at,
+      checkInPerson: "", checkInPersonTaskId: null, recharge: "",
+      mindfulPrompt: "", mindfulAnswer: "", mindfulDismissed: false
+    });
+    expect(result["2026-03-09"]).toMatchObject({
+      week: "2026-03-09", energy: 0, mindfulDismissed: false,
+      checkInPersonTaskId: null, mindfulPrompt: "", mindfulAnswer: "", recharge: ""
+    });
+    expect(result.malformed).toBeUndefined();
+  });
 }
+
+test("load: a non-object checkIns value reads as an empty object", () => {
+  localStorage.setItem("checkIns", JSON.stringify([1, "x"]));
+  expect(loadJson("checkIns", null)).toEqual({});
+});
+
+test("import: a non-object checkIns backup is rejected", () => {
+  expect(importBackup(JSON.stringify({ app: "zen-frame", version: 1, data: { checkIns: [1] } })))
+    .toEqual({ ok: false, error: 'Invalid "checkIns" data in backup.' });
+});

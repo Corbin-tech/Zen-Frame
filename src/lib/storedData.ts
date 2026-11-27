@@ -66,6 +66,29 @@ export function normalizeStoredData(key: string, value: unknown): unknown {
       return Array.isArray(value) ? value.filter(win => isObject(win)
         && typeof win.id === "string" && typeof win.date === "string"
         && typeof win.text === "string" && win.text.trim() !== "").map(cleanWin) : [];
+    case "checkIns": {
+      if (!isObject(value)) return {};
+      const cleaned: Record<string, Record<string, unknown>> = {};
+      for (const [week, entry] of Object.entries(value)) {
+        if (!isObject(entry)) continue;
+        cleaned[week] = {
+          ...entry,
+          week: typeof entry.week === "string" && entry.week ? entry.week : week,
+          energy: typeof entry.energy === "number" && Number.isFinite(entry.energy) ? entry.energy : 0,
+          wins: typeof entry.wins === "string" ? entry.wins : "",
+          blockers: typeof entry.blockers === "string" ? entry.blockers : "",
+          nextFocus: typeof entry.nextFocus === "string" ? entry.nextFocus : "",
+          checkInPerson: typeof entry.checkInPerson === "string" ? entry.checkInPerson : "",
+          checkInPersonTaskId: typeof entry.checkInPersonTaskId === "string" ? entry.checkInPersonTaskId : null,
+          recharge: typeof entry.recharge === "string" ? entry.recharge : "",
+          mindfulPrompt: typeof entry.mindfulPrompt === "string" ? entry.mindfulPrompt : "",
+          mindfulAnswer: typeof entry.mindfulAnswer === "string" ? entry.mindfulAnswer : "",
+          mindfulDismissed: entry.mindfulDismissed === true,
+          savedAt: typeof entry.savedAt === "string" ? entry.savedAt : ""
+        };
+      }
+      return cleaned;
+    }
     case "planning": {
       const planning = isObject(value) ? value : {};
       return {
