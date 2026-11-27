@@ -9,6 +9,7 @@ async function getFooterLinkMetrics(page: import('@playwright/test').Page) {
       const style = getComputedStyle(el);
       return {
         text: el.textContent?.trim() ?? '',
+        left: rect.left,
         top: rect.top,
         bottom: rect.bottom,
         height: rect.height,
@@ -19,7 +20,7 @@ async function getFooterLinkMetrics(page: import('@playwright/test').Page) {
   );
 }
 
-test('footer Roadmap link aligns vertically with sibling links on desktop', async ({ page }) => {
+test('footer columns align and Roadmap matches sibling link targets on desktop', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
 
   for (const path of ['/', '/roadmap']) {
@@ -29,12 +30,14 @@ test('footer Roadmap link aligns vertically with sibling links on desktop', asyn
 
     const reference = items.find((i) => i.text === 'Calm design principles')!;
     const roadmap = items.find((i) => i.text === 'Roadmap')!;
+    const today = items.find((i) => i.text === 'Today')!;
     expect(reference).toBeDefined();
     expect(roadmap).toBeDefined();
+    expect(Math.abs(today.top - reference.top), `${path}: column starts`).toBeLessThanOrEqual(0.5);
+    expect(Math.abs(roadmap.left - reference.left), `${path}: Roadmap column`).toBeLessThanOrEqual(0.5);
+    expect(roadmap.top - reference.bottom, `${path}: Roadmap next row`).toBeCloseTo(0, 0);
 
     for (const item of items) {
-      expect(Math.abs(item.top - reference.top), `${path}: ${item.text} top`).toBeLessThanOrEqual(0.5);
-      expect(Math.abs(item.bottom - reference.bottom), `${path}: ${item.text} bottom`).toBeLessThanOrEqual(0.5);
       expect(Math.abs(item.height - reference.height), `${path}: ${item.text} height`).toBeLessThanOrEqual(0.5);
       expect(item.paddingTop, `${path}: ${item.text} paddingTop`).toBe(reference.paddingTop);
       expect(item.paddingBottom, `${path}: ${item.text} paddingBottom`).toBe(reference.paddingBottom);
