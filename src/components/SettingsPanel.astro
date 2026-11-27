@@ -120,7 +120,7 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
 
                 <div>
                     <p class={`${label} mb-2`}>Color scheme</p>
-                    <div class="grid grid-cols-3 gap-2" role="group" aria-label="Color scheme">
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2" role="group" aria-label="Color scheme">
                         <template x-for="accent in $store.settings.accents" :key="accent.id">
                             <button
                                 type="button"

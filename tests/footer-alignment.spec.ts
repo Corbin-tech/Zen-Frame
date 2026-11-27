@@ -1,0 +1,67 @@
+import { test, expect } from '@playwright/test';
+
+async function getFooterLinkMetrics(page: import('@playwright/test').Page) {
+  const footer = page.getByRole('contentinfo');
+  await footer.scrollIntoViewIfNeeded();
+  return footer.locator('ul li > *').evaluateAll((els) =>
+    els.map((el) => {
+      const rect = el.getBoundingClientRect();
+      const style = getComputedStyle(el);
+      return {
+        text: el.textContent?.trim() ?? '',
+        top: rect.top,
+        bottom: rect.bottom,
+        height: rect.height,
+        paddingTop: parseFloat(style.paddingTop),
+        paddingBottom: parseFloat(style.paddingBottom),
+      };
+    }),
+  );
+}
+
+test('footer Roadmap link aligns vertically with sibling links on desktop', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+
+  for (const path of ['/', '/roadmap']) {
+    await page.goto(path);
+    const items = await getFooterLinkMetrics(page);
+    expect(items.map((i) => i.text)).toContain('Roadmap');
+
+    const reference = items.find((i) => i.text === 'Calm design principles')!;
+    const roadmap = items.find((i) => i.text === 'Roadmap')!;
+    expect(reference).toBeDefined();
+    expect(roadmap).toBeDefined();
+
+    for (const item of items) {
+      expect(Math.abs(item.top - reference.top), `${path}: ${item.text} top`).toBeLessThanOrEqual(0.5);
+      expect(Math.abs(item.bottom - reference.bottom), `${path}: ${item.text} bottom`).toBeLessThanOrEqual(0.5);
+      expect(Math.abs(item.height - reference.height), `${path}: ${item.text} height`).toBeLessThanOrEqual(0.5);
+      expect(item.paddingTop, `${path}: ${item.text} paddingTop`).toBe(reference.paddingTop);
+      expect(item.paddingBottom, `${path}: ${item.text} paddingBottom`).toBe(reference.paddingBottom);
+    }
+  }
+});
+
+test('footer Roadmap link matches sibling height and row alignment on mobile', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+
+  const items = await getFooterLinkMetrics(page);
+  const principles = items.find((i) => i.text === 'Calm design principles')!;
+  const roadmap = items.find((i) => i.text === 'Roadmap')!;
+  expect(principles).toBeDefined();
+  expect(roadmap).toBeDefined();
+
+  for (const item of items) {
+    expect(item.height, `${item.text} touch-target height`).toBeGreaterThanOrEqual(44);
+    expect(Math.abs(item.height - principles.height), `${item.text} height`).toBeLessThanOrEqual(0.5);
+    expect(item.paddingTop, `${item.text} paddingTop`).toBe(principles.paddingTop);
+    expect(item.paddingBottom, `${item.text} paddingBottom`).toBe(principles.paddingBottom);
+  }
+
+  // Calm design principles and Roadmap share a row at 390px and should align vertically
+  if (Math.abs(roadmap.top - principles.top) < principles.height / 2) {
+    expect(Math.abs(roadmap.top - principles.top)).toBeLessThanOrEqual(0.5);
+    expect(Math.abs(roadmap.bottom - principles.bottom)).toBeLessThanOrEqual(0.5);
+  }
+});
