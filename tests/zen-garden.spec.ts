@@ -60,6 +60,11 @@ for (const { width, theme } of mobileCases) {
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     expect(await garden.locator('animateTransform').evaluate(element => getComputedStyle(element.parentElement!).stroke)).toBe('none');
     expect(await garden.locator('.zen-garden-grain').evaluate(element => getComputedStyle(element).fill)).toContain('#zg-grain');
+    // Scene and ambient light layers share the 1000x700 slice scaling of the other backgrounds.
+    await expect(garden.locator('svg.zen-garden-scene')).toHaveAttribute('viewBox', '0 0 1000 700');
+    await expect(garden.locator('svg.zen-garden-scene')).toHaveAttribute('preserveAspectRatio', 'xMidYMin slice');
+    await expect(animation).toHaveAttribute('viewBox', '0 0 1000 700');
+    await expect(animation).toHaveAttribute('preserveAspectRatio', 'xMidYMid slice');
     // Landmarks must remain in the canvas, not disappear into a center-cropped wide scene.
     for (const landmark of ['.zen-garden-stones', '.zen-garden-pine', '.zen-garden-steps']) {
       const visibleFraction = await garden.locator(landmark).evaluate((element) => {
@@ -75,6 +80,34 @@ for (const { width, theme } of mobileCases) {
     const landmarksBottom = await garden.locator('.zen-garden-stones').evaluate(element => element.getBoundingClientRect().bottom);
     const taskTop = await page.locator('[x-data="zenTodoList"] > div').evaluate(element => element.getBoundingClientRect().top);
     expect(landmarksBottom).toBeLessThanOrEqual(taskTop);
+  });
+}
+
+for (const { width, height } of [{ width: 768, height: 1024 }, { width: 1280, height: 800 }]) {
+  test(`garden landmarks stay in frame on a ${width}px screen`, async ({ page }) => {
+    await page.setViewportSize({ width, height });
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.addInitScript(() => {
+      localStorage.setItem('settings', JSON.stringify({ zenBackground: 'desk' }));
+      localStorage.setItem('todos', JSON.stringify([{
+        id: 'garden-task', todo: 'Sketch the next design concept', completed: false,
+        isCluster: false, isPinned: false, parentId: null, createdAt: new Date().toISOString(),
+      }]));
+    });
+    await page.goto('/#zenmode');
+    const garden = page.locator('svg.zen-garden');
+    await expect(garden).toBeVisible();
+    await expect(garden.locator('svg.zen-garden-scene')).toHaveAttribute('preserveAspectRatio', 'xMidYMin slice');
+    for (const landmark of ['.zen-garden-stones', '.zen-garden-pine', '.zen-garden-steps']) {
+      const visibleFraction = await garden.locator(landmark).evaluate((element) => {
+        const box = element.getBoundingClientRect();
+        const canvas = (element as SVGElement).ownerSVGElement!.getBoundingClientRect();
+        const overlapWidth = Math.max(0, Math.min(box.right, canvas.right) - Math.max(box.left, canvas.left));
+        const overlapHeight = Math.max(0, Math.min(box.bottom, canvas.bottom) - Math.max(box.top, canvas.top));
+        return overlapWidth * overlapHeight / (box.width * box.height);
+      });
+      expect(visibleFraction).toBeGreaterThan(0.7);
+    }
   });
 }
 
