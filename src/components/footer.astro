@@ -4,13 +4,21 @@ import { AREAS } from '../lib/nav';
 import EnsoMark from './EnsoMark.astro';
 import FooterLandscape from './FooterLandscape.astro';
 
+interface Props {
+  // The workspace stays x-cloak until Alpine starts; hide the footer with it so it
+  // doesn't show alone on first paint.
+  cloak?: boolean;
+}
+
+const { cloak = false } = Astro.props;
+
 const normalizedPath = Astro.url.pathname.replace(/\/$/, '') || '/';
 const isAppPage = normalizedPath === '/' || normalizedPath === '/index.html';
 const isPrinciples = normalizedPath === '/principles' || normalizedPath === '/principles.html';
 const isRoadmap = normalizedPath === '/roadmap' || normalizedPath === '/roadmap.html';
 ---
 
-<footer class="site-footer mt-auto w-full border-t border-gray-900/10 text-gray-900 dark:border-white/10 dark:text-gray-100" x-data>
+<footer class="site-footer mt-auto w-full border-t border-gray-900/10 text-gray-900 dark:border-white/10 dark:text-gray-100" x-data x-cloak={cloak ? '' : undefined}>
   <div class="mx-auto grid w-full max-w-6xl gap-x-12 gap-y-8 px-6 pb-3 pt-10 sm:grid-cols-[1fr_auto_auto] sm:px-0 sm:pt-12">
     <div class="footer-intro">
       <a href="/" class="footer-home inline-flex items-center gap-2.5 rounded-sm text-sm font-medium tracking-tight" aria-label={`${data.siteName} home`}>
