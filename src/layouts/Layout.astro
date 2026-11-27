@@ -142,13 +142,21 @@ const contentSecurityPolicy = [
 				display: none !important;
 			}
 
-			/* While the theme switches, every color changes together at the same speed */
-			.theme-transition,
-			.theme-transition * {
-				transition: background-color 150ms ease-out, 
-							color 150ms ease-out, 
-							border-color 150ms ease-out,
-							stroke 150ms ease-out !important;
+			::view-transition {
+				pointer-events: none;
+			}
+
+			::view-transition-group(root) {
+				animation-duration: 180ms;
+			}
+
+			/* Start no element transitions during the update; keep their transition properties intact. */
+			.theme-switching,
+			.theme-switching *,
+			.theme-switching ::before,
+			.theme-switching ::after {
+				transition-duration: 0s !important;
+				transition-delay: 0s !important;
 			}
 			
 			/* SVG consistent styling */

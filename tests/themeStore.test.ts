@@ -6,7 +6,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function sharedTabs(prefersDark = false) {
+function sharedTabs(prefersDark = false, reducedMotion = false) {
   const data = new Map<string, string>();
   const storage = {
     getItem: (key: string) => data.get(key) ?? null,
@@ -33,8 +33,12 @@ function sharedTabs(prefersDark = false) {
           }
         },
         setAttribute: (name: string, value: string) => { attrs[name] = value; },
-        getAttribute: (name: string) => attrs[name] ?? null
+        getAttribute: (name: string) => attrs[name] ?? null,
+        getBoundingClientRect: vi.fn()
       },
+      startViewTransition: undefined as ((update: () => Promise<void>) => Pick<ViewTransition, "ready" | "finished">) | undefined,
+      querySelectorAll: () => [],
+      addEventListener: vi.fn(),
       querySelector: (selector: string) => selector === 'meta[name="theme-color"]' ? meta : null
     };
     const media = { matches: prefersDark, addEventListener: vi.fn() };
@@ -44,7 +48,7 @@ function sharedTabs(prefersDark = false) {
       getPropertyValue: (prop: string) => prop === "--bg-color" ? (classes.has("dark") ? "#111111" : "#F7F5EF") : ""
     }));
     vi.stubGlobal("window", {
-      matchMedia: () => media,
+      matchMedia: (query: string) => query === "(prefers-reduced-motion: reduce)" ? { matches: reducedMotion } : media,
       addEventListener: (name: string, callback: typeof storageListener) => {
         if (name === "storage") storageListener = callback;
       },
@@ -59,11 +63,16 @@ function sharedTabs(prefersDark = false) {
       }));
     };
     return {
+      doc,
       store,
       classes,
       attrs,
       meta,
       media,
+      toggle: () => {
+        bindGlobals();
+        store.toggle();
+      },
       setTheme: (theme: "light" | "dark") => {
         bindGlobals();
         store.setTheme(theme);
@@ -124,4 +133,54 @@ test("clearing or invalidating stored theme falls back to system preference", ()
   b.dispatch("theme");
   expect(b.store.current).toBe("dark");
   expect(b.classes.has("dark")).toBe(true);
+});
+
+test("coalesces rapid requests behind one crossfade and applies the latest theme", async () => {
+  const { b, storage } = sharedTabs();
+  const transitions: { update: () => Promise<void>; finish: () => void }[] = [];
+  b.doc.startViewTransition = vi.fn(update => ({
+    ready: Promise.resolve(),
+    finished: new Promise<void>(finish => { transitions.push({ update, finish }); })
+  }));
+
+  b.setTheme("light");
+  expect(transitions).toHaveLength(0);
+
+  b.toggle();
+  await transitions[0].update();
+  expect(b.attrs["data-theme"]).toBe("dark");
+
+  b.toggle();
+  b.toggle();
+  b.toggle();
+  expect(transitions).toHaveLength(1);
+  expect(b.store.current).toBe("dark");
+  expect(storage.getItem("theme")).toBe("light");
+
+  transitions[0].finish();
+  await Promise.resolve();
+  expect(transitions).toHaveLength(2);
+  await transitions[1].update();
+  transitions[1].finish();
+  await Promise.resolve();
+  expect(transitions).toHaveLength(2);
+  expect(b.store.current).toBe("light");
+  expect(b.attrs["data-theme"]).toBe("light");
+  expect(b.classes.has("dark")).toBe(false);
+  expect(b.classes.has("theme-switching")).toBe(false);
+});
+
+test.each(["unavailable", "reduce", "throws"])("switches without animation when the view transition is %s", async (mode) => {
+  const { b, storage } = sharedTabs(false, mode === "reduce");
+  const start = vi.fn(() => { throw new Error("Cannot start view transition"); });
+  if (mode !== "unavailable") b.doc.startViewTransition = start;
+
+  b.toggle();
+  b.toggle();
+  b.toggle();
+  expect([b.store.current, b.attrs["data-theme"], storage.getItem("theme")]).toEqual(["dark", "dark", "dark"]);
+  expect(b.classes.has("theme-switching")).toBe(true);
+  expect(start).toHaveBeenCalledTimes(mode === "throws" ? 3 : 0);
+  await Promise.resolve();
+  expect(b.classes.has("theme-switching")).toBe(false);
 });
