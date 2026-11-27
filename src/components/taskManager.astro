@@ -205,9 +205,11 @@ const pickerItem = 'w-full flex items-center gap-2.5 px-3 py-2 text-left rounded
                         </div>
                         <input name="cluster-name" aria-label="Cluster name"
                             type="text"
-                            x-model="cluster.todo"
-                            x-on:keydown.enter="$event.target.blur()"
-                            x-on:blur="$store.todos.updateTask(cluster.id, { todo: cluster.todo })"
+                            x-effect="syncDraft($el, cluster.todo)"
+                            x-on:keydown.enter="$el.blur()"
+                            x-on:keydown.escape="resetDraft($el, cluster.todo); $el.blur()"
+                            x-on:change="saveClusterName(cluster, $el)"
+                            x-on:blur="resetDraft($el, cluster.todo)"
                             class="flex-1 min-w-0 text-lg font-medium bg-transparent border-none focus:ring-0 dark:text-white"
                             placeholder="Cluster name"
                         />
@@ -407,12 +409,25 @@ const pickerItem = 'w-full flex items-center gap-2.5 px-3 py-2 text-left rounded
     import { taskRow } from '../scripts/taskRow';
     import { TM_OVERLAY_NAME, moveAnnouncementText, stepRowIndex, tmKeyIntent } from '../scripts/tmKeys';
     import { TASK_MANAGER_SORT_OPTIONS, sortTasksForDisplay, taskMatchesQuery } from '../lib/taskFilters';
+    import { resetDraft, syncDraft } from '../lib/syncDraft';
 
     // Every drag-and-drop and keyboard move in the Task Manager funnels through one
     // helper, so the store call and the one line of screen-reader copy stay in sync.
     const taskManagerPage = () => ({
         // The last move's result, spoken by the aria-live region in the page
         moveAnnouncement: '',
+        syncDraft,
+        resetDraft,
+
+        saveClusterName(cluster, el) {
+            const name = el.value.trim();
+            if (!name) {
+                el.value = cluster.todo;
+                return;
+            }
+            el.value = name;
+            if (name !== cluster.todo) this.$store.todos.updateTask(cluster.id, { todo: name });
+        },
 
         // The # key's cluster picker (spec item 17): which task, which row focus
         // returns to, and where the fixed menu sits on screen
