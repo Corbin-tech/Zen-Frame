@@ -209,10 +209,21 @@ export function initPomoStore() {
       return 100 - (this.timeLeft / this.totalTime * 100);
     },
 
-    // "MMSS", for the faces that draw each digit
+    get minutesText(): string {
+      return Math.floor(this.timeLeft / 60).toString().padStart(2, "0");
+    },
+
+    get secondsText(): string {
+      return (this.timeLeft % 60).toString().padStart(2, "0");
+    },
+
+    get formattedTime(): string {
+      return `${this.minutesText}:${this.secondsText}`;
+    },
+
+    // "MMSS" (or "MMMSS" at 100+ minutes), for the faces that draw each digit
     get digits(): string {
-      const minutes = Math.floor(this.timeLeft / 60);
-      return minutes.toString().padStart(2, "0") + (this.timeLeft % 60).toString().padStart(2, "0");
+      return this.minutesText + this.secondsText;
     },
 
     get completedInCycle(): number {

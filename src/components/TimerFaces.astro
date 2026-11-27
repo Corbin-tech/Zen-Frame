@@ -47,11 +47,56 @@ const segments = {
     f: vertical(HALF, HALF + GAP, SEG_H / 2 - GAP),
     g: horizontal(SEG_H / 2)
 };
-const digitX = [35, 97, 175, 237];
-const progressBlocks = Array.from({ length: 24 }, (_, i) => ({ i, x: 35 + i * (250 + 3) / 24 }));
+const digitalLayouts = [
+    {
+        cond: '$store.pomoState.digits.length <= 4',
+        width: 320,
+        innerWidth: 296,
+        statusX: 285,
+        digitX: [35, 97, 175, 237],
+        colonTopX: 163,
+        colonBotX: 160,
+        blockW: 7.5,
+        progressBlocks: Array.from({ length: 24 }, (_, i) => ({ i, x: 35 + i * (250 + 3) / 24 })),
+    },
+    {
+        cond: '$store.pomoState.digits.length > 4',
+        width: 382,
+        innerWidth: 358,
+        statusX: 347,
+        digitX: [35, 97, 159, 237, 299],
+        colonTopX: 225,
+        colonBotX: 222,
+        blockW: 10,
+        progressBlocks: Array.from({ length: 24 }, (_, i) => ({ i, x: 35 + i * (312 + 3) / 24 })),
+    },
+];
 
 // Nixie tubes, 62 wide
-const tubeX = [18, 90, 188, 260];
+const nixieLayouts = [
+    {
+        cond: '$store.pomoState.digits.length <= 4',
+        width: 340,
+        baseWidth: 320,
+        tubeX: [18, 90, 188, 260],
+        colonX: 170,
+        focusTextX: 85,
+        focusDotX: 57,
+        breakTextX: 255,
+        breakDotX: 227,
+    },
+    {
+        cond: '$store.pomoState.digits.length > 4',
+        width: 412,
+        baseWidth: 392,
+        tubeX: [18, 90, 162, 260, 332],
+        colonX: 242,
+        focusTextX: 121,
+        focusDotX: 93,
+        breakTextX: 327,
+        breakDotX: 299,
+    },
+];
 const numerals = Array.from({ length: 10 }, (_, n) => n);
 ---
 
@@ -186,7 +231,7 @@ const numerals = Array.from({ length: 10 }, (_, n) => n);
                         <rect x={side.cx - 46} y="188" width="92" height="22" rx="4" fill="url(#tf-brass)" stroke="#6b4f19" stroke-width="0.8" x-bind:opacity="active ? 1 : 0.75" />
                         <text x={side.cx - 39} y="202" font-size="7.5" font-weight="700" letter-spacing="1.5" fill="#5c4414">{side.label}</text>
                         <text
-                            x={side.cx + 39} y="203.5" text-anchor="end" font-size="12.5" font-family="ui-monospace, monospace" font-weight="700" fill="#2b1d07"
+                            x={side.cx + 39} y="203.5" text-anchor="end" x-bind:font-size="secs(isBreak) >= 6000 ? 10.5 : 12.5" font-family="ui-monospace, monospace" font-weight="700" fill="#2b1d07"
                             x-text="clock(secs(isBreak))"
                         ></text>
                     </g>
@@ -238,7 +283,7 @@ const numerals = Array.from({ length: 10 }, (_, n) => n);
 
                 <path d="M142 214 L150 201 L158 214 Z" fill="#fff7ed" />
             </svg>
-            <p class="-mt-2 text-center text-2xl font-mono font-bold text-gray-800 dark:text-white" x-text="`${$store.pomoState.digits.slice(0, 2)}:${$store.pomoState.digits.slice(2)}`"></p>
+            <p class="-mt-2 text-center text-2xl font-mono font-bold text-gray-800 dark:text-white" x-text="$store.pomoState.formattedTime"></p>
         </div>
     </template>
 
@@ -277,8 +322,8 @@ const numerals = Array.from({ length: 10 }, (_, n) => n);
                     class="text-teal-500" transform="rotate(-90 150 240)"
                     stroke-dasharray="301.6" x-bind:stroke-dashoffset="301.6 - 301.6 * $store.pomoState.percentComplete / 100"
                 />
-                <text x="150" y="249" text-anchor="middle" font-size="25" font-weight="800" font-family="ui-monospace, monospace" fill="#7c2d12"
-                    x-text="`${$store.pomoState.digits.slice(0, 2)}:${$store.pomoState.digits.slice(2)}`"></text>
+                <text x="150" y="249" text-anchor="middle" x-bind:font-size="$store.pomoState.minutesText.length > 2 ? 21 : 25" font-weight="800" font-family="ui-monospace, monospace" fill="#7c2d12"
+                    x-text="$store.pomoState.formattedTime"></text>
 
                 <ellipse cx="118" cy="291" rx="22" ry="9" class="tf-cat-base" />
                 <ellipse cx="182" cy="291" rx="22" ry="9" class="tf-cat-base" />
@@ -330,28 +375,30 @@ const numerals = Array.from({ length: 10 }, (_, n) => n);
             x-data="{
                 segmentsFor: ['abcdef', 'bc', 'abdeg', 'abcdg', 'bcfg', 'acdfg', 'acdefg', 'abc', 'abcdefg', 'abcdfg'],
                 lit(i, segment) {
-                    return this.segmentsFor[this.$store.pomoState.digits[i]].includes(segment);
+                    return Boolean(this.segmentsFor[this.$store.pomoState.digits[i]]?.includes(segment));
                 }
             }"
         >
-            <svg viewBox="0 0 320 170" class="w-full h-auto" aria-hidden="true">
+            {digitalLayouts.map(layout => (
+            <template x-if={layout.cond}>
+            <svg viewBox={`0 0 ${layout.width} 170`} class="w-full h-auto" aria-hidden="true">
                 <defs>
                     <filter id="tf-led-glow" x="-20%" y="-20%" width="140%" height="140%">
                         <feGaussianBlur stdDeviation="2.5" result="blur" />
                         <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
                     </filter>
                 </defs>
-                <rect width="320" height="170" rx="22" fill="#1e293b" />
-                <rect x="12" y="12" width="296" height="146" rx="12" fill="#04080a" />
+                <rect width={layout.width} height="170" rx="22" fill="#1e293b" />
+                <rect x="12" y="12" width={layout.innerWidth} height="146" rx="12" fill="#04080a" />
 
                 <g class="text-teal-400" fill="currentColor" font-size="9" font-weight="700" letter-spacing="1.5" font-family="ui-monospace, monospace">
                     <text x="35" y="31" x-bind:opacity="$store.pomoState.isBreak ? 0.15 : 1">FOCUS</text>
                     <text x="85" y="31" x-bind:opacity="$store.pomoState.isBreak ? 1 : 0.15">BREAK</text>
-                    <text x="285" y="31" text-anchor="end" x-text="$store.pomoState.isRunning ? '▶ RUN' : '❚❚ PAUSE'"></text>
+                    <text x={layout.statusX} y="31" text-anchor="end" x-text="$store.pomoState.isRunning ? '▶ RUN' : '❚❚ PAUSE'"></text>
                 </g>
 
                 <g class="text-teal-400" fill="currentColor" filter="url(#tf-led-glow)">
-                    {digitX.map((x, i) => (
+                    {layout.digitX.map((x, i) => (
                         <g transform={`translate(${x + 5} 42) skewX(-6)`}>
                             {Object.entries(segments).map(([name, points]) => (
                                 <polygon points={points} x-bind:opacity={`lit(${i}, '${name}') ? 1 : 0.07`} />
@@ -359,21 +406,25 @@ const numerals = Array.from({ length: 10 }, (_, n) => n);
                         </g>
                     ))}
                     <g x-bind:opacity="!$store.pomoState.isRunning || $store.pomoState.timeLeft % 2 ? 1 : 0.15">
-                        <circle cx="163" cy="70" r="5" />
-                        <circle cx="160" cy="102" r="5" />
+                        <circle cx={layout.colonTopX} cy="70" r="5" />
+                        <circle cx={layout.colonBotX} cy="102" r="5" />
                     </g>
-                    {progressBlocks.map(block => (
-                        <rect x={block.x} y="140" width="7.5" height="5" rx="1" x-bind:opacity={`$store.pomoState.percentComplete / 100 * 24 > ${block.i} ? 1 : 0.1`} />
+                    {layout.progressBlocks.map(block => (
+                        <rect x={block.x} y="140" width={layout.blockW} height="5" rx="1" x-bind:opacity={`$store.pomoState.percentComplete / 100 * 24 > ${block.i} ? 1 : 0.1`} />
                     ))}
                 </g>
             </svg>
+            </template>
+            ))}
         </div>
     </template>
 
     <!-- Nixie tubes: neon digits glowing in glass, with every unlit cathode faintly visible -->
     <template x-if="$store.settings.timerStyle === 'nixie'">
         <div class="w-full max-w-[22rem]">
-            <svg viewBox="0 0 340 236" class="w-full h-auto" aria-hidden="true">
+            {nixieLayouts.map(layout => (
+            <template x-if={layout.cond}>
+            <svg viewBox={`0 0 ${layout.width} 236`} class="w-full h-auto" aria-hidden="true">
                 <defs>
                     <filter id="tf-neon" x="-50%" y="-50%" width="200%" height="200%">
                         <feGaussianBlur in="SourceGraphic" stdDeviation="1.6" result="near" />
@@ -417,15 +468,15 @@ const numerals = Array.from({ length: 10 }, (_, n) => n);
                         <path d="M0 0 L2.5 1.44 L2.5 4.33 L0 5.77 M5 0 L2.5 1.44 M2.5 4.33 L5 5.77 M0 5.77 L0 8.66 M5 5.77 L5 8.66" fill="none" stroke="#c9a77c" stroke-width="0.35" />
                     </pattern>
                 </defs>
-                <rect width="340" height="236" rx="22" fill="url(#tf-backdrop)" />
+                <rect width={layout.width} height="236" rx="22" fill="url(#tf-backdrop)" />
 
                 <!-- Walnut base with a brass trim -->
-                <rect x="10" y="186" width="320" height="38" rx="9" fill="url(#tf-walnut)" />
-                <rect x="10" y="186" width="320" height="2.5" fill="#d4ad55" opacity="0.8" />
-                <rect x="10" y="221" width="320" height="3" rx="1.5" fill="#000" opacity="0.3" />
-                {tubeX.map(x => <ellipse cx={x + 31} cy="190" rx="34" ry="6" fill="#ff7a1a" opacity="0.35" filter="url(#tf-nixie-soft)" />)}
+                <rect x="10" y="186" width={layout.baseWidth} height="38" rx="9" fill="url(#tf-walnut)" />
+                <rect x="10" y="186" width={layout.baseWidth} height="2.5" fill="#d4ad55" opacity="0.8" />
+                <rect x="10" y="221" width={layout.baseWidth} height="3" rx="1.5" fill="#000" opacity="0.3" />
+                {layout.tubeX.map(x => <ellipse cx={x + 31} cy="190" rx="34" ry="6" fill="#ff7a1a" opacity="0.35" filter="url(#tf-nixie-soft)" />)}
 
-                {tubeX.map((x, i) => (
+                {layout.tubeX.map((x, i) => (
                     <g>
                         <!-- Warm light filling the glass -->
                         <path d={`M${x} 58 A31 31 0 0 1 ${x + 62} 58 V172 H${x} Z`} fill="url(#tf-tube-glow)" />
@@ -453,22 +504,24 @@ const numerals = Array.from({ length: 10 }, (_, n) => n);
                 <!-- Colon: two small neon bulbs -->
                 {[94, 134].map(cy => (
                     <g>
-                        <rect x="163" y={cy - 9} width="14" height="18" rx="7" fill="url(#tf-glass)" stroke="url(#tf-glass-edge)" stroke-width="0.8" />
-                        <circle cx="170" cy={cy} r="3.4" fill="#4a3a2c" />
+                        <rect x={layout.colonX - 7} y={cy - 9} width="14" height="18" rx="7" fill="url(#tf-glass)" stroke="url(#tf-glass-edge)" stroke-width="0.8" />
+                        <circle cx={layout.colonX} cy={cy} r="3.4" fill="#4a3a2c" />
                     </g>
                 ))}
                 <g fill="#ffb066" filter="url(#tf-neon)" x-bind:opacity="!$store.pomoState.isRunning || $store.pomoState.timeLeft % 2 ? 1 : 0.1">
-                    <circle cx="170" cy="94" r="3.4" />
-                    <circle cx="170" cy="134" r="3.4" />
+                    <circle cx={layout.colonX} cy="94" r="3.4" />
+                    <circle cx={layout.colonX} cy="134" r="3.4" />
                 </g>
 
                 <g font-size="8" font-weight="700" letter-spacing="2.5" text-anchor="middle" font-family="ui-monospace, monospace">
-                    <text x="85" y="211" fill="#f0d9b5" x-bind:opacity="$store.pomoState.isBreak ? 0.3 : 0.95">FOCUS</text>
-                    <text x="255" y="211" fill="#f0d9b5" x-bind:opacity="$store.pomoState.isBreak ? 0.95 : 0.3">BREAK</text>
-                    <circle cx="57" cy="208" r="2.2" fill="#ff8a2a" filter="url(#tf-neon)" x-show="!$store.pomoState.isBreak" />
-                    <circle cx="227" cy="208" r="2.2" fill="#ff8a2a" filter="url(#tf-neon)" x-show="$store.pomoState.isBreak" />
+                    <text x={layout.focusTextX} y="211" fill="#f0d9b5" x-bind:opacity="$store.pomoState.isBreak ? 0.3 : 0.95">FOCUS</text>
+                    <text x={layout.breakTextX} y="211" fill="#f0d9b5" x-bind:opacity="$store.pomoState.isBreak ? 0.95 : 0.3">BREAK</text>
+                    <circle cx={layout.focusDotX} cy="208" r="2.2" fill="#ff8a2a" filter="url(#tf-neon)" x-show="!$store.pomoState.isBreak" />
+                    <circle cx={layout.breakDotX} cy="208" r="2.2" fill="#ff8a2a" filter="url(#tf-neon)" x-show="$store.pomoState.isBreak" />
                 </g>
             </svg>
+            </template>
+            ))}
         </div>
     </template>
 
@@ -476,7 +529,7 @@ const numerals = Array.from({ length: 10 }, (_, n) => n);
     <template x-if="$store.settings.timerStyle === 'flip'">
         <div class="flex items-start gap-3" aria-hidden="true">
             <div class="flex flex-col items-center gap-2">
-                <div class="tf-flip-card" x-data="flipCard" x-effect="flipTo($store.pomoState.digits.slice(0, 2))">
+                <div class="tf-flip-card" x-data="flipCard" x-effect="flipTo($store.pomoState.minutesText)" x-bind:class="current.length > 2 && 'tf-flip-card-3'">
                     <div class="tf-flip-half tf-flip-top"><span x-text="current"></span></div>
                     <div class="tf-flip-half tf-flip-bottom"><span x-text="flipping ? previous : current"></span></div>
                     <div class="tf-flip-half tf-flip-top tf-flap tf-flap-top"><span x-text="previous"></span></div>
@@ -485,7 +538,7 @@ const numerals = Array.from({ length: 10 }, (_, n) => n);
                 <span class="text-xs font-semibold tracking-widest text-gray-500 dark:text-gray-400">MIN</span>
             </div>
             <div class="flex flex-col items-center gap-2">
-                <div class="tf-flip-card" x-data="flipCard" x-effect="flipTo($store.pomoState.digits.slice(2))">
+                <div class="tf-flip-card" x-data="flipCard" x-effect="flipTo($store.pomoState.secondsText)">
                     <div class="tf-flip-half tf-flip-top"><span x-text="current"></span></div>
                     <div class="tf-flip-half tf-flip-bottom"><span x-text="flipping ? previous : current"></span></div>
                     <div class="tf-flip-half tf-flip-top tf-flap tf-flap-top"><span x-text="previous"></span></div>
@@ -545,7 +598,7 @@ const numerals = Array.from({ length: 10 }, (_, n) => n);
                 <rect x="186" y="40" width="8" height="220" rx="3" fill="url(#tf-hg-wood)" />
                 <rect x="44" y="25" width="152" height="3" rx="1.5" fill="#fff" opacity="0.2" />
             </svg>
-            <p class="-mt-1 text-center text-2xl font-mono font-bold text-gray-800 dark:text-white" x-text="`${$store.pomoState.digits.slice(0, 2)}:${$store.pomoState.digits.slice(2)}`"></p>
+            <p class="-mt-1 text-center text-2xl font-mono font-bold text-gray-800 dark:text-white" x-text="$store.pomoState.formattedTime"></p>
         </div>
     </template>
 
@@ -594,7 +647,7 @@ const numerals = Array.from({ length: 10 }, (_, n) => n);
                 <rect x="84" y="224" width="92" height="14" rx="4" fill="#ea580c" />
                 <rect x="88" y="226" width="84" height="3" rx="1.5" fill="#fff" opacity="0.25" />
             </svg>
-            <p class="-mt-1 text-center text-2xl font-mono font-bold text-gray-800 dark:text-white" x-text="`${$store.pomoState.digits.slice(0, 2)}:${$store.pomoState.digits.slice(2)}`"></p>
+            <p class="-mt-1 text-center text-2xl font-mono font-bold text-gray-800 dark:text-white" x-text="$store.pomoState.formattedTime"></p>
         </div>
     </template>
 
@@ -667,6 +720,9 @@ const numerals = Array.from({ length: 10 }, (_, n) => n);
         color: #f4f4f5;
         border-radius: 0.75rem;
         box-shadow: 0 10px 20px -8px rgb(0 0 0 / 0.45);
+    }
+    .tf-flip-card-3 {
+        font-size: calc(var(--w) * 0.48);
     }
     .tf-flip-half {
         position: absolute;
