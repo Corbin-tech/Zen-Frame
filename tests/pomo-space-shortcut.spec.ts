@@ -3,8 +3,9 @@ import { openView } from './nav';
 
 async function isPomoRunning(page: import('@playwright/test').Page) {
   return page.evaluate(() => {
-    const alpine = (window as unknown as { Alpine: { store: (name: string) => { isRunning: boolean } } }).Alpine;
-    return alpine.store('pomoState').isRunning;
+    const alpine = (window as unknown as { Alpine: { store: (name: string) => { isRunning: boolean } | undefined } }).Alpine;
+    // Static pages (workspace={false}) register no pomoState store, so no timer can run there
+    return alpine.store('pomoState')?.isRunning === true;
   });
 }
 
