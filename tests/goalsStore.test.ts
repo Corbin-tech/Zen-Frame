@@ -210,3 +210,19 @@ test("check-ins hydrate legacy entries and persist connection, recharge, and min
     mindfulDismissed: false
   });
 });
+
+test("a corrupted checkIns value in storage hydrates to an empty object", () => {
+  const { a, storage } = sharedTabs();
+  storage.setItem("checkIns", JSON.stringify([1, "x"]));
+  a.dispatch("checkIns");
+  expect(a.store.checkIns).toEqual({});
+
+  storage.setItem("checkIns", JSON.stringify({ "2026-03-02": 42, "2026-03-09": { energy: 3 } }));
+  a.dispatch("checkIns");
+  expect(Object.keys(a.store.checkIns)).toEqual(["2026-03-09"]);
+  expect(a.store.checkInFor("2026-03-09")).toMatchObject({
+    week: "2026-03-09",
+    energy: 3,
+    mindfulPrompt: mindfulPromptForWeek("2026-03-09")
+  });
+});

@@ -152,3 +152,80 @@ test('optional rotating mindful prompt can be hidden and restored', async ({ pag
   await page.getByRole('button', { name: 'Show mindful prompt', exact: true }).click();
   await expect(page.locator('textarea[name="checkin-mindful"]')).toBeVisible();
 });
+
+test('cycling onto the prompt another tab saved keeps that tab’s answer', async ({ context, page: a }) => {
+  await a.goto('/');
+  await openView(a, 'goals');
+  await a.locator('textarea[name="checkin-mindful"]').fill('Original answer');
+  await a.getByRole('button', { name: 'Save check-in', exact: true }).click();
+
+  const b = await context.newPage();
+  await b.goto('/');
+  await openView(b, 'goals');
+
+  // Both tabs cycle to the same next prompt; tab B answers and saves first
+  await a.getByRole('button', { name: 'Another', exact: true }).click();
+  await b.getByRole('button', { name: 'Another', exact: true }).click();
+  await b.locator('textarea[name="checkin-mindful"]').fill('Answer from tab B');
+  await b.getByRole('button', { name: 'Save check-in', exact: true }).click();
+
+  // Tab A cycled onto the same prompt, which cleared its local answer — the remote answer must survive
+  await expect(a.locator('textarea[name="checkin-mindful"]')).toHaveValue('Answer from tab B');
+  await a.getByRole('button', { name: 'Save check-in', exact: true }).click();
+  await a.reload();
+  await openView(a, 'goals');
+  await expect(a.locator('textarea[name="checkin-mindful"]')).toHaveValue('Answer from tab B');
+});
+
+test('switching back to a person links their existing task when saving', async ({ page }) => {
+  await page.goto('/');
+  await openView(page, 'goals');
+  const person = page.getByLabel('Someone to check in on this week');
+  await person.fill('Maya');
+  await page.getByRole('button', { name: 'Add as a task', exact: true }).click();
+  await person.fill('Noah');
+  await page.getByRole('button', { name: 'Add as a task', exact: true }).click();
+  await person.fill('Maya');
+  await expect(page.getByText('Added to tasks', { exact: true })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Save check-in', exact: true }).click();
+  await expect.poll(() => page.evaluate(() =>
+    JSON.parse(localStorage.getItem('todos') ?? '[]').filter(t => t.todo === 'Check in on Maya').length
+  )).toBe(1);
+  await expect.poll(() => page.evaluate(() => Object.keys(JSON.parse(localStorage.getItem('checkIns') ?? '{}')).length)).toBeGreaterThan(0);
+  const saved = await page.evaluate(() => {
+    const todos = JSON.parse(localStorage.getItem('todos') ?? '[]');
+    const checkIns = JSON.parse(localStorage.getItem('checkIns') ?? '{}');
+    const maya = todos.filter(t => t.todo === 'Check in on Maya');
+    return { mayaCount: maya.length, mayaId: maya[0]?.id ?? null, linked: Object.values(checkIns).map(c => c.checkInPersonTaskId) };
+  });
+  expect(saved.mayaCount).toBe(1);
+  expect(saved.linked).toEqual([saved.mayaId]);
+});
+
+test('a check-in task gets a mid-week due date this week and none for past weeks', async ({ page }) => {
+  await page.goto('/');
+  await openView(page, 'goals');
+  await page.getByLabel('Someone to check in on this week').fill('Maya');
+  await page.getByRole('button', { name: 'Add as a task', exact: true }).click();
+
+  const key = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const today = new Date();
+  const monday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - ((today.getDay() + 6) % 7));
+  const wednesday = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 2);
+  const expected = key(wednesday) >= key(today) ? key(wednesday) : key(today);
+  await expect.poll(() => page.evaluate(() =>
+    JSON.parse(localStorage.getItem('todos') ?? '[]').find(t => t.todo === 'Check in on Maya')?.dueDate ?? null
+  )).toBe(expected);
+
+  await page.getByRole('button', { name: 'Save check-in', exact: true }).click();
+  await page.getByRole('button', { name: 'Previous week' }).click();
+  await page.getByLabel('Someone to check in on this week').fill('Sam');
+  await page.getByRole('button', { name: 'Add as a task', exact: true }).click();
+  await expect.poll(() => page.evaluate(() =>
+    JSON.parse(localStorage.getItem('todos') ?? '[]').some(t => t.todo === 'Check in on Sam')
+  )).toBe(true);
+  const pastWeekDue = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem('todos') ?? '[]').find(t => t.todo === 'Check in on Sam')?.dueDate ?? null);
+  expect(pastWeekDue).toBeNull();
+});

@@ -483,6 +483,7 @@ const prompts = [
 
 <script>
     import { celebrate } from '../lib/confetti';
+    import { mergeCheckInDraft } from '../lib/checkInMerge';
     import { dates } from '../lib/dates';
     import { resetDraft, syncDraft } from '../lib/syncDraft';
     import { ACTIVE_GOAL_FOCUS_LIMIT, MINDFUL_PROMPTS, mindfulPromptForWeek, weekOf } from '../stores/goalsStore';
@@ -582,26 +583,12 @@ const prompts = [
                         ...previous
                     };
                     const remote = this.$store.goals.checkInFor(this.week);
-                    const merged = { ...remote };
-                    const fields = [
-                        'energy', 'wins', 'blockers', 'nextFocus',
-                        'checkInPerson', 'checkInPersonTaskId', 'recharge',
-                        'mindfulDismissed'
-                    ];
-                    for (const field of fields) {
-                        if (this.draft[field] !== before[field]) merged[field] = this.draft[field];
-                    }
-                    // Keep the mindful question and answer paired without clobbering a remote answer for the same prompt
-                    const localAnswerEdited = this.draft.mindfulAnswer !== before.mindfulAnswer;
-                    const localPromptDiverged = this.draft.mindfulPrompt !== before.mindfulPrompt && this.draft.mindfulPrompt !== remote.mindfulPrompt;
-                    if (localAnswerEdited || localPromptDiverged) {
-                        merged.mindfulPrompt = this.draft.mindfulPrompt;
-                        merged.mindfulAnswer = this.draft.mindfulAnswer;
-                    }
-                    const allFields = [...fields, 'mindfulPrompt', 'mindfulAnswer'];
+                    const { merged, changed } = mergeCheckInDraft(before, this.draft, remote);
                     this.draft = merged;
-                    this.saveState = allFields.some(field => merged[field] !== remote[field]) ? 'dirty' : 'clean';
+                    this.saveState = changed ? 'dirty' : 'clean';
                 });
+                // Switching the person re-links an already-open "Check in on <name>" task instead of a stale one
+                this.$watch('draft.checkInPerson', () => this.relinkCheckInPersonTask());
             },
 
             get thisWeek() {
@@ -659,13 +646,26 @@ const prompts = [
                 const title = `Check in on ${person}`;
                 const id = this.draft?.checkInPersonTaskId;
                 const linked = id ? this.$store.todos.find(id) : null;
-                if (linked && linked.todo === title) return true;
+                if (linked && !linked.completed && linked.todo === title) return true;
                 return this.$store.todos.items.some(task => !task.isCluster && !task.completed && task.todo === title);
+            },
+
+            // Point the draft at the open task for the current person, so saving never persists a stale link
+            relinkCheckInPersonTask() {
+                const person = (this.draft?.checkInPerson ?? '').trim();
+                if (!person) return;
+                const existing = this.$store.todos.items.find(task => !task.isCluster && !task.completed && task.todo === `Check in on ${person}`);
+                if (existing && this.draft.checkInPersonTaskId !== existing.id) {
+                    this.draft.checkInPersonTaskId = existing.id;
+                    this.saveState = 'dirty';
+                }
             },
 
             addCheckInPersonTask() {
                 const person = (this.draft?.checkInPerson ?? '').trim();
-                if (!person || this.checkInPersonTaskAdded) return;
+                if (!person) return;
+                this.relinkCheckInPersonTask();
+                if (this.checkInPersonTaskAdded) return;
                 const today = dates.toDateKey();
                 const midWeek = dates.addDays(this.week, 2);
                 const dueDate = this.week === this.thisWeek ? (midWeek >= today ? midWeek : today) : null;
@@ -768,6 +768,7 @@ const prompts = [
             },
 
             saveCheckIn() {
+                this.relinkCheckInPersonTask();
                 this.$store.goals.saveCheckIn({ ...this.draft, week: this.week });
                 this.saveState = 'saved';
             }

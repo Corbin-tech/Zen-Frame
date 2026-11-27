@@ -83,7 +83,7 @@ export function normalizeStoredData(key: string, value: unknown): unknown {
           recharge: typeof entry.recharge === "string" ? entry.recharge : "",
           mindfulPrompt: typeof entry.mindfulPrompt === "string" ? entry.mindfulPrompt : "",
           mindfulAnswer: typeof entry.mindfulAnswer === "string" ? entry.mindfulAnswer : "",
-          mindfulDismissed: Boolean(entry.mindfulDismissed),
+          mindfulDismissed: entry.mindfulDismissed === true,
           savedAt: typeof entry.savedAt === "string" ? entry.savedAt : ""
         };
       }
