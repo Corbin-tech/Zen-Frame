@@ -89,7 +89,7 @@ const name = data.recapName;
 
                     <div x-show="item.grid?.length" class="mt-6 grid grid-cols-2 gap-3">
                         <template x-for="(cell, c) in item.grid ?? []" :key="c">
-                            <div class="rounded-2xl px-4 py-3 ring-1 ring-white/15" style="background-color: rgb(255 255 255 / 0.12);">
+                            <div class="rounded-2xl px-3 py-3 ring-1 ring-white/15" style="background-color: rgb(255 255 255 / 0.12);">
                                 <p class="text-2xl font-black tabular-nums truncate" x-text="cell.value"></p>
                                 <p class="text-xs font-medium text-white/75" x-text="cell.label"></p>
                             </div>
@@ -192,12 +192,12 @@ const name = data.recapName;
             const top = stats.byCluster[0];
             slides.push({
                 eyebrow: 'Where your effort went',
-                value: clusterName(top) || 'No cluster',
+                value: clusterName(top) || 'Your inbox',
                 label: top.count && stats.tasks
                     ? `${plural(top.count, 'task')}, ${Math.round(top.count / stats.tasks * 100)}% of the month`
                     : `${dates.formatDuration(top.focusMinutes)} of focus`,
                 list: stats.byCluster.slice(0, 3).map(entry => ({
-                    name: clusterName(entry) || 'No cluster',
+                    name: clusterName(entry) || 'Your inbox',
                     color: clusterColor(entry),
                     value: [entry.count ? String(entry.count) : '', entry.focusMinutes ? dates.formatDuration(entry.focusMinutes) : ''].filter(Boolean).join(' · ')
                 }))
@@ -289,7 +289,7 @@ const name = data.recapName;
                 {
                     value: reachedGoals.length || monthWins.length
                         ? String(reachedGoals.length + monthWins.length)
-                        : (stats.byCluster[0] ? (clusterName(stats.byCluster[0]) || 'No cluster') : '–'),
+                        : (stats.byCluster[0] ? (clusterName(stats.byCluster[0]) || 'Your inbox') : '–'),
                     label: reachedGoals.length || monthWins.length ? 'wins & goals' : 'top cluster'
                 }
             ],
@@ -301,7 +301,7 @@ const name = data.recapName;
                 `Showed up on ${plural(stats.activeDays, 'day')}`,
                 reachedGoals.length ? `${plural(reachedGoals.length, 'goal')} reached` : '',
                 monthWins.length ? `${plural(monthWins.length, 'win')} logged` : '',
-                stats.byCluster[0] ? `Top cluster: ${clusterName(stats.byCluster[0]) || 'No cluster'}` : '',
+                stats.byCluster[0] ? `Top cluster: ${clusterName(stats.byCluster[0]) || 'Your inbox'}` : '',
                 stats.onTimePercent !== null ? `${stats.onTimePercent}% on time` : ''
             ].filter(Boolean).join('\n')
         });
@@ -346,7 +346,8 @@ const name = data.recapName;
                     checkIns: Object.values(this.$store.goals.checkIns),
                     wins: this.$store.goals.wins,
                     goals: this.$store.goals.goals,
-                    clusterName: entry => (entry.clusterId && todos.find(entry.clusterId)?.todo) || entry.name,
+                    // Tasks without a cluster have no clusterId; '' lets the 'Your inbox' label show
+                    clusterName: entry => entry.clusterId ? (todos.find(entry.clusterId)?.todo || entry.name) : '',
                     clusterColor: entry => entry.clusterId && todos.find(entry.clusterId) ? todos.clusterColor(entry.clusterId) : 'var(--c-none)'
                 });
                 this.index = 0;
