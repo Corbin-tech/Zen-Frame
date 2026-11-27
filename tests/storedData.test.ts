@@ -130,7 +130,10 @@ for (const path of ["load", "import"]) {
   });
   test(`${path}: drops non-string skippedClusters and malformed history entries`, () => {
     expect(read("skippedClusters", [null, 42, "", {}, "c1"])).toEqual(["c1"]);
-    expect(read("history", [null, 1, {}, { taskId: "" }, { taskId: "t1", at }])).toEqual([{ taskId: "t1", at }]);
+    expect(read("history", [
+      null, 1, {}, { taskId: "" }, { taskId: "no-time" }, { taskId: "number-time", at: 5 }, { taskId: "bad-time", at: "soon" },
+      { taskId: "t1", at }
+    ])).toEqual([{ taskId: "t1", at }]);
   });
 }
 

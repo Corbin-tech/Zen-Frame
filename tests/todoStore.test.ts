@@ -239,7 +239,7 @@ test("an unchanged stale tab does not overwrite another tab on unload", () => {
 
 test("storage reloads each list, merges planning defaults, and handles removal and clear", () => {
   const { a, storage } = sharedTabs();
-  const values = { skippedClusters: ["cluster"], scheduledItems: [{ id: "block", taskId: "task", date: "2026-01-01", startTimeMinutes: 540, endTimeMinutes: 600 }], planning: { duration: 30 }, history: [{ taskId: "done" }] };
+  const values = { skippedClusters: ["cluster"], scheduledItems: [{ id: "block", taskId: "task", date: "2026-01-01", startTimeMinutes: 540, endTimeMinutes: 600 }], planning: { duration: 30 }, history: [{ taskId: "done", at: "2026-01-01T10:00:00.000Z" }] };
   for (const [key, value] of Object.entries(values)) {
     storage.setItem(key, JSON.stringify(value));
     a.dispatch("storage", { key, newValue: JSON.stringify(value), storageArea: storage });
@@ -264,7 +264,9 @@ test("storage reloads each list, merges planning defaults, and handles removal a
 test("init survives malformed null entries in persisted scheduledItems, history, and skippedClusters", () => {
   const data = new Map<string, string>([
     ["scheduledItems", JSON.stringify([null, { id: "bad" }, { id: "ok", taskId: "t1", date: "2026-01-01", startTimeMinutes: 540, endTimeMinutes: 600 }])],
-    ["history", JSON.stringify([null, { taskId: "" }, { taskId: "t1", at: "2026-01-01T10:00:00.000Z" }])],
+    ["history", JSON.stringify([null, { taskId: "" }, { taskId: "a" }, { taskId: "b", at: 5 }, { taskId: "c" }, { taskId: "t1", at: "2026-01-01T10:00:00.000Z" }])],
+    // A completed task with no history record makes init sort the history to backfill it
+    ["todos", JSON.stringify([{ id: "t2", todo: "Done", completed: true, completedAt: "2026-01-02T10:00:00.000Z", isCluster: false, isPinned: false, parentId: null, createdAt: "2026-01-01T09:00:00.000Z" }])],
     ["skippedClusters", JSON.stringify([null, 42, "c1"])]
   ]);
   const storage = { getItem: (key: string) => data.get(key) ?? null, setItem: vi.fn((key: string, value: string) => { data.set(key, value); }) };
@@ -279,7 +281,10 @@ test("init survives malformed null entries in persisted scheduledItems, history,
   initStores();
   expect(() => store.init()).not.toThrow();
   expect(store.scheduledItems).toEqual([{ id: "ok", taskId: "t1", date: "2026-01-01", startTimeMinutes: 540, endTimeMinutes: 600 }]);
-  expect(store.history).toEqual([{ taskId: "t1", at: "2026-01-01T10:00:00.000Z" }]);
+  expect(store.history.map((record: { taskId: string; at: string }) => [record.taskId, record.at])).toEqual([
+    ["t1", "2026-01-01T10:00:00.000Z"],
+    ["t2", "2026-01-02T10:00:00.000Z"]
+  ]);
   expect(store.skippedClusters).toEqual(["c1"]);
 });
 

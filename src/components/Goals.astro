@@ -687,6 +687,8 @@ const prompts = [
                     this.draft = merged;
                     this.saveState = changed ? 'dirty' : 'clean';
                 });
+                // Switching the person re-links an already-open "Check in on <name>" task instead of a stale one
+                this.$watch('draft.checkInPerson', () => this.relinkCheckInPersonTask());
             },
 
             get thisWeek() {
@@ -758,13 +760,26 @@ const prompts = [
                 const title = `Check in on ${person}`;
                 const id = this.draft?.checkInPersonTaskId;
                 const linked = id ? this.$store.todos.find(id) : null;
-                if (linked && linked.todo === title) return true;
+                if (linked && !linked.completed && linked.todo === title) return true;
                 return this.$store.todos.items.some(task => !task.isCluster && !task.completed && task.todo === title);
+            },
+
+            // Point the draft at the open task for the current person, so saving never persists a stale link
+            relinkCheckInPersonTask() {
+                const person = (this.draft?.checkInPerson ?? '').trim();
+                if (!person) return;
+                const existing = this.$store.todos.items.find(task => !task.isCluster && !task.completed && task.todo === `Check in on ${person}`);
+                if (existing && this.draft.checkInPersonTaskId !== existing.id) {
+                    this.draft.checkInPersonTaskId = existing.id;
+                    this.saveState = 'dirty';
+                }
             },
 
             addCheckInPersonTask() {
                 const person = (this.draft?.checkInPerson ?? '').trim();
-                if (!person || this.checkInPersonTaskAdded) return;
+                if (!person) return;
+                this.relinkCheckInPersonTask();
+                if (this.checkInPersonTaskAdded) return;
                 const today = dates.toDateKey();
                 const midWeek = dates.addDays(this.week, 2);
                 const dueDate = this.week === this.thisWeek ? (midWeek >= today ? midWeek : today) : null;
@@ -867,6 +882,7 @@ const prompts = [
             },
 
             saveCheckIn() {
+                this.relinkCheckInPersonTask();
                 const cleanedIntentions = this.draft.weeklyIntentions
                     .map(item => ({ ...item, text: item.text.trim() }))
                     .filter(item => item.text);

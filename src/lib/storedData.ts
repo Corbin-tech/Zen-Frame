@@ -118,7 +118,8 @@ export function normalizeStoredData(key: string, value: unknown): unknown {
         : [];
     case "history":
       return Array.isArray(value)
-        ? value.filter(item => isObject(item) && typeof item.taskId === "string" && item.taskId !== "")
+        // Sorting and day grouping read `at`, so a record without a real timestamp is dropped
+        ? value.filter(item => isObject(item) && typeof item.taskId === "string" && item.taskId !== "" && isTimestamp(item.at))
         : [];
     case "goals":
       return Array.isArray(value) ? value.filter(item => isObject(item) && typeof item.id === "string" && typeof item.title === "string").map(goal => ({
