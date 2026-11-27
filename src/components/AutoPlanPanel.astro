@@ -17,6 +17,7 @@ for (let minutes = START_HOUR * 60; minutes <= END_HOUR * 60; minutes += SLOT_MI
 const weekdays = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const weekdayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const select = 'rounded-lg border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-700 dark:text-white text-xs py-1 pl-2 pr-7 focus:border-teal-500 focus:ring-teal-500';
+const timeSelect = 'rounded-lg border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-700 dark:text-white text-xs py-1 pl-2 !pr-6 min-w-0 flex-1 focus:border-teal-500 focus:ring-teal-500';
 ---
 
 <section x-data="autoPlan" class={`${panel} p-5`}>
@@ -67,22 +68,24 @@ const select = 'rounded-lg border-gray-200 dark:border-slate-600 bg-white dark:b
                         >{letter}</button>
                     ))}
                 </div>
-                <div class="flex flex-wrap items-center gap-1.5">
-                    <select name="plan-hours-start" class={select} aria-label="From" x-on:change="setTime(hours, 'start', $event.target.value)">
-                        {times.slice(0, -1).map((time) => (
-                            <option value={time.value} x-bind:selected={`hours.start === ${time.value}`}>{time.label}</option>
-                        ))}
-                    </select>
-                    <span class="text-xs text-gray-500 dark:text-gray-400">to</span>
-                    <select name="plan-hours-end" class={select} aria-label="To" x-on:change="setTime(hours, 'end', $event.target.value)">
-                        {times.slice(1).map((time) => (
-                            <option value={time.value} x-bind:selected={`hours.end === ${time.value}`}>{time.label}</option>
-                        ))}
-                    </select>
+                <div class="flex flex-wrap items-center gap-x-1.5 gap-y-0">
+                    <div class="flex items-center gap-1.5 min-w-[11.5rem] flex-1">
+                        <select name="plan-hours-start" class={timeSelect} aria-label="From" x-on:change="setTime(hours, 'start', $event.target.value)">
+                            {times.slice(0, -1).map((time) => (
+                                <option value={time.value} x-bind:selected={`hours.start === ${time.value}`}>{time.label}</option>
+                            ))}
+                        </select>
+                        <span class="shrink-0 text-xs text-gray-500 dark:text-gray-400">to</span>
+                        <select name="plan-hours-end" class={timeSelect} aria-label="To" x-on:change="setTime(hours, 'end', $event.target.value)">
+                            {times.slice(1).map((time) => (
+                                <option value={time.value} x-bind:selected={`hours.end === ${time.value}`}>{time.label}</option>
+                            ))}
+                        </select>
+                    </div>
                     <button
                         type="button"
                         x-on:click="removeWindow(hours.id)"
-                        class="ml-auto inline-flex items-center justify-center touch-target p-1 rounded-md text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400"
+                        class="ml-auto shrink-0 inline-flex items-center justify-center touch-target p-1 rounded-md text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400"
                         aria-label="Remove these hours"
                     >
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>

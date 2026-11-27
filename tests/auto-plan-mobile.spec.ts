@@ -36,6 +36,16 @@ for (const width of [320, 390, 1280]) {
       expect(box.x + box.width).toBeLessThanOrEqual(width);
     }
 
+    const startBox = (await start.boundingBox())!;
+    const endBox = (await end.boundingBox())!;
+    const removeBox = (await remove.boundingBox())!;
+    expect(Math.abs((startBox.y + startBox.height / 2) - (endBox.y + endBox.height / 2))).toBeLessThan(2);
+    if (width === 320) {
+      expect(removeBox.y).toBeGreaterThanOrEqual(endBox.y + endBox.height - 1);
+    } else {
+      expect(Math.abs((removeBox.y + removeBox.height / 2) - (startBox.y + startBox.height / 2))).toBeLessThan(2);
+    }
+
     await remove.click();
     await expect(remove).toHaveCount(0);
   });
