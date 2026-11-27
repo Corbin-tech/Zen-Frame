@@ -198,8 +198,14 @@ test("dirty keyed lists merge local additions, edits, and deletions over remote 
     const remote = [{ ...entries[0], title: "remote", todo: "remote" }, entries[1], entries[2]];
     storage.setItem(key, JSON.stringify(remote));
     a.dispatch("storage", { key, storageArea: storage });
-    expect(a.store[field]).toEqual([remote[0], { ...entries[1], title: "local", todo: "local" }, added]);
-    expect(a.store.savedJson[key]).toBe(JSON.stringify(remote));
+    // History entries are normalized to their known fields, so drop the extra keys the
+    // shared fixture adds (id/todo) on the remote-derived entry before comparing
+    const norm = (entry: any) => key === "history"
+      ? { taskId: entry.taskId, title: typeof entry.title === "string" ? entry.title : "", clusterId: null, clusterName: "", dueDate: null, at: entry.at, ...(entry.blockId ? { blockId: entry.blockId } : {}) }
+      : entry;
+    const localEdited = { ...entries[1], title: "local", todo: "local" };
+    expect(a.store[field]).toEqual([norm(remote[0]), localEdited, added]);
+    expect(a.store.savedJson[key]).toBe(JSON.stringify(remote.map(norm)));
   }
 });
 
@@ -239,14 +245,14 @@ test("an unchanged stale tab does not overwrite another tab on unload", () => {
 
 test("storage reloads each list, merges planning defaults, and handles removal and clear", () => {
   const { a, storage } = sharedTabs();
-  const values = { skippedClusters: ["cluster"], scheduledItems: [{ id: "block", taskId: "task", date: "2026-01-01", startTimeMinutes: 540, endTimeMinutes: 600 }], planning: { duration: 30 }, history: [{ taskId: "done" }] };
+  const values = { skippedClusters: ["cluster"], scheduledItems: [{ id: "block", taskId: "task", date: "2026-01-01", startTimeMinutes: 540, endTimeMinutes: 600 }], planning: { duration: 30 }, history: [{ taskId: "done", at: "2026-01-01T10:00:00.000Z" }] };
   for (const [key, value] of Object.entries(values)) {
     storage.setItem(key, JSON.stringify(value));
     a.dispatch("storage", { key, newValue: JSON.stringify(value), storageArea: storage });
   }
   expect(a.store.skippedClusters).toEqual(values.skippedClusters);
   expect(a.store.scheduledItems).toEqual(values.scheduledItems);
-  expect(a.store.history).toEqual(values.history);
+  expect(a.store.history).toEqual([{ taskId: "done", title: "", clusterId: null, clusterName: "", dueDate: null, at: "2026-01-01T10:00:00.000Z" }]);
   expect(a.store.planning).toEqual({ availability: [], duration: 30, gap: 15 });
   storage.setItem("planning", "");
   a.dispatch("storage", { key: "planning", newValue: null, storageArea: storage });
@@ -279,7 +285,7 @@ test("init survives malformed null entries in persisted scheduledItems, history,
   initStores();
   expect(() => store.init()).not.toThrow();
   expect(store.scheduledItems).toEqual([{ id: "ok", taskId: "t1", date: "2026-01-01", startTimeMinutes: 540, endTimeMinutes: 600 }]);
-  expect(store.history).toEqual([{ taskId: "t1", at: "2026-01-01T10:00:00.000Z" }]);
+  expect(store.history).toEqual([{ taskId: "t1", title: "", clusterId: null, clusterName: "", dueDate: null, at: "2026-01-01T10:00:00.000Z" }]);
   expect(store.skippedClusters).toEqual(["c1"]);
 });
 

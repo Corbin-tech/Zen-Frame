@@ -51,6 +51,10 @@ export interface ParsedQuickAdd {
 // letting a stray token schedule a week-long block.
 const MAX_ESTIMATE_MINUTES = 24 * 60;
 
+// "in N days" is clamped to about ten years: beyond that Date overflows to Invalid Date
+// and the due key would come out as "NaN-NaN-NaN".
+const MAX_DAYS_AHEAD = 3660;
+
 // Every accepted weekday spelling, lowercase, mapped to the day offset the
 // Date constructor uses (0 = Sunday). Alternations below must try longer
 // names ("monday") before their prefixes ("mon") so "\b"-style lookaheads
@@ -133,7 +137,10 @@ function matchDue(rest: string, todayKey: string): { raw: string; key: string } 
     return { raw: weekday[0], key: addDays(todayKey, daysUntil(target, todayKey)) };
   }
   const inDays = rest.match(RE_IN_DAYS);
-  if (inDays) return { raw: inDays[0], key: addDays(todayKey, parseInt(inDays[1], 10)) };
+  if (inDays) {
+    const days = Math.min(parseInt(inDays[1], 10) || 0, MAX_DAYS_AHEAD);
+    return { raw: inDays[0], key: addDays(todayKey, days) };
+  }
   return null;
 }
 
