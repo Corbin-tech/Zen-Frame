@@ -129,3 +129,30 @@ test('breathing start shows a static prompt under prefers-reduced-motion', async
   await expect(dialog).toBeHidden();
   await expect(page.locator('[data-pomo-timer="pomodoro"]').getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
 });
+
+test('breathing dialog controls stay reachable on short landscape viewports', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.setViewportSize({ width: 640, height: 320 });
+  await page.addInitScript(() => {
+    if (!sessionStorage.getItem('__seeded')) {
+      sessionStorage.setItem('__seeded', '1');
+      localStorage.setItem('activeTab', 'pomodoro');
+      localStorage.setItem('settings', JSON.stringify({ pomoBreathingStart: true }));
+    }
+  });
+
+  await page.goto('/');
+  await page.locator('[data-pomo-timer="pomodoro"]').getByRole('button', { name: 'Start', exact: true }).click();
+
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toBeVisible();
+  const beginBtn = dialog.getByRole('button', { name: 'Begin focus' });
+  await beginBtn.scrollIntoViewIfNeeded();
+  const box = await beginBtn.boundingBox();
+  expect(box).not.toBeNull();
+  expect(box!.y + box!.height).toBeLessThanOrEqual(320);
+
+  await beginBtn.click();
+  await expect(dialog).toBeHidden();
+  await expect(page.locator('[data-pomo-timer="pomodoro"]').getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
+});

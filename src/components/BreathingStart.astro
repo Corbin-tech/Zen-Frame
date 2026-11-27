@@ -36,7 +36,7 @@ import EnsoMark from './EnsoMark.astro';
             x-transition:leave-start="opacity-100 scale-100"
             x-transition:leave-end="opacity-0 scale-95"
             x-ref="panel"
-            class="pointer-events-auto relative isolate overflow-hidden w-full max-w-sm rounded-2xl bg-white dark:bg-slate-900 p-7 sm:p-8 shadow-2xl ring-1 ring-black/5 dark:ring-white/10 text-center"
+            class="pointer-events-auto relative isolate max-h-[calc(100dvh-2rem)] overflow-y-auto overflow-x-hidden w-full max-w-sm rounded-2xl bg-white dark:bg-slate-900 p-7 sm:p-8 shadow-2xl ring-1 ring-black/5 dark:ring-white/10 text-center"
             role="dialog"
             aria-modal="true"
             aria-labelledby="breathing-start-title"
