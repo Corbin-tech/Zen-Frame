@@ -95,6 +95,43 @@ for (const path of ["load", "import"]) {
     });
     expect(result.malformed).toBeUndefined();
   });
+  test(`${path}: drops malformed scheduledItems and normalizes repeat fields`, () => {
+    const oneOff = { id: "b1", taskId: "t1", date: "2026-03-02", startTimeMinutes: 540, endTimeMinutes: 600 };
+    const repeating = {
+      id: "b2", taskId: "t2", date: "2026-03-02", startTimeMinutes: 600, endTimeMinutes: 660,
+      repeat: { weekdays: [1, 3, 5], until: "2026-04-01", doneDates: ["2026-03-02"] }
+    };
+    const dirtyRepeat = {
+      id: "b3", taskId: "t3", date: "2026-03-02", startTimeMinutes: 700, endTimeMinutes: 760,
+      repeat: { weekdays: [1, 9, -1, 1.5, "2"], until: "bad-date", doneDates: ["2026-03-02", null, "nope"] }
+    };
+    const nonObjectRepeat = {
+      id: "b4", taskId: "t4", date: "2026-03-02", startTimeMinutes: 800, endTimeMinutes: 860,
+      repeat: "daily"
+    };
+    expect(read("scheduledItems", [
+      null, 1, "x", [], {},
+      { id: "", taskId: "t1", date: "2026-03-02", startTimeMinutes: 540, endTimeMinutes: 600 },
+      { id: "missing-task", date: "2026-03-02", startTimeMinutes: 540, endTimeMinutes: 600 },
+      { id: "bad-date", taskId: "t1", date: "not-a-date", startTimeMinutes: 540, endTimeMinutes: 600 },
+      { id: "bad-time", taskId: "t1", date: "2026-03-02", startTimeMinutes: 600, endTimeMinutes: 540 },
+      { id: "out-of-range", taskId: "t1", date: "2026-03-02", startTimeMinutes: -1, endTimeMinutes: 600 },
+      { id: "over-day", taskId: "t1", date: "2026-03-02", startTimeMinutes: 540, endTimeMinutes: 1441 },
+      oneOff, repeating, dirtyRepeat, nonObjectRepeat
+    ])).toEqual([
+      oneOff,
+      repeating,
+      {
+        id: "b3", taskId: "t3", date: "2026-03-02", startTimeMinutes: 700, endTimeMinutes: 760,
+        repeat: { weekdays: [1], until: null, doneDates: ["2026-03-02"] }
+      },
+      { id: "b4", taskId: "t4", date: "2026-03-02", startTimeMinutes: 800, endTimeMinutes: 860 }
+    ]);
+  });
+  test(`${path}: drops non-string skippedClusters and malformed history entries`, () => {
+    expect(read("skippedClusters", [null, 42, "", {}, "c1"])).toEqual(["c1"]);
+    expect(read("history", [null, 1, {}, { taskId: "" }, { taskId: "t1", at }])).toEqual([{ taskId: "t1", at }]);
+  });
 }
 
 test("load: a non-object checkIns value reads as an empty object", () => {
@@ -105,4 +142,10 @@ test("load: a non-object checkIns value reads as an empty object", () => {
 test("import: a non-object checkIns backup is rejected", () => {
   expect(importBackup(JSON.stringify({ app: "zen-frame", version: 1, data: { checkIns: [1] } })))
     .toEqual({ ok: false, error: 'Invalid "checkIns" data in backup.' });
+});
+
+test("import: crafted backup with null scheduledItems does not persist null entries", () => {
+  const result = importBackup(JSON.stringify({ app: "zen-frame", version: 1, data: { scheduledItems: [null] } }));
+  expect(result).toEqual({ ok: true, count: 1 });
+  expect(JSON.parse(localStorage.getItem("scheduledItems")!)).toEqual([]);
 });

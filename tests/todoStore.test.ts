@@ -185,7 +185,7 @@ test("dirty keyed lists merge local additions, edits, and deletions over remote 
   const { a, storage } = sharedTabs();
   const cases = [
     { key: "todos", field: "items", entries: ["keep", "edit", "delete"].map(id => ({ id, todo: id, completed: false, isCluster: false, isPinned: false, parentId: null, createdAt: "2026-01-01" })) },
-    { key: "scheduledItems", field: "scheduledItems", entries: ["keep", "edit", "delete"].map(id => ({ id, taskId: id })) },
+    { key: "scheduledItems", field: "scheduledItems", entries: ["keep", "edit", "delete"].map(id => ({ id, taskId: id, date: "2026-01-01", startTimeMinutes: 540, endTimeMinutes: 600 })) },
     { key: "history", field: "history", entries: ["keep", "edit", "delete"].map(taskId => ({ taskId, at: "2026-01-01", blockId: "block", title: taskId })) }
   ];
   for (const { key, field, entries: initial } of cases) {
@@ -239,7 +239,7 @@ test("an unchanged stale tab does not overwrite another tab on unload", () => {
 
 test("storage reloads each list, merges planning defaults, and handles removal and clear", () => {
   const { a, storage } = sharedTabs();
-  const values = { skippedClusters: ["cluster"], scheduledItems: [{ id: "block" }], planning: { duration: 30 }, history: [{ taskId: "done" }] };
+  const values = { skippedClusters: ["cluster"], scheduledItems: [{ id: "block", taskId: "task", date: "2026-01-01", startTimeMinutes: 540, endTimeMinutes: 600 }], planning: { duration: 30 }, history: [{ taskId: "done" }] };
   for (const [key, value] of Object.entries(values)) {
     storage.setItem(key, JSON.stringify(value));
     a.dispatch("storage", { key, newValue: JSON.stringify(value), storageArea: storage });
@@ -259,6 +259,28 @@ test("storage reloads each list, merges planning defaults, and handles removal a
   storage.setItem.mockClear();
   a.store.writeTodos();
   expect(storage.setItem).not.toHaveBeenCalled();
+});
+
+test("init survives malformed null entries in persisted scheduledItems, history, and skippedClusters", () => {
+  const data = new Map<string, string>([
+    ["scheduledItems", JSON.stringify([null, { id: "bad" }, { id: "ok", taskId: "t1", date: "2026-01-01", startTimeMinutes: 540, endTimeMinutes: 600 }])],
+    ["history", JSON.stringify([null, { taskId: "" }, { taskId: "t1", at: "2026-01-01T10:00:00.000Z" }])],
+    ["skippedClusters", JSON.stringify([null, 42, "c1"])]
+  ]);
+  const storage = { getItem: (key: string) => data.get(key) ?? null, setItem: vi.fn((key: string, value: string) => { data.set(key, value); }) };
+  vi.stubGlobal("localStorage", storage);
+  vi.stubGlobal("document", { addEventListener: vi.fn(), hidden: false });
+  let store: any;
+  vi.stubGlobal("window", {
+    Alpine: { store: (_name: string, value: any) => { store = value; } },
+    setTimeout: vi.fn(), clearTimeout: vi.fn(),
+    addEventListener: vi.fn()
+  });
+  initStores();
+  expect(() => store.init()).not.toThrow();
+  expect(store.scheduledItems).toEqual([{ id: "ok", taskId: "t1", date: "2026-01-01", startTimeMinutes: 540, endTimeMinutes: 600 }]);
+  expect(store.history).toEqual([{ taskId: "t1", at: "2026-01-01T10:00:00.000Z" }]);
+  expect(store.skippedClusters).toEqual(["c1"]);
 });
 
 test("failed writes stop the batch and retry without marking the failed key saved", () => {
