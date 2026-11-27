@@ -212,7 +212,7 @@ import TaskSteps from './TaskSteps.astro';
                                 />
                             </svg>
                             <div class="absolute inset-0 flex flex-col items-center justify-center">
-                                <span class="text-3xl font-semibold tabular-nums tracking-tight text-gray-900 dark:text-white" x-text="`${$store.pomoState.digits.slice(0, 2)}:${$store.pomoState.digits.slice(2)}`"></span>
+                                <span class="text-3xl font-semibold tabular-nums tracking-tight text-gray-900 dark:text-white" x-text="$store.pomoState.formattedTime"></span>
                                 <span class="text-sm text-gray-500 dark:text-gray-400" x-text="$store.pomoState.phaseLabel"></span>
                             </div>
                         </div>
