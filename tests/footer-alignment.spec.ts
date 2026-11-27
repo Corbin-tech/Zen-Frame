@@ -68,3 +68,16 @@ test('footer Roadmap link matches sibling height and row alignment on mobile', a
     expect(Math.abs(roadmap.bottom - principles.bottom)).toBeLessThanOrEqual(0.5);
   }
 });
+
+test('all footer controls keep 44px targets with small text on a phone', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 800 });
+  await page.goto('/');
+  await page.locator('html').evaluate((el) => { el.dataset.textSize = 'sm'; });
+  const controls = await page.getByRole('contentinfo').locator('a, button').evaluateAll((els) =>
+    els.map((el) => ({ name: el.textContent?.trim(), width: el.getBoundingClientRect().width, height: el.getBoundingClientRect().height })),
+  );
+  for (const control of controls) {
+    expect(control.width, `${control.name}: width`).toBeGreaterThanOrEqual(44);
+    expect(control.height, `${control.name}: height`).toBeGreaterThanOrEqual(44);
+  }
+});

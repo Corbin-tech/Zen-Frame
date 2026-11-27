@@ -13,7 +13,7 @@ const isRoadmap = normalizedPath === '/roadmap' || normalizedPath === '/roadmap.
 <footer class="site-footer mt-auto w-full border-t border-gray-900/10 text-gray-900 dark:border-white/10 dark:text-gray-100" x-data>
   <div class="mx-auto grid w-full max-w-6xl gap-x-12 gap-y-8 px-6 pb-3 pt-10 sm:grid-cols-[1fr_auto_auto] sm:px-0 sm:pt-12">
     <div class="footer-intro">
-      <a href="/" class="inline-flex min-h-11 items-center gap-2.5 rounded-sm text-sm font-medium tracking-tight" aria-label={`${data.siteName} home`}>
+      <a href="/" class="footer-home inline-flex items-center gap-2.5 rounded-sm text-sm font-medium tracking-tight" aria-label={`${data.siteName} home`}>
         <EnsoMark class="h-6 w-6" />
         <span>{data.siteName}</span>
       </a>
@@ -70,10 +70,13 @@ const isRoadmap = normalizedPath === '/roadmap' || normalizedPath === '/roadmap.
 <style>
   .site-footer { background: linear-gradient(180deg, transparent, rgb(220 231 220 / 0.28)); }
   :global(.dark) .site-footer { background: linear-gradient(180deg, transparent, rgb(23 63 58 / 0.2)); }
+  .footer-home, .footer-link {
+    min-width: 44px;
+    min-height: max(44px, 2.75rem);
+  }
   .footer-link {
     display: inline-flex;
     align-items: center;
-    min-height: 2.75rem;
     border-radius: 2px;
     text-align: left;
     text-underline-offset: 4px;
