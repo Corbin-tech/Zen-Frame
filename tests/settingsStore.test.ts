@@ -68,3 +68,14 @@ test("legacy zenShowTimer key is ignored on load and dropped on save", () => {
   expect(saved).toMatchObject({ name: "Sam", accent: "ocean" });
   expect("zenShowTimer" in saved).toBe(false);
 });
+
+test("pomoBreathingStart defaults to false, persists, syncs across tabs, and resets", () => {
+  const { a, b, storage } = sharedTabs();
+  expect(a.store.pomoBreathingStart).toBe(false);
+  a.store.update({ pomoBreathingStart: true });
+  expect(JSON.parse(storage.getItem("settings")!).pomoBreathingStart).toBe(true);
+  b.dispatch();
+  expect(b.store.pomoBreathingStart).toBe(true);
+  a.store.reset();
+  expect(a.store.pomoBreathingStart).toBe(false);
+});
