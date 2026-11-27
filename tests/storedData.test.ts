@@ -78,6 +78,73 @@ for (const path of ["load", "import"]) {
     expect(read("planning", { gap: 0 }).gap).toBe(0);
     expect(read("pomoSessions", [])).toEqual([]);
   });
+  test(`${path}: drops malformed todos and neutralizes hostile field types`, () => {
+    const valid = { id: "valid", todo: "Write", completed: true, isCluster: false, isPinned: false,
+      parentId: null, createdAt: at, dueDate: "2026-03-02", focusDate: "2026-03-03", startedAt: at, completedAt: at };
+    const result = read("todos", [
+      null, {}, { id: "", todo: "missing id" },
+      { id: "bad", todo: "Broken", dueDate: {}, focusDate: 5, parentId: 42,
+        startedAt: "bad", completedAt: null, createdAt: "bad", color: 7 },
+      valid
+    ]);
+    expect(result).toHaveLength(2);
+    expect(result[0]).toMatchObject({ id: "bad", todo: "Broken", dueDate: null, focusDate: null, parentId: null });
+    expect(result[0]).not.toHaveProperty("startedAt");
+    expect(result[0]).not.toHaveProperty("completedAt");
+    expect(result[0]).not.toHaveProperty("color");
+    expect(typeof result[0].createdAt).toBe("string");
+    expect(result[1]).toEqual({ ...valid, estimateMinutes: null });
+  });
+  test(`${path}: normalizes goal fields used in rendering`, () => {
+    const valid = { id: "g1", title: "Ship", why: "Because", obstaclePlan: "Plan", celebration: "Tea",
+      clusterId: "c1", progress: 65, targetDate: "2026-03-02", done: false, reachedAt: null, createdAt: at };
+    const result = read("goals", [
+      null, {}, { id: "", title: "missing id" },
+      { id: "bad", title: "Broken", targetDate: {}, progress: "50", done: "yes", clusterId: 7, createdAt: "bad" },
+      valid
+    ]);
+    expect(result).toHaveLength(2);
+    expect(result[0]).toMatchObject({ id: "bad", targetDate: null, progress: 0, done: false, clusterId: null, reachedAt: null });
+    expect(typeof result[0].createdAt).toBe("string");
+    expect(result[1]).toEqual(valid);
+  });
+  test(`${path}: normalizes planning windows and fallback durations`, () => {
+    const validWindow = { id: "w1", weekdays: [1, 3], start: 540, end: 720 };
+    expect(read("planning", {
+      availability: [
+        null, {}, { id: "bad-weekdays", weekdays: [], start: 540, end: 720 },
+        { id: "bad-time", weekdays: [1], start: 720, end: 540 },
+        { ...validWindow, weekdays: [1, 3, 9, -1, 1], extra: "dropped" },
+        validWindow
+      ],
+      duration: "45",
+      gap: 15
+    })).toEqual({
+      availability: [
+        { id: "bad-weekdays", weekdays: [], start: 540, end: 720 },
+        { id: "bad-time", weekdays: [1], start: 720, end: 540 },
+        validWindow
+      ],
+      duration: 45,
+      gap: 15
+    });
+    expect(read("planning", { availability: null, duration: 0, gap: 2000 })).toEqual({
+      availability: [], duration: 45, gap: 15
+    });
+  });
+  test(`${path}: drops malformed notes and normalizes timestamps`, () => {
+    const valid = { id: "n1", text: "Remember", pinned: true, createdAt: at, updatedAt: at };
+    const result = read("notes", [
+      null, 1, {}, { id: "", text: "missing id" }, { id: "no-text" },
+      { id: "bad-times", text: "Still useful", pinned: "yes", createdAt: 1, updatedAt: {} },
+      valid
+    ]);
+    expect(result).toHaveLength(2);
+    expect(result[0]).toMatchObject({ id: "bad-times", text: "Still useful", pinned: false });
+    expect(typeof result[0].createdAt).toBe("string");
+    expect(result[0].updatedAt).toBe(result[0].createdAt);
+    expect(result[1]).toEqual(valid);
+  });
   test(`${path}: normalizes check-in entries and drops malformed ones`, () => {
     const result = read("checkIns", {
       "2026-03-02": { week: "2026-03-02", energy: 4, wins: "Shipped", savedAt: at },
