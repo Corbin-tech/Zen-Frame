@@ -119,6 +119,8 @@ const numerals = Array.from({ length: 10 }, (_, n) => n);
                     const pomo = this.$store.pomoState;
                     const wasRunning = pomo.isRunning;
                     pomo.toggleBreak();
+                    // Handing a running break over to focus is a fresh focus start, so the
+                    // optional breathing pause applies (same as the main Start button)
                     if (wasRunning) pomo.startTimer();
                 }
             }"

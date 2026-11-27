@@ -449,6 +449,26 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
                     </span>
                 </label>
 
+                <label for="settings-breathing-start" class="flex items-start justify-between gap-4 cursor-pointer">
+                    <span>
+                        <span class={label}>Breathing start</span>
+                        <span class="block text-xs text-gray-500 dark:text-gray-400">Take three slow breaths (about 24 seconds) before a focus session begins.</span>
+                    </span>
+                    <span class="relative shrink-0 mt-0.5">
+                        <input
+                            id="settings-breathing-start"
+                            name="settings-breathing-start"
+                            type="checkbox"
+                            role="switch"
+                            class="peer sr-only"
+                            x-bind:checked="$store.settings.pomoBreathingStart"
+                            x-on:change="$store.settings.update({ pomoBreathingStart: $event.target.checked })"
+                        />
+                        <span class="block w-11 h-6 rounded-full bg-gray-200 dark:bg-slate-700 peer-checked:bg-teal-600 peer-focus-visible:ring-2 peer-focus-visible:ring-teal-500 peer-focus-visible:ring-offset-2 transition-colors"></span>
+                        <span class="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-5"></span>
+                    </span>
+                </label>
+
                 <p class={label}>Alarm sound</p>
                 <ul class="space-y-1.5" role="radiogroup" aria-label="Alarm sound">
                     <template x-for="sound in $store.settings.alarmSounds" :key="sound.id">

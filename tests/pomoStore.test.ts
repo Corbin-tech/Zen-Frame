@@ -1,5 +1,5 @@
 import { afterEach, expect, test, vi } from "vitest";
-import { initPomoStore } from "../src/stores/pomoStore";
+import { BREATH_COUNT, BREATH_PHASE_MS, initPomoStore } from "../src/stores/pomoStore";
 import { UNDO_TOAST_MS } from "../src/lib/notifications";
 
 afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers(); });
@@ -191,4 +191,271 @@ test.each([
   expect(store.secondsText).toBe(secondsText);
   expect(store.formattedTime).toBe(formattedTime);
   expect(store.digits).toBe(digits);
+});
+
+test("breathing start runs 3 breaths before focus when enabled, and skips on resume or break", () => {
+  vi.useFakeTimers();
+  const data = new Map<string, string>();
+  const storage = { getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, value: string) => data.set(key, value), removeItem: (key: string) => data.delete(key) };
+  vi.stubGlobal("localStorage", storage);
+  vi.stubGlobal("sessionStorage", storage);
+  const settings = { pomoBreathingStart: true };
+  const task = { id: "a", todo: "Read chapter", parentId: null, completed: false };
+  const todos = { nextTask: task, find: (id: string) => id === "a" ? task : undefined, clusterName: () => "" };
+  vi.stubGlobal("window", {
+    addEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+    matchMedia: () => ({ matches: false }),
+    Alpine: { store: (name: string) => name === "settings" ? settings : name === "todos" ? todos : {} },
+  });
+  vi.stubGlobal("CustomEvent", class {});
+  const store = initPomoStore();
+
+  // Fresh focus start enters breathing state instead of running immediately
+  store.startTimer();
+  expect(store.isBreathing).toBe(true);
+  expect(store.isRunning).toBe(false);
+  expect(store.breathNumber).toBe(1);
+  expect(store.breathPhase).toBe("in");
+  expect(store.breathPrompt).toBe("Breathe in");
+
+  // Step through all 3 breaths (in + out each)
+  for (let b = 1; b <= BREATH_COUNT; b++) {
+    expect(store.breathNumber).toBe(b);
+    expect(store.breathPhase).toBe("in");
+    vi.advanceTimersByTime(BREATH_PHASE_MS);
+    expect(store.breathPhase).toBe("out");
+    expect(store.breathPrompt).toBe("Breathe out");
+    vi.advanceTimersByTime(BREATH_PHASE_MS);
+  }
+
+  // Focus timer starts automatically after breath 3 exhale
+  expect(store.isBreathing).toBe(false);
+  expect(store.isRunning).toBe(true);
+  expect(store.focusTask?.id).toBe("a");
+
+  // Pausing and resuming does not trigger breathing again
+  vi.advanceTimersByTime(2000);
+  store.pauseTimer();
+  store.startTimer();
+  expect(store.isBreathing).toBe(false);
+  expect(store.isRunning).toBe(true);
+
+  // Starting a break does not trigger breathing
+  store.toggleBreak(false);
+  store.startTimer();
+  expect(store.isBreathing).toBe(false);
+  expect(store.isRunning).toBe(true);
+});
+
+test("breathing start can be skipped or cancelled, and stays static under reduced motion", () => {
+  vi.useFakeTimers();
+  const data = new Map<string, string>();
+  const storage = { getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, value: string) => data.set(key, value), removeItem: (key: string) => data.delete(key) };
+  vi.stubGlobal("localStorage", storage);
+  vi.stubGlobal("sessionStorage", storage);
+  let reducedMotion = false;
+  const settings = { pomoBreathingStart: true };
+  vi.stubGlobal("window", {
+    addEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+    matchMedia: () => ({ matches: reducedMotion }),
+    Alpine: { store: (name: string) => name === "settings" ? settings : {} },
+  });
+  const store = initPomoStore();
+
+  // Cancel leaves timer idle and unlocks focusTask
+  store.startTimer();
+  expect(store.isBreathing).toBe(true);
+  store.cancelBreathing();
+  expect(store.isBreathing).toBe(false);
+  expect(store.isRunning).toBe(false);
+  expect(store.focusTask).toBeUndefined();
+
+  // Skip starts focus immediately
+  store.startTimer();
+  store.skipBreathing();
+  expect(store.isBreathing).toBe(false);
+  expect(store.isRunning).toBe(true);
+
+  // Reduced motion shows static prompt and does not auto-advance
+  store.resetTimer();
+  reducedMotion = true;
+  store.startTimer();
+  expect(store.isBreathing).toBe(true);
+  expect(store.breathingReducedMotion).toBe(true);
+  expect(store.breathPrompt).toBe("Take three slow breaths.");
+  vi.advanceTimersByTime(BREATH_COUNT * BREATH_PHASE_MS * 2);
+  expect(store.isBreathing).toBe(true);
+  expect(store.isRunning).toBe(false);
+  store.skipBreathing();
+  expect(store.isBreathing).toBe(false);
+  expect(store.isRunning).toBe(true);
+});
+
+test("cancelling breathing after startFocus during a paused break restores the paused break", () => {
+  vi.useFakeTimers();
+  const data = new Map<string, string>();
+  const storage = { getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, value: string) => data.set(key, value), removeItem: (key: string) => data.delete(key) };
+  vi.stubGlobal("localStorage", storage);
+  vi.stubGlobal("sessionStorage", storage);
+  const settings = { pomoBreathingStart: true };
+  const task = { id: "a", todo: "Task A", parentId: null, completed: false };
+  const todos = { nextTask: task, find: (id: string) => id === "a" ? task : undefined, clusterName: () => "" };
+  vi.stubGlobal("window", {
+    addEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+    matchMedia: () => ({ matches: false }),
+    Alpine: { store: (name: string) => name === "settings" ? settings : name === "todos" ? todos : {} },
+  });
+  vi.stubGlobal("CustomEvent", class {});
+  const store = initPomoStore();
+
+  // Start a break, let 30s elapse, and pause it
+  store.toggleBreak(false);
+  store.startTimer();
+  vi.advanceTimersByTime(30_000);
+  store.pauseTimer();
+  const remainingBreak = store.timeLeft;
+  expect(store.isBreak).toBe(true);
+  expect(remainingBreak).toBe(store.totalTime - 30);
+
+  // Start focus from Next step during paused break, then cancel breathing
+  store.startFocus("a");
+  expect(store.isBreathing).toBe(true);
+  store.cancelBreathing();
+  expect(store.isBreathing).toBe(false);
+  expect(store.isRunning).toBe(false);
+  expect(store.isBreak).toBe(true);
+  expect(store.timeLeft).toBe(remainingBreak);
+  expect(JSON.parse(data.get("pomoState")!).isBreak).toBe(true);
+});
+
+test("switching focus tasks during a running session preserves running state on cancel and offers working Undo on commit", () => {
+  vi.useFakeTimers();
+  const data = new Map<string, string>();
+  const storage = { getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, value: string) => data.set(key, value), removeItem: (key: string) => data.delete(key) };
+  vi.stubGlobal("localStorage", storage);
+  vi.stubGlobal("sessionStorage", storage);
+  const settings = { pomoBreathingStart: true };
+  const taskA = { id: "a", todo: "Task A", parentId: null, completed: false };
+  const taskB = { id: "b", todo: "Task B", parentId: null, completed: false };
+  const todos = {
+    nextTask: taskA,
+    find: (id: string) => id === "a" ? taskA : id === "b" ? taskB : undefined,
+    clusterName: () => "",
+  };
+  const toasts: Array<{ title: string; onAction?: () => void }> = [];
+  vi.stubGlobal("window", {
+    addEventListener: vi.fn(),
+    dispatchEvent: (event: { detail?: { title: string; onAction?: () => void } }) => {
+      if (event?.detail?.title) toasts.push(event.detail);
+    },
+    matchMedia: () => ({ matches: false }),
+    Alpine: { store: (name: string) => name === "settings" ? settings : name === "todos" ? todos : {} },
+  });
+  vi.stubGlobal("CustomEvent", class {
+    detail: unknown;
+    constructor(_type: string, init?: { detail?: unknown }) {
+      this.detail = init?.detail;
+    }
+  });
+  const store = initPomoStore();
+
+  // Start Task A and let 45s elapse
+  store.startFocus("a");
+  store.skipBreathing();
+  vi.advanceTimersByTime(45_000);
+  const remainingA = store.timeLeft;
+  expect(store.isRunning).toBe(true);
+  expect(store.focusTask?.id).toBe("a");
+  expect(remainingA).toBe(store.totalTime - 45);
+
+  // Switch to Task B, then cancel breathing -> Task A resumes running with no stray Undo toast
+  store.startFocus("b");
+  expect(store.isBreathing).toBe(true);
+  expect(toasts).toHaveLength(0);
+  store.cancelBreathing();
+  expect(store.isBreathing).toBe(false);
+  expect(store.isRunning).toBe(true);
+  expect(store.focusTask?.id).toBe("a");
+  expect(store.timeLeft).toBe(remainingA);
+
+  // Switch to Task B and commit via skipBreathing -> Undo toast is offered and restores Task A running
+  store.startFocus("b");
+  store.skipBreathing();
+  expect(store.isRunning).toBe(true);
+  expect(store.focusTask?.id).toBe("b");
+  expect(toasts).toHaveLength(1);
+  expect(toasts[0].title).toBe("Timer reset");
+
+  toasts[0].onAction?.();
+  expect(store.isRunning).toBe(true);
+  expect(store.focusTask?.id).toBe("a");
+  expect(store.timeLeft).toBe(remainingA);
+});
+
+test("chess-clock hand-over from a running break to focus is a fresh focus start, so breathing applies", () => {
+  vi.useFakeTimers();
+  const data = new Map<string, string>();
+  const storage = { getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, value: string) => data.set(key, value), removeItem: (key: string) => data.delete(key) };
+  vi.stubGlobal("localStorage", storage);
+  vi.stubGlobal("sessionStorage", storage);
+  const settings = { pomoBreathingStart: true };
+  vi.stubGlobal("window", {
+    addEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+    matchMedia: () => ({ matches: false }),
+    Alpine: { store: (name: string) => name === "settings" ? settings : {} },
+  });
+  vi.stubGlobal("CustomEvent", class {});
+  const store = initPomoStore();
+
+  // Run a break for 30s, then hand over to focus the way TimerFaces.astro handOver() does
+  store.toggleBreak(false);
+  store.startTimer();
+  vi.advanceTimersByTime(30_000);
+  expect(store.isRunning).toBe(true);
+  const wasRunning = store.isRunning;
+  store.toggleBreak();
+  if (wasRunning) store.startTimer();
+
+  expect(store.isBreak).toBe(false);
+  expect(store.isBreathing).toBe(true);
+  expect(store.isRunning).toBe(false);
+  store.skipBreathing();
+  expect(store.isBreathing).toBe(false);
+  expect(store.isRunning).toBe(true);
+});
+
+test("cancelling breathing after a completed phase keeps the completion banner", () => {
+  vi.useFakeTimers();
+  const data = new Map<string, string>();
+  const storage = { getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, value: string) => data.set(key, value), removeItem: (key: string) => data.delete(key) };
+  vi.stubGlobal("localStorage", storage);
+  vi.stubGlobal("sessionStorage", storage);
+  const settings = { pomoBreathingStart: true };
+  const task = { id: "a", todo: "Task A", parentId: null, completed: false };
+  const todos = { nextTask: task, find: (id: string) => id === "a" ? task : undefined, clusterName: () => "" };
+  vi.stubGlobal("window", {
+    addEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+    matchMedia: () => ({ matches: false }),
+    Alpine: { store: (name: string) => name === "settings" ? settings : name === "todos" ? todos : {} },
+  });
+  vi.stubGlobal("CustomEvent", class {});
+  const store = initPomoStore();
+
+  // A finished focus leaves the "Focus done" banner up
+  store.lastCompleted = { wasBreak: false, minutes: 25 };
+  expect(store.completedHeadline).toBe("Focus done · 25 min logged");
+
+  // Starting a fresh focus enters breathing and clears the banner; cancelling must restore it
+  store.startFocus("a");
+  expect(store.isBreathing).toBe(true);
+  expect(store.lastCompleted).toBeNull();
+  store.cancelBreathing();
+  expect(store.isBreathing).toBe(false);
+  expect(store.lastCompleted).toEqual({ wasBreak: false, minutes: 25 });
+  expect(store.completedHeadline).toBe("Focus done · 25 min logged");
 });

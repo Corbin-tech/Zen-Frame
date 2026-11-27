@@ -3,6 +3,8 @@ import { loadJson, saveJson } from "../lib/storage.ts";
 import { UNDO_TOAST_MS } from "../lib/notifications.ts";
 
 export const CYCLE_LENGTH = 4;
+export const BREATH_COUNT = 3;
+export const BREATH_PHASE_MS = 4000;
 const MIN_MINUTES = 1;
 const MAX_WORK_MINUTES = 180;
 const MAX_BREAK_MINUTES = 60;
@@ -23,6 +25,7 @@ export const POMO_DURATIONS = {
 
 export type PomoPreset = keyof typeof POMO_DURATIONS | "custom";
 export type PomoStatus = "idle" | "running" | "paused";
+export type BreathPhase = "in" | "out";
 
 export interface FocusSession {
   completedAt: string;
@@ -86,6 +89,7 @@ interface PomoSnapshot {
   totalTime: number;
   timeLeft: number;
   wasRunning: boolean;
+  lastCompleted?: CompletedPhase | null;
 }
 
 function isValidPreset(value: unknown): value is PomoPreset {
@@ -142,6 +146,13 @@ export function initPomoStore() {
     totalTime: POMO_DURATIONS.pomodoro.work * 60, // Seconds
     timeLeft: POMO_DURATIONS.pomodoro.work * 60, // Seconds
     isRunning: false,
+    isBreathing: false,
+    breathingReducedMotion: false,
+    breathIndex: 0,
+    breathPhase: "in" as BreathPhase,
+    breathTimer: null as ReturnType<typeof setTimeout> | null,
+    breathingRestore: null as PomoSnapshot | null,
+    breathingUndoTitle: null as string | null,
     endsAt: null as number | null,
     timer: null as ReturnType<typeof setInterval> | null,
     sessions: [] as FocusSession[], // Finished focus sessions: { completedAt, minutes }
@@ -282,14 +293,113 @@ export function initPomoStore() {
         : `Focus done · ${this.lastCompleted.minutes} min logged`;
     },
 
-    startTimer(): void {
-      if (this.isRunning) return;
+    get breathCount(): number {
+      return BREATH_COUNT;
+    },
+
+    get breathNumber(): number {
+      return this.breathIndex + 1;
+    },
+
+    get breathPrompt(): string {
+      if (this.breathingReducedMotion) return "Take three slow breaths.";
+      return this.breathPhase === "in" ? "Breathe in" : "Breathe out";
+    },
+
+    clearBreathingTimer(): void {
+      if (this.breathTimer !== null) {
+        clearTimeout(this.breathTimer);
+        this.breathTimer = null;
+      }
+    },
+
+    startBreathing(): void {
+      this.clearBreathingTimer();
+      const reduced = typeof window !== "undefined"
+        && typeof window.matchMedia === "function"
+        && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      this.isBreathing = true;
+      this.breathingReducedMotion = reduced;
+      this.breathIndex = 0;
+      this.breathPhase = "in";
+      if (!reduced) this.scheduleBreathStep();
+    },
+
+    scheduleBreathStep(): void {
+      this.clearBreathingTimer();
+      this.breathTimer = setTimeout(() => {
+        if (!this.isBreathing) return;
+        if (this.breathPhase === "in") {
+          this.breathPhase = "out";
+          this.scheduleBreathStep();
+        } else if (this.breathIndex + 1 < BREATH_COUNT) {
+          this.breathIndex += 1;
+          this.breathPhase = "in";
+          this.scheduleBreathStep();
+        } else {
+          this.finishBreathing();
+        }
+      }, BREATH_PHASE_MS);
+    },
+
+    finishBreathing(): void {
+      this.clearBreathingTimer();
+      this.isBreathing = false;
+      this.breathingReducedMotion = false;
+      const restore = this.breathingRestore;
+      const undoTitle = this.breathingUndoTitle;
+      this.breathingRestore = null;
+      this.breathingUndoTitle = null;
+      if (restore && undoTitle) this.offerUndo(undoTitle, restore);
+      this.startTimer({ skipBreathing: true });
+    },
+
+    skipBreathing(): void {
+      if (!this.isBreathing) return;
+      this.finishBreathing();
+    },
+
+    cancelBreathing(): void {
+      if (!this.isBreathing) return;
+      this.clearBreathingTimer();
+      this.isBreathing = false;
+      this.breathingReducedMotion = false;
+      const restore = this.breathingRestore;
+      this.breathingRestore = null;
+      this.breathingUndoTitle = null;
+      if (restore) {
+        this.preset = restore.preset;
+        this.isBreak = restore.isBreak;
+        this.cycle = restore.cycle;
+        this.isLongBreak = restore.isLongBreak;
+        this.custom = { ...restore.custom };
+        this.totalTime = restore.totalTime;
+        this.timeLeft = restore.timeLeft;
+        this.selectedTaskId = restore.selectedTaskId;
+        this.focusTask = restore.focusTask;
+        // startFocus cleared the completion banner; a cancelled breathing start must not lose it
+        this.lastCompleted = restore.lastCompleted ?? null;
+        this.saveState();
+        if (restore.wasRunning) this.startTimer({ skipBreathing: true });
+      } else if (!this.started) {
+        this.focusTask = undefined;
+      }
+    },
+
+    startTimer(options?: { skipBreathing?: boolean }): void {
+      if (this.isRunning || this.isBreathing) return;
       this.lastCompleted = null;
       if (this.timeLeft <= 0) this.resetTimer();
       if (!this.isBreak && this.focusTask === undefined) {
         const task = this.activeTask;
         const todos = todosApi();
         this.focusTask = task ? { ...task, clusterName: todos?.clusterName?.(task.parentId) ?? "" } : null;
+      }
+
+      const settings = window.Alpine?.store("settings") as { pomoBreathingStart?: boolean } | undefined;
+      if (!options?.skipBreathing && !this.isBreak && !this.started && Boolean(settings?.pomoBreathingStart)) {
+        this.startBreathing();
+        return;
       }
 
       const endsAt = Date.now() + this.timeLeft * 1000;
@@ -311,6 +421,11 @@ export function initPomoStore() {
     },
 
     stopTimer(): void {
+      this.clearBreathingTimer();
+      this.isBreathing = false;
+      this.breathingReducedMotion = false;
+      this.breathingRestore = null;
+      this.breathingUndoTitle = null;
       this.isRunning = false;
       this.endsAt = null;
       if (this.timer !== null) {
@@ -332,8 +447,8 @@ export function initPomoStore() {
       this.undoSnapshot = null;
     },
 
-    offerUndo(title: string): void {
-      const snapshot: PomoSnapshot = {
+    offerUndo(title: string, saved?: PomoSnapshot): void {
+      const snapshot: PomoSnapshot = saved ?? {
         selectedTaskId: this.selectedTaskId,
         focusTask: this.focusTask,
         preset: this.preset,
@@ -343,7 +458,8 @@ export function initPomoStore() {
         custom: { ...this.custom },
         totalTime: this.totalTime,
         timeLeft: this.timeLeft,
-        wasRunning: this.isRunning
+        wasRunning: this.isRunning,
+        lastCompleted: this.lastCompleted
       };
       this.clearUndo();
       this.undoSnapshot = snapshot;
@@ -378,7 +494,7 @@ export function initPomoStore() {
       this.selectedTaskId = target.selectedTaskId;
       this.focusTask = target.focusTask;
       this.saveState();
-      if (target.wasRunning) this.startTimer();
+      if (target.wasRunning) this.startTimer({ skipBreathing: true });
     },
 
     resetTimer(announceUndo = false): void {
@@ -393,10 +509,28 @@ export function initPomoStore() {
 
     // Start or resume a focus session, leaving a break if one is set
     startFocus(taskId?: string): void {
+      const before: PomoSnapshot = {
+        selectedTaskId: this.selectedTaskId,
+        focusTask: this.focusTask,
+        preset: this.preset,
+        isBreak: this.isBreak,
+        cycle: this.cycle,
+        isLongBreak: this.isLongBreak,
+        custom: { ...this.custom },
+        totalTime: this.totalTime,
+        timeLeft: this.timeLeft,
+        wasRunning: this.isRunning,
+        lastCompleted: this.lastCompleted
+      };
+      const switchingTask = !this.isBreak && taskId !== undefined && this.focusTask !== undefined
+        && taskId !== (this.focusTask?.id ?? "");
+      const hadProgress = this.started;
+      const settings = window.Alpine?.store("settings") as { pomoBreathingStart?: boolean } | undefined;
+      const deferUndo = Boolean(settings?.pomoBreathingStart) && switchingTask && hadProgress;
+
       this.lastCompleted = null;
-      if (!this.isBreak && taskId !== undefined && this.focusTask !== undefined
-        && taskId !== (this.focusTask?.id ?? "")) {
-        this.resetTimer(true);
+      if (switchingTask) {
+        this.resetTimer(!deferUndo);
       }
       if (taskId !== undefined) this.selectedTaskId = taskId;
       if (this.isBreak) {
@@ -407,6 +541,12 @@ export function initPomoStore() {
         this.saveState();
       }
       this.startTimer();
+      if (this.isBreathing) {
+        this.breathingRestore = before;
+        this.breathingUndoTitle = deferUndo ? "Timer reset" : null;
+      } else if (deferUndo) {
+        this.offerUndo("Timer reset", before);
+      }
     },
 
     completeTimer(endsAt: number = Date.now(), alert = true): void {
@@ -457,7 +597,7 @@ export function initPomoStore() {
         : Boolean(settings?.pomoAutoStartFocus));
       if (autoStart) {
         this.lastCompleted = null;
-        this.startTimer();
+        this.startTimer({ skipBreathing: true });
       } else if (alert) {
         this.lastCompleted = { wasBreak: finishedWasBreak, minutes: finishedMinutes };
       }
