@@ -150,6 +150,7 @@ export function initPomoStore() {
     breathIndex: 0,
     breathPhase: "in" as BreathPhase,
     breathTimer: null as ReturnType<typeof setTimeout> | null,
+    breathingRestore: null as PomoSnapshot | null,
     endsAt: null as number | null,
     timer: null as ReturnType<typeof setInterval> | null,
     sessions: [] as FocusSession[], // Finished focus sessions: { completedAt, minutes }
@@ -343,6 +344,7 @@ export function initPomoStore() {
       this.clearBreathingTimer();
       this.isBreathing = false;
       this.breathingReducedMotion = false;
+      this.breathingRestore = null;
       this.startTimer({ skipBreathing: true });
     },
 
@@ -356,7 +358,23 @@ export function initPomoStore() {
       this.clearBreathingTimer();
       this.isBreathing = false;
       this.breathingReducedMotion = false;
-      if (!this.started) this.focusTask = undefined;
+      const restore = this.breathingRestore;
+      this.breathingRestore = null;
+      if (restore) {
+        this.clearUndo();
+        this.preset = restore.preset;
+        this.isBreak = restore.isBreak;
+        this.cycle = restore.cycle;
+        this.isLongBreak = restore.isLongBreak;
+        this.custom = { ...restore.custom };
+        this.totalTime = restore.totalTime;
+        this.timeLeft = restore.timeLeft;
+        this.selectedTaskId = restore.selectedTaskId;
+        this.focusTask = restore.focusTask;
+        this.saveState();
+      } else if (!this.started) {
+        this.focusTask = undefined;
+      }
     },
 
     startTimer(options?: { skipBreathing?: boolean }): void {
@@ -397,6 +415,7 @@ export function initPomoStore() {
       this.clearBreathingTimer();
       this.isBreathing = false;
       this.breathingReducedMotion = false;
+      this.breathingRestore = null;
       this.isRunning = false;
       this.endsAt = null;
       if (this.timer !== null) {
@@ -479,6 +498,18 @@ export function initPomoStore() {
 
     // Start or resume a focus session, leaving a break if one is set
     startFocus(taskId?: string): void {
+      const before: PomoSnapshot = {
+        selectedTaskId: this.selectedTaskId,
+        focusTask: this.focusTask,
+        preset: this.preset,
+        isBreak: this.isBreak,
+        cycle: this.cycle,
+        isLongBreak: this.isLongBreak,
+        custom: { ...this.custom },
+        totalTime: this.totalTime,
+        timeLeft: this.timeLeft,
+        wasRunning: false
+      };
       this.lastCompleted = null;
       if (!this.isBreak && taskId !== undefined && this.focusTask !== undefined
         && taskId !== (this.focusTask?.id ?? "")) {
@@ -493,6 +524,7 @@ export function initPomoStore() {
         this.saveState();
       }
       this.startTimer();
+      if (this.isBreathing) this.breathingRestore = before;
     },
 
     completeTimer(endsAt: number = Date.now(), alert = true): void {
