@@ -12,7 +12,7 @@ const { items, label, height = 'h-32' } = Astro.props;
 
 // Alpine expressions, built here because the template parser can't take ">" inside attributes
 const peak = `Math.max(1, ...${items}.map(item => item.value))`;
-const tooltipStyle = `hovered ? \`left: \${(hovered.index + 0.5) / ${items}.length * 100}%;\` : ''`;
+const tooltipStyle = `hovered ? \`left: \${(hovered.index + 0.5) / ${items}.length * 100}%; transform: translate(\${-(hovered.index + 0.5) / ${items}.length * 100}%, -100%);\` : ''`;
 const showValue = `bar.value > 0 && index === ${items}.findIndex(item => item.value === ${peak})`;
 const barStyle = `\`height: \${bar.value ? Math.max(3, bar.value / ${peak} * 85) : 0}%;\``;
 ---
@@ -22,7 +22,7 @@ const barStyle = `\`height: \${bar.value ? Math.max(3, bar.value / ${peak} * 85)
     <div
         x-show="hovered"
         x-cloak
-        class="absolute -top-2 z-10 -translate-x-1/2 -translate-y-full px-2.5 py-1.5 rounded-lg bg-gray-900 dark:bg-slate-950 text-white text-xs font-medium shadow-lg pointer-events-none whitespace-nowrap"
+        class="absolute -top-2 z-10 px-2.5 py-1.5 rounded-lg bg-gray-900 dark:bg-slate-950 text-white text-xs font-medium shadow-lg pointer-events-none whitespace-nowrap"
         x-bind:style={tooltipStyle}
         x-text="hovered?.tip"
     ></div>
