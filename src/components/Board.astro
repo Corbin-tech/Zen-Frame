@@ -31,7 +31,7 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-1 rou
             />
         </div>
         <!-- Sort: list order, or by due date with overdue tasks on top -->
-        <div class="inline-flex p-1 rounded-full bg-gray-900/[0.04] dark:bg-white/[0.06] ring-1 ring-black/5 dark:ring-white/10" role="group" aria-label="Sort cards">
+        <div class="segmented inline-flex p-1 rounded-full bg-gray-900/[0.04] dark:bg-white/[0.06] ring-1 ring-black/5 dark:ring-white/10" role="group" aria-label="Sort cards">
             <template x-for="option in sortOptions" :key="option.id">
                 <button
                     type="button"
@@ -113,7 +113,7 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-1 rou
                         type="button"
                         x-show="column.id === 'done' && tasksIn('done').length"
                         x-on:click="clearDone()"
-                        class="ml-auto px-2 py-1 rounded-md text-xs font-medium text-gray-500 hover:text-red-600 hover:bg-white dark:text-gray-400 dark:hover:text-red-400 dark:hover:bg-slate-700 transition-colors"
+                        class="hit-area ml-auto px-2 py-1 rounded-md text-xs font-medium text-gray-500 hover:text-red-600 hover:bg-white dark:text-gray-400 dark:hover:text-red-400 dark:hover:bg-slate-700 transition-colors"
                     >Clear</button>
                     <button
                         type="button"
@@ -161,7 +161,7 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-1 rou
                                     <button
                                         type="button"
                                         x-on:click="toggleDone(task)"
-                                        class="mt-0.5 w-[18px] h-[18px] shrink-0 grid place-items-center rounded-full ring-[1.5px] transition-colors"
+                                        class="hit-area mt-0.5 w-[18px] h-[18px] shrink-0 grid place-items-center rounded-full ring-[1.5px] transition-colors"
                                         x-bind:class="task.completed
                                             ? 'bg-teal-600 text-white ring-teal-600 dark:bg-teal-500 dark:ring-teal-500'
                                             : 'text-transparent ring-gray-300 hover:ring-teal-500 hover:text-teal-500 dark:ring-slate-500'"
@@ -191,7 +191,7 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-1 rou
                                             x-on:keydown.enter.prevent="$el.blur()"
                                             x-on:keydown.escape="mode = 'view'; titleDraft = task.todo; $el.blur()"
                                             x-on:blur="if (mode === 'rename') { mode = 'view'; $store.todos.updateTask(task.id, { todo: titleDraft }) }"
-                                            class="block w-full p-0 text-sm font-medium leading-snug bg-transparent border-none resize-none focus:ring-0 text-gray-900 dark:text-gray-100"
+                                            class="inline-edit block w-full p-0 text-sm font-medium leading-snug bg-transparent border-none resize-none focus:ring-0 text-gray-900 dark:text-gray-100"
                                         ></textarea>
                                     </div>
                                 </div>
@@ -296,7 +296,7 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-1 rou
 
                 <!-- Composer and column actions. Every column reserves the same footer height, so the
                      card list above (and its empty state) stays the same size in all three columns. -->
-                <div class="mt-2 min-h-[2rem]">
+                <div class="board-column-footer mt-2">
                 <form
                     x-show="adding === column.id"
                     x-cloak
@@ -324,7 +324,7 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-1 rou
                     type="button"
                     x-show="column.id !== 'done' && adding !== column.id"
                     x-on:click="startAdding(column.id)"
-                    class="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-sm text-gray-500 hover:text-gray-800 hover:bg-white/70 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-slate-700/50 transition-colors"
+                    class="touch-height flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-sm text-gray-500 hover:text-gray-800 hover:bg-white/70 dark:text-gray-300 dark:hover:text-gray-200 dark:hover:bg-slate-700/50 transition-colors"
                 >
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
                     Add a task
@@ -542,6 +542,11 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-1 rou
 </script>
 
 <style>
+    /* Every column reserves the same footer height, so the card lists above line up */
+    .board-column-footer {
+        min-height: 2rem;
+    }
+
     /* Same condition as the .touch-target 44px hit area: on phones the header buttons are
        44px tall, so the header (and with it every column's empty state) needs that height too */
     @media (max-width: 639px), (pointer: coarse) {
@@ -557,6 +562,10 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-1 rou
         }
         .board-header-add {
             margin-right: -0.5rem;
+        }
+        /* The footer's Add a task and Clear actions are 44px tall here, so every column reserves that */
+        .board-column-footer {
+            min-height: var(--touch-target);
         }
     }
 
