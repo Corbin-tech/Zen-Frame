@@ -5,6 +5,7 @@ const contours = Array.from({ length: 19 }, (_, i) => {
   const y = i * 5;
   return `M-40 ${145 + y} C70 ${88 + y} 130 ${114 + y} 230 ${153 + y} S370 ${177 + y} 446 ${197 + y} M770 ${195 + y} C870 ${140 + y} 962 ${91 + y} 1060 ${113 + y} S1180 ${147 + y} 1240 ${126 + y}`;
 });
+const banks = 'M-40 145C70 88 130 114 230 153S370 177 446 197L350 280H-40Z M770 195C870 140 962 91 1060 113S1180 147 1240 126V280H850Z';
 const distantContours = Array.from({ length: 12 }, (_, i) => {
   const y = i * 4;
   return `M140 ${177 + y} Q245 ${94 + y} 350 ${147 + y} T550 ${154 + y} Q620 ${128 + y} 696 ${165 + y} M737 ${168 + y} Q835 ${87 + y} 925 ${137 + y} T1140 ${163 + y}`;
@@ -21,8 +22,9 @@ const tufts = [
 ];
 const water = Array.from({ length: 13 }, (_, i) => {
   const y = 224 + i * 3.7;
-  const spread = i * 9;
-  return `M${484 - spread} ${y} Q560 ${y - 2} 611 ${y} T${741 + spread} ${y} M${552 - spread / 2} ${y + 1.8} h${42 + spread / 2}`;
+  const shift = (i % 4) * 13;
+  const spread = i * 4;
+  return `M${457 - spread + shift} ${y}q24-1 49 0 M${542 + shift} ${y}q34 1 69 0 M${658 + shift} ${y}q${35 + spread} -1 ${70 + spread} 0`;
 });
 const bridgePosts = Array.from({ length: 19 }, (_, i) => {
   const x = 424 + i * 19;
@@ -39,7 +41,9 @@ const bridgePosts = Array.from({ length: 19 }, (_, i) => {
     <pattern id="footer-needles" width="7" height="6" patternUnits="userSpaceOnUse">
       <path d="M0 5 3 1 5 4 M4 6 7 2" fill="none" stroke="currentColor" stroke-width="0.6" />
     </pattern>
-    <clipPath id="footer-sun"><circle cx="844" cy="66" r="32" /></clipPath>
+    <clipPath id="footer-sun"><circle cx="844" cy="66" r="32" fill="white" /></clipPath>
+    <clipPath id="footer-banks"><path d={banks} fill="white" /></clipPath>
+    <clipPath id="footer-river"><path d="M446 197L350 280H850L770 195Q595 154 446 197Z" fill="white" /></clipPath>
   </defs>
 
   <!-- A small warm sun, engraved with horizontal lines. -->
@@ -56,8 +60,8 @@ const bridgePosts = Array.from({ length: 19 }, (_, i) => {
   <g fill="none" stroke="currentColor" stroke-width="0.65" opacity="0.2">
     {distantContours.map(d => <path d={d} />)}
   </g>
-  <path d="M-40 145C70 88 130 114 230 153S370 177 446 197L475 280H-40Z M770 195C870 140 962 91 1060 113S1180 147 1240 126V280H728Z" class="landscape-ground" />
-  <g fill="none" stroke="currentColor" stroke-width="0.7" opacity="0.44">
+  <path d={banks} class="landscape-ground" />
+  <g clip-path="url(#footer-banks)" fill="none" stroke="currentColor" stroke-width="0.7" opacity="0.44">
     {contours.map(d => <path d={d} />)}
   </g>
 
@@ -95,7 +99,7 @@ const bridgePosts = Array.from({ length: 19 }, (_, i) => {
   </g>
   <g fill="none" stroke="currentColor" stroke-width="0.7" opacity="0.55">
     <path d="m291 226 12 4 11-8m-11 8 7 12m25-7 9 8 14-4m513-17 12 7 12-11m-12 11 8 12 M375 239l-6-22m7 20 4-17m443 13-3-19m5 17 6-12" />
-    {water.map(d => <path d={d} />)}
+    <g clip-path="url(#footer-river)">{water.map(d => <path d={d} />)}</g>
     <path d="M0 257q150-15 301 5 M902 262q160-18 298-7 M49 270q96-6 164 1 M1008 272h132" />
   </g>
 </svg>
