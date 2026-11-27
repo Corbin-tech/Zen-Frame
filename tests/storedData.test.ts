@@ -120,7 +120,11 @@ for (const path of ["load", "import"]) {
       duration: "45",
       gap: 15
     })).toEqual({
-      availability: [validWindow],
+      availability: [
+        { id: "bad-weekdays", weekdays: [], start: 540, end: 720 },
+        { id: "bad-time", weekdays: [1], start: 720, end: 540 },
+        validWindow
+      ],
       duration: 45,
       gap: 15
     });

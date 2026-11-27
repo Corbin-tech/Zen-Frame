@@ -85,11 +85,9 @@ function cleanAvailabilityWindow(window: Record<string, unknown>): Record<string
   if (typeof window.id !== "string" || window.id.trim() === "") return null;
   if (typeof window.start !== "number" || !Number.isFinite(window.start)) return null;
   if (typeof window.end !== "number" || !Number.isFinite(window.end)) return null;
-  if (window.start < 0 || window.end <= window.start || window.end > 1440) return null;
   const weekdays = Array.isArray(window.weekdays)
     ? [...new Set(window.weekdays.filter((day): day is number => typeof day === "number" && Number.isInteger(day) && day >= 0 && day <= 6))]
     : [];
-  if (!weekdays.length) return null;
   return { id: window.id, weekdays, start: window.start, end: window.end };
 }
 
