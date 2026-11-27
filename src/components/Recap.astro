@@ -355,6 +355,7 @@ const name = data.recapName;
                     trapFocus(event, this.$refs.story);
                     return;
                 }
+                if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
                 if (event.key === 'Escape') this.close();
                 else if (event.key === 'ArrowRight') this.next();
                 else if (event.key === 'ArrowLeft') this.previous();
