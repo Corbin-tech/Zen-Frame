@@ -13,7 +13,7 @@ const ringTicks = Array.from({ length: 60 }, (_, m) => {
 });
 
 const panel = 'panel';
-const segmented = 'inline-flex flex-wrap p-1 rounded-xl bg-gray-900/[0.04] dark:bg-white/[0.06] ring-1 ring-black/5 dark:ring-white/10';
+const segmented = 'segmented inline-flex flex-wrap p-1 rounded-xl bg-gray-900/[0.04] dark:bg-white/[0.06] ring-1 ring-black/5 dark:ring-white/10';
 const segment = 'px-3 py-1.5 rounded-lg text-sm font-medium transition-all';
 const segmentOn = 'bg-white text-gray-900 shadow-sm ring-1 ring-black/5 dark:bg-white/[0.14] dark:text-white dark:ring-white/10';
 const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200';
@@ -73,7 +73,7 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
             <button
                 type="button"
                 x-on:click="$dispatch('open-settings', { section: 'timer' })"
-                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium text-gray-600 hover:text-gray-900 bg-gray-900/[0.04] hover:bg-gray-900/[0.08] dark:text-gray-300 dark:hover:text-white dark:bg-white/[0.06] dark:hover:bg-white/[0.1] ring-1 ring-black/5 dark:ring-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 transition-colors"
+                class="touch-height inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium text-gray-600 hover:text-gray-900 bg-gray-900/[0.04] hover:bg-gray-900/[0.08] dark:text-gray-300 dark:hover:text-white dark:bg-white/[0.06] dark:hover:bg-white/[0.1] ring-1 ring-black/5 dark:ring-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 transition-colors"
                 aria-label="Change timer face in Settings"
             >
                 <span class="text-xs text-gray-500 dark:text-gray-400">Face</span>
