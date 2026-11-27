@@ -5,9 +5,6 @@ import DashboardWidget from './DashboardWidget.astro';
 const COLUMN_WIDGETS = ['plan', 'focus3', 'clusters', 'completed', 'upnext', 'deadlines', 'recent', 'focus', 'goals', 'wins', 'notes', 'quote', 'streak'];
 const toolButton = 'p-1 rounded-full text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-slate-700 disabled:opacity-30 disabled:pointer-events-none transition-colors';
 const panel = 'panel';
-const panelTitle = 'text-base font-semibold text-gray-900 dark:text-white';
-const linkButton = 'text-sm font-medium text-teal-700 dark:text-teal-400 hover:text-teal-800 dark:hover:text-teal-300 transition-colors';
-const checkbox = 'w-4 h-4 shrink-0 rounded-full border-gray-300 dark:border-slate-500 text-teal-600 focus:ring-teal-500 dark:bg-slate-700 cursor-pointer';
 ---
 
 <div x-data="dashboard" class="space-y-6">
