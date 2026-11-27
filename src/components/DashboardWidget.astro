@@ -10,14 +10,14 @@ interface Props {
 const { id } = Astro.props;
 const panel = 'panel';
 const panelTitle = 'text-base font-semibold text-gray-900 dark:text-white';
-const linkButton = 'text-sm font-medium text-teal-700 dark:text-teal-400 hover:text-teal-800 dark:hover:text-teal-300 transition-colors';
+const linkButton = 'shrink-0 whitespace-nowrap text-sm font-medium text-teal-700 dark:text-teal-400 hover:text-teal-800 dark:hover:text-teal-300 transition-colors';
 const checkbox = 'w-4 h-4 shrink-0 rounded-full border-gray-300 dark:border-slate-500 text-teal-600 focus:ring-teal-500 dark:bg-slate-700 cursor-pointer';
 ---
 
 {id === 'plan' && (
     <section class={`${panel} p-5`}>
-        <div class="flex items-center justify-between mb-4">
-            <div>
+        <div class="flex items-center justify-between gap-3 mb-4">
+            <div class="min-w-0">
                 <h2 class={panelTitle}>Today's plan</h2>
                 <p class="text-sm text-gray-500 dark:text-gray-400" x-text="planSummary"></p>
             </div>
@@ -84,8 +84,8 @@ const checkbox = 'w-4 h-4 shrink-0 rounded-full border-gray-300 dark:border-slat
 
 {id === 'clusters' && (
     <section class={`${panel} p-5`}>
-        <div class="flex items-center justify-between mb-4">
-            <div>
+        <div class="flex items-center justify-between gap-3 mb-4">
+            <div class="min-w-0">
                 <h2 class={panelTitle}>Clusters</h2>
                 <p class="text-sm text-gray-500 dark:text-gray-400">Progress across each group of tasks</p>
             </div>
@@ -288,7 +288,7 @@ const checkbox = 'w-4 h-4 shrink-0 rounded-full border-gray-300 dark:border-slat
 
 {id === 'focus' && (
     <section class={`${panel} p-5`}>
-        <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center justify-between gap-3 mb-4">
             <h2 class={panelTitle}>Focus timer</h2>
             <button type="button" class={linkButton} x-on:click="$dispatch('change-tab', { tab: 'pomodoro' })">Open timer →</button>
         </div>
@@ -326,7 +326,7 @@ const checkbox = 'w-4 h-4 shrink-0 rounded-full border-gray-300 dark:border-slat
 
 {id === 'goals' && (
     <section class={`${panel} p-5`}>
-        <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center justify-between gap-3 mb-4">
             <h2 class={panelTitle}>Goals</h2>
             <button type="button" class={linkButton} x-on:click="$dispatch('change-tab', { tab: 'goals' })">Open goals →</button>
         </div>
@@ -378,7 +378,7 @@ const checkbox = 'w-4 h-4 shrink-0 rounded-full border-gray-300 dark:border-slat
 
 {id === 'notes' && (
     <section class={`${panel} p-5`}>
-        <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center justify-between gap-3 mb-3">
             <h2 class={panelTitle}>Notes</h2>
             <button type="button" class={linkButton} x-on:click="$dispatch('change-tab', { tab: 'goals' })">All notes →</button>
         </div>
@@ -409,7 +409,7 @@ const checkbox = 'w-4 h-4 shrink-0 rounded-full border-gray-300 dark:border-slat
 
 {id === 'streak' && (
     <section class={`${panel} p-5`}>
-        <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center justify-between gap-3 mb-3">
             <h2 class={panelTitle}>Streak</h2>
             <button type="button" class={linkButton} x-on:click="$dispatch('change-tab', { tab: 'insights' })">Insights →</button>
         </div>
