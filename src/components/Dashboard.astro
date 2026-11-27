@@ -2,7 +2,7 @@
 import DashboardWidget from './DashboardWidget.astro';
 
 // Widgets that can sit in the main or side column (see DASHBOARD_WIDGETS in settingsStore.ts)
-const COLUMN_WIDGETS = ['plan', 'clusters', 'completed', 'upnext', 'deadlines', 'recent', 'focus', 'goals', 'wins', 'notes', 'quote', 'streak'];
+const COLUMN_WIDGETS = ['plan', 'focus3', 'clusters', 'completed', 'upnext', 'deadlines', 'recent', 'focus', 'goals', 'wins', 'notes', 'quote', 'streak'];
 const toolButton = 'p-1 rounded-full text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-slate-700 disabled:opacity-30 disabled:pointer-events-none transition-colors';
 const panel = 'panel';
 const panelTitle = 'text-base font-semibold text-gray-900 dark:text-white';
@@ -18,16 +18,25 @@ const checkbox = 'w-4 h-4 shrink-0 rounded-full border-gray-300 dark:border-slat
             <h1 class="page-title text-balance" x-text="greeting"></h1>
             <p class="mt-1 text-gray-500 dark:text-gray-400" x-text="headline"></p>
         </div>
-        <button
-            type="button"
-            x-on:click="editing = !editing"
-            class="shrink-0"
-            x-bind:class="editing ? 'btn-primary' : 'btn-secondary'"
-            x-bind:aria-pressed="editing"
-        >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h10M4 18h7m9-3l-3 3-3-3m3 3v-7" /></svg>
-            <span x-text="editing ? 'Done' : 'Customize'"></span>
-        </button>
+        <div class="flex items-center gap-2 shrink-0">
+            <button
+                type="button"
+                x-on:click="$dispatch('open-close-day')"
+                class="btn-secondary"
+            >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
+                <span>Close the day</span>
+            </button>
+            <button
+                type="button"
+                x-on:click="editing = !editing"
+                x-bind:class="editing ? 'btn-primary' : 'btn-secondary'"
+                x-bind:aria-pressed="editing"
+            >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h10M4 18h7m9-3l-3 3-3-3m3 3v-7" /></svg>
+                <span x-text="editing ? 'Done' : 'Customize'"></span>
+            </button>
+        </div>
     </header>
 
     <!-- Customize mode -->
@@ -229,6 +238,14 @@ const checkbox = 'w-4 h-4 shrink-0 rounded-full border-gray-300 dark:border-slat
                     .filter(task => task.dueDate && task.dueDate <= horizon)
                     .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
                     .slice(0, 8);
+            },
+
+            get todayFocusTasks() {
+                return this.$store.todos.focusTasksFor(this.todayKey);
+            },
+
+            get todayOpenFocusCount() {
+                return this.$store.todos.openFocusTasksFor(this.todayKey).length;
             },
 
             get nextTask() {

@@ -6,6 +6,8 @@ import type { Milestone } from "./settingsStore";
 import { blockMinutes } from "../lib/estimates";
 import { mergeLists } from "../lib/mergeLists";
 
+export const DAILY_FOCUS_LIMIT = 3;
+
 export interface Todo {
   id: string;
   todo: string;
@@ -14,6 +16,7 @@ export interface Todo {
   isPinned: boolean;
   parentId: string | null;
   dueDate?: string | null; // Local date as YYYY-MM-DD
+  focusDate?: string | null; // Daily Big 3: starred for this local date (YYYY-MM-DD)
   color?: string; // Clusters only: a key of CLUSTER_COLORS
   createdAt: string;
   updatedAt?: string;
@@ -400,6 +403,55 @@ function createTodosStore() {
       task.estimateMinutes = minutes && minutes > 0 ? Math.round(minutes) : null;
       task.updatedAt = new Date().toISOString();
       this.saveTodos();
+    },
+
+    // Daily Big 3: up to 3 starred focus tasks for a given local date
+    isFocusFor(task: Todo, dateKey: string = toDateKey()): boolean {
+      return !task.isCluster && task.focusDate === dateKey;
+    },
+
+    focusTasksFor(dateKey: string = toDateKey()): Todo[] {
+      return this.items.filter(item => !item.isCluster && item.focusDate === dateKey);
+    },
+
+    openFocusTasksFor(dateKey: string = toDateKey()): Todo[] {
+      return this.openTasks.filter(item => item.focusDate === dateKey);
+    },
+
+    toggleFocusTask(taskId: string, dateKey: string = toDateKey()): { ok: boolean; starred: boolean; limitReached?: boolean } {
+      const task = this.find(taskId);
+      if (!task || task.isCluster || task.completed) return { ok: false, starred: false };
+      if (task.focusDate === dateKey) {
+        task.focusDate = null;
+        task.updatedAt = new Date().toISOString();
+        this.saveTodos();
+        return { ok: true, starred: false };
+      }
+      if (this.openFocusTasksFor(dateKey).length >= DAILY_FOCUS_LIMIT) {
+        dispatchToast({
+          title: `${DAILY_FOCUS_LIMIT} focus tasks already starred`,
+          body: "Unstar one first to keep the day manageable."
+        });
+        return { ok: false, starred: false, limitReached: true };
+      }
+      task.focusDate = dateKey;
+      task.updatedAt = new Date().toISOString();
+      this.saveTodos();
+      return { ok: true, starred: true };
+    },
+
+    // Gently move unfinished tasks due today or earlier to tomorrow
+    carryOverToTomorrow(taskIds: string[], tomorrowKey: string = addDays(toDateKey(), 1)): number {
+      let moved = 0;
+      for (const id of taskIds) {
+        const task = this.find(id);
+        if (!task || task.isCluster || task.completed) continue;
+        if (task.dueDate !== tomorrowKey) {
+          this.setDueDate(id, tomorrowKey);
+          moved++;
+        }
+      }
+      return moved;
     },
 
     // A repeating block is returned as stored, for each day it repeats on

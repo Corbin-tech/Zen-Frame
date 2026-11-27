@@ -118,6 +118,24 @@ const menuDanger = 'hover:!text-red-600 hover:!bg-red-50 dark:hover:!text-red-40
                 />
             </div>
 
+            <!-- Daily Big 3 star: subtle warmth indicator when starred, quiet hover action when open -->
+            <button
+                type="button"
+                x-show="!task.completed"
+                x-on:click="$store.todos.toggleFocusTask(task.id)"
+                class="inline-flex items-center justify-center touch-target p-1 rounded-md transition-all shrink-0"
+                x-bind:class="$store.todos.isFocusFor(task)
+                    ? 'text-warmth-deep dark:text-warmth opacity-100'
+                    : 'row-inline text-gray-400 hover:text-warmth-deep dark:text-gray-500 dark:hover:text-warmth sm:opacity-0 sm:group-hover/task:opacity-100 sm:group-focus-within/task:opacity-100 focus:opacity-100'"
+                x-bind:aria-pressed="$store.todos.isFocusFor(task)"
+                x-bind:title="$store.todos.isFocusFor(task) ? 'Starred for today (Big 3)' : 'Star for today (Big 3)'"
+                x-bind:aria-label="$store.todos.isFocusFor(task) ? `Remove ${task.todo || 'task'} from today's Big 3` : `Star ${task.todo || 'task'} for today's Big 3`"
+            >
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" x-bind:class="$store.todos.isFocusFor(task) && 'fill-current'" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                </svg>
+            </button>
+
             <!-- Task actions: inline on desktop, behind the "..." sheet on touch -->
             <div class="row-inline shrink-0 ml-auto flex items-center gap-2 transition-opacity sm:opacity-0 sm:group-hover/task:opacity-100 sm:focus-within:opacity-100">
                 <!-- Delete button -->
@@ -167,6 +185,10 @@ const menuDanger = 'hover:!text-red-600 hover:!bg-red-50 dark:hover:!text-red-40
         <button type="button" role="menuitem" x-ref="menuEdit" x-on:click="editName()" class={menuItem}>
             <svg class="w-4 h-4 shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
             <span>Edit name</span>
+        </button>
+        <button type="button" role="menuitem" x-show="!task.completed" x-on:click="$store.todos.toggleFocusTask(task.id); closeMenu()" class={menuItem}>
+            <svg class="w-4 h-4 shrink-0" x-bind:class="$store.todos.isFocusFor(task) ? 'text-warmth-deep dark:text-warmth fill-current' : 'text-gray-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>
+            <span x-text="$store.todos.isFocusFor(task) ? 'Remove from today’s focus' : 'Star for today’s focus'"></span>
         </button>
         <button type="button" role="menuitem" x-on:click="pickDueDate()" class={menuItem}>
             <svg class="w-4 h-4 shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>

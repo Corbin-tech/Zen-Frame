@@ -6,8 +6,7 @@ const field = 'block w-full rounded-lg border-gray-200 dark:border-slate-600 bg-
 const iconButton = 'inline-flex items-center justify-center touch-target p-1.5 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-slate-700 transition-colors';
 const prompts = [
     { key: 'wins', label: 'What went well this week?', placeholder: 'Wins, big or small' },
-    { key: 'blockers', label: 'What got in the way?', placeholder: 'Distractions, energy, too much on the list…' },
-    { key: 'nextFocus', label: 'What will you focus on next week?', placeholder: 'One to three priorities' }
+    { key: 'blockers', label: 'What got in the way?', placeholder: 'Distractions, energy, too much on the list…' }
 ];
 ---
 
@@ -263,6 +262,81 @@ const prompts = [
                         </div>
                     ))}
 
+                    <!-- Weekly Big 3: 1 to 3 goal-linked weekly intentions -->
+                    <div class="space-y-2.5 pt-2 border-t border-gray-100 dark:border-slate-700/60">
+                        <div class="flex flex-wrap items-baseline justify-between gap-2">
+                            <div>
+                                <p class="editorial text-base font-normal text-gray-900 dark:text-white">Weekly Big 3</p>
+                                <p class="text-xs text-gray-500 dark:text-gray-400">Set 1 to 3 intentions for the week, optionally linked to a goal.</p>
+                            </div>
+                            <span class="text-xs font-medium tabular-nums text-gray-500 dark:text-gray-400" x-text="`${draft.weeklyIntentions.length} of ${weeklyLimit}`"></span>
+                        </div>
+
+                        <ul class="space-y-2" x-show="draft.weeklyIntentions.length">
+                            <template x-for="(intention, idx) in draft.weeklyIntentions" :key="intention.id">
+                                <li class="rounded-xl bg-gray-50/80 dark:bg-slate-700/30 ring-1 ring-black/5 dark:ring-white/10 p-2.5 space-y-2">
+                                    <div class="flex items-center gap-2">
+                                        <input
+                                            type="checkbox"
+                                            x-bind:name="`weekly-intention-done-${idx}`"
+                                            class="w-4 h-4 shrink-0 rounded-full border-gray-300 dark:border-slate-500 text-teal-600 focus:ring-teal-500 dark:bg-slate-700"
+                                            x-model="intention.done"
+                                            x-on:change="saveState = 'dirty'"
+                                            x-bind:aria-label="`Mark intention ${idx + 1} done`"
+                                        />
+                                        <input
+                                            type="text"
+                                            x-bind:name="`weekly-intention-text-${idx}`"
+                                            x-bind:aria-label="`Weekly intention ${idx + 1}`"
+                                            x-model="intention.text"
+                                            x-on:input="saveState = 'dirty'"
+                                            placeholder="One meaningful outcome for this week…"
+                                            class="flex-1 min-w-0 rounded-lg border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-800 dark:text-white text-sm py-1.5 focus:border-teal-500 focus:ring-teal-500"
+                                            x-bind:class="intention.done && 'line-through text-gray-500 dark:text-gray-400'"
+                                        />
+                                        <button
+                                            type="button"
+                                            x-on:click="removeWeeklyIntention(intention.id)"
+                                            class={`${iconButton} shrink-0 hover:!text-red-500`}
+                                            x-bind:aria-label="`Remove intention ${idx + 1}`"
+                                        >
+                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                                        </button>
+                                    </div>
+                                    <div class="pl-6 flex items-center gap-2">
+                                        <label class="sr-only" x-bind:for="`weekly-intention-goal-${intention.id}`">Link to goal</label>
+                                        <select
+                                            x-bind:id="`weekly-intention-goal-${intention.id}`"
+                                            x-bind:name="`weekly-intention-goal-${idx}`"
+                                            x-model="intention.goalId"
+                                            x-on:change="intention.goalId = $event.target.value || null; saveState = 'dirty'"
+                                            class="max-w-full rounded-lg border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-xs text-gray-600 dark:text-gray-300 py-1 pr-7 focus:border-teal-500 focus:ring-teal-500"
+                                        >
+                                            <option value="">No linked goal</option>
+                                            <template x-for="goal in $store.goals.goals" :key="goal.id">
+                                                <option x-bind:value="goal.id" x-bind:selected="goal.id === intention.goalId" x-text="goal.title"></option>
+                                            </template>
+                                        </select>
+                                    </div>
+                                </li>
+                            </template>
+                        </ul>
+
+                        <div class="flex flex-wrap items-center justify-between gap-2">
+                            <button
+                                type="button"
+                                x-show="draft.weeklyIntentions.length < weeklyLimit"
+                                x-on:click="addWeeklyIntention()"
+                                class="text-xs font-medium text-teal-700 dark:text-teal-300 hover:underline"
+                            >+ Add weekly intention</button>
+                            <span
+                                x-show="draft.weeklyIntentions.length >= weeklyLimit"
+                                x-cloak
+                                class="text-xs text-gray-500 dark:text-gray-400"
+                            >Up to 3 intentions keeps the week steady.</span>
+                        </div>
+                    </div>
+
                     <!-- Connection & rejuvenation -->
                     <div class="space-y-4 pt-2 border-t border-gray-100 dark:border-slate-700/60">
                         <div>
@@ -486,7 +560,13 @@ const prompts = [
     import { mergeCheckInDraft } from '../lib/checkInMerge';
     import { dates } from '../lib/dates';
     import { resetDraft, syncDraft } from '../lib/syncDraft';
-    import { ACTIVE_GOAL_FOCUS_LIMIT, MINDFUL_PROMPTS, mindfulPromptForWeek, weekOf } from '../stores/goalsStore';
+    import {
+        ACTIVE_GOAL_FOCUS_LIMIT,
+        MINDFUL_PROMPTS,
+        WEEKLY_INTENTIONS_LIMIT,
+        mindfulPromptForWeek,
+        weekOf
+    } from '../stores/goalsStore';
 
     // Completed time in a week, from the timer's finished focus sessions
     const focusMinutes = (sessions, start, end) => sessions
@@ -500,6 +580,22 @@ const prompts = [
         return [...items].sort((a, b) => (rank.get(a.id) ?? Infinity) - (rank.get(b.id) ?? Infinity));
     };
 
+    // Hydrate a check-in draft with a mutable weeklyIntentions copy (migrating legacy nextFocus lines when empty)
+    const buildDraft = (checkIn) => {
+        let intentions = Array.isArray(checkIn.weeklyIntentions)
+            ? checkIn.weeklyIntentions.map(item => ({ ...item }))
+            : [];
+        if (!intentions.length && checkIn.nextFocus?.trim()) {
+            intentions = checkIn.nextFocus
+                .split('\n')
+                .map(line => line.replace(/^[-•]\s*/, '').trim())
+                .filter(Boolean)
+                .slice(0, WEEKLY_INTENTIONS_LIMIT)
+                .map((text, index) => ({ id: `legacy-${index + 1}`, text, goalId: null, done: false }));
+        }
+        return { ...checkIn, weeklyIntentions: intentions };
+    };
+
     document.addEventListener('alpine:init', () => {
         window.Alpine.data('goalsPage', () => ({
             newGoal: '',
@@ -508,6 +604,7 @@ const prompts = [
             showAllWins: false,
             celebratedGoal: null,
             focusLimit: ACTIVE_GOAL_FOCUS_LIMIT,
+            weeklyLimit: WEEKLY_INTENTIONS_LIMIT,
             week: weekOf(),
             draft: null,
             saveState: 'clean',
@@ -566,29 +663,30 @@ const prompts = [
             },
 
             init() {
-                this.draft = { ...this.$store.goals.checkInFor(this.week) };
+                this.draft = buildDraft(this.$store.goals.checkInFor(this.week));
                 this.$watch('$store.goals.checkIns[week]', (checkIn, previous) => {
                     if (JSON.stringify(checkIn) === JSON.stringify(previous)) return;
-                    const before = {
+                    const before = buildDraft({
+                        week: this.week,
                         energy: 0,
                         wins: '',
                         blockers: '',
                         nextFocus: '',
+                        weeklyIntentions: [],
                         checkInPerson: '',
                         checkInPersonTaskId: null,
                         recharge: '',
                         mindfulPrompt: mindfulPromptForWeek(this.week),
                         mindfulAnswer: '',
                         mindfulDismissed: false,
+                        savedAt: '',
                         ...previous
-                    };
-                    const remote = this.$store.goals.checkInFor(this.week);
+                    });
+                    const remote = buildDraft(this.$store.goals.checkInFor(this.week));
                     const { merged, changed } = mergeCheckInDraft(before, this.draft, remote);
                     this.draft = merged;
                     this.saveState = changed ? 'dirty' : 'clean';
                 });
-                // Switching the person re-links an already-open "Check in on <name>" task instead of a stale one
-                this.$watch('draft.checkInPerson', () => this.relinkCheckInPersonTask());
             },
 
             get thisWeek() {
@@ -640,32 +738,33 @@ const prompts = [
                 this.saveState = 'dirty';
             },
 
+            addWeeklyIntention() {
+                if (this.draft.weeklyIntentions.length >= this.weeklyLimit) return;
+                this.draft.weeklyIntentions = [
+                    ...this.draft.weeklyIntentions,
+                    { id: crypto.randomUUID(), text: '', goalId: null, done: false }
+                ];
+                this.saveState = 'dirty';
+            },
+
+            removeWeeklyIntention(id) {
+                this.draft.weeklyIntentions = this.draft.weeklyIntentions.filter(item => item.id !== id);
+                this.saveState = 'dirty';
+            },
+
             get checkInPersonTaskAdded() {
                 const person = (this.draft?.checkInPerson ?? '').trim();
                 if (!person) return false;
                 const title = `Check in on ${person}`;
                 const id = this.draft?.checkInPersonTaskId;
                 const linked = id ? this.$store.todos.find(id) : null;
-                if (linked && !linked.completed && linked.todo === title) return true;
+                if (linked && linked.todo === title) return true;
                 return this.$store.todos.items.some(task => !task.isCluster && !task.completed && task.todo === title);
-            },
-
-            // Point the draft at the open task for the current person, so saving never persists a stale link
-            relinkCheckInPersonTask() {
-                const person = (this.draft?.checkInPerson ?? '').trim();
-                if (!person) return;
-                const existing = this.$store.todos.items.find(task => !task.isCluster && !task.completed && task.todo === `Check in on ${person}`);
-                if (existing && this.draft.checkInPersonTaskId !== existing.id) {
-                    this.draft.checkInPersonTaskId = existing.id;
-                    this.saveState = 'dirty';
-                }
             },
 
             addCheckInPersonTask() {
                 const person = (this.draft?.checkInPerson ?? '').trim();
-                if (!person) return;
-                this.relinkCheckInPersonTask();
-                if (this.checkInPersonTaskAdded) return;
+                if (!person || this.checkInPersonTaskAdded) return;
                 const today = dates.toDateKey();
                 const midWeek = dates.addDays(this.week, 2);
                 const dueDate = this.week === this.thisWeek ? (midWeek >= today ? midWeek : today) : null;
@@ -763,12 +862,17 @@ const prompts = [
                 if (week > this.thisWeek || week === this.week) return;
                 if (this.saveState === 'dirty' && !confirm('Leave this check-in without saving?')) return;
                 this.week = week;
-                this.draft = { ...this.$store.goals.checkInFor(week) };
+                this.draft = buildDraft(this.$store.goals.checkInFor(week));
                 this.saveState = 'clean';
             },
 
             saveCheckIn() {
-                this.relinkCheckInPersonTask();
+                const cleanedIntentions = this.draft.weeklyIntentions
+                    .map(item => ({ ...item, text: item.text.trim() }))
+                    .filter(item => item.text);
+                const nextFocus = cleanedIntentions.map(item => item.text).join('\n');
+                this.draft.weeklyIntentions = cleanedIntentions;
+                this.draft.nextFocus = nextFocus;
                 this.$store.goals.saveCheckIn({ ...this.draft, week: this.week });
                 this.saveState = 'saved';
             }

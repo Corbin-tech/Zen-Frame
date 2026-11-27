@@ -19,12 +19,18 @@ const PLAIN_FIELDS = [
 // saved must not wipe the remote answer — only a typed answer or a prompt the remote tab is
 // not on takes the local pair.
 export function mergeCheckInDraft(before: CheckIn, draft: CheckIn, remote: CheckIn): { merged: CheckIn; changed: boolean } {
-  const merged: CheckIn = { ...remote };
+  const merged: CheckIn = {
+    ...remote,
+    weeklyIntentions: (remote.weeklyIntentions ?? []).map(item => ({ ...item }))
+  };
   const mergedFields = merged as unknown as Record<string, unknown>;
   const draftFields = draft as unknown as Record<string, unknown>;
   const beforeFields = before as unknown as Record<string, unknown>;
   for (const field of PLAIN_FIELDS) {
     if (draftFields[field] !== beforeFields[field]) mergedFields[field] = draftFields[field];
+  }
+  if (JSON.stringify(draft.weeklyIntentions ?? []) !== JSON.stringify(before.weeklyIntentions ?? [])) {
+    merged.weeklyIntentions = (draft.weeklyIntentions ?? []).map(item => ({ ...item }));
   }
   const localPromptChanged = draft.mindfulPrompt !== before.mindfulPrompt;
   const localPromptDiverged = localPromptChanged && draft.mindfulPrompt !== remote.mindfulPrompt;
@@ -35,6 +41,7 @@ export function mergeCheckInDraft(before: CheckIn, draft: CheckIn, remote: Check
     merged.mindfulAnswer = draft.mindfulAnswer;
   }
   const remoteFields = remote as unknown as Record<string, unknown>;
-  const changed = [...PLAIN_FIELDS, "mindfulPrompt", "mindfulAnswer"].some(field => mergedFields[field] !== remoteFields[field]);
+  const changed = [...PLAIN_FIELDS, "mindfulPrompt", "mindfulAnswer"].some(field => mergedFields[field] !== remoteFields[field])
+    || JSON.stringify(merged.weeklyIntentions ?? []) !== JSON.stringify(remote.weeklyIntentions ?? []);
   return { merged, changed };
 }

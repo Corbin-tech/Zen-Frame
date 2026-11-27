@@ -376,6 +376,133 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
                     </span>
                     </label>
 
+                    <div class="pt-3 border-t border-black/5 dark:border-white/10 space-y-3">
+                        <p class="text-xs text-gray-500 dark:text-gray-400">Gentle opt-in nudges. Shown while Zen Frame is open, or on your next visit — never red badges.</p>
+
+                        <label for="settings-notify-weekly" class="flex items-start justify-between gap-4 cursor-pointer">
+                            <span>
+                                <span class={label}>Weekly check-in</span>
+                                <span class="block text-xs text-gray-500 dark:text-gray-400">A quiet prompt to review the week and set 1–3 intentions.</span>
+                            </span>
+                            <span class="relative shrink-0 mt-0.5">
+                                <input
+                                    id="settings-notify-weekly"
+                                    name="settings-notify-weekly"
+                                    type="checkbox"
+                                    role="switch"
+                                    class="peer sr-only"
+                                    x-bind:checked="$store.settings.notifyWeeklyCheckIn"
+                                    x-bind:disabled="!$store.settings.notifyEnabled"
+                                    x-on:change="$store.settings.update({ notifyWeeklyCheckIn: $event.target.checked })"
+                                />
+                                <span class="block w-11 h-6 rounded-full bg-gray-200 dark:bg-slate-700 peer-checked:bg-teal-600 peer-focus-visible:ring-2 peer-focus-visible:ring-teal-500 peer-focus-visible:ring-offset-2 transition-colors"></span>
+                                <span class="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-5"></span>
+                            </span>
+                        </label>
+                        <div x-show="$store.settings.notifyWeeklyCheckIn" class="flex flex-wrap items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                            <label for="settings-notify-weekly-day">On</label>
+                            <select
+                                id="settings-notify-weekly-day"
+                                name="settings-notify-weekly-day"
+                                x-bind:disabled="!$store.settings.notifyEnabled"
+                                x-on:change="$store.settings.update({ notifyWeeklyCheckInDay: Number($event.target.value) })"
+                                class="rounded-lg border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 dark:text-white text-sm py-1.5 focus:border-teal-500 focus:ring-teal-500"
+                            >
+                                <template x-for="day in $store.settings.reminderWeekdays" :key="day.id">
+                                    <option x-bind:value="day.id" x-bind:selected="day.id === $store.settings.notifyWeeklyCheckInDay" x-text="day.label"></option>
+                                </template>
+                            </select>
+                            <label for="settings-notify-weekly-time">at</label>
+                            <input
+                                id="settings-notify-weekly-time"
+                                name="settings-notify-weekly-time"
+                                type="time"
+                                x-bind:value="$store.settings.notifyWeeklyCheckInTime"
+                                x-bind:disabled="!$store.settings.notifyEnabled"
+                                x-on:change="$event.target.value && $store.settings.update({ notifyWeeklyCheckInTime: $event.target.value })"
+                                class="rounded-lg border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 dark:text-white text-sm py-1.5 focus:border-teal-500 focus:ring-teal-500"
+                            />
+                        </div>
+
+                        <label for="settings-notify-people" class="flex items-start justify-between gap-4 cursor-pointer">
+                            <span>
+                                <span class={label}>People check-in</span>
+                                <span class="block text-xs text-gray-500 dark:text-gray-400">A mid-week nudge naming the person from your weekly check-in.</span>
+                            </span>
+                            <span class="relative shrink-0 mt-0.5">
+                                <input
+                                    id="settings-notify-people"
+                                    name="settings-notify-people"
+                                    type="checkbox"
+                                    role="switch"
+                                    class="peer sr-only"
+                                    x-bind:checked="$store.settings.notifyPeopleCheckIn"
+                                    x-bind:disabled="!$store.settings.notifyEnabled"
+                                    x-on:change="$store.settings.update({ notifyPeopleCheckIn: $event.target.checked })"
+                                />
+                                <span class="block w-11 h-6 rounded-full bg-gray-200 dark:bg-slate-700 peer-checked:bg-teal-600 peer-focus-visible:ring-2 peer-focus-visible:ring-teal-500 peer-focus-visible:ring-offset-2 transition-colors"></span>
+                                <span class="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-5"></span>
+                            </span>
+                        </label>
+                        <div x-show="$store.settings.notifyPeopleCheckIn" class="flex flex-wrap items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                            <label for="settings-notify-people-day">On</label>
+                            <select
+                                id="settings-notify-people-day"
+                                name="settings-notify-people-day"
+                                x-bind:disabled="!$store.settings.notifyEnabled"
+                                x-on:change="$store.settings.update({ notifyPeopleCheckInDay: Number($event.target.value) })"
+                                class="rounded-lg border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 dark:text-white text-sm py-1.5 focus:border-teal-500 focus:ring-teal-500"
+                            >
+                                <template x-for="day in $store.settings.reminderWeekdays" :key="day.id">
+                                    <option x-bind:value="day.id" x-bind:selected="day.id === $store.settings.notifyPeopleCheckInDay" x-text="day.label"></option>
+                                </template>
+                            </select>
+                            <label for="settings-notify-people-time">at</label>
+                            <input
+                                id="settings-notify-people-time"
+                                name="settings-notify-people-time"
+                                type="time"
+                                x-bind:value="$store.settings.notifyPeopleCheckInTime"
+                                x-bind:disabled="!$store.settings.notifyEnabled"
+                                x-on:change="$event.target.value && $store.settings.update({ notifyPeopleCheckInTime: $event.target.value })"
+                                class="rounded-lg border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 dark:text-white text-sm py-1.5 focus:border-teal-500 focus:ring-teal-500"
+                            />
+                        </div>
+
+                        <label for="settings-notify-close-day" class="flex items-start justify-between gap-4 cursor-pointer">
+                            <span>
+                                <span class={label}>Evening wrap-up</span>
+                                <span class="block text-xs text-gray-500 dark:text-gray-400">An evening nudge to open Close the day.</span>
+                            </span>
+                            <span class="relative shrink-0 mt-0.5">
+                                <input
+                                    id="settings-notify-close-day"
+                                    name="settings-notify-close-day"
+                                    type="checkbox"
+                                    role="switch"
+                                    class="peer sr-only"
+                                    x-bind:checked="$store.settings.notifyCloseDay"
+                                    x-bind:disabled="!$store.settings.notifyEnabled"
+                                    x-on:change="$store.settings.update({ notifyCloseDay: $event.target.checked })"
+                                />
+                                <span class="block w-11 h-6 rounded-full bg-gray-200 dark:bg-slate-700 peer-checked:bg-teal-600 peer-focus-visible:ring-2 peer-focus-visible:ring-teal-500 peer-focus-visible:ring-offset-2 transition-colors"></span>
+                                <span class="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-5"></span>
+                            </span>
+                        </label>
+                        <div x-show="$store.settings.notifyCloseDay" class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                            <label for="settings-notify-close-day-time">At</label>
+                            <input
+                                id="settings-notify-close-day-time"
+                                name="settings-notify-close-day-time"
+                                type="time"
+                                x-bind:value="$store.settings.notifyCloseDayTime"
+                                x-bind:disabled="!$store.settings.notifyEnabled"
+                                x-on:change="$event.target.value && $store.settings.update({ notifyCloseDayTime: $event.target.value })"
+                                class="rounded-lg border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 dark:text-white text-sm py-1.5 focus:border-teal-500 focus:ring-teal-500"
+                            />
+                        </div>
+                    </div>
+
                     <button
                         type="button"
                         x-bind:disabled="!$store.settings.notifyEnabled"

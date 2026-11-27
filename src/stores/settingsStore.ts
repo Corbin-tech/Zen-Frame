@@ -61,6 +61,7 @@ const TIMER_STYLES = [
 export const DASHBOARD_WIDGETS = [
   { id: "stats", label: "Key numbers", hint: "Open tasks, done today, planned, focus", zone: "top" },
   { id: "plan", label: "Today's plan", hint: "Today's blocks from the schedule", zone: "column" },
+  { id: "focus3", label: "Today's Big 3", hint: "Up to 3 starred focus tasks for today", zone: "column" },
   { id: "clusters", label: "Clusters", hint: "Progress for each cluster", zone: "column" },
   { id: "completed", label: "Tasks completed", hint: "The last 7 days", zone: "column" },
   { id: "upnext", label: "Up next", hint: "The next task, with a focus button", zone: "column" },
@@ -124,6 +125,16 @@ const SEEN_MONTHS_KEPT = 24;
 // Minutes before a scheduled block starts that its reminder fires
 const BLOCK_LEADS = [0, 5, 10, 15, 30];
 
+export const REMINDER_WEEKDAYS = [
+  { id: 0, label: "Sunday" },
+  { id: 1, label: "Monday" },
+  { id: 2, label: "Tuesday" },
+  { id: 3, label: "Wednesday" },
+  { id: 4, label: "Thursday" },
+  { id: 5, label: "Friday" },
+  { id: 6, label: "Saturday" }
+] as const;
+
 type Accent = typeof ACCENTS[number]["id"];
 type Font = typeof FONTS[number]["id"];
 type TextSize = typeof TEXT_SIZES[number]["id"];
@@ -160,6 +171,15 @@ interface Settings {
   notifyBlockLead: number; // One of BLOCK_LEADS
   notifyDue: boolean; // Daily summary of tasks due today and overdue
   notifyDueTime: string; // "HH:MM"
+  notifyWeeklyCheckIn: boolean; // Opt-in weekly check-in nudge
+  notifyWeeklyCheckInDay: number; // 0 = Sunday to 6 = Saturday
+  notifyWeeklyCheckInTime: string; // "HH:MM"
+  notifyPeopleCheckIn: boolean; // Opt-in mid-week nudge to check in on someone
+  notifyPeopleCheckInDay: number; // 0 = Sunday to 6 = Saturday
+  notifyPeopleCheckInTime: string; // "HH:MM"
+  notifyCloseDay: boolean; // Opt-in evening wrap-up nudge
+  notifyCloseDayTime: string; // "HH:MM"
+  lastClosedDay: string; // YYYY-MM-DD of last completed Close the Day wrap-up
   recapSeenMonths: string[]; // Months ("YYYY-MM") whose monthly story was watched to the end
 }
 
@@ -191,6 +211,15 @@ const DEFAULTS: Settings = {
   notifyBlockLead: 5,
   notifyDue: true,
   notifyDueTime: "09:00",
+  notifyWeeklyCheckIn: false,
+  notifyWeeklyCheckInDay: 0,
+  notifyWeeklyCheckInTime: "18:00",
+  notifyPeopleCheckIn: false,
+  notifyPeopleCheckInDay: 3,
+  notifyPeopleCheckInTime: "10:00",
+  notifyCloseDay: false,
+  notifyCloseDayTime: "17:30",
+  lastClosedDay: "",
   recapSeenMonths: []
 };
 
@@ -212,6 +241,14 @@ function cleanLayout(saved: unknown): DashboardLayout {
 function cleanMonths(saved: unknown): string[] {
   const months = (Array.isArray(saved) ? saved : []).filter(month => typeof month === "string" && /^\d{4}-\d{2}$/.test(month));
   return [...new Set<string>(months)].sort().slice(-SEEN_MONTHS_KEPT);
+}
+
+function cleanTime(value: unknown, fallback: string): string {
+  return typeof value === "string" && /^\d{2}:\d{2}$/.test(value) ? value : fallback;
+}
+
+function cleanWeekday(value: unknown, fallback: number): number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= 6 ? value : fallback;
 }
 
 // Keeps only known values, so an old or edited save can't break the page
@@ -249,7 +286,16 @@ function loadSettings(): Settings {
     notifyBlocks: flag(saved.notifyBlocks, DEFAULTS.notifyBlocks),
     notifyBlockLead: BLOCK_LEADS.includes(saved.notifyBlockLead as number) ? saved.notifyBlockLead as number : DEFAULTS.notifyBlockLead,
     notifyDue: flag(saved.notifyDue, DEFAULTS.notifyDue),
-    notifyDueTime: typeof saved.notifyDueTime === "string" && /^\d{2}:\d{2}$/.test(saved.notifyDueTime) ? saved.notifyDueTime : DEFAULTS.notifyDueTime,
+    notifyDueTime: cleanTime(saved.notifyDueTime, DEFAULTS.notifyDueTime),
+    notifyWeeklyCheckIn: flag(saved.notifyWeeklyCheckIn, DEFAULTS.notifyWeeklyCheckIn),
+    notifyWeeklyCheckInDay: cleanWeekday(saved.notifyWeeklyCheckInDay, DEFAULTS.notifyWeeklyCheckInDay),
+    notifyWeeklyCheckInTime: cleanTime(saved.notifyWeeklyCheckInTime, DEFAULTS.notifyWeeklyCheckInTime),
+    notifyPeopleCheckIn: flag(saved.notifyPeopleCheckIn, DEFAULTS.notifyPeopleCheckIn),
+    notifyPeopleCheckInDay: cleanWeekday(saved.notifyPeopleCheckInDay, DEFAULTS.notifyPeopleCheckInDay),
+    notifyPeopleCheckInTime: cleanTime(saved.notifyPeopleCheckInTime, DEFAULTS.notifyPeopleCheckInTime),
+    notifyCloseDay: flag(saved.notifyCloseDay, DEFAULTS.notifyCloseDay),
+    notifyCloseDayTime: cleanTime(saved.notifyCloseDayTime, DEFAULTS.notifyCloseDayTime),
+    lastClosedDay: typeof saved.lastClosedDay === "string" && /^\d{4}-\d{2}-\d{2}$/.test(saved.lastClosedDay) ? saved.lastClosedDay : DEFAULTS.lastClosedDay,
     recapSeenMonths: cleanMonths(saved.recapSeenMonths)
   };
 }
@@ -268,6 +314,7 @@ export function initSettingsStore() {
     zenBackgrounds: ZEN_BACKGROUNDS,
     alarmSounds: ALARM_SOUNDS,
     blockLeads: BLOCK_LEADS,
+    reminderWeekdays: REMINDER_WEEKDAYS,
     // The browser's answer to the notification prompt: "default", "granted", "denied", or "unsupported"
     notificationPermission: "default" as NotificationPermission | "unsupported",
 
@@ -294,8 +341,15 @@ export function initSettingsStore() {
     },
 
     reset(): void {
-      // Resets preferences. The name, the reminder switch, and which monthly stories were watched are kept.
-      this.update({ ...DEFAULTS, dashboardLayout: structuredClone(DEFAULT_DASHBOARD), name: this.name, notifyEnabled: this.notifyEnabled, recapSeenMonths: this.recapSeenMonths });
+      // Resets preferences. The name, the reminder switch, last closed day, and watched recaps are kept.
+      this.update({
+        ...DEFAULTS,
+        dashboardLayout: structuredClone(DEFAULT_DASHBOARD),
+        name: this.name,
+        notifyEnabled: this.notifyEnabled,
+        lastClosedDay: this.lastClosedDay,
+        recapSeenMonths: this.recapSeenMonths
+      });
     },
 
     setDashboardLayout(layout: DashboardLayout): void {

@@ -1,0 +1,308 @@
+---
+// Close the day: a calm 60-second evening wrap-up modal.
+// Opened via the "open-close-day" window event (from Dashboard or the evening reminder toast).
+const field = 'block w-full rounded-lg border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-800 dark:text-white text-sm focus:border-teal-500 focus:ring-teal-500';
+---
+
+<div
+    x-data="closeDay"
+    x-on:open-close-day.window="openModal()"
+    x-on:overlay-opened.window="if (open && $event.detail.name !== 'close-day') { $event.detail.opener = returnFocus; close(false); }"
+    x-on:keydown.escape.window="if (open) close()"
+    x-on:keydown.tab.window="if (open) trap($event)"
+>
+    <div
+        x-show="open"
+        x-cloak
+        x-transition.opacity.duration.200ms
+        x-on:click="close()"
+        class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm"
+        aria-hidden="true"
+    ></div>
+
+    <div
+        x-show="open"
+        x-cloak
+        x-transition.opacity.duration.200ms
+        class="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none"
+    >
+        <div
+            x-ref="dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="close-day-title"
+            class="pointer-events-auto w-full max-w-lg max-h-[calc(100vh-2rem)] flex flex-col rounded-2xl bg-white dark:bg-slate-900 shadow-2xl ring-1 ring-black/10 dark:ring-white/10 overflow-hidden"
+        >
+            <header class="flex items-start justify-between gap-4 px-6 py-4 border-b border-black/5 dark:border-white/10">
+                <div>
+                    <p class="eyebrow" x-text="$dates.formatDate(todayKey, { weekday: 'long', month: 'long', day: 'numeric' })"></p>
+                    <h2 id="close-day-title" class="editorial mt-0.5 text-2xl font-normal text-gray-900 dark:text-white">Close the day</h2>
+                </div>
+                <button
+                    type="button"
+                    x-ref="closeBtn"
+                    x-on:click="close()"
+                    class="touch-target inline-flex items-center justify-center p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:hover:text-gray-200 dark:hover:bg-slate-800 transition-colors"
+                    aria-label="Close wrap-up"
+                >
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </header>
+
+            <!-- Active wrap-up flow -->
+            <div x-show="!finished" class="flex-1 overflow-y-auto px-6 py-5 space-y-6">
+                <!-- 1. What moved forward -->
+                <section class="grid grid-cols-2 gap-3">
+                    <div class="rounded-xl bg-gray-50 dark:bg-slate-800/70 px-4 py-3 ring-1 ring-black/5 dark:ring-white/5">
+                        <p class="text-2xl font-semibold tabular-nums text-gray-900 dark:text-white" x-text="doneToday"></p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400" x-text="doneToday === 1 ? 'task finished today' : 'tasks finished today'"></p>
+                    </div>
+                    <div class="rounded-xl bg-gray-50 dark:bg-slate-800/70 px-4 py-3 ring-1 ring-black/5 dark:ring-white/5">
+                        <p class="text-2xl font-semibold tabular-nums text-gray-900 dark:text-white" x-text="focusMinutesToday ? $dates.formatDuration(focusMinutesToday) : '0m'"></p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">focused time today</p>
+                    </div>
+                </section>
+
+                <!-- 2. Carry over gently -->
+                <section class="space-y-2.5">
+                    <div class="flex flex-wrap items-baseline justify-between gap-2">
+                        <h3 class="editorial text-base font-normal text-gray-900 dark:text-white">Carry over gently</h3>
+                        <button
+                            type="button"
+                            x-show="unfinishedToday.length > 0"
+                            x-on:click="moveAllToTomorrow()"
+                            class="text-xs font-medium text-teal-700 dark:text-teal-300 hover:underline"
+                        >Move all to tomorrow</button>
+                    </div>
+                    <div x-show="unfinishedToday.length" class="rounded-xl bg-warmth/20 dark:bg-warmth/10 ring-1 ring-warmth-deep/15 dark:ring-warmth/20 p-3.5 space-y-2">
+                        <p class="flex items-center gap-2 text-xs text-gray-800 dark:text-warmth-light">
+                            <span class="w-2 h-2 rounded-full bg-warmth-deep dark:bg-warmth shrink-0" aria-hidden="true"></span>
+                            <span x-text="`${unfinishedToday.length} ${unfinishedToday.length === 1 ? 'task' : 'tasks'} unfinished from today. Carrying over is fine.`"></span>
+                        </p>
+                        <ul class="space-y-1.5">
+                            <template x-for="task in unfinishedToday" :key="task.id">
+                                <li class="flex items-center justify-between gap-2 rounded-lg bg-white/80 dark:bg-slate-900/60 px-3 py-2 text-sm">
+                                    <span class="min-w-0 truncate text-gray-800 dark:text-gray-100" x-text="task.todo"></span>
+                                    <button
+                                        type="button"
+                                        x-on:click="moveOneToTomorrow(task.id)"
+                                        class="shrink-0 text-xs font-medium text-teal-700 dark:text-teal-300 hover:underline"
+                                    >Tomorrow</button>
+                                </li>
+                            </template>
+                        </ul>
+                    </div>
+                    <p x-show="!unfinishedToday.length" class="text-sm text-gray-500 dark:text-gray-400" x-text="carriedCount ? `Moved ${carriedCount} ${carriedCount === 1 ? 'task' : 'tasks'} to tomorrow.` : 'Nothing left hanging for today.'"></p>
+                </section>
+
+                <!-- 3. One win from today -->
+                <section class="space-y-2">
+                    <label for="close-day-win" class="editorial block text-base font-normal text-gray-900 dark:text-white">One win from today</label>
+                    <input
+                        id="close-day-win"
+                        name="close-day-win"
+                        type="text"
+                        x-model="winText"
+                        placeholder="Optional — one small thing that went well…"
+                        class={field}
+                    />
+                    <ul x-show="todayWins.length" class="space-y-1 pt-0.5">
+                        <template x-for="win in todayWins" :key="win.id">
+                            <li class="flex items-baseline gap-2 text-xs text-gray-600 dark:text-gray-300">
+                                <span class="w-1.5 h-1.5 rounded-full bg-teal-600 dark:bg-teal-400 shrink-0 translate-y-[-1px]" aria-hidden="true"></span>
+                                <span x-text="win.text"></span>
+                            </li>
+                        </template>
+                    </ul>
+                </section>
+
+                <!-- 4. One next step for tomorrow (1–3 starred focus tasks) -->
+                <section class="space-y-2.5">
+                    <div class="flex items-baseline justify-between gap-2">
+                        <h3 class="editorial text-base font-normal text-gray-900 dark:text-white">Next step for tomorrow</h3>
+                        <span class="text-xs tabular-nums text-gray-500 dark:text-gray-400" x-text="`${tomorrowFocus.length} of ${focusLimit} starred`"></span>
+                    </div>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Pick 1 to 3 tasks so tomorrow starts with clarity, or add one below.</p>
+                    <ul x-show="tomorrowCandidates.length" class="space-y-1.5 max-h-40 overflow-y-auto pr-0.5">
+                        <template x-for="task in tomorrowCandidates" :key="task.id">
+                            <li>
+                                <button
+                                    type="button"
+                                    x-on:click="$store.todos.toggleFocusTask(task.id, tomorrowKey)"
+                                    class="w-full flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-sm ring-1 transition-colors"
+                                    x-bind:class="task.focusDate === tomorrowKey
+                                        ? 'bg-warmth/20 dark:bg-warmth/10 ring-warmth-deep/30 dark:ring-warmth/30 text-gray-900 dark:text-white'
+                                        : 'bg-gray-50/80 dark:bg-slate-800/60 ring-black/5 dark:ring-white/10 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-800'"
+                                    x-bind:aria-pressed="task.focusDate === tomorrowKey"
+                                >
+                                    <span class="min-w-0 truncate" x-text="task.todo"></span>
+                                    <span class="shrink-0 flex items-center gap-1 text-xs font-medium" x-bind:class="task.focusDate === tomorrowKey ? 'text-warmth-deep dark:text-warmth' : 'text-gray-400 dark:text-gray-500'">
+                                        <span class="w-2 h-2 rounded-full" x-bind:class="task.focusDate === tomorrowKey ? 'bg-warmth-deep dark:bg-warmth' : 'bg-gray-300 dark:bg-slate-600'" aria-hidden="true"></span>
+                                        <span x-text="task.focusDate === tomorrowKey ? 'Tomorrow' : 'Pick'"></span>
+                                    </span>
+                                </button>
+                            </li>
+                        </template>
+                    </ul>
+                    <div class="flex gap-2">
+                        <label for="close-day-next" class="sr-only">Add a next step for tomorrow</label>
+                        <input
+                            id="close-day-next"
+                            name="close-day-next"
+                            type="text"
+                            x-model="nextStepText"
+                            x-on:keydown.enter.prevent="addTomorrowStep()"
+                            placeholder="Or add a new task for tomorrow…"
+                            class={field}
+                        />
+                        <button
+                            type="button"
+                            x-on:click="addTomorrowStep()"
+                            x-bind:disabled="!nextStepText.trim()"
+                            class="btn-secondary shrink-0 text-xs px-3 disabled:opacity-40"
+                        >Add</button>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Calm closing view -->
+            <div x-show="finished" x-cloak class="px-6 py-10 text-center space-y-3">
+                <p class="eyebrow text-teal-700 dark:text-teal-300">Day closed</p>
+                <p class="editorial text-3xl font-normal text-gray-900 dark:text-white">That is enough for today.</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400" x-text="tomorrowFocus.length ? `${tomorrowFocus.length} ${tomorrowFocus.length === 1 ? 'next step is' : 'next steps are'} waiting quietly for tomorrow.` : 'Your workspace will be ready whenever you return.'"></p>
+            </div>
+
+            <footer class="flex items-center justify-end gap-2 px-6 py-4 border-t border-black/5 dark:border-white/10">
+                <template x-if="!finished">
+                    <div class="flex items-center gap-2">
+                        <button type="button" x-on:click="close()" class="btn-secondary">Not now</button>
+                        <button type="button" x-on:click="completeWrapUp()" class="btn-primary">Close the day</button>
+                    </div>
+                </template>
+                <template x-if="finished">
+                    <button type="button" x-on:click="close()" class="btn-primary">Done</button>
+                </template>
+            </footer>
+        </div>
+    </div>
+</div>
+
+<script>
+    import { dates } from '../lib/dates';
+    import { trapFocus } from '../lib/focusTrap';
+    import { DAILY_FOCUS_LIMIT } from '../stores/todoStore';
+
+    const dayOf = (iso: string) => dates.toDateKey(new Date(iso));
+
+    document.addEventListener('alpine:init', () => {
+        window.Alpine.data('closeDay', () => ({
+            open: false,
+            finished: false,
+            winText: '',
+            nextStepText: '',
+            carriedCount: 0,
+            focusLimit: DAILY_FOCUS_LIMIT,
+            returnFocus: null as HTMLElement | null,
+
+            get todayKey() {
+                return dates.toDateKey();
+            },
+
+            get tomorrowKey() {
+                return dates.addDays(this.todayKey, 1);
+            },
+
+            get doneToday() {
+                return this.$store.todos.completions.filter((record: { at: string }) => dayOf(record.at) === this.todayKey).length;
+            },
+
+            get focusMinutesToday() {
+                return (this.$store.pomoState.sessions ?? [])
+                    .filter((session: { completedAt: string }) => dayOf(session.completedAt) === this.todayKey)
+                    .reduce((sum: number, session: { minutes: number }) => sum + session.minutes, 0);
+            },
+
+            get unfinishedToday() {
+                return this.$store.todos.openTasks.filter((task: { dueDate?: string | null }) => task.dueDate && task.dueDate <= this.todayKey);
+            },
+
+            get todayWins() {
+                return this.$store.goals.todayWins(this.todayKey);
+            },
+
+            get tomorrowFocus() {
+                return this.$store.todos.openFocusTasksFor(this.tomorrowKey);
+            },
+
+            get tomorrowCandidates() {
+                const tomorrow = this.tomorrowKey;
+                return [...this.$store.todos.openTasks]
+                    .sort((a: { focusDate?: string | null; dueDate?: string | null }, b: { focusDate?: string | null; dueDate?: string | null }) => {
+                        const aStar = a.focusDate === tomorrow ? 1 : 0;
+                        const bStar = b.focusDate === tomorrow ? 1 : 0;
+                        if (aStar !== bStar) return bStar - aStar;
+                        const aTomorrow = a.dueDate === tomorrow ? 1 : 0;
+                        const bTomorrow = b.dueDate === tomorrow ? 1 : 0;
+                        return bTomorrow - aTomorrow;
+                    })
+                    .slice(0, 8);
+            },
+
+            openModal() {
+                if (!this.open) {
+                    const opened: { name: string; opener?: Element | null } = { name: 'close-day' };
+                    window.dispatchEvent(new CustomEvent('overlay-opened', { detail: opened }));
+                    this.returnFocus = (opened.opener || document.activeElement) as HTMLElement | null;
+                }
+                this.finished = false;
+                this.winText = '';
+                this.nextStepText = '';
+                this.carriedCount = 0;
+                this.open = true;
+                this.$nextTick(() => (this.$refs.closeBtn as HTMLElement | undefined)?.focus());
+            },
+
+            close(restoreFocus = true) {
+                this.open = false;
+                if (restoreFocus && this.returnFocus?.isConnected) this.returnFocus.focus();
+                this.returnFocus = null;
+            },
+
+            trap(event: KeyboardEvent) {
+                trapFocus(event, this.$refs.dialog as HTMLElement);
+            },
+
+            moveOneToTomorrow(taskId: string) {
+                this.carriedCount += this.$store.todos.carryOverToTomorrow([taskId], this.tomorrowKey);
+            },
+
+            moveAllToTomorrow() {
+                const ids = this.unfinishedToday.map((task: { id: string }) => task.id);
+                this.carriedCount += this.$store.todos.carryOverToTomorrow(ids, this.tomorrowKey);
+            },
+
+            addTomorrowStep() {
+                const text = this.nextStepText.trim();
+                if (!text) return;
+                const canStar = this.tomorrowFocus.length < this.focusLimit;
+                this.$store.todos.addTodo(text, {
+                    dueDate: this.tomorrowKey,
+                    focusDate: canStar ? this.tomorrowKey : null
+                });
+                this.nextStepText = '';
+            },
+
+            completeWrapUp() {
+                if (this.winText.trim()) {
+                    this.$store.goals.addWin(this.winText.trim(), { date: this.todayKey });
+                    this.winText = '';
+                }
+                if (this.nextStepText.trim()) {
+                    this.addTomorrowStep();
+                }
+                this.$store.settings.update({ lastClosedDay: this.todayKey });
+                this.finished = true;
+            }
+        }));
+    });
+</script>

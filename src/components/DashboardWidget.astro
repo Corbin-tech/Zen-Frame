@@ -82,6 +82,49 @@ const checkbox = 'w-4 h-4 shrink-0 rounded-full border-gray-300 dark:border-slat
     </section>
 )}
 
+{id === 'focus3' && (
+    <section class={`${panel} p-5`}>
+        <div class="flex items-center justify-between gap-3 mb-4">
+            <div class="min-w-0">
+                <h2 class={panelTitle}>Today's Big 3</h2>
+                <p class="text-sm text-gray-500 dark:text-gray-400" x-text="todayFocusTasks.length ? `${todayOpenFocusCount} of 3 open` : 'Star up to 3 focus tasks for today'"></p>
+            </div>
+            <button type="button" class={linkButton} x-on:click="$dispatch('change-tab', { tab: 'taskmanager' })">Tasks →</button>
+        </div>
+
+        <ul class="space-y-2" x-show="todayFocusTasks.length">
+            <template x-for="task in todayFocusTasks" :key="task.id">
+                <li class="flex items-center gap-3 rounded-xl bg-gray-50 dark:bg-slate-700/40 px-3 py-2.5">
+                    <span class="w-2 h-2 rounded-full bg-warmth-deep dark:bg-warmth shrink-0" aria-hidden="true"></span>
+                    <input
+                        name="focus3-done"
+                        type="checkbox"
+                        class={checkbox}
+                        x-bind:checked="task.completed"
+                        x-on:change="$store.todos.toggleTodo(task.id)"
+                        x-bind:aria-label="`Mark ${task.todo} ${task.completed ? 'not done' : 'done'}`"
+                    />
+                    <div class="min-w-0 flex-1">
+                        <p class="text-sm font-medium truncate" x-bind:class="task.completed ? 'line-through text-gray-500 dark:text-gray-400' : 'text-gray-900 dark:text-white'" x-text="task.todo"></p>
+                        <p x-show="task.parentId" class="text-xs text-gray-500 dark:text-gray-400 truncate" x-text="$store.todos.clusterName(task.parentId)"></p>
+                    </div>
+                    <button
+                        type="button"
+                        x-show="!task.completed"
+                        x-on:click="$store.todos.toggleFocusTask(task.id, todayKey)"
+                        class="text-xs font-medium text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200"
+                        x-bind:aria-label="`Remove ${task.todo} from today's focus`"
+                    >Unstar</button>
+                </li>
+            </template>
+        </ul>
+
+        <p x-show="!todayFocusTasks.length" class="text-sm text-gray-500 dark:text-gray-400">
+            Star up to 3 tasks in Tasks or Close the day so you know where to begin.
+        </p>
+    </section>
+)}
+
 {id === 'clusters' && (
     <section class={`${panel} p-5`}>
         <div class="flex items-center justify-between gap-3 mb-4">

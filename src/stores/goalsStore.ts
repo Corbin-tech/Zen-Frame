@@ -27,7 +27,15 @@ export interface Win {
   createdAt: string;
 }
 
+export interface WeeklyIntention {
+  id: string;
+  text: string;
+  goalId: string | null;
+  done: boolean;
+}
+
 export const ACTIVE_GOAL_FOCUS_LIMIT = 3;
+export const WEEKLY_INTENTIONS_LIMIT = 3;
 
 export const MINDFUL_PROMPTS = [
   "What can you let go of this week?",
@@ -53,6 +61,7 @@ export interface CheckIn {
   wins: string;
   blockers: string;
   nextFocus: string;
+  weeklyIntentions: WeeklyIntention[]; // 1 to 3 goal-linked weekly intentions (Weekly Big 3)
   checkInPerson: string; // Someone to check in on this week
   checkInPersonTaskId: string | null; // Optional task created from checkInPerson
   recharge: string; // How I'll recharge this week
@@ -94,7 +103,21 @@ function hydrateGoal(goal: Partial<Goal> & Pick<Goal, "id" | "title">): Goal {
   };
 }
 
+function cleanIntentions(raw: unknown): WeeklyIntention[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((item): item is Partial<WeeklyIntention> => Boolean(item && typeof item === "object"))
+    .slice(0, WEEKLY_INTENTIONS_LIMIT)
+    .map((item, index) => ({
+      id: typeof item.id === "string" && item.id ? item.id : `intention-${index + 1}`,
+      text: typeof item.text === "string" ? item.text : "",
+      goalId: typeof item.goalId === "string" && item.goalId ? item.goalId : null,
+      done: Boolean(item.done)
+    }));
+}
+
 function hydrateCheckIn(checkIn: Partial<CheckIn> & Pick<CheckIn, "week">): CheckIn {
+  const weeklyIntentions = cleanIntentions(checkIn.weeklyIntentions);
   return {
     energy: 0,
     wins: "",
@@ -107,6 +130,7 @@ function hydrateCheckIn(checkIn: Partial<CheckIn> & Pick<CheckIn, "week">): Chec
     mindfulDismissed: false,
     savedAt: "",
     ...checkIn,
+    weeklyIntentions,
     mindfulPrompt: typeof checkIn.mindfulPrompt === "string" && checkIn.mindfulPrompt.trim()
       ? checkIn.mindfulPrompt
       : mindfulPromptForWeek(checkIn.week)
@@ -225,7 +249,7 @@ export function initGoalsStore() {
       return hydrateCheckIn(this.checkIns[week] ?? { week });
     },
 
-    saveCheckIn(checkIn: CheckIn): void {
+    saveCheckIn(checkIn: Partial<CheckIn> & Pick<CheckIn, "week">): void {
       const next = hydrateCheckIn({ ...checkIn, savedAt: new Date().toISOString() });
       this.checkIns = { ...this.checkIns, [next.week]: next };
       this.save();
@@ -282,6 +306,18 @@ export function initGoalsStore() {
     winsInWeek(weekStart: string): Win[] {
       const end = addDays(weekStart, 7);
       return this.sortedWins.filter(win => win.date >= weekStart && win.date < end);
+    },
+
+    winsInRange(from: string, to: string): Win[] {
+      return this.sortedWins.filter(win => win.date >= from && win.date <= to);
+    },
+
+    reachedGoalsInRange(from: string, to: string): Goal[] {
+      return this.goals.filter(goal => {
+        if (!goal.done || !goal.reachedAt) return false;
+        const day = toDateKey(new Date(goal.reachedAt));
+        return day >= from && day <= to;
+      });
     },
 
     todayWins(todayKey: string = toDateKey()): Win[] {

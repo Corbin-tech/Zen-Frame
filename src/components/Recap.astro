@@ -128,10 +128,18 @@ const name = data.recapName;
     const hourRange = (hour) => `${hour % 12 || 12}${hour < 12 ? 'am' : 'pm'} and ${(hour + 1) % 12 || 12}${hour + 1 < 12 || hour === 23 ? 'am' : 'pm'}`;
 
     function buildSlides(month, store) {
-        const { completions, sessions, checkIns, clusterName, clusterColor } = store;
+        const { completions, sessions, checkIns, wins = [], goals = [], clusterName, clusterColor } = store;
         const range = monthRange(month);
         const stats = summarize(completions, sessions, range);
         const before = summarize(completions, sessions, monthRange(previousMonth(month)));
+        const monthWins = wins
+            .filter(win => win.date >= range.from && win.date <= range.to)
+            .sort((a, b) => b.date.localeCompare(a.date));
+        const reachedGoals = goals.filter(goal => {
+            if (!goal.done || !goal.reachedAt) return false;
+            const day = dates.toDateKey(new Date(goal.reachedAt));
+            return day >= range.from && day <= range.to;
+        });
         const name = formatMonth(month, { month: 'long' });
         const previousName = formatMonth(previousMonth(month), { month: 'long' });
         const isCurrent = month === dates.toDateKey().slice(0, 7);
@@ -144,7 +152,7 @@ const name = data.recapName;
             note: 'Tap to skip ahead, hold to pause.'
         });
 
-        if (!stats.tasks && !stats.focusMinutes) {
+        if (!stats.tasks && !stats.focusMinutes && !monthWins.length && !reachedGoals.length) {
             slides.push({
                 eyebrow: 'A quiet month',
                 value: '0',
@@ -218,11 +226,38 @@ const name = data.recapName;
         }
 
         slides.push({
-            eyebrow: 'Consistency',
-            value: String(stats.longestStreak),
-            label: stats.longestStreak === 1 ? 'day streak, your longest' : 'days in a row, your longest streak',
-            note: `You showed up on ${plural(stats.activeDays, 'day')} this month.`
+            eyebrow: 'Days you showed up',
+            value: String(stats.activeDays),
+            label: stats.activeDays === 1 ? 'day you showed up' : 'days you showed up',
+            note: stats.activeDays ? 'Steady beats perfect. Rest counts too.' : 'Quiet months still belong in the story.'
         });
+
+        if (monthWins.length || reachedGoals.length) {
+            const highlights = [
+                ...reachedGoals.map(goal => ({
+                    name: goal.title,
+                    color: '#D7B36A',
+                    value: 'Goal'
+                })),
+                ...monthWins.map(win => ({
+                    name: win.text,
+                    color: '#DCE7DC',
+                    value: dates.formatDate(win.date, { month: 'short', day: 'numeric' })
+                }))
+            ].slice(0, 3);
+            const totalMoments = reachedGoals.length + monthWins.length;
+            const summaryLabel = reachedGoals.length && monthWins.length
+                ? `${plural(reachedGoals.length, 'goal')} reached and ${plural(monthWins.length, 'win')} logged`
+                : reachedGoals.length
+                    ? (reachedGoals.length === 1 ? 'goal reached' : 'goals reached')
+                    : (monthWins.length === 1 ? 'win worth keeping' : 'wins worth keeping');
+            slides.push({
+                eyebrow: 'Wins & goals reached',
+                value: String(totalMoments),
+                label: summaryLabel,
+                list: highlights
+            });
+        }
 
         if (stats.onTimePercent !== null) {
             slides.push({
@@ -250,15 +285,22 @@ const name = data.recapName;
             grid: [
                 { value: String(stats.tasks), label: 'tasks finished' },
                 { value: dates.formatDuration(stats.focusMinutes), label: 'focus time' },
-                { value: plural(stats.longestStreak, 'day'), label: 'longest streak' },
-                { value: stats.byCluster[0] ? (clusterName(stats.byCluster[0]) || 'No cluster') : '–', label: 'top cluster' }
+                { value: plural(stats.activeDays, 'day'), label: 'days showed up' },
+                {
+                    value: reachedGoals.length || monthWins.length
+                        ? String(reachedGoals.length + monthWins.length)
+                        : (stats.byCluster[0] ? (clusterName(stats.byCluster[0]) || 'No cluster') : '–'),
+                    label: reachedGoals.length || monthWins.length ? 'wins & goals' : 'top cluster'
+                }
             ],
             final: true,
             summaryText: [
                 `My ${name} on Zen Frame:`,
                 `${plural(stats.tasks, 'task')} finished`,
                 `${dates.formatDuration(stats.focusMinutes)} of focus over ${plural(stats.sessions, 'session')}`,
-                `${plural(stats.longestStreak, 'day')} longest streak, active ${plural(stats.activeDays, 'day')}`,
+                `Showed up on ${plural(stats.activeDays, 'day')}`,
+                reachedGoals.length ? `${plural(reachedGoals.length, 'goal')} reached` : '',
+                monthWins.length ? `${plural(monthWins.length, 'win')} logged` : '',
                 stats.byCluster[0] ? `Top cluster: ${clusterName(stats.byCluster[0]) || 'No cluster'}` : '',
                 stats.onTimePercent !== null ? `${stats.onTimePercent}% on time` : ''
             ].filter(Boolean).join('\n')
@@ -302,6 +344,8 @@ const name = data.recapName;
                     completions: todos.completions,
                     sessions: this.$store.pomoState.sessions,
                     checkIns: Object.values(this.$store.goals.checkIns),
+                    wins: this.$store.goals.wins,
+                    goals: this.$store.goals.goals,
                     clusterName: entry => (entry.clusterId && todos.find(entry.clusterId)?.todo) || entry.name,
                     clusterColor: entry => entry.clusterId && todos.find(entry.clusterId) ? todos.clusterColor(entry.clusterId) : 'var(--c-none)'
                 });

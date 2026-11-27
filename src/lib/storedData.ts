@@ -9,6 +9,10 @@ function isTimestamp(value: unknown): value is string {
   return typeof value === "string" && value.trim() !== "" && Number.isFinite(Date.parse(value));
 }
 
+function isDateKey(value: unknown): value is string {
+  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
 // Focus sessions can carry the task they were linked to. These fields render with x-text,
 // but a hand-edited or imported backup can hold any type, so keep only strings (ids may be null).
 const SESSION_TEXT_MAX = 200;
@@ -34,18 +38,36 @@ function cleanWin(win: Record<string, unknown>): Record<string, unknown> {
   };
 }
 
+function cleanWeeklyIntentions(value: unknown): Array<Record<string, unknown>> {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter(isObject)
+    .slice(0, 3)
+    .map((item, index) => ({
+      id: typeof item.id === "string" && item.id ? item.id : `intention-${index + 1}`,
+      text: typeof item.text === "string" ? item.text : "",
+      goalId: typeof item.goalId === "string" && item.goalId ? item.goalId : null,
+      done: Boolean(item.done)
+    }));
+}
+
 // A restored backup may carry anything, so keep only well-formed values. The "steps"
 // checklist field from older saves is dropped: nothing reads it any more.
 function normalizeLoadedTodo(item: Todo & { steps?: unknown }): Todo {
   const { steps: _steps, ...todo } = item;
-  return {
+  const cleaned: Todo = {
     ...todo,
     // Templates call string methods on the title, so a task without one gets an empty title
     todo: typeof todo.todo === "string" ? todo.todo : "",
     parentId: todo.parentId ?? null,
     estimateMinutes: cleanMinutes(todo.estimateMinutes)
   };
+  if (todo.focusDate !== undefined) {
+    cleaned.focusDate = isDateKey(todo.focusDate) ? todo.focusDate : null;
+  }
+  return cleaned;
 }
+
 export function normalizeStoredData(key: string, value: unknown): unknown {
   switch (key) {
     case "todos":
@@ -78,6 +100,7 @@ export function normalizeStoredData(key: string, value: unknown): unknown {
           wins: typeof entry.wins === "string" ? entry.wins : "",
           blockers: typeof entry.blockers === "string" ? entry.blockers : "",
           nextFocus: typeof entry.nextFocus === "string" ? entry.nextFocus : "",
+          weeklyIntentions: cleanWeeklyIntentions(entry.weeklyIntentions),
           checkInPerson: typeof entry.checkInPerson === "string" ? entry.checkInPerson : "",
           checkInPersonTaskId: typeof entry.checkInPersonTaskId === "string" ? entry.checkInPersonTaskId : null,
           recharge: typeof entry.recharge === "string" ? entry.recharge : "",
