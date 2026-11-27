@@ -7,7 +7,7 @@ import EnsoMark from './EnsoMark.astro';
 
 <div
     x-data="breathingStart"
-    x-on:overlay-opened.window="if ($store.pomoState.isBreathing && $event.detail.name !== 'breathing-start') { $event.detail.opener = returnFocus; returnFocus = null; $store.pomoState.cancelBreathing(); }"
+    x-on:overlay-opened.window="if ($store.pomoState.isBreathing && $event.detail.name !== 'breathing-start') { $event.detail.opener = returnFocus; returnFocus = null; handoffFocus = true; $store.pomoState.cancelBreathing(); }"
     x-on:keydown.escape.window="if ($store.pomoState.isBreathing) $store.pomoState.cancelBreathing()"
     x-on:keydown.tab.window="if ($store.pomoState.isBreathing) trap($event)"
 >
@@ -159,17 +159,36 @@ import EnsoMark from './EnsoMark.astro';
     document.addEventListener('alpine:init', () => {
         window.Alpine.data('breathingStart', () => ({
             returnFocus: null as HTMLElement | null,
+            handoffFocus: false,
 
             init() {
                 this.$watch('$store.pomoState.isBreathing', (active: boolean) => {
                     if (active) {
+                        this.handoffFocus = false;
                         const opened: { name: string; opener?: HTMLElement | null } = { name: 'breathing-start' };
                         window.dispatchEvent(new CustomEvent('overlay-opened', { detail: opened }));
-                        this.returnFocus = opened.opener || (document.activeElement as HTMLElement | null);
+                        const activeEl = document.activeElement as HTMLElement | null;
+                        this.returnFocus = opened.opener || (activeEl && activeEl !== document.body && activeEl !== document.documentElement ? activeEl : null);
                         this.$nextTick(() => (this.$refs.proceed as HTMLElement | undefined)?.focus());
                     } else {
-                        if (this.returnFocus?.isConnected) this.returnFocus.focus();
+                        const target = this.returnFocus;
+                        const handedOff = this.handoffFocus;
                         this.returnFocus = null;
+                        this.handoffFocus = false;
+                        if (handedOff) return;
+                        this.$nextTick(() => {
+                            if (target?.isConnected && target.checkVisibility?.()) {
+                                target.focus();
+                                return;
+                            }
+                            const timer = Array.from(document.querySelectorAll<HTMLElement>('[data-pomo-timer]'))
+                                .find(el => el.checkVisibility?.());
+                            const fallback = timer
+                                ? Array.from(timer.querySelectorAll<HTMLElement>('button.btn-primary')).find(el => el.checkVisibility?.())
+                                    ?? Array.from(timer.querySelectorAll<HTMLElement>('button')).find(el => el.checkVisibility?.())
+                                : null;
+                            fallback?.focus();
+                        });
                     }
                 });
             },

@@ -156,3 +156,28 @@ test('breathing dialog controls stay reachable on short landscape viewports', as
   await expect(dialog).toBeHidden();
   await expect(page.locator('[data-pomo-timer="pomodoro"]').getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
 });
+
+test('closing breathing opened from Dashboard moves keyboard focus to the visible timer control', async ({ page }) => {
+  await page.addInitScript(() => {
+    if (!sessionStorage.getItem('__seeded')) {
+      sessionStorage.setItem('__seeded', '1');
+      localStorage.setItem('activeTab', 'dashboard');
+      localStorage.setItem('settings', JSON.stringify({ pomoBreathingStart: true }));
+      localStorage.setItem('todos', JSON.stringify([
+        { id: 't1', todo: 'Write essay outline', completed: false, parentId: null, isCluster: false, status: 'todo' },
+      ]));
+    }
+  });
+
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Start focus' }).click();
+
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toBeVisible();
+
+  await dialog.getByRole('button', { name: 'Skip to focus' }).click();
+  await expect(dialog).toBeHidden();
+  const pauseBtn = page.locator('[data-pomo-timer="pomodoro"]').getByRole('button', { name: 'Pause', exact: true });
+  await expect(pauseBtn).toBeVisible();
+  await expect(pauseBtn).toBeFocused();
+});
