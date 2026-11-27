@@ -163,7 +163,11 @@ const name = data.recapName;
             label: stats.tasks === 1 ? 'task finished' : 'tasks finished',
             note: taskChange === null
                 ? (before.tasks ? '' : `Your first month on the books.`)
-                : taskChange >= 0 ? `That’s ${taskChange}% more than ${previousName}.` : `${Math.abs(taskChange)}% fewer than ${previousName}. Rest counts too.`
+                : taskChange === 0
+                    ? `Same as ${previousName}.`
+                    : taskChange > 0
+                        ? `That’s ${taskChange}% more than ${previousName}.`
+                        : `${Math.abs(taskChange)}% fewer than ${previousName}. Rest counts too.`
         });
 
         if (stats.focusMinutes) {
