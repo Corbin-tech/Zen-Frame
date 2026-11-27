@@ -4,11 +4,14 @@ import { openView } from './nav';
 // The three board columns' empty states ("Finished tasks land here." included) are the same size,
 // and the new-card composer keeps its draft and closes on an empty submit.
 
-async function openEmptyBoard(page: Page, seed: object[] = []) {
-  await page.addInitScript(data => {
+async function openEmptyBoard(page: Page, seed: object[] = [], wipLimit?: number) {
+  await page.addInitScript(({ data, wip }) => {
+    if (sessionStorage.getItem('board-empty-seeded')) return;
+    sessionStorage.setItem('board-empty-seeded', '1');
     localStorage.clear();
     localStorage.setItem('todos', JSON.stringify(data));
-  }, seed);
+    if (wip) localStorage.setItem('boardWipLimit', String(wip));
+  }, { data: seed, wip: wipLimit });
   await page.goto('/');
   await openView(page, 'board');
   await expect(page.locator('.board-column').first()).toBeVisible();
@@ -75,3 +78,75 @@ test('the board composer keeps the draft when + is re-clicked and closes on empt
   // The composer stays open for rapid entry after a successful add
   await expect(composer).toBeVisible();
 });
+
+async function assertHeaderButtonsInsideColumns(page: Page) {
+  const overflows = await page.locator('.board-column').evaluateAll(cols =>
+    cols.flatMap((col, index) => {
+      const colRect = col.getBoundingClientRect();
+      return Array.from(col.querySelectorAll('.board-column-header button'))
+        .filter(btn => (btn as HTMLElement).offsetParent !== null)
+        .map(btn => {
+          const btnRect = btn.getBoundingClientRect();
+          return {
+            column: index,
+            label: btn.getAttribute('aria-label') || btn.textContent?.trim(),
+            btnRight: Math.round(btnRect.right * 100) / 100,
+            colRight: Math.round(colRect.right * 100) / 100,
+            overflow: Math.round((btnRect.right - colRect.right) * 100) / 100,
+          };
+        })
+        .filter(item => item.overflow > 0.5);
+    })
+  );
+  expect(overflows).toEqual([]);
+}
+
+test('touch-tablet 768px keeps header buttons inside columns and equal empty states', async ({ browser }) => {
+  const context = await browser.newContext({ viewport: { width: 768, height: 1024 }, hasTouch: true });
+  const page = await context.newPage();
+  try {
+    await openEmptyBoard(page);
+    await assertHeaderButtonsInsideColumns(page);
+    const heights = await emptyBoxHeights(page);
+    expect(heights).toHaveLength(3);
+    expect(new Set(heights).size).toBe(1);
+  } finally {
+    await context.close();
+  }
+});
+
+for (const { label, width, height, hasTouch } of [
+  { label: '768px fine pointer', width: 768, height: 1024, hasTouch: false },
+  { label: '768px coarse pointer', width: 768, height: 1024, hasTouch: true },
+  { label: '320px phone', width: 320, height: 700, hasTouch: true },
+]) {
+  test(`WIP limit badge stays single-line, inside column, and keeps equal empty states at ${label}`, async ({ browser }) => {
+    const context = await browser.newContext({ viewport: { width, height }, hasTouch });
+    const page = await context.newPage();
+    try {
+      await openEmptyBoard(page, [], 2);
+      const col = page.locator('.board-column').nth(1);
+      const badge = col.getByText('0 / 2', { exact: true });
+      await expect(badge).toBeVisible();
+      const badgeBox = (await badge.boundingBox())!;
+      expect(badgeBox.height).toBeLessThanOrEqual(24);
+      const heading = col.locator('.board-column-header h2');
+      const headingFit = await heading.evaluate(el => ({
+        scrollWidth: el.scrollWidth,
+        clientWidth: el.clientWidth,
+        right: el.getBoundingClientRect().right,
+      }));
+      expect(headingFit.scrollWidth).toBeLessThanOrEqual(headingFit.clientWidth + 1);
+      expect(headingFit.right).toBeLessThanOrEqual(badgeBox.x + 0.5);
+      const wipBox = (await col.getByRole('button', { name: 'Set a limit for In progress', exact: true }).boundingBox())!;
+      const plusBox = (await col.getByRole('button', { name: 'Add a task to In progress', exact: true }).boundingBox())!;
+      expect(wipBox.x + wipBox.width).toBeLessThanOrEqual(plusBox.x + 0.5);
+      await assertHeaderButtonsInsideColumns(page);
+      const heights = await emptyBoxHeights(page);
+      expect(heights).toHaveLength(3);
+      expect(new Set(heights).size).toBe(1);
+    } finally {
+      await context.close();
+    }
+  });
+}
