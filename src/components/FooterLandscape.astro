@@ -1,0 +1,113 @@
+---
+// Original, static linework: contour-cut hills, a footbridge and windswept pines.
+// Generated at build time, with no image requests, animation or client-side work.
+const contours = Array.from({ length: 19 }, (_, i) => {
+  const y = i * 5;
+  return `M-40 ${145 + y} C70 ${88 + y} 130 ${114 + y} 230 ${153 + y} S370 ${177 + y} 446 ${197 + y} M770 ${195 + y} C870 ${140 + y} 962 ${91 + y} 1060 ${113 + y} S1180 ${147 + y} 1240 ${126 + y}`;
+});
+const distantContours = Array.from({ length: 12 }, (_, i) => {
+  const y = i * 4;
+  return `M140 ${177 + y} Q245 ${94 + y} 350 ${147 + y} T550 ${154 + y} Q620 ${128 + y} 696 ${165 + y} M737 ${168 + y} Q835 ${87 + y} 925 ${137 + y} T1140 ${163 + y}`;
+});
+const pines = [
+  { x: 35, y: 219, scale: 1.17 }, { x: 146, y: 210, scale: 0.76 },
+  { x: 228, y: 223, scale: 0.47 }, { x: 975, y: 211, scale: 0.65 },
+  { x: 1080, y: 216, scale: 1.22 }, { x: 1195, y: 229, scale: 0.88 },
+];
+const tufts = [
+  { x: -18, y: -116, rx: 32, ry: 12 }, { x: 22, y: -96, rx: 39, ry: 13 },
+  { x: -32, y: -76, rx: 44, ry: 14 }, { x: 23, y: -52, rx: 48, ry: 14 },
+  { x: -40, y: -31, rx: 38, ry: 12 },
+];
+const water = Array.from({ length: 13 }, (_, i) => {
+  const y = 224 + i * 3.7;
+  const spread = i * 9;
+  return `M${484 - spread} ${y} Q560 ${y - 2} 611 ${y} T${741 + spread} ${y} M${552 - spread / 2} ${y + 1.8} h${42 + spread / 2}`;
+});
+const bridgePosts = Array.from({ length: 19 }, (_, i) => {
+  const x = 424 + i * 19;
+  const y = 187 - 40 * Math.sin(((x - 424) / 342) * Math.PI);
+  return { x, y };
+});
+---
+
+<svg class="engraved-landscape h-full w-full" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 280" preserveAspectRatio="xMidYMax slice" aria-hidden="true" focusable="false">
+  <defs>
+    <pattern id="footer-hatch" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(28)">
+      <path d="M0 0V5" stroke="currentColor" stroke-width="0.7" opacity="0.45" />
+    </pattern>
+    <pattern id="footer-needles" width="7" height="6" patternUnits="userSpaceOnUse">
+      <path d="M0 5 3 1 5 4 M4 6 7 2" fill="none" stroke="currentColor" stroke-width="0.6" />
+    </pattern>
+    <clipPath id="footer-sun"><circle cx="844" cy="66" r="32" /></clipPath>
+  </defs>
+
+  <!-- A small warm sun, engraved with horizontal lines. -->
+  <circle cx="844" cy="66" r="32" class="landscape-sun" />
+  <g clip-path="url(#footer-sun)" class="sun-lines" stroke-width="0.7">
+    {Array.from({ length: 19 }, (_, i) => <path d={`M810 ${34 + i * 3.6}h68`} />)}
+  </g>
+  <g fill="none" stroke="currentColor" stroke-width="0.8" opacity="0.3">
+    <path d="M390 72h61m-45 5h79 M698 44h51m-34 5h55 M872 89h72m-55 5h32" />
+    <path d="M589 86q7-6 14 0q7-6 14 0 M637 69q5-4 10 0q5-4 10 0" />
+  </g>
+
+  <!-- Distant hills remain lighter than the foreground. -->
+  <g fill="none" stroke="currentColor" stroke-width="0.65" opacity="0.2">
+    {distantContours.map(d => <path d={d} />)}
+  </g>
+  <path d="M-40 145C70 88 130 114 230 153S370 177 446 197L475 280H-40Z M770 195C870 140 962 91 1060 113S1180 147 1240 126V280H728Z" class="landscape-ground" />
+  <g fill="none" stroke="currentColor" stroke-width="0.7" opacity="0.44">
+    {contours.map(d => <path d={d} />)}
+  </g>
+
+  <!-- A gently arched bridge. Its open span leaves room for the river. -->
+  <path d="M418 208Q595 121 774 208L774 225Q595 154 418 225Z" class="landscape-ground" stroke="currentColor" stroke-width="1.2" />
+  <path d="M418 208Q595 121 774 208L774 225Q595 154 418 225Z" fill="url(#footer-hatch)" />
+  <g fill="none" stroke="currentColor" stroke-width="1">
+    <path d="M418 192Q595 105 774 192 M418 198Q595 111 774 198 M418 206Q595 119 774 206" />
+    {bridgePosts.map(({ x, y }) => <path d={`M${x} ${y}v22m-2-22h4`} />)}
+    <path d="M425 224v16m8-18v15 M759 222v15m8-13v16" />
+  </g>
+
+  <!-- Hand-shaped pine silhouettes, with fine needle and bark hatching. -->
+  {pines.map(({ x, y, scale }) => (
+    <g transform={`translate(${x} ${y}) scale(${scale})`}>
+      <path d="M-8 8Q4-36 0-81Q-2-109-18-125L-12-129Q8-109 8-81Q9-46 1 8Z" class="landscape-ground" stroke="currentColor" stroke-width="1.2" />
+      <g fill="none" stroke="currentColor" stroke-width="0.85">
+        <path d="M-3 5Q9-63-3-100 M0-39-38-61M4-65 31-84M0-89-20-111 M-2-21-37-35M6-43 35-54" />
+        <path d="M-2-6 0-28M3-43 4-58M2-75 0-88" />
+      </g>
+      {tufts.map(({ x: tx, y: ty, rx, ry }) => (
+        <g>
+          <path d={`M${tx-rx} ${ty+4}q-6-9 10-11q0-10 18-8q12-12 26-3q18-5 25 7q20-1 ${rx*2-79} 15q-${rx} 11-${rx*2} 0Z`} class="landscape-ground" stroke="currentColor" stroke-width="0.85" />
+          <ellipse cx={tx} cy={ty} rx={rx * 0.85} ry={ry * 0.65} fill="url(#footer-needles)" />
+          <path d={`M${tx-rx+9} ${ty+5}q${rx} 8 ${rx*1.65} 0m-${rx*1.35}-4q${rx*0.6} 6 ${rx} 1`} fill="none" stroke="currentColor" stroke-width="0.7" opacity="0.65" />
+        </g>
+      ))}
+      <path d="M-18 9q14-7 34 0m-42 5q25-8 52-1" fill="none" stroke="currentColor" stroke-width="0.8" />
+    </g>
+  ))}
+
+  <!-- Low river stones and a few reeds give the linework a grounded edge. -->
+  <g class="landscape-ground" stroke="currentColor" stroke-width="0.9">
+    <path d="M280 242 291 226 314 222 331 238 325 246Z M319 250 335 235 358 239 366 252Z M859 242 871 222 895 218 910 240Z M902 249 916 236 934 241 938 251Z" />
+  </g>
+  <g fill="none" stroke="currentColor" stroke-width="0.7" opacity="0.55">
+    <path d="m291 226 12 4 11-8m-11 8 7 12m25-7 9 8 14-4m513-17 12 7 12-11m-12 11 8 12 M375 239l-6-22m7 20 4-17m443 13-3-19m5 17 6-12" />
+    {water.map(d => <path d={d} />)}
+    <path d="M0 257q150-15 301 5 M902 262q160-18 298-7 M49 270q96-6 164 1 M1008 272h132" />
+  </g>
+</svg>
+
+<style>
+  /* Local fills override Layout's global SVG defaults. */
+  .engraved-landscape { color: #173f3a; fill: none; stroke: none; }
+  .landscape-ground { fill: #edf0e7; }
+  .landscape-sun { fill: #d7b36a; opacity: 0.45; }
+  .sun-lines { stroke: #9c7a2e; opacity: 0.4; }
+  :global(.dark) .engraved-landscape { color: #8ea6a3; }
+  :global(.dark) .landscape-ground { fill: #10221f; }
+  :global(.dark) .landscape-sun { opacity: 0.35; }
+  :global(.dark) .sun-lines { stroke: #e2c382; }
+</style>
