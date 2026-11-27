@@ -51,7 +51,8 @@ test('reaching a goal shows a calm celebration card and saves to wins', async ({
 
   await banner.getByRole('button', { name: 'Save to wins', exact: true }).click();
   await expect(banner.getByText('Saved to wins', { exact: true })).toBeVisible();
-  await expect(page.getByText('Reached goal: Ship v1 — Dinner with friends').first()).toBeVisible();
+  // The Close the day dialog also lists today's wins (hidden until opened), so match only visible text
+  await expect(page.getByText('Reached goal: Ship v1 — Dinner with friends').filter({ visible: true }).first()).toBeVisible();
 });
 
 test('quiet daily wins persist, surface in weekly check-in, and work from the optional Dashboard widget', async ({ page }) => {
@@ -61,7 +62,7 @@ test('quiet daily wins persist, surface in weekly check-in, and work from the op
   await page.getByRole('textbox', { name: "Today's win", exact: true }).fill('Finished chapter 3 without distractions');
   await page.getByRole('button', { name: 'Save', exact: true }).click();
 
-  await expect(page.getByText('Finished chapter 3 without distractions').first()).toBeVisible();
+  await expect(page.getByText('Finished chapter 3 without distractions').filter({ visible: true }).first()).toBeVisible();
   await expect(page.getByText('Logged this week (1)', { exact: true })).toBeVisible();
 
   await page.getByLabel('What went well this week?').fill('Kept mornings calm');
@@ -81,5 +82,5 @@ test('quiet daily wins persist, surface in weekly check-in, and work from the op
 
   await page.getByRole('textbox', { name: "Today's win", exact: true }).fill('Went for a 20 minute walk');
   await page.getByRole('button', { name: 'Save', exact: true }).click();
-  await expect(page.getByText('Went for a 20 minute walk').first()).toBeVisible();
+  await expect(page.getByText('Went for a 20 minute walk').filter({ visible: true }).first()).toBeVisible();
 });
