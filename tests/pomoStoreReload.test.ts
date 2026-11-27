@@ -161,6 +161,53 @@ describe("Pomodoro reload", () => {
     expect(reloaded.digits).toBe("5000");
   });
 
+  it("restores a running long break even when another tab cleared isLongBreak in localStorage", () => {
+    const first = openPage();
+    first.cycle = 3;
+    first.completeTimer(+start, false);
+    expect(first.isBreak).toBe(true);
+    expect(first.isLongBreak).toBe(true);
+    first.startTimer();
+    localStorage.setItem("pomoState", JSON.stringify({ preset: "pomodoro", isBreak: false, isLongBreak: false }));
+
+    const reloaded = reloadAfter(30_000);
+    expect(reloaded.status).toBe("running");
+    expect(reloaded.isBreak).toBe(true);
+    expect(reloaded.isLongBreak).toBe(true);
+    expect(reloaded.totalTime).toBe(15 * 60);
+    expect(reloaded.digits).toBe("1430");
+    expect(reloaded.completedInCycle).toBe(4);
+
+    vi.advanceTimersByTime(14 * 60 * 1000 + 30_000);
+    expect(reloaded.status).toBe("idle");
+    expect(reloaded.isBreak).toBe(false);
+    expect(reloaded.isLongBreak).toBe(false);
+    expect(reloaded.digits).toBe("2500");
+  });
+
+  it("does not inherit another tab's isLongBreak when reloading a running short break or focus", () => {
+    const shortBreak = openPage();
+    shortBreak.toggleBreak(false);
+    shortBreak.startTimer();
+    localStorage.setItem("pomoState", JSON.stringify({ preset: "pomodoro", isBreak: true, isLongBreak: true }));
+
+    const reloadedBreak = reloadAfter(30_000);
+    expect(reloadedBreak.isBreak).toBe(true);
+    expect(reloadedBreak.isLongBreak).toBe(false);
+    expect(reloadedBreak.totalTime).toBe(5 * 60);
+    expect(reloadedBreak.digits).toBe("0430");
+
+    reloadedBreak.toggleBreak(false);
+    reloadedBreak.startTimer();
+    localStorage.setItem("pomoState", JSON.stringify({ preset: "pomodoro", isBreak: true, isLongBreak: true }));
+
+    const reloadedFocus = reloadAfter(30_000);
+    expect(reloadedFocus.isBreak).toBe(false);
+    expect(reloadedFocus.isLongBreak).toBe(false);
+    expect(reloadedFocus.totalTime).toBe(25 * 60);
+    expect(reloadedFocus.digits).toBe("2430");
+  });
+
   it.each(["pauseTimer", "resetTimer"] as const)("does not revive a timer after %s", (stop) => {
     const first = openPage();
     first.startTimer();

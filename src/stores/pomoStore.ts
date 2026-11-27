@@ -163,6 +163,7 @@ export function initPomoStore() {
       if (running) {
         this.preset = running.preset;
         this.isBreak = running.isBreak;
+        this.isLongBreak = Boolean(running.isBreak && running.isLongBreak);
         this.focusTask = running.focusTask;
       }
       this.totalTime = this.phaseTime(this.isBreak);
