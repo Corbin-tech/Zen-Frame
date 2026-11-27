@@ -157,6 +157,34 @@ test('breathing dialog controls stay reachable on short landscape viewports', as
   await expect(page.locator('[data-pomo-timer="pomodoro"]').getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
 });
 
+test('another overlay opening while breathing cancels it without starting the timer and takes focus', async ({ page }) => {
+  await page.addInitScript(() => {
+    if (!sessionStorage.getItem('__seeded')) {
+      sessionStorage.setItem('__seeded', '1');
+      localStorage.setItem('activeTab', 'pomodoro');
+      localStorage.setItem('settings', JSON.stringify({ pomoBreathingStart: true }));
+    }
+  });
+
+  await page.goto('/');
+  const startBtn = page.locator('[data-pomo-timer="pomodoro"]').getByRole('button', { name: 'Start', exact: true });
+  await startBtn.click();
+  const breathing = page.getByRole('dialog', { name: /Breathe/ });
+  await expect(breathing).toBeVisible();
+
+  // Another overlay opens the way overlays signal it (overlay-opened)
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('open-settings')));
+
+  await expect(breathing).toBeHidden();
+  // The timer did not start while breathing was cancelled
+  await expect(startBtn).toBeVisible();
+  await expect(page.locator('[data-pomo-timer="pomodoro"]').getByRole('button', { name: 'Pause', exact: true })).toBeHidden();
+  // Focus moved to the new overlay's close control instead of back to the timer
+  const settings = page.getByRole('dialog', { name: 'Settings', exact: true });
+  await expect(settings).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Close settings' })).toBeFocused();
+});
+
 test('closing breathing opened from Dashboard moves keyboard focus to the visible timer control', async ({ page }) => {
   await page.addInitScript(() => {
     if (!sessionStorage.getItem('__seeded')) {

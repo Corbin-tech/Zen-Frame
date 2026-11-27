@@ -40,6 +40,7 @@ import EnsoMark from './EnsoMark.astro';
             role="dialog"
             aria-modal="true"
             aria-labelledby="breathing-start-title"
+            aria-describedby="breathing-start-sub"
         >
             <span class="ripples text-teal-600 dark:text-teal-400" aria-hidden="true"></span>
 
@@ -70,7 +71,7 @@ import EnsoMark from './EnsoMark.astro';
                 aria-live="polite"
                 x-text="$store.pomoState.breathPrompt"
             ></h2>
-            <p class="mt-1.5 text-sm text-gray-600 dark:text-gray-300">Just this, for now.</p>
+            <p id="breathing-start-sub" class="mt-1.5 text-sm text-gray-600 dark:text-gray-300">Just this, for now.</p>
 
             <p
                 x-show="$store.pomoState.activeTask"

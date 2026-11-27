@@ -89,6 +89,7 @@ interface PomoSnapshot {
   totalTime: number;
   timeLeft: number;
   wasRunning: boolean;
+  lastCompleted?: CompletedPhase | null;
 }
 
 function isValidPreset(value: unknown): value is PomoPreset {
@@ -376,6 +377,8 @@ export function initPomoStore() {
         this.timeLeft = restore.timeLeft;
         this.selectedTaskId = restore.selectedTaskId;
         this.focusTask = restore.focusTask;
+        // startFocus cleared the completion banner; a cancelled breathing start must not lose it
+        this.lastCompleted = restore.lastCompleted ?? null;
         this.saveState();
         if (restore.wasRunning) this.startTimer({ skipBreathing: true });
       } else if (!this.started) {
@@ -455,7 +458,8 @@ export function initPomoStore() {
         custom: { ...this.custom },
         totalTime: this.totalTime,
         timeLeft: this.timeLeft,
-        wasRunning: this.isRunning
+        wasRunning: this.isRunning,
+        lastCompleted: this.lastCompleted
       };
       this.clearUndo();
       this.undoSnapshot = snapshot;
@@ -515,7 +519,8 @@ export function initPomoStore() {
         custom: { ...this.custom },
         totalTime: this.totalTime,
         timeLeft: this.timeLeft,
-        wasRunning: this.isRunning
+        wasRunning: this.isRunning,
+        lastCompleted: this.lastCompleted
       };
       const switchingTask = !this.isBreak && taskId !== undefined && this.focusTask !== undefined
         && taskId !== (this.focusTask?.id ?? "");

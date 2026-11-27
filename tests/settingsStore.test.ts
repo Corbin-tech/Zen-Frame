@@ -1,4 +1,5 @@
 import { afterEach, expect, test, vi } from "vitest";
+import { importBackup } from "../src/lib/storage";
 import { initSettingsStore } from "../src/stores/settingsStore";
 
 vi.mock("../src/lib/favicon", () => ({ applyAccentFavicon: vi.fn() }));
@@ -78,4 +79,32 @@ test("pomoBreathingStart defaults to false, persists, syncs across tabs, and res
   expect(b.store.pomoBreathingStart).toBe(true);
   a.store.reset();
   expect(a.store.pomoBreathingStart).toBe(false);
+});
+
+test("a non-boolean pomoBreathingStart in storage loads as false", () => {
+  const { a, storage } = sharedTabs();
+  storage.setItem("settings", JSON.stringify({ pomoBreathingStart: "yes" }));
+  a.dispatch();
+  expect(a.store.pomoBreathingStart).toBe(false);
+});
+
+test("a hostile backup settings.pomoBreathingStart is stored raw but loads as false", () => {
+  const data = new Map<string, string>();
+  vi.stubGlobal("localStorage", {
+    getItem: (key: string) => data.get(key) ?? null,
+    setItem: (key: string, value: string) => { data.set(key, value); },
+    removeItem: (key: string) => { data.delete(key); }
+  } as Storage);
+  vi.stubGlobal("document", { documentElement: { dataset: {} } });
+  vi.stubGlobal("window", { addEventListener: vi.fn(), dispatchEvent: vi.fn() });
+  const result = importBackup(JSON.stringify({
+    app: "zen-frame",
+    version: 1,
+    data: { settings: { pomoBreathingStart: "yes" } }
+  }));
+  expect(result.ok).toBe(true);
+  expect(JSON.parse(data.get("settings")!).pomoBreathingStart).toBe("yes"); // raw import passes through…
+  const store = initSettingsStore();
+  store.init();
+  expect(store.pomoBreathingStart).toBe(false); // …but loadSettings sanitizes it to the default
 });
