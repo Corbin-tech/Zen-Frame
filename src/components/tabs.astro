@@ -176,13 +176,14 @@ const tabOf = (id: string) => tabs.find((tab) => tab.id === id);
         </div>
     </aside>
 
-    <!-- Top bar: brand, the three areas, timer, theme. Under it, the views of the open area. -->
+    <!-- Top bar: brand, the three areas, the views of the open area, timer, theme. One row when the
+         bar is 62rem or wider (the onerow variant). Narrower bars put the views on a second row. -->
     <!-- A flat bar in the page color that stays at the top while the page scrolls. Its ::before paints
          the color and the rule across the full window width. With the sidebar on, wide screens hide it. -->
     <header
         x-bind:class="$store.settings.navLayout === 'side' && 'xl:hidden'"
-        class="sticky top-0 z-40 mb-6 py-2 before:absolute before:inset-y-0 before:left-1/2 before:-z-10 before:w-screen before:-translate-x-1/2 before:bg-gray-50 dark:before:bg-slate-900 before:border-b before:border-gray-900/[0.07] dark:before:border-white/[0.06]">
-        <div class="flex items-center gap-1.5 sm:gap-3">
+        class="sticky top-0 z-40 mb-6 py-2 [container:topbar/inline-size] before:absolute before:inset-y-0 before:left-1/2 before:-z-10 before:w-screen before:-translate-x-1/2 before:bg-gray-50 dark:before:bg-slate-900 before:border-b before:border-gray-900/[0.07] dark:before:border-white/[0.06]">
+        <div class="flex flex-wrap onerow:flex-nowrap onerow:-my-0.5 items-center gap-x-1.5 sm:gap-x-3 gap-y-1">
             <button type="button" x-on:click="activeTab = 'dashboard'" class="hidden sm:flex items-center gap-2 shrink-0 rounded-lg" aria-label="Zen Frame, go to the overview">
                 <span class="grid place-items-center w-8 h-8">
                     <EnsoMark class="w-7 h-7 text-gray-900 dark:text-gray-50" />
@@ -192,7 +193,7 @@ const tabOf = (id: string) => tabs.find((tab) => tab.id === id);
 
             <!-- Areas: darker text and an accent underline on the open one. Below 360px the timer
                  chip does not fit, so a dot on Focus shows a running or paused session. -->
-            <nav class="min-w-0 flex-1 flex overflow-x-auto [scrollbar-width:none]" aria-label="Sections">
+            <nav class="min-w-0 flex-1 onerow:flex-none flex overflow-x-auto [scrollbar-width:none]" aria-label="Sections">
                 {AREAS.map((area) => (
                     <button
                         type="button"
@@ -213,6 +214,33 @@ const tabOf = (id: string) => tabs.find((tab) => tab.id === id);
                             </span>
                         )}
                     </button>
+                ))}
+            </nav>
+
+            <!-- Views of the open area. The other areas' groups are display: none, so their buttons cannot take focus. -->
+            <nav class="order-last onerow:order-none w-full onerow:w-auto onerow:flex-1 min-w-0 flex onerow:pl-3 onerow:border-l onerow:border-gray-900/10 dark:onerow:border-white/10" x-bind:aria-label="activeAreaLabel + ' views'">
+                {AREAS.map((area) => (
+                    <div x-show={`activeArea === '${area.id}'`} class="flex max-w-full overflow-x-auto p-1 rounded-full bg-gray-900/[0.04] dark:bg-white/[0.06] ring-1 ring-black/5 dark:ring-white/10 [scrollbar-width:none]">
+                        {area.views.map((id) => {
+                            const tab = tabOf(id);
+                            return tab && (
+                                <button
+                                    type="button"
+                                    data-tab={tab.id}
+                                    x-on:click={`activeTab = '${tab.id}'`}
+                                    x-bind:class={`activeTab === '${tab.id}' ? 'bg-white text-gray-900 shadow-sm ring-1 ring-teal-600 dark:bg-white/[0.14] dark:text-white dark:ring-teal-400' : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'`}
+                                    x-bind:aria-current={`activeTab === '${tab.id}' ? 'page' : null`}
+                                    class="shrink-0 flex items-center justify-center gap-1.5 touch-target px-2.5 sm:px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap select-none transition-colors focus-visible:-outline-offset-2"
+                                >
+                                    <!-- Phones show labels only, so the four Library views fit at 320px -->
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="hidden sm:block w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={tab.icon} />
+                                    </svg>
+                                    {tab.label}
+                                </button>
+                            );
+                        })}
+                    </div>
                 ))}
             </nav>
 
@@ -269,32 +297,6 @@ const tabOf = (id: string) => tabs.find((tab) => tab.id === id);
             </button>
         </div>
 
-        <!-- Views of the open area. The other areas' groups are display: none, so their buttons cannot take focus. -->
-        <nav class="flex mt-1" x-bind:aria-label="activeAreaLabel + ' views'">
-            {AREAS.map((area) => (
-                <div x-show={`activeArea === '${area.id}'`} class="flex max-w-full overflow-x-auto p-1 rounded-full bg-gray-900/[0.04] dark:bg-white/[0.06] ring-1 ring-black/5 dark:ring-white/10 [scrollbar-width:none]">
-                    {area.views.map((id) => {
-                        const tab = tabOf(id);
-                        return tab && (
-                            <button
-                                type="button"
-                                data-tab={tab.id}
-                                x-on:click={`activeTab = '${tab.id}'`}
-                                x-bind:class={`activeTab === '${tab.id}' ? 'bg-white text-gray-900 shadow-sm ring-1 ring-teal-600 dark:bg-white/[0.14] dark:text-white dark:ring-teal-400' : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'`}
-                                x-bind:aria-current={`activeTab === '${tab.id}' ? 'page' : null`}
-                                class="shrink-0 flex items-center justify-center gap-1.5 touch-target px-2.5 sm:px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap select-none transition-colors focus-visible:-outline-offset-2"
-                            >
-                                <!-- Phones show labels only, so the four Library views fit at 320px -->
-                                <svg xmlns="http://www.w3.org/2000/svg" class="hidden sm:block w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={tab.icon} />
-                                </svg>
-                                {tab.label}
-                            </button>
-                        );
-                    })}
-                </div>
-            ))}
-        </nav>
     </header>
 
     <!-- Keeps the content clear of the top edge when the top bar is hidden -->

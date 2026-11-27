@@ -68,5 +68,10 @@ export default {
 			},
 		},
 	},
-	plugins: [require('flowbite/plugin')],
+	plugins: [
+		require('flowbite/plugin'),
+		// onerow: the top bar is wide enough for one row. A container query in rem, so the Settings
+		// text size moves the switch point with the text. Needs [container:topbar/inline-size] on the bar.
+		({ addVariant }) => addVariant('onerow', '@container topbar (min-width: 62rem)'),
+	],
 }
