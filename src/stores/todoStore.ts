@@ -590,12 +590,17 @@ function createTodosStore() {
       const task = this.find(id);
       if (!task) return;
 
-      if (updates.todo !== undefined) {
-        // A cluster always needs a name
-        updates.todo = updates.todo.trim() || (task.isCluster ? NEW_CLUSTER_NAME : "");
+      const next = { ...updates };
+      if (next.todo !== undefined) {
+        // Clusters fall back to a default name; tasks keep their previous title
+        const title = next.todo.trim();
+        if (title) next.todo = title;
+        else if (task.isCluster) next.todo = NEW_CLUSTER_NAME;
+        else delete next.todo;
       }
+      if (!Object.keys(next).length) return;
 
-      Object.assign(task, updates, { updatedAt: new Date().toISOString() });
+      Object.assign(task, next, { updatedAt: new Date().toISOString() });
       this.saveTodos();
     },
 
