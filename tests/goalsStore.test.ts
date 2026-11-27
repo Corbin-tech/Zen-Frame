@@ -1,5 +1,5 @@
 import { afterEach, expect, test, vi } from "vitest";
-import { initGoalsStore } from "../src/stores/goalsStore";
+import { initGoalsStore, MINDFUL_PROMPTS, mindfulPromptForWeek } from "../src/stores/goalsStore";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -160,4 +160,53 @@ test("wins persist, filter by week, and sync across tabs", () => {
   b.dispatch("wins");
   expect(b.store.wins.map(w => w.id)).not.toContain(win1);
   expect(JSON.parse(storage.getItem("wins")!)).toEqual(b.store.wins);
+});
+
+test("check-ins hydrate legacy entries and persist connection, recharge, and mindful prompt fields", () => {
+  const { a, b, storage } = sharedTabs();
+  storage.setItem("checkIns", JSON.stringify({
+    "2026-03-02": {
+      week: "2026-03-02",
+      energy: 4,
+      wins: "Shipped release",
+      blockers: "",
+      nextFocus: "Rest",
+      savedAt: "2026-03-02T12:00:00.000Z"
+    }
+  }));
+  a.dispatch("checkIns");
+  expect(a.store.checkInFor("2026-03-02")).toMatchObject({
+    week: "2026-03-02",
+    energy: 4,
+    wins: "Shipped release",
+    checkInPerson: "",
+    checkInPersonTaskId: null,
+    recharge: "",
+    mindfulPrompt: mindfulPromptForWeek("2026-03-02"),
+    mindfulAnswer: "",
+    mindfulDismissed: false
+  });
+
+  // Adjacent weeks rotate through the prompt list deterministically
+  expect(mindfulPromptForWeek("2026-03-02")).not.toBe(mindfulPromptForWeek("2026-03-09"));
+  expect(MINDFUL_PROMPTS).toContain(mindfulPromptForWeek("2026-03-02"));
+
+  a.store.saveCheckIn({
+    ...a.store.checkInFor("2026-03-09"),
+    checkInPerson: "Sam",
+    checkInPersonTaskId: "task-1",
+    recharge: "Sunday walk without phone",
+    mindfulPrompt: MINDFUL_PROMPTS[1],
+    mindfulAnswer: "Alex helped unblock the build",
+    mindfulDismissed: false
+  });
+  b.dispatch("checkIns");
+  expect(b.store.checkInFor("2026-03-09")).toMatchObject({
+    checkInPerson: "Sam",
+    checkInPersonTaskId: "task-1",
+    recharge: "Sunday walk without phone",
+    mindfulPrompt: MINDFUL_PROMPTS[1],
+    mindfulAnswer: "Alex helped unblock the build",
+    mindfulDismissed: false
+  });
 });

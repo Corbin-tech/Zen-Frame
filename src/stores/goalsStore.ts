@@ -29,12 +29,36 @@ export interface Win {
 
 export const ACTIVE_GOAL_FOCUS_LIMIT = 3;
 
+export const MINDFUL_PROMPTS = [
+  "What can you let go of this week?",
+  "Who helped you recently?",
+  "What gave you quiet energy this week?",
+  "Where can you make things a little gentler?",
+  "What is one thing that felt enough?",
+  "What deserves your unhurried attention?",
+  "What small boundary would protect your calm?",
+  "What are you glad you noticed this week?"
+] as const;
+
+export function mindfulPromptForWeek(week: string): string {
+  const days = Math.floor(fromDateKey(week).getTime() / 86_400_000);
+  const weekIndex = Math.floor(days / 7);
+  const index = ((weekIndex % MINDFUL_PROMPTS.length) + MINDFUL_PROMPTS.length) % MINDFUL_PROMPTS.length;
+  return MINDFUL_PROMPTS[index];
+}
+
 export interface CheckIn {
   week: string; // The Monday of the week, YYYY-MM-DD
   energy: number; // 1 to 5, 0 when not rated
   wins: string;
   blockers: string;
   nextFocus: string;
+  checkInPerson: string; // Someone to check in on this week
+  checkInPersonTaskId: string | null; // Optional task created from checkInPerson
+  recharge: string; // How I'll recharge this week
+  mindfulPrompt: string; // Rotating prompt text for this week
+  mindfulAnswer: string; // Optional answer to the rotating prompt
+  mindfulDismissed: boolean; // Whether the rotating prompt is hidden for this week
   savedAt: string;
 }
 
@@ -70,6 +94,25 @@ function hydrateGoal(goal: Partial<Goal> & Pick<Goal, "id" | "title">): Goal {
   };
 }
 
+function hydrateCheckIn(checkIn: Partial<CheckIn> & Pick<CheckIn, "week">): CheckIn {
+  return {
+    energy: 0,
+    wins: "",
+    blockers: "",
+    nextFocus: "",
+    checkInPerson: "",
+    checkInPersonTaskId: null,
+    recharge: "",
+    mindfulAnswer: "",
+    mindfulDismissed: false,
+    savedAt: "",
+    ...checkIn,
+    mindfulPrompt: typeof checkIn.mindfulPrompt === "string" && checkIn.mindfulPrompt.trim()
+      ? checkIn.mindfulPrompt
+      : mindfulPromptForWeek(checkIn.week)
+  };
+}
+
 export function initGoalsStore() {
   return {
     goals: [] as Goal[],
@@ -100,7 +143,10 @@ export function initGoalsStore() {
           break;
         }
         case "checkIns": {
-          const remote = loadJson<Record<string, CheckIn>>(key, {});
+          const raw = loadJson<Record<string, CheckIn>>(key, {});
+          const remote = Object.fromEntries(
+            Object.entries(raw).map(([week, entry]) => [week, hydrateCheckIn({ ...entry, week: entry.week || week })])
+          );
           this.savedJson[key] = JSON.stringify(remote);
           const local = Object.values(this.checkIns);
           const merged = mergeLists(dirty ? Object.values(JSON.parse(base!) as Record<string, CheckIn>) : local, local, Object.values(remote), checkIn => checkIn.week);
@@ -176,11 +222,12 @@ export function initGoalsStore() {
     },
 
     checkInFor(week: string): CheckIn {
-      return this.checkIns[week] ?? { week, energy: 0, wins: "", blockers: "", nextFocus: "", savedAt: "" };
+      return hydrateCheckIn(this.checkIns[week] ?? { week });
     },
 
     saveCheckIn(checkIn: CheckIn): void {
-      this.checkIns = { ...this.checkIns, [checkIn.week]: { ...checkIn, savedAt: new Date().toISOString() } };
+      const next = hydrateCheckIn({ ...checkIn, savedAt: new Date().toISOString() });
+      this.checkIns = { ...this.checkIns, [next.week]: next };
       this.save();
     },
 

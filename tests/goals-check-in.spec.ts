@@ -96,3 +96,52 @@ test('weekly check-in labels the live goals count as current progress', async ({
   await expect(thisWeek).toBeEnabled();
   await expect(progressCard.getByText('1/1', { exact: true })).toBeVisible();
 });
+
+test('weekly check-in saves connection, recharge, and rotating mindful prompt and creates a check-in task', async ({ page }) => {
+  await page.goto('/');
+  await openView(page, 'goals');
+
+  await page.getByLabel('Someone to check in on this week').fill('Maya');
+  await page.getByRole('button', { name: 'Add as a task', exact: true }).click();
+  await expect(page.getByText('Added to tasks', { exact: true })).toBeVisible();
+
+  await page.getByLabel('How will you recharge this week?').fill('Long walk on Sunday');
+
+  const mindfulTextarea = page.locator('textarea[name="checkin-mindful"]');
+  const initialPrompt = await mindfulTextarea.locator('..').locator('span').textContent();
+  await page.getByRole('button', { name: 'Another', exact: true }).click();
+  const nextPrompt = await mindfulTextarea.locator('..').locator('span').textContent();
+  expect(nextPrompt).not.toBe(initialPrompt);
+  await mindfulTextarea.fill('Letting go of perfectionism');
+
+  await page.getByRole('button', { name: 'Save check-in', exact: true }).click();
+  await page.reload();
+  await openView(page, 'goals');
+
+  await expect(page.getByLabel('Someone to check in on this week')).toHaveValue('Maya');
+  await expect(page.getByText('Added to tasks', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('How will you recharge this week?')).toHaveValue('Long walk on Sunday');
+  await expect(page.locator('textarea[name="checkin-mindful"]')).toHaveValue('Letting go of perfectionism');
+  await expect(page.locator('textarea[name="checkin-mindful"]').locator('..').locator('span')).toHaveText(nextPrompt!);
+
+  await openView(page, 'taskmanager');
+  await expect(page.getByRole('checkbox', { name: 'Mark Check in on Maya done', exact: true })).toBeVisible();
+});
+
+test('optional rotating mindful prompt can be hidden and restored', async ({ page }) => {
+  await page.goto('/');
+  await openView(page, 'goals');
+
+  await expect(page.locator('textarea[name="checkin-mindful"]')).toBeVisible();
+  await page.getByRole('button', { name: 'Hide', exact: true }).click();
+  await expect(page.locator('textarea[name="checkin-mindful"]')).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Show mindful prompt', exact: true })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Save check-in', exact: true }).click();
+  await page.reload();
+  await openView(page, 'goals');
+
+  await expect(page.locator('textarea[name="checkin-mindful"]')).toBeHidden();
+  await page.getByRole('button', { name: 'Show mindful prompt', exact: true }).click();
+  await expect(page.locator('textarea[name="checkin-mindful"]')).toBeVisible();
+});
