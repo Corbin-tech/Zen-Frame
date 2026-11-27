@@ -147,13 +147,26 @@ export function initGoalsStore() {
 
     // Alpine calls init() when the store is registered
     init(): void {
-      for (const key of PERSISTED_KEYS) this.loadList(key);
+      for (const key of PERSISTED_KEYS) this.loadListSafely(key);
       window.addEventListener("storage", event => {
         if (event.storageArea !== localStorage) return;
         for (const key of PERSISTED_KEYS) {
-          if (event.key === null || event.key === key) this.loadList(key, true);
+          if (event.key === null || event.key === key) this.loadListSafely(key, true);
         }
       });
+    },
+
+    // One unreadable list must not stop the others from loading. The failed list keeps what
+    // it had, and its baseline is set to that, so save() leaves the stored copy alone until
+    // the person changes that list. Without the baseline, the next save of any list would
+    // write the empty default over it.
+    loadListSafely(key: PersistedKey, merge = false): void {
+      try {
+        this.loadList(key, merge);
+      } catch (error) {
+        console.error(`Could not read "${key}" from storage; keeping what is shown.`, error);
+        this.savedJson[key] ??= JSON.stringify(this[key]);
+      }
     },
 
     loadList(key: PersistedKey, merge = false): void {

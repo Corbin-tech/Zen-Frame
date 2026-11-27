@@ -105,17 +105,30 @@ const contentSecurityPolicy = [
 			import { initPomoStore } from '../stores/pomoStore';
 			import { notify, startReminders } from '../lib/notifications';
 			import { registerTaskDragDrop } from '../scripts/taskDragDrop.js';
+			import { registerStores } from '../lib/registerStores';
 			import { dates } from '../lib/dates';
 			import { plural } from '../lib/plural';
 
+			// Stores whose saved data could not be read. They start from defaults.
+			let failedStores: string[] = [];
+
 			document.addEventListener('alpine:init', () => {
-				window.Alpine.store('theme', initThemeStore());
-				window.Alpine.store('settings', initSettingsStore());
+				const Alpine = window.Alpine;
+				const steps: [string, () => void][] = [
+					['theme', () => Alpine.store('theme', initThemeStore())],
+					['settings', () => Alpine.store('settings', initSettingsStore())]
+				];
 				// Informational pages need preferences, not task state or hidden timers.
-				if (!document.body.hasAttribute('data-workspace')) return;
-				window.Alpine.store('goals', initGoalsStore());
-				window.Alpine.store('pomoState', initPomoStore());
-				initStores();
+				const workspace = document.body.hasAttribute('data-workspace');
+				if (workspace) {
+					steps.push(
+						['goals', () => Alpine.store('goals', initGoalsStore())],
+						['pomoState', () => Alpine.store('pomoState', initPomoStore())],
+						['tasks', () => initStores()]
+					);
+				}
+				failedStores = registerStores(steps);
+				if (!workspace) return;
 				registerTaskDragDrop(window.Alpine);
 				// $dates in templates: date and time helpers from src/lib/dates.ts
 				window.Alpine.magic('dates', () => dates);
@@ -124,6 +137,11 @@ const contentSecurityPolicy = [
 
 			// Block and due-date reminders, once every store is ready
 			document.addEventListener('alpine:initialized', () => {
+				if (failedStores.length) {
+					window.dispatchEvent(new CustomEvent('app-toast', {
+						detail: { title: 'Some saved data could not be read', body: 'That part starts fresh. Import a backup from Settings to restore it.' }
+					}));
+				}
 				if (!document.body.hasAttribute('data-workspace')) return;
 				window.notify = (kind, title, body) => notify(window.Alpine, kind, title, body);
 				startReminders(window.Alpine);
