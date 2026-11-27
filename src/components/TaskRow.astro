@@ -5,7 +5,6 @@ import EstimatePicker from './EstimatePicker.astro';
 // One task row. Render it inside an Alpine x-for that provides `task`.
 // Touch screens and narrow windows keep the row quiet -- checkbox, title, the set
 // chips, and one "..." button that opens the full action sheet (spec item 13).
-// A task with Breakdown steps gets a "1/3" chip that expands its checklist inline (item 16).
 
 // The "..." sheet's entries: quiet, like the cluster swatch popovers
 const menuItem = 'w-full flex items-center gap-2.5 px-3 py-2 text-left rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-40 disabled:pointer-events-none transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500';
@@ -76,7 +75,7 @@ const menuDanger = 'hover:!text-red-600 hover:!bg-red-50 dark:hover:!text-red-40
                 <EstimatePicker />
             </div>
 
-            <!-- Meta chips: In progress, steps, due date. The date input under them
+            <!-- Meta chips: In progress, due date. The date input under them
                  is the chip's picker, as on the board card's pencil form. -->
             <div class="contents sm:relative sm:shrink-0 sm:flex sm:items-center sm:gap-1.5">
                 <span
@@ -91,23 +90,6 @@ const menuDanger = 'hover:!text-red-600 hover:!bg-red-50 dark:hover:!text-red-40
                     x-show="task.startedAt && !task.completed"
                     class="text-xs font-medium px-2 py-1 rounded-md bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
                 >In progress</span>
-                <!-- Steps chip (item 16): real data, so it is always visible; it
-                     expands the task's checklist inline. -->
-                <button
-                    type="button"
-                    x-show="task.steps?.length"
-                    x-on:click="stepsOpen = !stepsOpen"
-                    x-bind:aria-expanded="stepsOpen"
-                    x-bind:aria-controls="`steps-${task.id}`"
-                    x-bind:aria-label="`Steps for ${task.todo || 'task'}: ${stepsProgress(task)}. ${stepsOpen ? 'Hide' : 'Show'} steps.`"
-                    title="Checklist steps"
-                    class="inline-flex items-center gap-1 touch-target text-xs font-medium px-2 py-1 rounded-md bg-gray-100 text-gray-600 dark:bg-slate-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors"
-                >
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m3 17 2 2 4-4m-6-8 2 2 4-4m6 5h2m0 6h2" />
-                    </svg>
-                    <span class="tabular-nums" x-text="`${stepsDone(task)}/${stepsTotal(task)}`"></span>
-                </button>
                 <!-- Due date: the chip opens the browser date picker. Tasks started on the board say so. -->
                 <button
                     type="button"
@@ -166,34 +148,6 @@ const menuDanger = 'hover:!text-red-600 hover:!bg-red-50 dark:hover:!text-red-40
             </div>
         </div>
 
-    </div>
-
-    <!-- Checklist steps (item 16): the steps chip expands the task's Breakdown
-         checklist under the row, with real checkboxes and a progress read. -->
-    <div x-show="stepsOpen" x-cloak x-transition.opacity.duration.150ms
-        x-bind:id="`steps-${task.id}`"
-        class="mt-1 mb-2 ml-8 sm:ml-9 mr-2 rounded-lg border border-gray-200/80 dark:border-slate-600/60 bg-black/[0.02] dark:bg-white/[0.04] p-2.5 space-y-2"
-    >
-        <p class="px-1 text-xs font-medium text-gray-500 dark:text-gray-400" x-text="stepsProgress(task)"></p>
-        <ul class="space-y-0.5">
-            <template x-for="step in task.steps" :key="step.id">
-                <li>
-                    <label class="flex min-h-9 cursor-pointer items-center gap-2.5 text-sm text-gray-700 dark:text-gray-200">
-                        <input type="checkbox" name="task-step"
-                            x-bind:aria-label="`Mark step: ${step.text}`"
-                            x-bind:checked="step.done"
-                            x-on:change="$store.todos.toggleStep(task.id, step.id)"
-                            class="h-4 w-4 shrink-0 rounded-full border-gray-300 dark:border-slate-500 text-teal-600 dark:text-teal-400 focus:ring-teal-500 dark:bg-slate-700"
-                        />
-                        <span class="min-w-0 flex-1 break-words"
-                            x-bind:class="step.done ? 'line-through text-gray-500 dark:text-gray-400' : ''"
-                            x-text="step.text"
-                        ></span>
-                        <span x-show="step.minutes" class="shrink-0 text-xs text-gray-500 dark:text-gray-400 tabular-nums" x-text="step.minutes ? `${step.minutes} min` : ''"></span>
-                    </label>
-                </li>
-            </template>
-        </ul>
     </div>
 
     <!-- The "..." sheet (item 13): the same actions the row crowds in on touch -- set
@@ -288,7 +242,7 @@ const menuDanger = 'hover:!text-red-600 hover:!bg-red-50 dark:hover:!text-red-40
 
     /* Touch screens and narrow windows, the same media discipline as .touch-target:
        the inline add-controls fold away and one "..." button opens the action sheet.
-       Chips that hold data -- a set date, a set estimate, the steps count -- stay. */
+       Chips that hold data -- a set date, a set estimate -- stay. */
     .row-overflow { display: none; }
 
     @media (max-width: 639px), (pointer: coarse) {

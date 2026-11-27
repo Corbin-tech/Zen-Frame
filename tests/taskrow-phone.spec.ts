@@ -21,18 +21,10 @@ for (const width of [320, 390, 1280]) {
           startedAt: '2026-11-20T10:00:00.000Z',
           estimateMinutes: 25,
           dueDate: '2026-11-25',
-          steps: [
-            { id: 's1', text: 'Draft notes', done: true },
-            { id: 's2', text: 'Publish', done: false },
-          ],
         } : {}),
         ...(i === 7 ? {
           startedAt: '2026-11-20T10:00:00.000Z',
           dueDate: '2026-11-18',
-          steps: [
-            { id: 's3', text: 'Reproduce', done: true },
-            { id: 's4', text: 'Add test', done: false },
-          ],
         } : {}),
       }))));
     });

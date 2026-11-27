@@ -59,7 +59,6 @@ const TIMER_STYLES = [
 // Dashboard widgets. "stats" is the row of key numbers across the top; the rest go in the
 // main or side column, in any order. Widgets in neither list are hidden.
 export const DASHBOARD_WIDGETS = [
-  { id: "brain-dump", label: "Brain dump", hint: "Draft and review tasks with Plus", zone: "column" },
   { id: "stats", label: "Key numbers", hint: "Open tasks, done today, planned, focus", zone: "top" },
   { id: "plan", label: "Today's plan", hint: "Today's blocks from the schedule", zone: "column" },
   { id: "clusters", label: "Clusters", hint: "Progress for each cluster", zone: "column" },
