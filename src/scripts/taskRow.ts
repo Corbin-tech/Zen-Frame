@@ -1,19 +1,10 @@
-// Task row state for the Task Manager: the touch-screen "..." action sheet (spec item 13)
-// and the inline steps checklist opened by the row's steps chip (spec item 16). Every
+// Task row state for the Task Manager: the touch-screen "..." action sheet (spec item 13). Every
 // mutation goes through the todos store, exactly like the row's inline controls -- the
 // sheet only groups the same actions behind one button.
 
-interface TodoStep {
-    id: string;
-    text: string;
-    done: boolean;
-    minutes?: number | null;
-}
-
 // The slice of a task the row reads, from the surrounding x-for scope
-interface StepTask {
+interface RowTask {
     id: string;
-    steps?: TodoStep[] | null;
 }
 
 // The store methods the sheet calls; the same ones the row's inline controls use,
@@ -47,16 +38,12 @@ export interface RowState {
     titleDraft: string;
     menuOpen: boolean;
     opener: HTMLElement | null;
-    stepsOpen: boolean;
-    stepsDone(task: StepTask): number;
-    stepsTotal(task: StepTask): number;
-    stepsProgress(task: StepTask): string;
-    openMenu(task: StepTask): void;
+    openMenu(task: RowTask): void;
     closeMenu(restoreFocus?: boolean): void;
-    toggleMenu(task: StepTask): void;
+    toggleMenu(task: RowTask): void;
     menuFocus(direction: 1 | -1): void;
-    moveTask(task: StepTask, direction: -1 | 1, from: HTMLElement, announce: () => void): void;
-    deleteTask(task: StepTask): void;
+    moveTask(task: RowTask, direction: -1 | 1, from: HTMLElement, announce: () => void): void;
+    deleteTask(task: RowTask): void;
     editName(): void;
     pickDueDate(): void;
     pickEstimate(): void;
@@ -77,23 +64,7 @@ export function taskRow(todos: TodosApi): RowState {
         // Where focus came from, so closing the sheet puts it back on the "..." button
         opener: null,
 
-        // The inline checklist the steps chip opens (item 16). Collapsed per row by default.
-        stepsOpen: false,
-
-        stepsDone(task: StepTask): number {
-            return (task.steps ?? []).filter(step => step.done).length;
-        },
-
-        stepsTotal(task: StepTask): number {
-            return task.steps?.length ?? 0;
-        },
-
-        // Sentence case, like a board chip's read: "2 of 3 done"
-        stepsProgress(this: RowSelf, task: StepTask): string {
-            return `${this.stepsDone(task)} of ${this.stepsTotal(task)} done`;
-        },
-
-        openMenu(this: RowSelf, task: StepTask) {
+        openMenu(this: RowSelf, task: RowTask) {
             this.opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
             this.menuOpen = true;
             // Only one row's sheet is open at a time; the rows close each other
@@ -110,7 +81,7 @@ export function taskRow(todos: TodosApi): RowState {
 
         // The button is the keyboard fallback for row actions on touch screens:
         // Tab reaches it, Enter or Space opens the sheet with focus inside.
-        toggleMenu(this: RowSelf, task: StepTask) {
+        toggleMenu(this: RowSelf, task: RowTask) {
             if (this.menuOpen) this.closeMenu();
             else this.openMenu(task);
         },
@@ -126,7 +97,7 @@ export function taskRow(todos: TodosApi): RowState {
         // The same move the row's Alt+arrow shortcuts make, from the sheet's buttons.
         // announce only runs when the task actually changed place; the template passes
         // it in so the page's existing aria-live region speaks the move.
-        moveTask(this: RowSelf, task: StepTask, direction: -1 | 1, from: HTMLElement, announce: () => void) {
+        moveTask(this: RowSelf, task: RowTask, direction: -1 | 1, from: HTMLElement, announce: () => void) {
             const before = todos.getTaskPosition(task.id);
             todos.shiftTask(task.id, direction);
             if (todos.getTaskPosition(task.id) !== before) announce();
@@ -139,7 +110,7 @@ export function taskRow(todos: TodosApi): RowState {
             });
         },
 
-        deleteTask(this: RowSelf, task: StepTask) {
+        deleteTask(this: RowSelf, task: RowTask) {
             this.closeMenu(false);
             // The same call as the row's inline delete button: the Undo toast fires
             todos.deleteTodo(task.id);

@@ -1,5 +1,4 @@
 ---
-import BrainDump from './BrainDump.astro';
 // Quick add: a window for creating a task or cluster from any tab, opened with the
 // top bar's New button, the N key, or the "open-quick-add" window event
 // (detail: { mode: 'task' | 'cluster', text?, parentId? }).
@@ -116,7 +115,6 @@ const fieldLabel = 'block text-xs font-medium text-gray-500 dark:text-gray-400 m
                     <kbd class="px-1.5 py-0.5 rounded border border-gray-200 dark:border-slate-700 font-sans">Esc</kbd> to close
                 </p>
                 <div class="flex gap-2 ml-auto">
-                    <button type="button" x-on:click="$dispatch('open-brain-dump', { text: name })" class="px-3 py-2 text-sm font-medium rounded-lg text-teal-700 dark:text-teal-300">Brain dump</button>
                     <button type="button" x-on:click="close()" class="px-3 py-2 text-sm font-medium rounded-lg text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-slate-800">Cancel</button>
                     <button
                         type="submit"
@@ -142,8 +140,6 @@ const fieldLabel = 'block text-xs font-medium text-gray-500 dark:text-gray-400 m
         <button type="button" x-on:click="reveal(lastId, true)" class="ml-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-white/15 hover:bg-white/25 dark:bg-slate-900/10 dark:hover:bg-slate-900/20">Show</button>
     </div>
 </div>
-
-<BrainDump />
 
 <script>
     import { trapFocus } from '../lib/focusTrap';

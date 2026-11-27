@@ -14,14 +14,6 @@ const linkButton = 'text-sm font-medium text-teal-700 dark:text-teal-400 hover:t
 const checkbox = 'w-4 h-4 shrink-0 rounded-full border-gray-300 dark:border-slate-500 text-teal-600 focus:ring-teal-500 dark:bg-slate-700 cursor-pointer';
 ---
 
-{id === 'brain-dump' && (
-    <section class={`${panel} p-5 space-y-3`}>
-        <h2 class={panelTitle}>Brain dump</h2>
-        <p class="text-sm text-gray-500 dark:text-gray-400">Clear your head. Turn a messy draft into tasks you can review.</p>
-        <button type="button" class={linkButton} x-on:click="$dispatch('open-brain-dump')">Open Brain dump →</button>
-    </section>
-)}
-
 {id === 'plan' && (
     <section class={`${panel} p-5`}>
         <div class="flex items-center justify-between mb-4">
