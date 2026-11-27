@@ -1,6 +1,6 @@
-import { formatTime, minutesNow } from "../lib/dates.ts";
-import { loadJson, saveJson } from "../lib/storage.ts";
-import { UNDO_TOAST_MS } from "../lib/notifications.ts";
+import { formatTime, minutesNow } from "../lib/dates";
+import { loadJson, saveJson } from "../lib/storage";
+import { UNDO_TOAST_MS } from "../lib/notifications";
 
 export const CYCLE_LENGTH = 4;
 export const BREATH_COUNT = 3;

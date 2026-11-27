@@ -1,5 +1,5 @@
 import { beforeEach, expect, test } from "vitest";
-import { exportBackup, importBackup } from '../src/lib/storage.ts';
+import { exportBackup, importBackup } from '../src/lib/storage';
 
 beforeEach(() => {
   const data = new Map<string, string>();

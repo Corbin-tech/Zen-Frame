@@ -125,7 +125,7 @@ const SEEN_MONTHS_KEPT = 24;
 // Minutes before a scheduled block starts that its reminder fires
 const BLOCK_LEADS = [0, 5, 10, 15, 30];
 
-export const REMINDER_WEEKDAYS = [
+const REMINDER_WEEKDAYS = [
   { id: 0, label: "Sunday" },
   { id: 1, label: "Monday" },
   { id: 2, label: "Tuesday" },

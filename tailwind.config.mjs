@@ -2,7 +2,6 @@
 export default {
 	content: [
 		'./src/**/*.{astro,html,js,jsx,md,mdx,svelte,ts,tsx,vue}',
-		'./node_modules/flowbite/**/*.js',
 	],
 	darkMode: 'class',
 	theme: {
@@ -35,8 +34,7 @@ export default {
 					light: '#E2C382',
 					deep: '#9C7A2E',
 				},
-				// Brand neutrals. Hex, not CSS variables: the Flowbite plugin reads gray through theme() in
-				// JavaScript, which leaves <alpha-value> unreplaced. Warm ink from Paper (50) to Pine (900);
+				// Brand neutrals. Warm ink from Paper (50) to Pine (900);
 				// 500 stays at 4.5:1 or more on Paper and white.
 				gray: {
 					50: '#F7F5EF',
@@ -69,7 +67,6 @@ export default {
 		},
 	},
 	plugins: [
-		require('flowbite/plugin'),
 		// onerow: the top bar is wide enough for one row. A container query in rem, so the Settings
 		// text size moves the switch point with the text. Needs [container:topbar/inline-size] on the bar.
 		({ addVariant }) => addVariant('onerow', '@container topbar (min-width: 62rem)'),

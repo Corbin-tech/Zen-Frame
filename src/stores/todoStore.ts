@@ -817,8 +817,8 @@ function createTodosStore() {
 
     // Zen mode: hide a cluster's tasks until every other cluster has been skipped too
     skipCluster(clusterId: string): void {
-      const openClusterIds = new Set(
-        this.items.filter(item => !item.isCluster && !item.completed && item.parentId).map(item => item.parentId)
+      const openClusterIds = new Set<string>(
+        this.items.flatMap(item => !item.isCluster && !item.completed && item.parentId ? [item.parentId] : [])
       );
 
       let skipped = this.skippedClusters.filter(id => openClusterIds.has(id) && id !== clusterId);

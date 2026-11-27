@@ -38,33 +38,6 @@ const ARRAY_KEYS = new Set<BackupKey>([
 const OBJECT_KEYS = new Set<BackupKey>(["planning", "checkIns", "pomoState", "settings"]);
 const STRING_KEYS = new Set<BackupKey>(["theme", "activeTab", "boardCluster", "boardSort", "boardWipLimit", "insightsRange"]);
 
-export function loadSessionJson<T>(key: string, fallback: T): T {
-  try {
-    const saved = sessionStorage.getItem(key);
-    return saved ? JSON.parse(saved) : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-export function saveSessionJson(key: string, value: unknown): boolean {
-  try {
-    sessionStorage.setItem(key, JSON.stringify(value));
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-export function removeSession(key: string): boolean {
-  try {
-    sessionStorage.removeItem(key);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 // `fallback` is returned when the read or parse fails, and `missing` when nothing is stored.
 // They differ only for a caller that must tell cleared data from unreadable data.
 export function loadJson<T>(key: string, fallback: T, missing: T = fallback): T {
