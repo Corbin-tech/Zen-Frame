@@ -58,7 +58,8 @@ const menuDanger = 'hover:!text-red-600 hover:!bg-red-50 dark:hover:!text-red-40
                     x-init="titleDraft = task.todo; $watch('task.todo', value => { if (document.activeElement !== $el) titleDraft = value })"
                     x-bind:readonly="task.completed"
                     x-on:keydown.enter="$event.target.blur()"
-                    x-on:blur="$store.todos.updateTask(task.id, { todo: titleDraft }); titleDraft = task.todo"
+                    x-on:keydown.escape="titleDraft = task.todo; $el.blur()"
+                    x-on:blur="if (titleDraft !== task.todo) $store.todos.updateTask(task.id, { todo: titleDraft }); titleDraft = task.todo"
                     class="flex-1 min-w-0 bg-transparent border-none focus:ring-0 focus:outline-none"
                     x-bind:class="{
                         'line-through text-gray-500 dark:text-gray-400': task.completed,
