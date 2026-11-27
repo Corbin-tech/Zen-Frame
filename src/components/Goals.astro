@@ -534,8 +534,14 @@ const prompts = [
 
             copyWeekWinsToCheckIn() {
                 const existing = (this.draft.wins ?? '').trim();
-                const existingLines = new Set(existing.split('\n').map(line => line.replace(/^[-•]\s*/, '').trim()));
-                const fresh = this.weekWins.map(win => win.text.trim()).filter(line => line && !existingLines.has(line));
+                const seen = new Set(existing.split('\n').map(line => line.replace(/^[-•]\s*/, '').trim()));
+                const fresh: string[] = [];
+                for (const win of this.weekWins) {
+                    const line = win.text.trim();
+                    if (!line || seen.has(line)) continue;
+                    seen.add(line);
+                    fresh.push(line);
+                }
                 if (!fresh.length) return;
                 const added = fresh.map(line => `- ${line}`).join('\n');
                 this.draft.wins = existing ? `${existing}\n${added}` : added;

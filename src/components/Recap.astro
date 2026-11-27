@@ -97,7 +97,7 @@ const name = data.recapName;
                     </div>
 
                     <div x-show="item.final" class="relative z-20 mt-8 flex flex-wrap gap-2">
-                        <button type="button" x-on:click.stop="copySummary()" x-on:pointerdown.stop class="px-4 py-2.5 rounded-full bg-white text-gray-900 text-sm font-semibold hover:bg-white/90 transition-colors">Copy summary</button>
+                        <button type="button" x-show="item.summaryText" x-on:click.stop="copySummary()" x-on:pointerdown.stop class="px-4 py-2.5 rounded-full bg-white text-gray-900 text-sm font-semibold hover:bg-white/90 transition-colors">Copy summary</button>
                         <button type="button" x-on:click.stop="index = 0; progress = 0" x-on:pointerdown.stop class="px-4 py-2.5 rounded-full bg-white/15 text-white text-sm font-semibold hover:bg-white/25 transition-colors">Watch again</button>
                     </div>
                 </div>
@@ -163,7 +163,11 @@ const name = data.recapName;
             label: stats.tasks === 1 ? 'task finished' : 'tasks finished',
             note: taskChange === null
                 ? (before.tasks ? '' : `Your first month on the books.`)
-                : taskChange >= 0 ? `That’s ${taskChange}% more than ${previousName}.` : `${Math.abs(taskChange)}% fewer than ${previousName}. Rest counts too.`
+                : taskChange === 0
+                    ? `Same as ${previousName}.`
+                    : taskChange > 0
+                        ? `That’s ${taskChange}% more than ${previousName}.`
+                        : `${Math.abs(taskChange)}% fewer than ${previousName}. Rest counts too.`
         });
 
         if (stats.focusMinutes) {
@@ -351,6 +355,7 @@ const name = data.recapName;
                     trapFocus(event, this.$refs.story);
                     return;
                 }
+                if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
                 if (event.key === 'Escape') this.close();
                 else if (event.key === 'ArrowRight') this.next();
                 else if (event.key === 'ArrowLeft') this.previous();
@@ -359,7 +364,8 @@ const name = data.recapName;
             },
 
             async copySummary() {
-                const text = this.slides.find(slide => slide.summaryText)?.summaryText ?? '';
+                const text = this.slides.find(slide => slide.summaryText)?.summaryText;
+                if (!text) return;
                 try {
                     await navigator.clipboard.writeText(text);
                     window.dispatchEvent(new CustomEvent('app-toast', { detail: { title: 'Summary copied', body: 'Paste it anywhere to share your month.' } }));

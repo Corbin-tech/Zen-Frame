@@ -4,7 +4,6 @@ import { loadJson, saveJson } from "../lib/storage";
 import { dispatchToast } from "../lib/notifications";
 import type { Milestone } from "./settingsStore";
 import { blockMinutes } from "../lib/estimates";
-import { cleanStepTotal } from "../lib/assist/sanitize";
 import { mergeLists } from "../lib/mergeLists";
 
 export interface Todo {
@@ -21,15 +20,7 @@ export interface Todo {
   startedAt?: string; // Set while the task is in the board's In progress column
   zenDeferredStart?: string; // The start timestamp that Skip Task deferred in Zen mode
   completedAt?: string;
-  estimateMinutes?: number | null; // From Estimate, Brain dump, or the user
-  steps?: TodoStep[]; // A checklist from Breakdown. Steps stay inside the task, so the board and schedule still see one task.
-}
-
-export interface TodoStep {
-  id: string;
-  text: string;
-  done: boolean;
-  minutes?: number | null;
+  estimateMinutes?: number | null; // Set by the user, or parsed from quick add
 }
 
 // One finished task, kept after the task itself is cleared so Insights can count it
@@ -408,24 +399,6 @@ function createTodosStore() {
       if (!task || task.isCluster) return;
       task.estimateMinutes = minutes && minutes > 0 ? Math.round(minutes) : null;
       task.updatedAt = new Date().toISOString();
-      this.saveTodos();
-    },
-
-    // Replaces the task's checklist. When no estimate is set yet, the steps' minutes add up to one.
-    setSteps(taskId: string, steps: Array<{ text: string; minutes?: number | null }>): void {
-      const task = this.find(taskId);
-      if (!task || task.isCluster) return;
-      task.steps = steps.map(step => ({ id: crypto.randomUUID(), text: step.text.trim(), done: false, minutes: step.minutes ?? null }));
-      const total = cleanStepTotal(task.steps);
-      if (!task.estimateMinutes && total) task.estimateMinutes = total;
-      task.updatedAt = new Date().toISOString();
-      this.saveTodos();
-    },
-
-    toggleStep(taskId: string, stepId: string): void {
-      const step = this.find(taskId)?.steps?.find(item => item.id === stepId);
-      if (!step) return;
-      step.done = !step.done;
       this.saveTodos();
     },
 

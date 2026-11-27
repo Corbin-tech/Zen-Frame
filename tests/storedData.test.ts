@@ -72,9 +72,9 @@ for (const path of ["load", "import"]) {
   });
   test(`${path}: normalizes existing todo fields and keeps valid values`, () => {
     const [todo] = read("todos", [{ id: "a", zenDeferredStart: at, estimateMinutes: -1,
-      steps: [null, { text: "step", id: "s", done: "yes", minutes: -1 }] }]);
-    expect(todo).toMatchObject({ parentId: null, zenDeferredStart: at, estimateMinutes: null,
-      steps: [{ id: "s", text: "step", done: false, minutes: null }] });
+      steps: [{ text: "step", id: "s", done: true }] }]);
+    expect(todo).toMatchObject({ parentId: null, zenDeferredStart: at, estimateMinutes: null });
+    expect(todo).not.toHaveProperty("steps");
     expect(read("planning", { gap: 0 }).gap).toBe(0);
     expect(read("pomoSessions", [])).toEqual([]);
   });

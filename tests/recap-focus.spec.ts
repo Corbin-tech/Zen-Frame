@@ -17,12 +17,13 @@ test('paused recap traps focus and preserves slide navigation and focus return',
   await page.keyboard.press('Shift+Tab');
   await expect(next).toBeFocused();
   await page.keyboard.press('ArrowRight');
-  await expect(dialog.getByRole('button', { name: 'Copy summary' })).toBeVisible();
-  await dialog.getByRole('button', { name: 'Watch again' }).focus();
+  const watchAgain = dialog.getByRole('button', { name: 'Watch again' });
+  await expect(watchAgain).toBeVisible();
+  await watchAgain.focus();
   await page.keyboard.press('Tab');
   await expect(play).toBeFocused();
   await page.keyboard.press('ArrowLeft');
-  await expect(dialog.getByRole('button', { name: 'Copy summary' })).toBeHidden();
+  await expect(watchAgain).toBeHidden();
   await previous.focus();
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();

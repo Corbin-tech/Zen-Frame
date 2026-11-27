@@ -8,7 +8,7 @@ async function pressNAndFlush(page: Page) {
   }));
 }
 
-test('N shortcut does not open Quick Add while Settings, Recap, Feedback, or Brain Dump is open', async ({ page }) => {
+test('N shortcut does not open Quick Add while Settings, Recap, or Feedback is open', async ({ page }) => {
   await page.goto('/');
   const quickAdd = page.getByRole('dialog', { name: 'New task' });
 
@@ -54,16 +54,6 @@ test('N shortcut does not open Quick Add while Settings, Recap, Feedback, or Bra
   // After closing dialogs, N still opens Quick Add
   await page.keyboard.press('n');
   await expect(quickAdd).toBeVisible();
-
-  // Brain Dump dialog opened from Quick Add (focus moved off textarea onto Close)
-  await quickAdd.getByRole('button', { name: 'Brain dump' }).click();
-  const brainDump = page.getByRole('dialog', { name: 'Brain dump' });
-  await expect(brainDump).toBeVisible();
-  await expect(quickAdd).toBeHidden();
-  await brainDump.getByRole('button', { name: 'Close', exact: true }).focus();
-  await pressNAndFlush(page);
-  await expect(quickAdd).toBeHidden();
-  await expect(brainDump).toBeVisible();
 });
 
 test('N shortcut does not open Quick Add while Schedule Add or Edit block dialog is open', async ({ page }) => {

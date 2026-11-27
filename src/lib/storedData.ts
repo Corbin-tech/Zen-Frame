@@ -1,4 +1,4 @@
-import { normalizeLoadedTodo } from "./assist/todoLoad";
+import { cleanMinutes } from "./estimates";
 import type { Todo } from "../stores/todoStore";
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -34,6 +34,18 @@ function cleanWin(win: Record<string, unknown>): Record<string, unknown> {
   };
 }
 
+// A restored backup may carry anything, so keep only well-formed values. The "steps"
+// checklist field from older saves is dropped: nothing reads it any more.
+function normalizeLoadedTodo(item: Todo & { steps?: unknown }): Todo {
+  const { steps: _steps, ...todo } = item;
+  return {
+    ...todo,
+    // Templates call string methods on the title, so a task without one gets an empty title
+    todo: typeof todo.todo === "string" ? todo.todo : "",
+    parentId: todo.parentId ?? null,
+    estimateMinutes: cleanMinutes(todo.estimateMinutes)
+  };
+}
 export function normalizeStoredData(key: string, value: unknown): unknown {
   switch (key) {
     case "todos":

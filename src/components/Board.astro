@@ -412,6 +412,7 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-1 rou
 
             // [ and ] move the focused card a column left or right
             cardKey(event, task) {
+                if (event.altKey || event.ctrlKey || event.metaKey) return;
                 if (event.key !== '[' && event.key !== ']') return;
                 event.preventDefault();
                 this.step(task, event.key === '[' ? -1 : 1);

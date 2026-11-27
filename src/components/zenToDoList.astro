@@ -1,7 +1,3 @@
----
-import TaskSteps from './TaskSteps.astro';
----
-
 <script>
     import { celebrate } from '../lib/confetti';
     import { estimateLabel } from '../lib/estimates';
@@ -163,7 +159,6 @@ import TaskSteps from './TaskSteps.astro';
                                 x-bind:class="currentTodo?.dueDate ? $dates.dueClass(currentTodo.dueDate) : ''"
                                 x-text="currentTodo?.dueDate ? $dates.dueText(currentTodo.dueDate).replace(/^d/, 'D') : ''"
                             ></span>
-                            <TaskSteps taskId="currentTodo?.id" fallbackFocus="$refs.currentTaskTitle" zen />
                             <div class="flex flex-col items-center sm:items-start gap-2 pt-2">
                                 <button type="button" x-on:click="toggleFocus" class="btn-primary touch-target px-6 py-2.5">
                                     <span x-text="focusLabel"></span>

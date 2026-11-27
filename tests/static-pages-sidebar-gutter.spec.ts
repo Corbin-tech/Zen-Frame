@@ -33,7 +33,6 @@ for (const path of ['/principles', '/roadmap']) {
         todos: Boolean(alpine.store('todos')),
         goals: Boolean(alpine.store('goals')),
         pomoState: Boolean(alpine.store('pomoState')),
-        assist: Boolean(alpine.store('assist')),
       };
     });
     expect(stores).toEqual({
@@ -42,7 +41,6 @@ for (const path of ['/principles', '/roadmap']) {
       todos: false,
       goals: false,
       pomoState: false,
-      assist: false,
     });
   });
 }

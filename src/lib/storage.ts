@@ -14,7 +14,6 @@ const BACKUP_KEYS = [
   "pomoState",
   "pomoSessions",
   "settings",
-  "assist",
   "theme",
   "activeTab",
   "boardCluster",
@@ -36,7 +35,7 @@ const ARRAY_KEYS = new Set<BackupKey>([
   "pomoSessions"
 ]);
 
-const OBJECT_KEYS = new Set<BackupKey>(["planning", "checkIns", "pomoState", "settings", "assist"]);
+const OBJECT_KEYS = new Set<BackupKey>(["planning", "checkIns", "pomoState", "settings"]);
 const STRING_KEYS = new Set<BackupKey>(["theme", "activeTab", "boardCluster", "boardSort", "boardWipLimit", "insightsRange"]);
 
 export function loadSessionJson<T>(key: string, fallback: T): T {
