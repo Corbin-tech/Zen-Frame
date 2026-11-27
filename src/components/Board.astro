@@ -80,10 +80,10 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-1 rou
                 x-task-drop="move($taskId, column.id)"
                 x-bind:aria-label="`${column.title}, ${$plural(tasksIn(column.id).length, 'task')}`"
             >
-                <!-- Column header -->
-                <div class="relative flex items-center gap-2 px-1 pb-3">
-                    <span class="w-2.5 h-2.5 rounded-full" x-bind:class="column.dot"></span>
-                    <h2 class="text-sm font-semibold text-gray-900 dark:text-white" x-text="column.title"></h2>
+                <!-- Column header: fixed height so all three columns line up and their empty states match -->
+                <div class="board-column-header relative flex items-center gap-2 px-1 pb-3 min-h-9">
+                    <span class="w-2.5 h-2.5 rounded-full shrink-0" x-bind:class="column.dot"></span>
+                    <h2 class="text-sm font-semibold text-gray-900 dark:text-white whitespace-nowrap" x-text="column.title"></h2>
                     <span
                         class="text-xs font-medium tabular-nums px-1.5 py-0.5 rounded-md ring-1"
                         x-bind:class="column.id === 'doing' && overLimit
@@ -93,7 +93,7 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-1 rou
                     ></span>
 
                     <!-- Work-in-progress limit: how many tasks you want going at once -->
-                    <div x-show="column.id === 'doing'" class="sm:relative" x-data="{ open: false }" x-on:click.outside="open = false" x-on:keydown.escape="open = false">
+                    <div x-show="column.id === 'doing'" class="sm:relative flex" x-data="{ open: false }" x-on:click.outside="open = false" x-on:keydown.escape="open = false">
                         <button type="button" x-on:click="open = !open" class={iconButton} aria-label="Set a limit for In progress" title="Limit tasks in progress" x-bind:aria-expanded="open">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" /></svg>
                         </button>
@@ -294,12 +294,14 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-1 rou
                     </li>
                 </ol>
 
-                <!-- New card -->
+                <!-- Composer and column actions. Every column reserves the same footer height, so the
+                     card list above (and its empty state) stays the same size in all three columns. -->
+                <div class="mt-2 min-h-[2rem]">
                 <form
                     x-show="adding === column.id"
                     x-cloak
                     x-on:submit.prevent="addTask(column.id)"
-                    class="mt-2 rounded-xl bg-white dark:bg-slate-700/70 shadow-sm ring-1 ring-teal-500/40 p-2"
+                    class="rounded-xl bg-white dark:bg-slate-700/70 shadow-sm ring-1 ring-teal-500/40 p-2"
                 >
                     <textarea
                         x-bind:id="`board-new-${column.id}`"
@@ -322,7 +324,7 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-1 rou
                     type="button"
                     x-show="column.id !== 'done' && adding !== column.id"
                     x-on:click="startAdding(column.id)"
-                    class="mt-2 flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-sm text-gray-500 hover:text-gray-800 hover:bg-white/70 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-slate-700/50 transition-colors"
+                    class="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-sm text-gray-500 hover:text-gray-800 hover:bg-white/70 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-slate-700/50 transition-colors"
                 >
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
                     Add a task
@@ -332,9 +334,10 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-1 rou
                     type="button"
                     x-show="column.id === 'done' && tasksIn('done').length > doneLimit"
                     x-on:click="doneLimit = Infinity"
-                    class="mt-2 px-2 py-1.5 rounded-lg text-sm font-medium text-teal-700 dark:text-teal-400 hover:bg-white/70 dark:hover:bg-slate-700/50 transition-colors"
+                    class="px-2 py-1.5 rounded-lg text-sm font-medium text-teal-700 dark:text-teal-400 hover:bg-white/70 dark:hover:bg-slate-700/50 transition-colors"
                     x-text="`Show ${tasksIn('done').length - doneLimit} more`"
                 ></button>
+                </div>
             </section>
         </template>
     </div>
@@ -511,15 +514,21 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-1 rou
             },
 
             startAdding(column) {
-                this.adding = column;
-                this.newTask = '';
+                // Re-clicking + on the already-open composer just refocuses it, keeping the draft
+                if (this.adding !== column) {
+                    this.adding = column;
+                    this.newTask = '';
+                }
                 this.$nextTick(() => document.getElementById(`board-new-${column}`)?.focus());
             },
 
-            // New tasks join the cluster being shown
+            // New tasks join the cluster being shown. Add/Enter with no text closes the composer.
             addTask(column) {
                 const text = this.newTask.trim();
-                if (!text) return;
+                if (!text) {
+                    this.adding = null;
+                    return;
+                }
                 const filter = this.activeFilter;
                 this.$store.todos.addTodo(text, {
                     parentId: filter === 'all' || filter === 'none' ? null : filter,
@@ -532,6 +541,14 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-1 rou
 </script>
 
 <style>
+    /* Same condition as the .touch-target 44px hit area: on phones the header buttons are
+       44px tall, so the header (and with it every column's empty state) needs that height too */
+    @media (max-width: 639px), (pointer: coarse) {
+        .board-column-header {
+            min-height: 3.5rem;
+        }
+    }
+
     /* A task is being dragged over this column */
     .board-column[data-drop-active] {
         background-color: color-mix(in srgb, var(--teal-primary) 8%, transparent);
