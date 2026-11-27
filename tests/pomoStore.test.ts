@@ -176,3 +176,19 @@ test.each([null, "a"])("Undo after switching tasks restores selectedTaskId (%s)"
   store.resetTimer();
   expect(store.activeTaskId).toBe("a");
 });
+
+test.each([
+  { seconds: 25 * 60, minutesText: "25", secondsText: "00", formattedTime: "25:00", digits: "2500" },
+  { seconds: 5 * 60 + 9, minutesText: "05", secondsText: "09", formattedTime: "05:09", digits: "0509" },
+  { seconds: 99 * 60 + 59, minutesText: "99", secondsText: "59", formattedTime: "99:59", digits: "9959" },
+  { seconds: 100 * 60, minutesText: "100", secondsText: "00", formattedTime: "100:00", digits: "10000" },
+  { seconds: 125 * 60 + 4, minutesText: "125", secondsText: "04", formattedTime: "125:04", digits: "12504" },
+  { seconds: 180 * 60, minutesText: "180", secondsText: "00", formattedTime: "180:00", digits: "18000" },
+])("formats $formattedTime cleanly for 2- and 3-digit durations", ({ seconds, minutesText, secondsText, formattedTime, digits }) => {
+  const store = initPomoStore();
+  store.timeLeft = seconds;
+  expect(store.minutesText).toBe(minutesText);
+  expect(store.secondsText).toBe(secondsText);
+  expect(store.formattedTime).toBe(formattedTime);
+  expect(store.digits).toBe(digits);
+});
