@@ -30,6 +30,10 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
         },
         get faceLabel() {
             return this.$store.settings.timerStyles.find(s => s.id === this.$store.settings.timerStyle)?.label ?? 'Classic';
+        },
+        setCustom(field, input) {
+            this.$store.pomoState.setCustomDuration(field, Number(input.value));
+            input.value = String(this.$store.pomoState.custom[field]);
         }
     }"
     x-effect="document.title = $store.pomoState.isRunning ? `${$store.pomoState.formattedTime} · ${$store.pomoState.isBreak ? 'Break' : 'Focus'} · ${baseTitle}` : baseTitle"
@@ -95,7 +99,7 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
                         min="1"
                         max="180"
                         x-bind:value="$store.pomoState.custom.work"
-                        x-on:change="$store.pomoState.setCustomDuration('work', Number($event.target.value))"
+                        x-on:change="setCustom('work', $event.target)"
                         class="w-14 border-0 bg-transparent px-1 py-1 text-center text-sm font-semibold tabular-nums text-gray-900 dark:text-white focus:ring-2 focus:ring-inset focus:ring-teal-500"
                     />
                     <button type="button" x-on:click="$store.pomoState.stepCustom('work', 5)" aria-label="Increase focus minutes" class="px-2 py-1 rounded-r-lg text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">+</button>
@@ -112,7 +116,7 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
                         min="1"
                         max="60"
                         x-bind:value="$store.pomoState.custom.break"
-                        x-on:change="$store.pomoState.setCustomDuration('break', Number($event.target.value))"
+                        x-on:change="setCustom('break', $event.target)"
                         class="w-12 border-0 bg-transparent px-1 py-1 text-center text-sm font-semibold tabular-nums text-gray-900 dark:text-white focus:ring-2 focus:ring-inset focus:ring-teal-500"
                     />
                     <button type="button" x-on:click="$store.pomoState.stepCustom('break', 1)" aria-label="Increase break minutes" class="px-2 py-1 rounded-r-lg text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">+</button>
