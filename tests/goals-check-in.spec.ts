@@ -105,6 +105,13 @@ test('weekly check-in saves connection, recharge, and rotating mindful prompt an
   await page.getByRole('button', { name: 'Add as a task', exact: true }).click();
   await expect(page.getByText('Added to tasks', { exact: true })).toBeVisible();
 
+  // Switching to another person allows adding them, while switching back to Maya recognizes the existing open task
+  await page.getByLabel('Someone to check in on this week').fill('Noah');
+  await page.getByRole('button', { name: 'Add as a task', exact: true }).click();
+  await expect(page.getByText('Added to tasks', { exact: true })).toBeVisible();
+  await page.getByLabel('Someone to check in on this week').fill('Maya');
+  await expect(page.getByText('Added to tasks', { exact: true })).toBeVisible();
+
   await page.getByLabel('How will you recharge this week?').fill('Long walk on Sunday');
 
   const mindfulTextarea = page.locator('textarea[name="checkin-mindful"]');

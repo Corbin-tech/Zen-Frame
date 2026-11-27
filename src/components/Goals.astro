@@ -591,8 +591,10 @@ const prompts = [
                     for (const field of fields) {
                         if (this.draft[field] !== before[field]) merged[field] = this.draft[field];
                     }
-                    // Keep the mindful question and answer paired so a remote question change cannot attach to a local answer
-                    if (this.draft.mindfulPrompt !== before.mindfulPrompt || this.draft.mindfulAnswer !== before.mindfulAnswer) {
+                    // Keep the mindful question and answer paired without clobbering a remote answer for the same prompt
+                    const localAnswerEdited = this.draft.mindfulAnswer !== before.mindfulAnswer;
+                    const localPromptDiverged = this.draft.mindfulPrompt !== before.mindfulPrompt && this.draft.mindfulPrompt !== remote.mindfulPrompt;
+                    if (localAnswerEdited || localPromptDiverged) {
                         merged.mindfulPrompt = this.draft.mindfulPrompt;
                         merged.mindfulAnswer = this.draft.mindfulAnswer;
                     }
@@ -653,10 +655,12 @@ const prompts = [
 
             get checkInPersonTaskAdded() {
                 const person = (this.draft?.checkInPerson ?? '').trim();
+                if (!person) return false;
+                const title = `Check in on ${person}`;
                 const id = this.draft?.checkInPersonTaskId;
-                if (!person || !id) return false;
-                const task = this.$store.todos.find(id);
-                return Boolean(task && task.todo === `Check in on ${person}`);
+                const linked = id ? this.$store.todos.find(id) : null;
+                if (linked && linked.todo === title) return true;
+                return this.$store.todos.items.some(task => !task.isCluster && !task.completed && task.todo === title);
             },
 
             addCheckInPersonTask() {
