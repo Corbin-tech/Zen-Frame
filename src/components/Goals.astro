@@ -24,10 +24,61 @@ const prompts = [
         <div class="lg:col-span-2 min-w-0 space-y-6">
             <!-- Goals -->
             <section class={`${panel} p-5`}>
-                <div class="flex items-center justify-between mb-4">
+                <div class="flex flex-wrap items-start justify-between gap-2 mb-4">
                     <div>
                         <h2 class={panelTitle}>Goals</h2>
                         <p class="text-sm text-gray-500 dark:text-gray-400">Link a goal to a cluster and its progress follows the cluster's tasks.</p>
+                    </div>
+                    <span
+                        x-show="activeGoalCount > 0 && activeGoalCount <= focusLimit"
+                        x-cloak
+                        class="text-xs font-medium tabular-nums text-gray-500 dark:text-gray-400"
+                        x-text="`${activeGoalCount} of ${focusLimit} in focus`"
+                    ></span>
+                </div>
+
+                <!-- Soft active-goal focus guidance (never blocks adding) -->
+                <div
+                    x-show="activeGoalCount > focusLimit"
+                    x-cloak
+                    class="mb-4 flex items-center gap-2.5 rounded-xl bg-warmth/25 dark:bg-warmth/10 px-3.5 py-2.5 text-xs text-gray-900 dark:text-warmth-light"
+                >
+                    <span class="w-2 h-2 rounded-full bg-warmth-deep dark:bg-warmth shrink-0" aria-hidden="true"></span>
+                    <span x-text="`${activeGoalCount} active goals. Keeping ${focusLimit} in focus makes starting easier.`"></span>
+                </div>
+
+                <!-- Calm goal-reached celebration card -->
+                <div
+                    x-show="celebratedGoal"
+                    x-cloak
+                    x-transition.opacity
+                    role="status"
+                    aria-live="polite"
+                    class="mb-4 rounded-xl bg-teal-50/80 dark:bg-teal-900/25 ring-1 ring-teal-600/20 dark:ring-teal-400/25 p-4 space-y-2.5"
+                >
+                    <div class="flex items-start justify-between gap-3">
+                        <div>
+                            <p class="eyebrow text-teal-800 dark:text-teal-300">Goal reached</p>
+                            <p class="editorial mt-1 text-lg font-normal text-gray-900 dark:text-white" x-text="celebratedGoal?.title"></p>
+                        </div>
+                        <button type="button" x-on:click="celebratedGoal = null" class={iconButton} aria-label="Dismiss goal celebration">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                    </div>
+                    <p x-show="celebratedGoal?.celebration" class="text-sm text-gray-700 dark:text-gray-200">
+                        <span class="font-medium text-gray-900 dark:text-white">How you planned to celebrate:</span>
+                        <span x-text="` ${celebratedGoal?.celebration ?? ''}`"></span>
+                    </p>
+                    <p x-show="!celebratedGoal?.celebration" class="text-sm text-gray-600 dark:text-gray-300">Take a quiet moment to notice what you moved forward.</p>
+                    <div class="flex flex-wrap items-center gap-2 pt-0.5">
+                        <button
+                            type="button"
+                            x-show="!celebratedGoal?.savedToWins"
+                            x-on:click="saveCelebratedGoalToWins()"
+                            class="btn-primary text-xs px-3 py-1.5"
+                        >Save to wins</button>
+                        <span x-show="celebratedGoal?.savedToWins" class="text-xs font-medium text-teal-800 dark:text-teal-300">Saved to wins</span>
+                        <button type="button" x-on:click="celebratedGoal = null" class="btn-secondary text-xs px-3 py-1.5">Dismiss</button>
                     </div>
                 </div>
 
@@ -46,7 +97,7 @@ const prompts = [
                                     name="goal-done"
                                     class="mt-1 w-4 h-4 rounded-full border-gray-300 dark:border-slate-500 text-teal-600 focus:ring-teal-500 dark:bg-slate-700"
                                     x-bind:checked="goal.done"
-                                    x-on:change="$store.goals.updateGoal(goal.id, { done: $event.target.checked })"
+                                    x-on:change="toggleGoalDone(goal, $event.target.checked)"
                                     x-bind:aria-label="`Mark ${goal.title} ${goal.done ? 'not reached' : 'reached'}`"
                                 />
                                 <div class="min-w-0 flex-1">
@@ -78,8 +129,11 @@ const prompts = [
                                     <div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500 dark:text-gray-400">
                                         <span x-show="goal.clusterId" x-text="clusterDetail(goal)"></span>
                                         <span x-show="goal.targetDate" class="px-1.5 py-0.5 rounded font-medium" x-bind:class="goal.targetDate ? $dates.dueClass(goal.targetDate, goal.done) : ''" x-text="goal.targetDate ? `Target ${$dates.formatDate(goal.targetDate)}` : ''"></span>
-                                        <button type="button" x-on:click="open = !open" class="font-medium text-teal-700 dark:text-teal-400 hover:underline" x-text="open ? 'Close' : (goal.why ? 'Notes & settings' : 'Add notes & settings')" x-bind:aria-expanded="open"></button>
+                                        <button type="button" x-on:click="open = !open" class="font-medium text-teal-700 dark:text-teal-400 hover:underline" x-text="open ? 'Close' : (hasDetails(goal) ? 'Notes & settings' : 'Add notes & settings')" x-bind:aria-expanded="open"></button>
                                     </div>
+
+                                    <p x-show="!open && goal.why" class="mt-2 text-xs text-gray-600 dark:text-gray-300 line-clamp-1" x-text="goal.why"></p>
+                                    <p x-show="!open && goal.done && goal.celebration" class="mt-1.5 text-xs text-teal-800 dark:text-teal-300 line-clamp-1" x-text="`Celebrate: ${goal.celebration}`"></p>
 
                                     <!-- Details -->
                                     <div x-show="open" x-cloak x-transition.opacity class="mt-3 space-y-3">
@@ -102,9 +156,17 @@ const prompts = [
                                             <span class="flex justify-between">Progress <span class="tabular-nums" x-text="`${goal.progress}%`"></span></span>
                                             <input type="range" name="goal-progress" min="0" max="100" step="5" class="w-full mt-1 accent-teal-600" x-bind:value="goal.progress" x-on:input="$store.goals.updateGoal(goal.id, { progress: Number($event.target.value) })" />
                                         </label>
-                                        <label class="block text-xs font-medium text-gray-500 dark:text-gray-400">
-                                            Notes
-                                            <textarea name="goal-notes" rows="3" class={`${field} mt-1`} placeholder="Why this matters, next steps, resources…" x-effect="syncDraft($el, goal.why)" x-on:focus="frozenGoalOrder = { id: goal.id, order: goals.map(g => g.id) }" x-on:change="saveGoalNotes(goal, $event.target)" x-on:blur="resetDraft($el, goal.why); frozenGoalOrder = null"></textarea>
+                                        <label class="block">
+                                            <span class="editorial text-sm font-normal text-gray-900 dark:text-white">Why this matters</span>
+                                            <textarea name="goal-notes" rows="2" class={`${field} mt-1`} placeholder="What makes this meaningful to you…" x-effect="syncDraft($el, goal.why)" x-on:focus="frozenGoalOrder = { id: goal.id, order: goals.map(g => g.id) }" x-on:change="saveGoalField(goal, 'why', $event.target)" x-on:blur="resetDraft($el, goal.why); frozenGoalOrder = null"></textarea>
+                                        </label>
+                                        <label class="block">
+                                            <span class="editorial text-sm font-normal text-gray-900 dark:text-white">If something gets in the way</span>
+                                            <textarea name="goal-obstacle" rows="2" class={`${field} mt-1`} placeholder="Name one obstacle and a small fallback: If …, then I will …" x-effect="syncDraft($el, goal.obstaclePlan ?? '')" x-on:focus="frozenGoalOrder = { id: goal.id, order: goals.map(g => g.id) }" x-on:change="saveGoalField(goal, 'obstaclePlan', $event.target)" x-on:blur="resetDraft($el, goal.obstaclePlan ?? ''); frozenGoalOrder = null"></textarea>
+                                        </label>
+                                        <label class="block">
+                                            <span class="editorial text-sm font-normal text-gray-900 dark:text-white">How I will celebrate</span>
+                                            <input type="text" name="goal-celebration" class={`${field} mt-1`} placeholder="A meaningful way to mark reaching this goal" x-effect="syncDraft($el, goal.celebration ?? '')" x-on:focus="frozenGoalOrder = { id: goal.id, order: goals.map(g => g.id) }" x-on:change="saveGoalField(goal, 'celebration', $event.target)" x-on:blur="resetDraft($el, goal.celebration ?? ''); frozenGoalOrder = null" />
                                         </label>
                                         <button type="button" x-on:click="confirm(`Delete the goal “${goal.title}”?`) && $store.goals.removeGoal(goal.id)" class="text-xs font-medium text-red-600 dark:text-red-400 hover:underline">Delete goal</button>
                                     </div>
@@ -168,10 +230,37 @@ const prompts = [
                     </div>
 
                     {prompts.map((prompt) => (
-                        <label class="block">
-                            <span class="editorial text-base font-normal text-gray-900 dark:text-white">{prompt.label}</span>
-                            <textarea name={`checkin-${prompt.key}`} rows="3" class={`${field} mt-1.5`} placeholder={prompt.placeholder} x-model={`draft.${prompt.key}`}></textarea>
-                        </label>
+                        <div class="space-y-2">
+                            {prompt.key === 'wins' && (
+                                <div
+                                    x-show="weekWins.length"
+                                    x-cloak
+                                    class="rounded-xl bg-teal-50/60 dark:bg-teal-900/20 ring-1 ring-teal-600/15 dark:ring-teal-400/20 p-3 space-y-2"
+                                >
+                                    <div class="flex flex-wrap items-center justify-between gap-2">
+                                        <p class="text-xs font-medium text-gray-700 dark:text-gray-200" x-text="`Logged this week (${weekWins.length})`"></p>
+                                        <button
+                                            type="button"
+                                            x-on:click="copyWeekWinsToCheckIn()"
+                                            class="text-xs font-medium text-teal-700 dark:text-teal-300 hover:underline"
+                                        >Add to check-in</button>
+                                    </div>
+                                    <ul class="space-y-1 text-xs text-gray-600 dark:text-gray-300">
+                                        <template x-for="win in weekWins" :key="win.id">
+                                            <li class="flex items-baseline gap-2">
+                                                <span class="w-1.5 h-1.5 rounded-full bg-teal-600 dark:bg-teal-400 shrink-0 translate-y-[-1px]" aria-hidden="true"></span>
+                                                <span class="min-w-0 flex-1" x-text="win.text"></span>
+                                                <span class="shrink-0 text-[11px] text-gray-500 dark:text-gray-400" x-text="$dates.formatDate(win.date, { weekday: 'short' })"></span>
+                                            </li>
+                                        </template>
+                                    </ul>
+                                </div>
+                            )}
+                            <label class="block">
+                                <span class="editorial text-base font-normal text-gray-900 dark:text-white">{prompt.label}</span>
+                                <textarea name={`checkin-${prompt.key}`} rows="3" class={`${field} mt-1.5`} placeholder={prompt.placeholder} x-model={`draft.${prompt.key}`}></textarea>
+                            </label>
+                        </div>
                     ))}
 
                     <div class="flex items-center justify-end gap-3">
@@ -184,6 +273,56 @@ const prompts = [
 
         <!-- Side column -->
         <div class="min-w-0 space-y-6">
+            <!-- Quiet daily win & wins archive -->
+            <section class={`${panel} p-5`}>
+                <p class="eyebrow">Small wins</p>
+                <h2 class="editorial mt-1 text-lg font-normal text-gray-900 dark:text-white">One thing that went well today</h2>
+                <form class="mt-3 flex gap-2" x-on:submit.prevent="addWin()">
+                    <label for="new-win" class="sr-only">Today's win</label>
+                    <input
+                        id="new-win"
+                        name="new-win"
+                        type="text"
+                        x-model="newWin"
+                        placeholder="Starting small counts…"
+                        class={field}
+                    />
+                    <button type="submit" x-bind:disabled="!newWin.trim()" class="btn-primary shrink-0 disabled:opacity-40">Save</button>
+                </form>
+
+                <ul class="mt-3 space-y-2" x-show="$store.goals.sortedWins.length">
+                    <template x-for="win in visibleWins" :key="win.id">
+                        <li class="group flex items-start justify-between gap-2 rounded-xl bg-gray-50/80 dark:bg-slate-700/30 ring-1 ring-black/5 dark:ring-white/10 px-3 py-2.5">
+                            <div class="min-w-0 flex-1">
+                                <p class="text-sm text-gray-800 dark:text-gray-100 break-words" x-text="win.text"></p>
+                                <p class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-gray-500 dark:text-gray-400">
+                                    <span x-text="$dates.daysAgoText(win.date)"></span>
+                                    <span x-show="win.goalTitle" class="text-teal-700 dark:text-teal-300" x-text="`Goal · ${win.goalTitle}`"></span>
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                class={`${iconButton} shrink-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100 hover:!text-red-500`}
+                                x-on:click="$store.goals.removeWin(win.id)"
+                                aria-label="Delete win"
+                                title="Delete"
+                            >
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                            </button>
+                        </li>
+                    </template>
+                </ul>
+                <button
+                    type="button"
+                    x-show="$store.goals.sortedWins.length > 5"
+                    x-cloak
+                    x-on:click="showAllWins = !showAllWins"
+                    class="mt-2.5 text-xs font-medium text-teal-700 dark:text-teal-400 hover:underline"
+                    x-text="showAllWins ? 'Show fewer' : `Show all wins (${$store.goals.sortedWins.length})`"
+                ></button>
+                <p x-show="!$store.goals.sortedWins.length" class="mt-3 text-sm text-gray-500 dark:text-gray-400">Small progress counts. Wins logged here appear in your weekly check-in.</p>
+            </section>
+
             <!-- Notes -->
             <section class={`${panel} p-5`}>
                 <h2 class={`${panelTitle} mb-3`}>Notes</h2>
@@ -262,9 +401,10 @@ const prompts = [
 </div>
 
 <script>
+    import { celebrate } from '../lib/confetti';
     import { dates } from '../lib/dates';
     import { resetDraft, syncDraft } from '../lib/syncDraft';
-    import { weekOf } from '../stores/goalsStore';
+    import { ACTIVE_GOAL_FOCUS_LIMIT, weekOf } from '../stores/goalsStore';
 
     // Completed time in a week, from the timer's finished focus sessions
     const focusMinutes = (sessions, start, end) => sessions
@@ -282,6 +422,10 @@ const prompts = [
         window.Alpine.data('goalsPage', () => ({
             newGoal: '',
             newNote: '',
+            newWin: '',
+            showAllWins: false,
+            celebratedGoal: null,
+            focusLimit: ACTIVE_GOAL_FOCUS_LIMIT,
             week: weekOf(),
             draft: null,
             saveState: 'clean',
@@ -300,8 +444,35 @@ const prompts = [
                 if (title !== goal.title) this.$store.goals.updateGoal(goal.id, { title });
             },
 
-            saveGoalNotes(goal, el) {
-                if (el.value !== goal.why) this.$store.goals.updateGoal(goal.id, { why: el.value });
+            saveGoalField(goal, field, el) {
+                if (el.value !== (goal[field] ?? '')) this.$store.goals.updateGoal(goal.id, { [field]: el.value });
+            },
+
+            hasDetails(goal) {
+                return Boolean(goal.why || goal.obstaclePlan || goal.celebration);
+            },
+
+            toggleGoalDone(goal, done) {
+                this.$store.goals.updateGoal(goal.id, { done });
+                if (done) {
+                    this.celebratedGoal = {
+                        id: goal.id,
+                        title: goal.title,
+                        celebration: goal.celebration ?? '',
+                        savedToWins: false
+                    };
+                    celebrate('cluster');
+                } else if (this.celebratedGoal?.id === goal.id) {
+                    this.celebratedGoal = null;
+                }
+            },
+
+            saveCelebratedGoalToWins() {
+                if (!this.celebratedGoal || this.celebratedGoal.savedToWins) return;
+                const { id, title, celebration } = this.celebratedGoal;
+                const text = celebration ? `Reached goal: ${title} — ${celebration}` : `Reached goal: ${title}`;
+                this.$store.goals.addWin(text, { goalId: id, goalTitle: title });
+                this.celebratedGoal = { ...this.celebratedGoal, savedToWins: true };
             },
 
             saveNoteText(note, el) {
@@ -339,6 +510,36 @@ const prompts = [
 
             get notes() {
                 return orderBy(this.$store.goals.sortedNotes, this.frozenNoteOrder);
+            },
+
+            get activeGoalCount() {
+                return this.$store.goals.goals.filter(goal => !goal.done).length;
+            },
+
+            get visibleWins() {
+                const wins = this.$store.goals.sortedWins;
+                return this.showAllWins ? wins : wins.slice(0, 5);
+            },
+
+            get weekWins() {
+                return this.$store.goals.winsInWeek(this.week);
+            },
+
+            addWin() {
+                const text = this.newWin.trim();
+                if (!text) return;
+                this.$store.goals.addWin(text);
+                this.newWin = '';
+            },
+
+            copyWeekWinsToCheckIn() {
+                const existing = (this.draft.wins ?? '').trim();
+                const existingLines = new Set(existing.split('\n').map(line => line.replace(/^[-•]\s*/, '').trim()));
+                const fresh = this.weekWins.map(win => win.text.trim()).filter(line => line && !existingLines.has(line));
+                if (!fresh.length) return;
+                const added = fresh.map(line => `- ${line}`).join('\n');
+                this.draft.wins = existing ? `${existing}\n${added}` : added;
+                this.saveState = 'dirty';
             },
 
             get summary() {
