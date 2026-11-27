@@ -253,7 +253,9 @@ function cleanWeekday(value: unknown, fallback: number): number {
 
 // Keeps only known values, so an old or edited save can't break the page
 function loadSettings(): Settings {
-  const saved = loadJson<Partial<Settings>>("settings", {});
+  // Valid JSON can still be the wrong shape ("null", "[]", "5"), and reading fields off null throws
+  const raw: unknown = loadJson<unknown>("settings", {});
+  const saved: Partial<Settings> = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
   const flag = (value: unknown, fallback: boolean) => typeof value === "boolean" ? value : fallback;
   const pick = <T extends string>(value: unknown, options: readonly { id: T }[], fallback: T): T =>
     options.some(option => option.id === value) ? value as T : fallback;

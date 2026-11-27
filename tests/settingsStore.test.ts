@@ -108,3 +108,13 @@ test("a hostile backup settings.pomoBreathingStart is stored raw but loads as fa
   store.init();
   expect(store.pomoBreathingStart).toBe(false); // …but loadSettings sanitizes it to the default
 });
+
+test.each(["null", "[]", "5", '"dark"', "true"])("saved settings of the wrong shape (%s) load as defaults instead of throwing", raw => {
+  vi.stubGlobal("localStorage", { getItem: (key: string) => key === "settings" ? raw : null, setItem: vi.fn() });
+  vi.stubGlobal("document", { documentElement: { dataset: {} } });
+  vi.stubGlobal("window", { addEventListener: vi.fn(), dispatchEvent: vi.fn() });
+  const store = initSettingsStore();
+  expect(() => store.init()).not.toThrow();
+  expect(store.name).toBe("");
+  expect(store.accent).toBe(initSettingsStore().accent);
+});
