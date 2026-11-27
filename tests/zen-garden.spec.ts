@@ -62,7 +62,7 @@ for (const { width, theme } of mobileCases) {
     expect(await garden.locator('.zen-garden-grain').evaluate(element => getComputedStyle(element).fill)).toContain('#zg-grain');
     // Scene and ambient light layers share the 1000x700 slice scaling of the other backgrounds.
     await expect(garden.locator('svg.zen-garden-scene')).toHaveAttribute('viewBox', '0 0 1000 700');
-    await expect(garden.locator('svg.zen-garden-scene')).toHaveAttribute('preserveAspectRatio', 'xMidYMid slice');
+    await expect(garden.locator('svg.zen-garden-scene')).toHaveAttribute('preserveAspectRatio', 'xMidYMin slice');
     await expect(animation).toHaveAttribute('viewBox', '0 0 1000 700');
     await expect(animation).toHaveAttribute('preserveAspectRatio', 'xMidYMid slice');
     // Landmarks must remain in the canvas, not disappear into a center-cropped wide scene.
@@ -97,7 +97,7 @@ for (const { width, height } of [{ width: 768, height: 1024 }, { width: 1280, he
     await page.goto('/#zenmode');
     const garden = page.locator('svg.zen-garden');
     await expect(garden).toBeVisible();
-    await expect(garden.locator('svg.zen-garden-scene')).toHaveAttribute('preserveAspectRatio', 'xMidYMid slice');
+    await expect(garden.locator('svg.zen-garden-scene')).toHaveAttribute('preserveAspectRatio', 'xMidYMin slice');
     for (const landmark of ['.zen-garden-stones', '.zen-garden-pine', '.zen-garden-steps']) {
       const visibleFraction = await garden.locator(landmark).evaluate((element) => {
         const box = element.getBoundingClientRect();
