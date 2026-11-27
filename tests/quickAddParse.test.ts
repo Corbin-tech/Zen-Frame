@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { parseQuickAdd } from "../src/lib/quickAddParse";
+import { addDays } from "../src/lib/dates";
 
 // Deterministic "today" keys near a week edge. 2026-01-04 is a Sunday, so
 // 2026-01-05 is a Monday and 2026-01-10 a Saturday (see src/lib/dates.ts).
@@ -237,5 +238,23 @@ describe("parseQuickAdd", () => {
       expect(parseQuickAdd("pin 3 days", MONDAY)).toEqual({ title: "pin 3 days", matches: [] });
       expect(parseQuickAdd("star tomorrowish plan", SUNDAY).title).toBe("star tomorrowish plan");
     });
+  });
+});
+
+describe("security: pathological amounts never overflow the date", () => {
+  test('"in N days" clamps huge N to a valid local date key instead of "NaN-NaN-NaN"', () => {
+    for (const raw of ["task in 5 days", "task in 999999999999 days", "task in 99999999999999999999999999 days"]) {
+      const parsed = parseQuickAdd(raw, MONDAY);
+      expect(parsed.dueDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(Number.isNaN(Date.parse(parsed.dueDate!))).toBe(false);
+    }
+    expect(parseQuickAdd("task in 5 days", MONDAY).dueDate).toBe("2026-01-10");
+    expect(parseQuickAdd("task in 999999999999 days", MONDAY).dueDate).toBe(addDays(MONDAY, 3660));
+  });
+
+  test("a huge hour estimate clamps to 24h and leaves the rest in the title", () => {
+    const parsed = parseQuickAdd("big 99999999999999999999h task", MONDAY);
+    expect(parsed.estimateMinutes).toBe(24 * 60);
+    expect(parsed.title).toBe("big task");
   });
 });

@@ -459,3 +459,41 @@ test("cancelling breathing after a completed phase keeps the completion banner",
   expect(store.lastCompleted).toEqual({ wasBreak: false, minutes: 25 });
   expect(store.completedHeadline).toBe("Focus done · 25 min logged");
 });
+
+test("a crafted running timer in sessionStorage is validated before it resumes", () => {
+  vi.useFakeTimers();
+  const data = new Map<string, string>();
+  const storage = { getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, value: string) => data.set(key, value), removeItem: (key: string) => data.delete(key) };
+  vi.stubGlobal("localStorage", storage);
+  vi.stubGlobal("sessionStorage", storage);
+  // focusTask is not a task object: it must be coerced to null, never trusted as-is
+  data.set("pomoRunningTimer", JSON.stringify({
+    preset: "pomodoro", isBreak: false, endsAt: Date.now() + 60_000,
+    focusTask: { id: 5, todo: 42 }
+  }));
+  vi.stubGlobal("window", { addEventListener: vi.fn(), dispatchEvent: vi.fn(), Alpine: { store: () => ({}) } });
+  vi.stubGlobal("CustomEvent", class {});
+  vi.stubGlobal("document", { addEventListener: vi.fn() });
+  const store = initPomoStore();
+  store.init();
+  expect(store.isRunning).toBe(true);
+  expect(store.focusTask).toBeNull();
+  store.stopTimer();
+});
+
+test("a malformed running timer in sessionStorage is ignored", () => {
+  vi.useFakeTimers();
+  const data = new Map<string, string>();
+  const storage = { getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, value: string) => data.set(key, value), removeItem: (key: string) => data.delete(key) };
+  vi.stubGlobal("localStorage", storage);
+  vi.stubGlobal("sessionStorage", storage);
+  data.set("pomoRunningTimer", JSON.stringify({ preset: "evil", isBreak: "yes", endsAt: -1 }));
+  data.set("pomoRunningTimer-bogus", "not json at all {{{");
+  vi.stubGlobal("window", { addEventListener: vi.fn(), dispatchEvent: vi.fn(), Alpine: { store: () => ({}) } });
+  vi.stubGlobal("CustomEvent", class {});
+  vi.stubGlobal("document", { addEventListener: vi.fn() });
+  const store = initPomoStore();
+  store.init();
+  expect(store.isRunning).toBe(false);
+  expect(store.preset).toBe("pomodoro");
+});

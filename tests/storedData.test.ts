@@ -130,7 +130,9 @@ for (const path of ["load", "import"]) {
   });
   test(`${path}: drops non-string skippedClusters and malformed history entries`, () => {
     expect(read("skippedClusters", [null, 42, "", {}, "c1"])).toEqual(["c1"]);
-    expect(read("history", [null, 1, {}, { taskId: "" }, { taskId: "t1", at }])).toEqual([{ taskId: "t1", at }]);
+    expect(read("history", [null, 1, {}, { taskId: "" }, { taskId: "t1", at }])).toEqual([
+      { taskId: "t1", title: "", clusterId: null, clusterName: "", dueDate: null, at }
+    ]);
   });
 }
 
@@ -156,4 +158,114 @@ test("import: crafted backup with null scheduledItems does not persist null entr
   const result = importBackup(JSON.stringify({ app: "zen-frame", version: 1, data: { scheduledItems: [null] } }));
   expect(result).toEqual({ ok: true, count: 1 });
   expect(JSON.parse(localStorage.getItem("scheduledItems")!)).toEqual([]);
+});
+
+// Security regression (audit 2026-11-27): string methods are called on stored fields
+// (history.at in the localeCompare sorts, note.createdAt in sortedNotes, todo.dueDate in
+// the overdue sort), so every one of them must be schema-validated on load AND on import.
+for (const path of ["load", "import"]) {
+  function read(key: string, value: unknown): any {
+    const json = JSON.stringify(value);
+    if (path === "import") {
+      expect(importBackup(`{"app":"zen-frame","version":1,"data":{"${key}":${json}}}`).ok).toBe(true);
+      return JSON.parse(localStorage.getItem(key)!);
+    }
+    localStorage.setItem(key, json);
+    return loadJson(key, null);
+  }
+
+  test(`${path}: history entries without a real timestamp are dropped whole`, () => {
+    expect(read("history", [
+      { taskId: "a", at }, // valid
+      { taskId: "b", at: 123 }, // numeric at would throw in the sorts
+      { taskId: "c", at: "not a date" },
+      { taskId: "d" },
+      { at: 123 }
+    ])).toEqual([{ taskId: "a", title: "", clusterId: null, clusterName: "", dueDate: null, at }]);
+  });
+
+  test(`${path}: history text fields are coerced and dueDate must be a date key`, () => {
+    const [record] = read("history", [{
+      taskId: "a", at, title: 42, clusterName: null, clusterId: 7, dueDate: 20261127, blockId: 5
+    }]);
+    expect(record).toEqual({ taskId: "a", title: "", clusterId: null, clusterName: "", dueDate: null, at });
+    const [dated] = read("history", [{ taskId: "a", at, dueDate: "2026-03-02", blockId: "b1" }]);
+    expect(dated).toMatchObject({ dueDate: "2026-03-02", blockId: "b1" });
+  });
+
+  test(`${path}: notes are schema-validated (string id/text, boolean pinned, timestamps)`, () => {
+    const notes = read("notes", [
+      { id: "n1", text: "hello", pinned: 1, createdAt: at, updatedAt: 5 },
+      { id: 2, text: "numeric id" },
+      { text: "missing id" },
+      "junk",
+      { id: "n2", text: 42 }
+    ]);
+    expect(notes).toHaveLength(2);
+    expect(notes[0]).toEqual({ id: "n1", text: "hello", pinned: false, createdAt: at, updatedAt: expect.any(String) });
+    expect(notes[1]).toMatchObject({ id: "n2", text: "", pinned: false });
+  });
+
+  test(`${path}: planning availability windows must be well-formed or they are dropped`, () => {
+    const planning = read("planning", {
+      availability: [
+        { id: "w1", weekdays: [1, 2, 3], start: 540, end: 1260 }, // valid
+        { id: "w2", weekdays: 5, start: 0, end: 100 }, // weekdays not an array
+        { id: "w3", weekdays: [7], start: 0, end: 100 }, // weekday out of 0-6
+        { id: "w4", weekdays: [1], start: 200, end: 100 }, // end <= start
+        { id: "w5", weekdays: [1], start: 0, end: 1441 }, // past midnight
+        { id: "w6", weekdays: [1], start: "9", end: 100 }, // string time
+        { weekdays: [1], start: 0, end: 100 } // no id
+      ],
+      duration: "2 hours",
+      gap: Number.NaN
+    });
+    expect(planning.availability).toEqual([{ id: "w1", weekdays: [1, 2, 3], start: 540, end: 1260 }]);
+    expect(planning.duration).toBe(45);
+    expect(planning.gap).toBe(15);
+    expect(read("planning", { duration: 99999 }).duration).toBe(1440);
+  });
+
+  test(`${path}: todo dueDate/focusDate must be date keys; anything else becomes null`, () => {
+    const todos = read("todos", [
+      { id: "t1", todo: "ok", dueDate: "2026-03-02", focusDate: 123 },
+      { id: "t2", todo: "bad", dueDate: 20260302 },
+      { id: "t3", todo: "nan", dueDate: "NaN-NaN-NaN" }
+    ]);
+    expect(todos.map((todo: any) => [todo.dueDate, todo.focusDate])).toEqual([
+      ["2026-03-02", null],
+      [null, null],
+      [null, null]
+    ]);
+  });
+}
+
+test("load: __proto__ keys inside todos never pollute the prototype", () => {
+  localStorage.setItem("todos", '[{"id":"t","todo":"x","__proto__":{"polluted":true}}]');
+  const [todo] = loadJson<any[]>("todos", []);
+  expect(todo.polluted).toBeUndefined();
+  expect(Object.getPrototypeOf(todo)).toBe(Object.prototype);
+});
+
+test("import: a crafted backup restores only normalized values end to end", () => {
+  const result = importBackup(JSON.stringify({
+    app: "zen-frame",
+    version: 1,
+    data: {
+      todos: [{ id: "t1", todo: "Task", dueDate: 42 }],
+      history: [{ taskId: "t1", at: 123 }],
+      notes: [{ id: 7, text: "x" }, { id: "n1", text: "ok", pinned: false, createdAt: at, updatedAt: at }],
+      planning: { availability: [{ id: "w", weekdays: "nope" }], duration: -5 },
+      checkIns: JSON.parse('{"__proto__":{"energy":9},"2026-03-02":{"energy":"high","wins":5}}'),
+      theme: "dark"
+    }
+  }));
+  expect(result).toEqual({ ok: true, count: 6 });
+  expect(loadJson<any[]>("todos", [])[0].dueDate).toBeNull();
+  expect(loadJson("history", [])).toEqual([]);
+  expect(loadJson<any[]>("notes", []).map(note => note.id)).toEqual(["n1"]);
+  expect(loadJson<any>("planning", {})).toMatchObject({ availability: [], duration: 45, gap: 15 });
+  const checkIns = loadJson<Record<string, any>>("checkIns", {});
+  expect(Object.hasOwn(checkIns, "__proto__")).toBe(false);
+  expect(checkIns["2026-03-02"]).toMatchObject({ energy: 0, wins: "" });
 });

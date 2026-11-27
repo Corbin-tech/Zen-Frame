@@ -1,5 +1,5 @@
 import { formatTime, minutesNow } from "../lib/dates.ts";
-import { loadJson, saveJson } from "../lib/storage.ts";
+import { loadJson, saveJson, loadSessionJson, saveSessionJson, removeSession } from "../lib/storage.ts";
 import { UNDO_TOAST_MS } from "../lib/notifications.ts";
 
 export const CYCLE_LENGTH = 4;
@@ -107,27 +107,38 @@ const UNDO_WINDOW_MS = UNDO_TOAST_MS;
 // A countdown belongs to this tab and isn't part of an exported backup.
 const RUNNING_TIMER_KEY = "pomoRunningTimer";
 
+// The linked task rides along in sessionStorage, so it gets the same shape check as any
+// other stored value: only a well-formed task (or null/undefined) survives.
+function cleanFocusTask(value: unknown): FocusTask | null | undefined {
+  if (value === undefined || value === null) return value as null | undefined;
+  if (typeof value !== "object" || Array.isArray(value)) return null;
+  const task = value as Record<string, unknown>;
+  if (typeof task.id !== "string" || typeof task.todo !== "string") return null;
+  return {
+    id: task.id,
+    todo: task.todo,
+    parentId: typeof task.parentId === "string" ? task.parentId : null,
+    completed: task.completed === true,
+    isCluster: task.isCluster === true,
+    clusterName: typeof task.clusterName === "string" ? task.clusterName : ""
+  };
+}
+
 function loadRunningTimer(): RunningTimer | null {
-  try {
-    const timer: RunningTimer | null = JSON.parse(sessionStorage.getItem(RUNNING_TIMER_KEY) ?? "null");
-    if (isValidPreset(timer?.preset)
-      && typeof timer.isBreak === "boolean" && typeof timer.endsAt === "number"
-      && Number.isFinite(new Date(timer.endsAt).getTime()) && timer.endsAt > 0) {
-      return timer;
-    }
-  } catch {
-    // The timer still works when browser storage is unavailable.
+  // sessionStorage through loadSessionJson, never a raw JSON.parse
+  const timer = loadSessionJson<RunningTimer | null>(RUNNING_TIMER_KEY, null);
+  if (!timer || typeof timer !== "object") return null;
+  if (isValidPreset(timer.preset)
+    && typeof timer.isBreak === "boolean" && typeof timer.endsAt === "number"
+    && Number.isFinite(new Date(timer.endsAt).getTime()) && timer.endsAt > 0) {
+    return { ...timer, focusTask: cleanFocusTask(timer.focusTask) };
   }
   return null;
 }
 
 function saveRunningTimer(timer: RunningTimer | null): void {
-  try {
-    if (timer) sessionStorage.setItem(RUNNING_TIMER_KEY, JSON.stringify(timer));
-    else sessionStorage.removeItem(RUNNING_TIMER_KEY);
-  } catch {
-    // The timer still works when browser storage is unavailable.
-  }
+  if (timer) saveSessionJson(RUNNING_TIMER_KEY, timer);
+  else removeSession(RUNNING_TIMER_KEY);
 }
 
 declare global {

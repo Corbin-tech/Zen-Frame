@@ -62,10 +62,41 @@ function normalizeLoadedTodo(item: Todo & { steps?: unknown }): Todo {
     parentId: todo.parentId ?? null,
     estimateMinutes: cleanMinutes(todo.estimateMinutes)
   };
-  if (todo.focusDate !== undefined) {
-    cleaned.focusDate = isDateKey(todo.focusDate) ? todo.focusDate : null;
-  }
+  // Both day fields are local "YYYY-MM-DD" keys; anything else (a number, a timestamp,
+  // a "NaN-NaN-NaN" from an overflowed parser) would throw in the sort/label helpers
+  // that call String.localeCompare on them.
+  cleaned.dueDate = isDateKey(todo.dueDate) ? todo.dueDate : null;
+  cleaned.focusDate = isDateKey(todo.focusDate) ? todo.focusDate : null;
   return cleaned;
+}
+
+// One finished task (or ticked block day) in the history. The `at` timestamp is what the
+// sorts call localeCompare on, so an entry without a real timestamp is dropped, and the
+// text fields are coerced so Insights/Recap never call string methods on another type.
+function cleanHistoryRecord(record: Record<string, unknown>): Record<string, unknown> | null {
+  if (typeof record.taskId !== "string" || record.taskId === "") return null;
+  if (!isTimestamp(record.at)) return null;
+  return {
+    taskId: record.taskId,
+    title: typeof record.title === "string" ? record.title : "",
+    clusterId: typeof record.clusterId === "string" ? record.clusterId : null,
+    clusterName: typeof record.clusterName === "string" ? record.clusterName : "",
+    dueDate: isDateKey(record.dueDate) ? record.dueDate : null,
+    at: record.at,
+    ...(typeof record.blockId === "string" && record.blockId !== "" ? { blockId: record.blockId } : {})
+  };
+}
+
+// A free-hours window for Auto-plan. Anything malformed (a non-array weekdays, times out
+// of range) would throw in windowsOn() or produce NaN slots, so it is dropped whole.
+function cleanAvailabilityWindow(window: Record<string, unknown>): Record<string, unknown> | null {
+  if (typeof window.id !== "string" || window.id === "") return null;
+  if (!Array.isArray(window.weekdays)
+    || !window.weekdays.every(day => typeof day === "number" && Number.isInteger(day) && day >= 0 && day <= 6)) return null;
+  if (typeof window.start !== "number" || !Number.isFinite(window.start)
+    || typeof window.end !== "number" || !Number.isFinite(window.end)) return null;
+  if (window.start < 0 || window.end <= window.start || window.end > 1440) return null;
+  return { id: window.id, weekdays: window.weekdays, start: window.start, end: window.end };
 }
 
 function cleanScheduledRepeat(value: unknown): ScheduledItem["repeat"] | undefined {
@@ -118,7 +149,7 @@ export function normalizeStoredData(key: string, value: unknown): unknown {
         : [];
     case "history":
       return Array.isArray(value)
-        ? value.filter(item => isObject(item) && typeof item.taskId === "string" && item.taskId !== "")
+        ? value.filter(isObject).map(cleanHistoryRecord).filter((record): record is Record<string, unknown> => record !== null)
         : [];
     case "goals":
       return Array.isArray(value) ? value.filter(item => isObject(item) && typeof item.id === "string" && typeof item.title === "string").map(goal => ({
@@ -159,12 +190,30 @@ export function normalizeStoredData(key: string, value: unknown): unknown {
     }
     case "planning": {
       const planning = isObject(value) ? value : {};
+      // Same fallbacks as DEFAULT_PLANNING in todoStore.ts (imported here as values only
+      // to avoid a module cycle), so an invalid save behaves like a fresh one
+      const availability = Array.isArray(planning.availability)
+        ? planning.availability.filter(isObject).map(cleanAvailabilityWindow).filter((win): win is Record<string, unknown> => win !== null)
+        : [];
+      const duration = typeof planning.duration === "number" && Number.isFinite(planning.duration) && planning.duration > 0
+        ? Math.min(1440, Math.round(planning.duration)) : 45;
       return {
-        ...planning,
+        availability,
+        duration,
         gap: typeof planning.gap === "number" && Number.isFinite(planning.gap) && planning.gap >= 0
           ? planning.gap : 15
       };
     }
+    case "notes":
+      return Array.isArray(value)
+        ? value.filter(note => isObject(note) && typeof note.id === "string" && note.id !== "").map(note => ({
+          id: note.id as string,
+          text: typeof note.text === "string" ? note.text : "",
+          pinned: note.pinned === true,
+          createdAt: isTimestamp(note.createdAt) ? note.createdAt : new Date().toISOString(),
+          updatedAt: isTimestamp(note.updatedAt) ? note.updatedAt : new Date().toISOString()
+        }))
+        : [];
     case "pomoSessions":
       return Array.isArray(value) ? value.filter(session => isObject(session)
         && isTimestamp(session.completedAt) && typeof session.minutes === "number"
