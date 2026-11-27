@@ -134,6 +134,14 @@ for (const path of ["load", "import"]) {
   });
 }
 
+test("load: a __proto__ week key in checkIns is dropped, not set as the prototype", () => {
+  localStorage.setItem("checkIns", '{"__proto__":{"week":"x","polluted":true},"2026-03-02":{"week":"2026-03-02"}}');
+  const result = loadJson<Record<string, unknown>>("checkIns", {});
+  expect(Object.keys(result)).toEqual(["2026-03-02"]);
+  expect(Object.getPrototypeOf(result)).toBe(Object.prototype);
+  expect((result as { polluted?: unknown }).polluted).toBeUndefined();
+});
+
 test("load: a non-object checkIns value reads as an empty object", () => {
   localStorage.setItem("checkIns", JSON.stringify([1, "x"]));
   expect(loadJson("checkIns", null)).toEqual({});

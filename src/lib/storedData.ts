@@ -136,7 +136,8 @@ export function normalizeStoredData(key: string, value: unknown): unknown {
       if (!isObject(value)) return {};
       const cleaned: Record<string, Record<string, unknown>> = {};
       for (const [week, entry] of Object.entries(value)) {
-        if (!isObject(entry)) continue;
+        // Assigning a "__proto__" key would swap the object's prototype instead of adding an entry
+        if (week === "__proto__" || !isObject(entry)) continue;
         cleaned[week] = {
           ...entry,
           week: typeof entry.week === "string" && entry.week ? entry.week : week,
