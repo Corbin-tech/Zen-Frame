@@ -330,3 +330,67 @@ test("cancelling breathing after startFocus during a paused break restores the p
   expect(store.timeLeft).toBe(remainingBreak);
   expect(JSON.parse(data.get("pomoState")!).isBreak).toBe(true);
 });
+
+test("switching focus tasks during a running session preserves running state on cancel and offers working Undo on commit", () => {
+  vi.useFakeTimers();
+  const data = new Map<string, string>();
+  const storage = { getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, value: string) => data.set(key, value), removeItem: (key: string) => data.delete(key) };
+  vi.stubGlobal("localStorage", storage);
+  vi.stubGlobal("sessionStorage", storage);
+  const settings = { pomoBreathingStart: true };
+  const taskA = { id: "a", todo: "Task A", parentId: null, completed: false };
+  const taskB = { id: "b", todo: "Task B", parentId: null, completed: false };
+  const todos = {
+    nextTask: taskA,
+    find: (id: string) => id === "a" ? taskA : id === "b" ? taskB : undefined,
+    clusterName: () => "",
+  };
+  const toasts: Array<{ title: string; onAction?: () => void }> = [];
+  vi.stubGlobal("window", {
+    addEventListener: vi.fn(),
+    dispatchEvent: (event: { detail?: { title: string; onAction?: () => void } }) => {
+      if (event?.detail?.title) toasts.push(event.detail);
+    },
+    matchMedia: () => ({ matches: false }),
+    Alpine: { store: (name: string) => name === "settings" ? settings : name === "todos" ? todos : {} },
+  });
+  vi.stubGlobal("CustomEvent", class {
+    detail: unknown;
+    constructor(_type: string, init?: { detail?: unknown }) {
+      this.detail = init?.detail;
+    }
+  });
+  const store = initPomoStore();
+
+  // Start Task A and let 45s elapse
+  store.startFocus("a");
+  store.skipBreathing();
+  vi.advanceTimersByTime(45_000);
+  const remainingA = store.timeLeft;
+  expect(store.isRunning).toBe(true);
+  expect(store.focusTask?.id).toBe("a");
+  expect(remainingA).toBe(store.totalTime - 45);
+
+  // Switch to Task B, then cancel breathing -> Task A resumes running with no stray Undo toast
+  store.startFocus("b");
+  expect(store.isBreathing).toBe(true);
+  expect(toasts).toHaveLength(0);
+  store.cancelBreathing();
+  expect(store.isBreathing).toBe(false);
+  expect(store.isRunning).toBe(true);
+  expect(store.focusTask?.id).toBe("a");
+  expect(store.timeLeft).toBe(remainingA);
+
+  // Switch to Task B and commit via skipBreathing -> Undo toast is offered and restores Task A running
+  store.startFocus("b");
+  store.skipBreathing();
+  expect(store.isRunning).toBe(true);
+  expect(store.focusTask?.id).toBe("b");
+  expect(toasts).toHaveLength(1);
+  expect(toasts[0].title).toBe("Timer reset");
+
+  toasts[0].onAction?.();
+  expect(store.isRunning).toBe(true);
+  expect(store.focusTask?.id).toBe("a");
+  expect(store.timeLeft).toBe(remainingA);
+});

@@ -151,6 +151,7 @@ export function initPomoStore() {
     breathPhase: "in" as BreathPhase,
     breathTimer: null as ReturnType<typeof setTimeout> | null,
     breathingRestore: null as PomoSnapshot | null,
+    breathingUndoTitle: null as string | null,
     endsAt: null as number | null,
     timer: null as ReturnType<typeof setInterval> | null,
     sessions: [] as FocusSession[], // Finished focus sessions: { completedAt, minutes }
@@ -344,7 +345,11 @@ export function initPomoStore() {
       this.clearBreathingTimer();
       this.isBreathing = false;
       this.breathingReducedMotion = false;
+      const restore = this.breathingRestore;
+      const undoTitle = this.breathingUndoTitle;
       this.breathingRestore = null;
+      this.breathingUndoTitle = null;
+      if (restore && undoTitle) this.offerUndo(undoTitle, restore);
       this.startTimer({ skipBreathing: true });
     },
 
@@ -360,8 +365,8 @@ export function initPomoStore() {
       this.breathingReducedMotion = false;
       const restore = this.breathingRestore;
       this.breathingRestore = null;
+      this.breathingUndoTitle = null;
       if (restore) {
-        this.clearUndo();
         this.preset = restore.preset;
         this.isBreak = restore.isBreak;
         this.cycle = restore.cycle;
@@ -372,6 +377,7 @@ export function initPomoStore() {
         this.selectedTaskId = restore.selectedTaskId;
         this.focusTask = restore.focusTask;
         this.saveState();
+        if (restore.wasRunning) this.startTimer({ skipBreathing: true });
       } else if (!this.started) {
         this.focusTask = undefined;
       }
@@ -416,6 +422,7 @@ export function initPomoStore() {
       this.isBreathing = false;
       this.breathingReducedMotion = false;
       this.breathingRestore = null;
+      this.breathingUndoTitle = null;
       this.isRunning = false;
       this.endsAt = null;
       if (this.timer !== null) {
@@ -437,8 +444,8 @@ export function initPomoStore() {
       this.undoSnapshot = null;
     },
 
-    offerUndo(title: string): void {
-      const snapshot: PomoSnapshot = {
+    offerUndo(title: string, saved?: PomoSnapshot): void {
+      const snapshot: PomoSnapshot = saved ?? {
         selectedTaskId: this.selectedTaskId,
         focusTask: this.focusTask,
         preset: this.preset,
@@ -508,12 +515,17 @@ export function initPomoStore() {
         custom: { ...this.custom },
         totalTime: this.totalTime,
         timeLeft: this.timeLeft,
-        wasRunning: false
+        wasRunning: this.isRunning
       };
+      const switchingTask = !this.isBreak && taskId !== undefined && this.focusTask !== undefined
+        && taskId !== (this.focusTask?.id ?? "");
+      const hadProgress = this.started;
+      const settings = window.Alpine?.store("settings") as { pomoBreathingStart?: boolean } | undefined;
+      const deferUndo = Boolean(settings?.pomoBreathingStart) && switchingTask && hadProgress;
+
       this.lastCompleted = null;
-      if (!this.isBreak && taskId !== undefined && this.focusTask !== undefined
-        && taskId !== (this.focusTask?.id ?? "")) {
-        this.resetTimer(true);
+      if (switchingTask) {
+        this.resetTimer(!deferUndo);
       }
       if (taskId !== undefined) this.selectedTaskId = taskId;
       if (this.isBreak) {
@@ -524,7 +536,12 @@ export function initPomoStore() {
         this.saveState();
       }
       this.startTimer();
-      if (this.isBreathing) this.breathingRestore = before;
+      if (this.isBreathing) {
+        this.breathingRestore = before;
+        this.breathingUndoTitle = deferUndo ? "Timer reset" : null;
+      } else if (deferUndo) {
+        this.offerUndo("Timer reset", before);
+      }
     },
 
     completeTimer(endsAt: number = Date.now(), alert = true): void {
