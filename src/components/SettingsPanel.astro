@@ -299,6 +299,7 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
                             role="switch"
                             class="peer sr-only"
                             x-bind:checked="$store.settings.notifyBlocks"
+                            x-bind:disabled="!$store.settings.notifyEnabled"
                             x-on:change="$store.settings.update({ notifyBlocks: $event.target.checked })"
                         />
                         <span class="block w-11 h-6 rounded-full bg-gray-200 dark:bg-slate-700 peer-checked:bg-teal-600 peer-focus-visible:ring-2 peer-focus-visible:ring-teal-500 peer-focus-visible:ring-offset-2 transition-colors"></span>
@@ -310,6 +311,7 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
                         <select
                             id="settings-notify-lead"
                             name="settings-notify-lead"
+                            x-bind:disabled="!$store.settings.notifyEnabled"
                             x-on:change="$store.settings.update({ notifyBlockLead: Number($event.target.value) })"
                             class="rounded-lg border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 dark:text-white text-sm py-1.5 focus:border-teal-500 focus:ring-teal-500"
                         >
@@ -332,6 +334,7 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
                             role="switch"
                             class="peer sr-only"
                             x-bind:checked="$store.settings.notifyDue"
+                            x-bind:disabled="!$store.settings.notifyEnabled"
                             x-on:change="$store.settings.update({ notifyDue: $event.target.checked })"
                         />
                         <span class="block w-11 h-6 rounded-full bg-gray-200 dark:bg-slate-700 peer-checked:bg-teal-600 peer-focus-visible:ring-2 peer-focus-visible:ring-teal-500 peer-focus-visible:ring-offset-2 transition-colors"></span>
@@ -345,6 +348,7 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
                             name="settings-notify-due-time"
                             type="time"
                             x-bind:value="$store.settings.notifyDueTime"
+                            x-bind:disabled="!$store.settings.notifyEnabled"
                             x-on:change="$event.target.value && $store.settings.update({ notifyDueTime: $event.target.value })"
                             class="rounded-lg border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 dark:text-white text-sm py-1.5 focus:border-teal-500 focus:ring-teal-500"
                         />
@@ -363,6 +367,7 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
                             role="switch"
                             class="peer sr-only"
                             x-bind:checked="$store.settings.notifyTimer"
+                            x-bind:disabled="!$store.settings.notifyEnabled"
                             x-on:change="$store.settings.update({ notifyTimer: $event.target.checked })"
                         />
                         <span class="block w-11 h-6 rounded-full bg-gray-200 dark:bg-slate-700 peer-checked:bg-teal-600 peer-focus-visible:ring-2 peer-focus-visible:ring-teal-500 peer-focus-visible:ring-offset-2 transition-colors"></span>
@@ -372,6 +377,7 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
 
                     <button
                         type="button"
+                        x-bind:disabled="!$store.settings.notifyEnabled"
                         x-on:click="window.dispatchEvent(new CustomEvent('app-toast', { detail: { title: 'Test reminder', body: 'Reminders will look like this.' } })); $store.settings.notificationPermission === 'granted' && new Notification('Test reminder', { body: 'Reminders will look like this.', icon: '/favicon.svg' })"
                         class="text-sm font-medium text-teal-700 dark:text-teal-400 hover:text-teal-800 dark:hover:text-teal-300"
                     >Send a test reminder</button>
