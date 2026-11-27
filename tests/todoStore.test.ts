@@ -731,6 +731,31 @@ test("a new cluster defaults to the sentence-case 'New cluster'", () => {
   expect(store.saveTodos).toHaveBeenCalled();
 });
 
+test("clearing a task title keeps its previous title", () => {
+  const store = setupStore<{ items: Todo[]; saveTodos(): void; updateTask(id: string, updates: Partial<Todo>): void }>();
+  const cluster = clusterOf("alpha");
+  const task = made({ id: "t1", todo: "Draft release notes", updatedAt: "2026-01-01T10:00:00.000Z" });
+  store.items = [cluster, task];
+
+  store.updateTask("t1", { todo: "" });
+  store.updateTask("t1", { todo: "   " });
+
+  expect(task.todo).toBe("Draft release notes");
+  expect(task.updatedAt).toBe("2026-01-01T10:00:00.000Z");
+  expect(store.saveTodos).not.toHaveBeenCalled();
+
+  // Other fields in the same update still apply without blanking the title
+  store.updateTask("t1", { todo: "   ", parentId: "alpha" });
+  expect(task.todo).toBe("Draft release notes");
+  expect(task.parentId).toBe("alpha");
+  expect(store.saveTodos).toHaveBeenCalledTimes(1);
+
+  // Non-empty titles still trim and save
+  store.updateTask("t1", { todo: "  Publish release notes  " });
+  expect(task.todo).toBe("Publish release notes");
+  expect(store.saveTodos).toHaveBeenCalledTimes(2);
+});
+
 test("Undo for a task whose cluster was deleted since brings it back as a loose task", () => {
   const { store, toasts } = undoStore();
   const cluster = made({ id: "cluster", todo: "Errands", isCluster: true });
