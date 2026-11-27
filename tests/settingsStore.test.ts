@@ -118,3 +118,23 @@ test.each(["null", "[]", "5", '"dark"', "true"])("saved settings of the wrong sh
   expect(store.name).toBe("");
   expect(store.accent).toBe(initSettingsStore().accent);
 });
+
+test("a saved layout with the retired Streak widget loads This month in its place", () => {
+  const { a, storage } = sharedTabs();
+  storage.setItem("settings", JSON.stringify({
+    dashboardLayout: { top: ["stats", "streak"], main: ["plan", "streak"], side: ["streak", "month", "notes", "__proto__", 42] }
+  }));
+  a.dispatch();
+  // Renamed in its column, placed once, and never put in the top row
+  expect(a.store.dashboardLayout).toEqual({ top: ["stats"], main: ["plan", "month"], side: ["notes"] });
+  a.store.update({ name: "Sam" });
+  const saved = JSON.parse(storage.getItem("settings")!);
+  expect(JSON.stringify(saved.dashboardLayout)).not.toContain("streak");
+});
+
+test("a layout that held only the Streak widget still loads", () => {
+  const { a, storage } = sharedTabs();
+  storage.setItem("settings", JSON.stringify({ dashboardLayout: { top: [], main: [], side: ["streak"] } }));
+  a.dispatch();
+  expect(a.store.dashboardLayout).toEqual({ top: [], main: [], side: ["month"] });
+});

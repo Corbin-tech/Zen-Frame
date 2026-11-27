@@ -230,8 +230,8 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
     import { plural } from '../lib/plural';
     import { loadString, saveString } from '../lib/storage';
     import {
-        activeDays, dailyActivity, formatMonth, lastDays, monthOf, monthRange, monthsWithActivity,
-        partOfDay, percentChange, previousRange, streaks, summarize
+        dailyActivity, formatMonth, lastDays, monthOf, monthRange, monthsWithActivity,
+        partOfDay, percentChange, previousRange, summarize
     } from '../lib/insights';
 
     const RANGES = [
@@ -332,24 +332,30 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
                 const range = rangeFor(this.range, today);
                 const summary = summarize(completions, sessions, range);
                 const before = summarize(completions, sessions, previousRange(range));
-                const streak = streaks(activeDays(completions, sessions), today);
 
+                // Plain comparisons with the period just before. No scores, no streaks.
                 const change = (now, then, noun) => {
                     const percent = percentChange(now, then);
-                    if (percent === null) return { detail: now ? `None the prior ${noun}` : 'Nothing yet', trend: null };
-                    if (percent === 0) return { detail: `Same as prior ${noun}`, trend: null };
-                    return { detail: `${percent > 0 ? 'Up' : 'Down'} ${Math.abs(percent)}% vs. prior ${noun}`, trend: percent > 0 ? 'up' : 'down' };
+                    if (percent === null) return { detail: now ? `New since the ${noun} before` : 'Nothing logged yet', trend: null };
+                    if (percent === 0) return { detail: `Same as the ${noun} before`, trend: null };
+                    return { detail: `${Math.abs(percent)}% ${percent > 0 ? 'more' : 'less'} than the ${noun} before`, trend: percent > 0 ? 'up' : 'down' };
                 };
                 const noun = this.range === '12m' ? '12 months' : `${RANGES.find(option => option.id === this.range).days} days`;
+                const averageSession = summary.sessions ? Math.round(summary.focusMinutes / summary.sessions) : 0;
 
                 const tiles = [
                     { label: 'Tasks completed', value: summary.tasks, ...change(summary.tasks, before.tasks, noun) },
                     { label: 'Focus time', value: dates.formatDuration(summary.focusMinutes), ...change(summary.focusMinutes, before.focusMinutes, noun) },
-                    { label: 'Current streak', value: plural(streak.current, 'day'), detail: `Longest ever: ${plural(streak.longest, 'day')}`, trend: null },
                     {
-                        label: 'On time',
-                        value: summary.onTimePercent === null ? '–' : `${summary.onTimePercent}%`,
-                        detail: summary.onTimePercent === null ? 'No due dates in this range' : 'Of tasks with a due date',
+                        label: 'Days active',
+                        value: plural(summary.activeDays, 'day'),
+                        detail: summary.activeDays ? 'With a finished task or focus' : 'Any small step counts',
+                        trend: null
+                    },
+                    {
+                        label: 'Focus moments',
+                        value: summary.sessions,
+                        detail: summary.sessions ? `About ${dates.formatDuration(averageSession)} each` : 'Start one from Timer',
                         trend: null
                     }
                 ];

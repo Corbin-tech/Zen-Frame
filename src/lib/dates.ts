@@ -77,21 +77,21 @@ function dueTone(dueKey: string, todayKey: string = toDateKey()): DueTone {
   return days <= 3 ? "soon" : "later";
 }
 
-// "Today", "Tomorrow", "In 3 days", "2 days past due", or "Oct 30"
+// "Today", "Tomorrow", "In 3 days", "Carried over", or "Oct 30".
+// Earlier due dates read as carried over, never as a count of days behind (see /principles).
 function dueLabel(dueKey: string, todayKey: string = toDateKey()): string {
   const days = daysBetween(todayKey, dueKey);
   if (days === 0) return "Today";
   if (days === 1) return "Tomorrow";
-  if (days === -1) return "1 day past due";
-  if (days < 0) return `${-days} days past due`;
+  if (days < 0) return "Carried over";
   if (days < 7) return `In ${days} days`;
   return formatDate(dueKey);
 }
 
-// For sentences: "due today", "due tomorrow", "due in 3 days", "due Oct 30", "2 days past due"
+// For sentences: "due today", "due tomorrow", "due in 3 days", "due Oct 30", "Carried over from Oct 30"
 function dueText(dueKey: string, todayKey: string = toDateKey()): string {
   const days = daysBetween(todayKey, dueKey);
-  if (days < 0) return dueLabel(dueKey, todayKey);
+  if (days < 0) return `Carried over from ${formatDate(dueKey)}`;
   if (days === 0) return "due today";
   if (days === 1) return "due tomorrow";
   if (days < 7) return `due in ${days} days`;

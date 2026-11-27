@@ -370,7 +370,7 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-1 rou
             doneLimit: DONE_LIMIT,
             sortOptions: [
                 { id: 'manual', label: 'My order' },
-                { id: 'due', label: 'Past due first' }
+                { id: 'due', label: 'Carried over first' }
             ],
             sortBy: loadString(SORT_KEY) === 'due' ? 'due' : 'manual',
             search: '',
@@ -457,7 +457,7 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-1 rou
                 if (this.search.trim() && !this.tasks.length) return `No cards match "${this.search.trim()}".`;
                 if (!doing && !todo) return 'Everything here is done. Nice work.';
                 const parts = [`${doing} in progress`, `${todo} to do`];
-                if (this.overdueCount) parts.push(`${this.overdueCount} past due`);
+                if (this.overdueCount) parts.push(`${this.overdueCount} carried over`);
                 return parts.join(' · ');
             },
 
@@ -470,7 +470,7 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-1 rou
             },
 
             // Done shows the most recently finished first. The other columns follow list order,
-            // or with "Past due first" go by due date (most overdue on top, undated last).
+            // or with "Carried over first" go by due date (most overdue on top, undated last).
             tasksIn(column) {
                 const tasks = this.tasks.filter(task => this.$store.todos.boardColumn(task) === column);
                 if (column === 'done') {

@@ -140,7 +140,7 @@ export function checkReminders(Alpine: Alpine, nowDate: Date = new Date()): void
       if (dueToday || overdue) {
         const parts = [];
         if (dueToday) parts.push(`${dueToday} due today`);
-        if (overdue) parts.push(`${overdue} past due`);
+        if (overdue) parts.push(`${overdue} carried over`);
         notify(Alpine, "due", "Today's tasks", `${parts.join(" and ")}.`);
       }
       markSent(key, today);
