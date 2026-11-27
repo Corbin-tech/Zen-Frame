@@ -53,19 +53,45 @@ function cleanWeeklyIntentions(value: unknown): Array<Record<string, unknown>> {
 
 // A restored backup may carry anything, so keep only well-formed values. The "steps"
 // checklist field from older saves is dropped: nothing reads it any more.
-function normalizeLoadedTodo(item: Todo & { steps?: unknown }): Todo {
+function normalizeLoadedTodo(item: Todo & { steps?: unknown }): Todo | null {
+  if (typeof item.id !== "string" || item.id.trim() === "") return null;
   const { steps: _steps, ...todo } = item;
   const cleaned: Todo = {
     ...todo,
+    id: item.id,
     // Templates call string methods on the title, so a task without one gets an empty title
     todo: typeof todo.todo === "string" ? todo.todo : "",
-    parentId: todo.parentId ?? null,
+    parentId: typeof todo.parentId === "string" && todo.parentId ? todo.parentId : null,
     estimateMinutes: cleanMinutes(todo.estimateMinutes)
   };
+  if (todo.completed !== undefined) cleaned.completed = todo.completed === true;
+  if (todo.isCluster !== undefined) cleaned.isCluster = todo.isCluster === true;
+  if (todo.isPinned !== undefined) cleaned.isPinned = todo.isPinned === true;
+  if (todo.dueDate !== undefined) {
+    cleaned.dueDate = isDateKey(todo.dueDate) ? todo.dueDate : null;
+  }
   if (todo.focusDate !== undefined) {
     cleaned.focusDate = isDateKey(todo.focusDate) ? todo.focusDate : null;
   }
+  if (cleaned.color !== undefined && typeof cleaned.color !== "string") delete cleaned.color;
+  if (cleaned.createdAt !== undefined && !isTimestamp(cleaned.createdAt)) cleaned.createdAt = new Date().toISOString();
+  for (const key of ["updatedAt", "startedAt", "completedAt"] as const) {
+    if (cleaned[key] !== undefined && !isTimestamp(cleaned[key])) delete cleaned[key];
+  }
   return cleaned;
+}
+
+function cleanNote(note: Record<string, unknown>): Record<string, unknown> | null {
+  if (typeof note.id !== "string" || note.id.trim() === "") return null;
+  if (typeof note.text !== "string") return null;
+  const createdAt = isTimestamp(note.createdAt) ? note.createdAt : new Date().toISOString();
+  return {
+    id: note.id,
+    text: note.text,
+    pinned: note.pinned === true,
+    createdAt,
+    updatedAt: isTimestamp(note.updatedAt) ? note.updatedAt : createdAt
+  };
 }
 
 function cleanScheduledRepeat(value: unknown): ScheduledItem["repeat"] | undefined {
@@ -105,9 +131,13 @@ export function normalizeStoredData(key: string, value: unknown): unknown {
     case "todos":
       return Array.isArray(value) ? value.filter(isObject).map(item => {
         const todo = normalizeLoadedTodo(item as unknown as Todo);
-        if (!isTimestamp(todo.zenDeferredStart)) delete todo.zenDeferredStart;
+        if (todo && !isTimestamp(todo.zenDeferredStart)) delete todo.zenDeferredStart;
         return todo;
-      }) : [];
+      }).filter((todo): todo is Todo => todo !== null) : [];
+    case "notes":
+      return Array.isArray(value)
+        ? value.filter(isObject).map(cleanNote).filter((note): note is Record<string, unknown> => note !== null)
+        : [];
     case "skippedClusters":
       return Array.isArray(value)
         ? value.filter((id): id is string => typeof id === "string" && id !== "")

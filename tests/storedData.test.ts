@@ -78,6 +78,36 @@ for (const path of ["load", "import"]) {
     expect(read("planning", { gap: 0 }).gap).toBe(0);
     expect(read("pomoSessions", [])).toEqual([]);
   });
+  test(`${path}: drops malformed todos and neutralizes hostile field types`, () => {
+    const valid = { id: "valid", todo: "Write", completed: true, isCluster: false, isPinned: false,
+      parentId: null, createdAt: at, dueDate: "2026-03-02", focusDate: "2026-03-03", startedAt: at, completedAt: at };
+    const result = read("todos", [
+      null, {}, { id: "", todo: "missing id" },
+      { id: "bad", todo: "Broken", dueDate: {}, focusDate: 5, parentId: 42,
+        startedAt: "bad", completedAt: null, createdAt: "bad", color: 7 },
+      valid
+    ]);
+    expect(result).toHaveLength(2);
+    expect(result[0]).toMatchObject({ id: "bad", todo: "Broken", dueDate: null, focusDate: null, parentId: null });
+    expect(result[0]).not.toHaveProperty("startedAt");
+    expect(result[0]).not.toHaveProperty("completedAt");
+    expect(result[0]).not.toHaveProperty("color");
+    expect(typeof result[0].createdAt).toBe("string");
+    expect(result[1]).toEqual({ ...valid, estimateMinutes: null });
+  });
+  test(`${path}: drops malformed notes and normalizes timestamps`, () => {
+    const valid = { id: "n1", text: "Remember", pinned: true, createdAt: at, updatedAt: at };
+    const result = read("notes", [
+      null, 1, {}, { id: "", text: "missing id" }, { id: "no-text" },
+      { id: "bad-times", text: "Still useful", pinned: "yes", createdAt: 1, updatedAt: {} },
+      valid
+    ]);
+    expect(result).toHaveLength(2);
+    expect(result[0]).toMatchObject({ id: "bad-times", text: "Still useful", pinned: false });
+    expect(typeof result[0].createdAt).toBe("string");
+    expect(result[0].updatedAt).toBe(result[0].createdAt);
+    expect(result[1]).toEqual(valid);
+  });
   test(`${path}: normalizes check-in entries and drops malformed ones`, () => {
     const result = read("checkIns", {
       "2026-03-02": { week: "2026-03-02", energy: 4, wins: "Shipped", savedAt: at },
