@@ -67,7 +67,7 @@ const select = 'rounded-lg border-gray-200 dark:border-slate-600 bg-white dark:b
                         >{letter}</button>
                     ))}
                 </div>
-                <div class="flex items-center gap-1.5">
+                <div class="flex flex-wrap items-center gap-1.5">
                     <select name="plan-hours-start" class={select} aria-label="From" x-on:change="setTime(hours, 'start', $event.target.value)">
                         {times.slice(0, -1).map((time) => (
                             <option value={time.value} x-bind:selected={`hours.start === ${time.value}`}>{time.label}</option>
