@@ -2,6 +2,8 @@ import { loadString, saveString } from '../lib/storage';
 
 export type Theme = 'light' | 'dark';
 
+type ThemeTarget = { button: HTMLButtonElement; bounds: DOMRect };
+
 interface ThemeStore {
     current: Theme;
     init: () => void;
@@ -24,7 +26,12 @@ function syncThemeColor(): void {
 export function initThemeStore(): ThemeStore {
     let requested: Theme = 'light';
     let switching = false;
-    let themeTargets: { button: HTMLButtonElement; bounds: DOMRect }[] = [];
+    let themeTargets: ThemeTarget[] = [];
+    let pressedTarget: ThemeTarget | undefined;
+
+    function containsPoint({ bounds }: ThemeTarget, { clientX: x, clientY: y }: MouseEvent) {
+        return x >= bounds.left && x < bounds.right && y >= bounds.top && y < bounds.bottom;
+    }
 
     async function applyTheme(store: ThemeStore) {
         const root = document.documentElement;
@@ -83,10 +90,24 @@ export function initThemeStore(): ThemeStore {
             const darkQuery = window.matchMedia('(prefers-color-scheme: dark)');
 
             // Captured elements aren't hit-testable. Keep the theme controls shown in the snapshot usable.
+            document.addEventListener('pointerdown', (event) => {
+                if (!event.isPrimary) return;
+                pressedTarget = switching && event.target === document.documentElement && event.button === 0
+                    ? themeTargets.find(target => containsPoint(target, event))
+                    : undefined;
+            });
+            document.addEventListener('pointercancel', (event) => {
+                if (event.isPrimary) pressedTarget = undefined;
+            });
             document.addEventListener('click', (event) => {
-                if (!switching || event.target !== document.documentElement || !event.detail) return;
-                const { clientX: x, clientY: y } = event;
-                themeTargets.find(({ bounds }) => x >= bounds.left && x < bounds.right && y >= bounds.top && y < bounds.bottom)?.button.click();
+                if (!event.detail) return;
+                const pressed = pressedTarget;
+                pressedTarget = undefined;
+                if (event.target !== document.documentElement) return;
+                const clicked = pressed
+                    ? (containsPoint(pressed, event) ? pressed : undefined)
+                    : themeTargets.find(target => containsPoint(target, event));
+                clicked?.button.click();
             });
 
             // Follow system preference changes only if the user hasn't picked a theme

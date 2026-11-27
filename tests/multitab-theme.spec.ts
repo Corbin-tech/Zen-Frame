@@ -38,3 +38,20 @@ test('rapid pointer clicks still reach the toggle during a crossfade', async ({ 
   await expect(page.locator('#theme-toggle-dark-icon')).toBeVisible();
   await expect(page.locator('#theme-toggle-light-icon')).toBeHidden();
 });
+
+test('a theme press during a crossfade still toggles when released after it', async ({ page }) => {
+  await page.goto('/principles');
+  await page.addStyleTag({ content: '::view-transition-group(root) { animation-duration: 800ms; }' });
+  const toggle = page.getByRole('button', { name: 'Toggle dark mode' });
+  await toggle.click();
+  const bounds = (await toggle.boundingBox())!;
+  const point = { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 };
+  await page.waitForFunction(({ x, y }) => document.elementFromPoint(x, y) === document.documentElement, point);
+  await page.mouse.move(point.x, point.y);
+  await page.mouse.down();
+  await page.waitForFunction(({ x, y }) => document.getElementById('theme-toggle')!.contains(document.elementFromPoint(x, y)), point);
+  await page.mouse.up();
+
+  expect(await page.evaluate(() => localStorage.getItem('theme'))).toBe('light');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+});
