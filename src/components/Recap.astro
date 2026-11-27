@@ -259,15 +259,6 @@ const name = data.recapName;
             });
         }
 
-        if (stats.onTimePercent !== null) {
-            slides.push({
-                eyebrow: 'Deadlines',
-                value: `${stats.onTimePercent}%`,
-                label: 'of tasks with a due date were done on time',
-                note: stats.onTimePercent >= 80 ? 'Reliable. Future you says thanks.' : 'Room to grow. Try planning due tasks into your schedule.'
-            });
-        }
-
         const energy = averageEnergy(checkIns, range);
         if (energy !== null) {
             slides.push({
@@ -301,8 +292,7 @@ const name = data.recapName;
                 `Showed up on ${plural(stats.activeDays, 'day')}`,
                 reachedGoals.length ? `${plural(reachedGoals.length, 'goal')} reached` : '',
                 monthWins.length ? `${plural(monthWins.length, 'win')} logged` : '',
-                stats.byCluster[0] ? `Top cluster: ${clusterName(stats.byCluster[0]) || 'Your inbox'}` : '',
-                stats.onTimePercent !== null ? `${stats.onTimePercent}% on time` : ''
+                stats.byCluster[0] ? `Top cluster: ${clusterName(stats.byCluster[0]) || 'Your inbox'}` : ''
             ].filter(Boolean).join('\n')
         });
 

@@ -65,15 +65,19 @@ export const DASHBOARD_WIDGETS = [
   { id: "clusters", label: "Clusters", hint: "Progress for each cluster", zone: "column" },
   { id: "completed", label: "Tasks completed", hint: "The last 7 days", zone: "column" },
   { id: "upnext", label: "Up next", hint: "The next task, with a focus button", zone: "column" },
-  { id: "deadlines", label: "Deadlines", hint: "Past due and the next 14 days", zone: "column" },
+  { id: "deadlines", label: "Deadlines", hint: "Carried over and the next 14 days", zone: "column" },
   { id: "recent", label: "Recently completed", hint: "Your last few finished tasks", zone: "column" },
   { id: "focus", label: "Focus timer", hint: "Start a focus session from here", zone: "column" },
   { id: "goals", label: "Goals", hint: "Progress on your open goals", zone: "column" },
   { id: "wins", label: "Daily win", hint: "Note one thing that went well today", zone: "column" },
   { id: "notes", label: "Notes", hint: "Pinned and recent notes", zone: "column" },
   { id: "quote", label: "Quote of the day", hint: "A new one each morning", zone: "column" },
-  { id: "streak", label: "Streak", hint: "Days in a row and the last two weeks", zone: "column" }
+  { id: "month", label: "This month", hint: "Days active, tasks finished and focus so far", zone: "column" }
 ] as const;
+
+// Widgets that were renamed or retired, and what takes their place in a saved layout.
+// The Streak widget became "This month": Zen Frame keeps totals, never streaks.
+const RENAMED_WIDGETS: Record<string, string> = { streak: "month" };
 
 export interface DashboardLayout {
   top: string[];
@@ -169,7 +173,7 @@ interface Settings {
   notifyTimer: boolean; // Pomodoro session finished
   notifyBlocks: boolean; // A scheduled block is about to start
   notifyBlockLead: number; // One of BLOCK_LEADS
-  notifyDue: boolean; // Daily summary of tasks due today and overdue
+  notifyDue: boolean; // Daily summary of tasks due today and carried over
   notifyDueTime: string; // "HH:MM"
   notifyWeeklyCheckIn: boolean; // Opt-in weekly check-in nudge
   notifyWeeklyCheckInDay: number; // 0 = Sunday to 6 = Saturday
@@ -227,12 +231,14 @@ const DEFAULTS: Settings = {
 function cleanLayout(saved: unknown): DashboardLayout {
   if (!saved || typeof saved !== "object") return structuredClone(DEFAULT_DASHBOARD);
   const placed = new Set<string>();
-  const keep = (list: unknown, zone: "top" | "column") => (Array.isArray(list) ? list : []).filter(id => {
-    const widget = DASHBOARD_WIDGETS.find(item => item.id === id);
-    if (!widget || widget.zone !== zone || placed.has(id)) return false;
-    placed.add(id);
-    return true;
-  });
+  const keep = (list: unknown, zone: "top" | "column") => (Array.isArray(list) ? list : [])
+    .map(id => (typeof id === "string" && Object.hasOwn(RENAMED_WIDGETS, id) ? RENAMED_WIDGETS[id] : id))
+    .filter(id => {
+      const widget = DASHBOARD_WIDGETS.find(item => item.id === id);
+      if (!widget || widget.zone !== zone || placed.has(id)) return false;
+      placed.add(id);
+      return true;
+    });
   const layout = saved as Partial<DashboardLayout>;
   return { top: keep(layout.top, "top"), main: keep(layout.main, "column"), side: keep(layout.side, "column") };
 }

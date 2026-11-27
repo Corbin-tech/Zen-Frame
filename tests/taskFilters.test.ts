@@ -52,7 +52,7 @@ describe("taskFilters", () => {
     });
   });
 
-  describe("sorting (Board's 'Overdue first' semantics)", () => {
+  describe("sorting (Board's 'Carried over first' semantics)", () => {
     const open = [
       task({ id: "a", todo: "Undated", dueDate: null }),
       task({ id: "b", todo: "Later", dueDate: "2026-03-01" }),
@@ -63,7 +63,7 @@ describe("taskFilters", () => {
     test("the sort options carry the Board's exact labels", () => {
       expect(TASK_MANAGER_SORT_OPTIONS).toEqual([
         { id: "manual", label: "My order" },
-        { id: "due", label: "Past due first" }
+        { id: "due", label: "Carried over first" }
       ]);
     });
 
@@ -71,11 +71,11 @@ describe("taskFilters", () => {
       expect(sortTasksForDisplay(open, "manual").map(item => item.id)).toEqual(["a", "b", "c", "d"]);
     });
 
-    test("'Overdue first' is most overdue first, undated last", () => {
+    test("'Carried over first' is most overdue first, undated last", () => {
       expect(sortTasksForDisplay(open, "due").map(item => item.id)).toEqual(["c", "b", "a", "d"]);
     });
 
-    test("'Overdue first' never mutates the input list", () => {
+    test("'Carried over first' never mutates the input list", () => {
       const before = open.map(item => item.id);
       sortTasksForDisplay(open, "due");
       expect(open.map(item => item.id)).toEqual(before);

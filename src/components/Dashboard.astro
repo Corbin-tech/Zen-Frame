@@ -2,7 +2,7 @@
 import DashboardWidget from './DashboardWidget.astro';
 
 // Widgets that can sit in the main or side column (see DASHBOARD_WIDGETS in settingsStore.ts)
-const COLUMN_WIDGETS = ['plan', 'focus3', 'clusters', 'completed', 'upnext', 'deadlines', 'recent', 'focus', 'goals', 'wins', 'notes', 'quote', 'streak'];
+const COLUMN_WIDGETS = ['plan', 'focus3', 'clusters', 'completed', 'upnext', 'deadlines', 'recent', 'focus', 'goals', 'wins', 'notes', 'quote', 'month'];
 const toolButton = 'p-1 rounded-full text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-slate-700 disabled:opacity-30 disabled:pointer-events-none transition-colors';
 const panel = 'panel';
 const panelTitle = 'text-base font-semibold text-gray-900 dark:text-white';
@@ -162,7 +162,7 @@ const checkbox = 'w-4 h-4 shrink-0 rounded-full border-gray-300 dark:border-slat
     import { dates } from '../lib/dates';
     import { estimateLabel } from '../lib/estimates';
     import { QUOTES } from '../lib/quotes';
-    import { activeDays, streaks } from '../lib/insights';
+    import { formatMonth, monthOf, monthRange, summarize } from '../lib/insights';
     import { DASHBOARD_WIDGETS } from '../stores/settingsStore';
 
     const ICONS = {
@@ -203,7 +203,7 @@ const checkbox = 'w-4 h-4 shrink-0 rounded-full border-gray-300 dark:border-slat
 
             get headline() {
                 const parts = [];
-                if (this.overdue.length) parts.push(`${this.overdue.length} past due`);
+                if (this.overdue.length) parts.push(`${this.overdue.length} carried over`);
                 const dueSoon = this.$store.todos.openTasks.filter(task => {
                     if (!task.dueDate) return false;
                     const days = dates.daysBetween(this.todayKey, task.dueDate);
@@ -231,7 +231,7 @@ const checkbox = 'w-4 h-4 shrink-0 rounded-full border-gray-300 dark:border-slat
                 return this.$store.todos.completions.filter(record => dayOf(record.at) === this.todayKey).length;
             },
 
-            // Overdue first, then the next 14 days
+            // Carried over first, then the next 14 days
             get deadlines() {
                 const horizon = dates.addDays(this.todayKey, 14);
                 return this.$store.todos.openTasks
@@ -361,7 +361,7 @@ const checkbox = 'w-4 h-4 shrink-0 rounded-full border-gray-300 dark:border-slat
                     {
                         label: 'Open tasks',
                         value: open,
-                        detail: this.overdue.length ? `${this.overdue.length} past due` : dueToday ? `${dueToday} due today` : 'Nothing past due',
+                        detail: this.overdue.length ? `${this.overdue.length} carried over` : dueToday ? `${dueToday} due today` : 'Nothing carried over',
                         alert: this.overdue.length > 0,
                         icon: ICONS.tasks,
                         tab: 'taskmanager',
@@ -497,14 +497,17 @@ const checkbox = 'w-4 h-4 shrink-0 rounded-full border-gray-300 dark:border-slat
                 return QUOTES[index] ?? QUOTES[0];
             },
 
-            get streak() {
-                const active = activeDays(this.$store.todos.completions, this.$store.pomoState.sessions);
-                const { current, longest } = streaks(active, this.todayKey);
-                const days = Array.from({ length: 14 }, (_, i) => {
-                    const date = dates.addDays(this.todayKey, i - 13);
-                    return { date, active: active.has(date), isToday: date === this.todayKey, label: dates.formatDate(date, { weekday: 'narrow' }) };
-                });
-                return { current, longest, days };
+            // This month's totals. Counts that only grow: no runs to break, no scores.
+            get month() {
+                const month = monthOf(this.todayKey);
+                const summary = summarize(this.$store.todos.completions, this.$store.pomoState.sessions, monthRange(month));
+                return {
+                    name: formatMonth(month, { month: 'long' }),
+                    activeDays: summary.activeDays,
+                    tasks: summary.tasks,
+                    sessions: summary.sessions,
+                    focusMinutes: summary.focusMinutes
+                };
             },
 
             // --- Last 7 days ---

@@ -35,6 +35,7 @@ for (const width of [320, 390, 1280]) {
         dashboardLayout: {
           top: ['stats'],
           main: ['plan', 'clusters', 'completed'],
+          // 'streak' is the retired widget id; it loads as "This month"
           side: ['focus', 'goals', 'notes', 'streak'],
         },
       }));
