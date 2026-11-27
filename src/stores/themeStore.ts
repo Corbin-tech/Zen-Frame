@@ -95,6 +95,10 @@ export function initThemeStore(): ThemeStore {
                 pressedTarget = switching && event.target === document.documentElement && event.button === 0
                     ? themeTargets.find(target => containsPoint(target, event))
                     : undefined;
+                if (pressedTarget) {
+                    event.preventDefault();
+                    pressedTarget.button.focus({ preventScroll: true });
+                }
             });
             document.addEventListener('pointercancel', (event) => {
                 if (event.isPrimary) pressedTarget = undefined;

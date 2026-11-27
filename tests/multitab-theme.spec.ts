@@ -55,3 +55,26 @@ test('a theme press during a crossfade still toggles when released after it', as
   expect(await page.evaluate(() => localStorage.getItem('theme'))).toBe('light');
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
 });
+
+test('rapid clicks on the Focus theme toggle do not select page text', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('activeTab', 'zenmode');
+    localStorage.setItem('todos', JSON.stringify([{ id: 'task-1', todo: 'Draft notes', completed: false, parentId: null }]));
+  });
+  await page.goto('/');
+  await expect(page.getByText('Your next step', { exact: true })).toBeVisible();
+  await page.addStyleTag({ content: '::view-transition-group(root) { animation-duration: 800ms; }' });
+  const toggle = page.getByRole('button', { name: 'Toggle dark mode' });
+  const bounds = (await toggle.boundingBox())!;
+  const point = { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 };
+  await page.mouse.click(point.x, point.y);
+  await page.waitForFunction(({ x, y }) => document.elementFromPoint(x, y) === document.documentElement, point);
+  for (const clickCount of [2, 3]) {
+    await page.waitForTimeout(50);
+    await page.mouse.down({ clickCount });
+    await page.mouse.up({ clickCount });
+    expect(await page.evaluate(() => window.getSelection()?.toString())).toBe('');
+    expect(await page.evaluate(() => localStorage.getItem('theme'))).toBe(clickCount === 2 ? 'light' : 'dark');
+  }
+  await expect(toggle).toBeFocused();
+});
