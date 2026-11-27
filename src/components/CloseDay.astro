@@ -179,8 +179,9 @@ const field = 'block w-full rounded-lg border-gray-200 dark:border-slate-600 bg-
                         <button type="button" x-on:click="completeWrapUp()" class="btn-primary">Close the day</button>
                     </div>
                 </template>
+                <!-- The button that had focus left with the flow, so Done takes focus to keep it in the dialog -->
                 <template x-if="finished">
-                    <button type="button" x-on:click="close()" class="btn-primary">Done</button>
+                    <button type="button" x-init="$el.focus()" x-on:click="close()" class="btn-primary">Done</button>
                 </template>
             </footer>
         </div>
