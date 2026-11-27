@@ -189,8 +189,8 @@ const iconButton = 'inline-flex items-center justify-center touch-target p-1 rou
                                             rows="2"
                                             x-model="titleDraft"
                                             x-on:keydown.enter.prevent="$el.blur()"
-                                            x-on:keydown.escape="$el.blur()"
-                                            x-on:blur="mode = 'view'; $store.todos.updateTask(task.id, { todo: titleDraft })"
+                                            x-on:keydown.escape="mode = 'view'; titleDraft = task.todo; $el.blur()"
+                                            x-on:blur="if (mode === 'rename') { mode = 'view'; $store.todos.updateTask(task.id, { todo: titleDraft }) }"
                                             class="block w-full p-0 text-sm font-medium leading-snug bg-transparent border-none resize-none focus:ring-0 text-gray-900 dark:text-gray-100"
                                         ></textarea>
                                     </div>
