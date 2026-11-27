@@ -88,3 +88,28 @@ test('Auto-plan time selects keep AM/PM readable at 330px with Mono font', async
     expect(fits).toBe(true);
   }
 });
+
+for (const width of [320, 390, 1280]) {
+  test(`Auto-plan duration and break selects align at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.addInitScript(() => {
+      if (sessionStorage.getItem('autoplan-align-seeded')) return;
+      sessionStorage.setItem('autoplan-align-seeded', 'true');
+      localStorage.clear();
+      localStorage.setItem('activeTab', 'schedule');
+    });
+    await page.goto('/');
+
+    const section = page.locator('section[x-data="autoPlan"]');
+    const duration = section.locator('select[name="plan-duration"]');
+    const gap = section.locator('select[name="plan-gap"]');
+    await expect(duration).toBeVisible();
+    await expect(gap).toBeVisible();
+
+    const durationBox = (await duration.boundingBox())!;
+    const gapBox = (await gap.boundingBox())!;
+    expect(Math.abs(durationBox.y - gapBox.y)).toBeLessThan(1);
+    expect(Math.abs(durationBox.height - gapBox.height)).toBeLessThan(1);
+    expect(await section.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+  });
+}

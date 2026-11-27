@@ -104,7 +104,7 @@ const timeSelect = 'rounded-lg border-gray-200 dark:border-slate-600 bg-white da
             Add hours
         </button>
 
-        <div class="grid grid-cols-2 gap-2">
+        <div class="grid grid-cols-2 gap-2 items-end">
             <label class="block text-xs text-gray-500 dark:text-gray-400">
                 Time for tasks without estimates
                 <select name="plan-duration" class={`${select} mt-1 w-full`} x-on:change="$store.todos.updatePlanning({ duration: Number($event.target.value) })">
