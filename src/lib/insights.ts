@@ -71,27 +71,8 @@ export function activeDays(completions: Completion[], sessions: FocusSession[]):
   return new Set([...completions.map(record => dayOf(record.at)), ...sessions.map(session => dayOf(session.completedAt))]);
 }
 
-// Current streak counts back from today, or from yesterday when today has nothing yet
-export function streaks(days: Set<string>, today: string = toDateKey()): { current: number; longest: number } {
-  let current = 0;
-  let day = days.has(today) ? today : addDays(today, -1);
-  while (days.has(day)) {
-    current++;
-    day = addDays(day, -1);
-  }
-  return { current, longest: longestRun([...days]) };
-}
-
-function longestRun(days: string[], range?: DayRange): number {
-  const sorted = [...new Set(days)].filter(day => !range || inRange(day, range)).sort();
-  let longest = 0;
-  let run = 0;
-  sorted.forEach((day, i) => {
-    run = i > 0 && daysBetween(sorted[i - 1], day) === 1 ? run + 1 : 1;
-    longest = Math.max(longest, run);
-  });
-  return longest;
-}
+// Zen Frame keeps no streaks (see /principles): days are counted as a total, never as a
+// run that can break. Insights, the dashboard and the monthly story all use these totals.
 
 export interface ClusterCount {
   clusterId: string | null;
@@ -105,9 +86,6 @@ export interface Summary {
   focusMinutes: number;
   sessions: number;
   activeDays: number;
-  longestStreak: number;
-  // Of the finished tasks that had a due date, the percent done on or before it. Null with none.
-  onTimePercent: number | null;
   byCluster: ClusterCount[]; // Most first
   byWeekday: number[]; // Tasks, 0 = Sunday
   byHour: number[]; // Tasks, 0 to 23
@@ -123,8 +101,6 @@ export function summarize(completions: Completion[], sessions: FocusSession[], r
   const byWeekday = Array(7).fill(0);
   const byHour = Array(24).fill(0);
   const perDay = new Map<string, number>();
-  let dueCount = 0;
-  let onTime = 0;
 
   for (const record of done) {
     const key = record.clusterId ?? "";
@@ -137,11 +113,6 @@ export function summarize(completions: Completion[], sessions: FocusSession[], r
     byHour[time.getHours()]++;
     const day = dayOf(record.at);
     perDay.set(day, (perDay.get(day) ?? 0) + 1);
-
-    if (record.dueDate) {
-      dueCount++;
-      if (day <= record.dueDate) onTime++;
-    }
   }
 
   const focusPerDay = new Map<string, number>();
@@ -165,8 +136,6 @@ export function summarize(completions: Completion[], sessions: FocusSession[], r
     focusMinutes: focus.reduce((sum, session) => sum + session.minutes, 0),
     sessions: focus.length,
     activeDays: new Set(days).size,
-    longestStreak: longestRun(days, range),
-    onTimePercent: dueCount ? Math.round(onTime / dueCount * 100) : null,
     byCluster: [...clusters.values()].sort((a, b) => b.count - a.count || b.focusMinutes - a.focusMinutes),
     byWeekday,
     byHour,

@@ -91,14 +91,16 @@ const prompts = [
                     <template x-for="goal in goals" :key="goal.id">
                         <li class="rounded-xl ring-1 ring-black/5 dark:ring-white/10 bg-gray-50/80 dark:bg-slate-700/30 p-4" x-data="{ open: false }">
                             <div class="flex items-start gap-3">
-                                <input
-                                    type="checkbox"
-                                    name="goal-done"
-                                    class="mt-1 w-4 h-4 rounded-full border-gray-300 dark:border-slate-500 text-teal-600 focus:ring-teal-500 dark:bg-slate-700"
-                                    x-bind:checked="goal.done"
-                                    x-on:change="toggleGoalDone(goal, $event.target.checked)"
-                                    x-bind:aria-label="`Mark ${goal.title} ${goal.done ? 'not reached' : 'reached'}`"
-                                />
+                                <label class="hit-area inline-flex shrink-0">
+                                    <input
+                                        type="checkbox"
+                                        name="goal-done"
+                                        class="mt-1 w-4 h-4 rounded-full border-gray-300 dark:border-slate-500 text-teal-600 focus:ring-teal-500 dark:bg-slate-700"
+                                        x-bind:checked="goal.done"
+                                        x-on:change="toggleGoalDone(goal, $event.target.checked)"
+                                        x-bind:aria-label="`Mark ${goal.title} ${goal.done ? 'not reached' : 'reached'}`"
+                                    />
+                                </label>
                                 <div class="min-w-0 flex-1">
                                     <div class="flex items-center gap-2">
                                         <input
@@ -191,7 +193,7 @@ const prompts = [
                         <button type="button" class={iconButton} x-on:click="changeWeek(-7)" aria-label="Previous week">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
                         </button>
-                        <button type="button" x-on:click="changeWeek(0)" x-bind:disabled="week === thisWeek" class="px-2.5 py-1 text-xs font-medium rounded-lg border border-gray-200 dark:border-slate-600 text-gray-700 dark:text-gray-200 disabled:opacity-40">This week</button>
+                        <button type="button" x-on:click="changeWeek(0)" x-bind:disabled="week === thisWeek" class="touch-height px-2.5 py-1 text-xs font-medium rounded-lg border border-gray-200 dark:border-slate-600 text-gray-700 dark:text-gray-200 disabled:opacity-40">This week</button>
                         <button type="button" class={iconButton} x-on:click="changeWeek(7)" x-bind:disabled="week === thisWeek" aria-label="Next week">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
                         </button>
@@ -211,7 +213,7 @@ const prompts = [
                 <form class="space-y-4" x-on:submit.prevent="saveCheckIn()" x-on:input="saveState = 'dirty'">
                     <div>
                         <p class="editorial text-base font-normal text-gray-900 dark:text-white mb-2">How was your energy?</p>
-                        <div class="flex gap-2" role="radiogroup" aria-label="Energy">
+                        <div class="segmented flex gap-2" role="radiogroup" aria-label="Energy">
                             <template x-for="level in [1, 2, 3, 4, 5]" :key="level">
                                 <button
                                     type="button"
@@ -276,14 +278,16 @@ const prompts = [
                             <template x-for="(intention, idx) in draft.weeklyIntentions" :key="intention.id">
                                 <li class="rounded-xl bg-gray-50/80 dark:bg-slate-700/30 ring-1 ring-black/5 dark:ring-white/10 p-2.5 space-y-2">
                                     <div class="flex items-center gap-2">
-                                        <input
-                                            type="checkbox"
-                                            x-bind:name="`weekly-intention-done-${idx}`"
-                                            class="w-4 h-4 shrink-0 rounded-full border-gray-300 dark:border-slate-500 text-teal-600 focus:ring-teal-500 dark:bg-slate-700"
-                                            x-model="intention.done"
-                                            x-on:change="saveState = 'dirty'"
-                                            x-bind:aria-label="`Mark intention ${idx + 1} done`"
-                                        />
+                                        <label class="hit-area inline-flex shrink-0">
+                                            <input
+                                                type="checkbox"
+                                                x-bind:name="`weekly-intention-done-${idx}`"
+                                                class="w-4 h-4 shrink-0 rounded-full border-gray-300 dark:border-slate-500 text-teal-600 focus:ring-teal-500 dark:bg-slate-700"
+                                                x-model="intention.done"
+                                                x-on:change="saveState = 'dirty'"
+                                                x-bind:aria-label="`Mark intention ${idx + 1} done`"
+                                            />
+                                        </label>
                                         <input
                                             type="text"
                                             x-bind:name="`weekly-intention-text-${idx}`"
@@ -327,7 +331,7 @@ const prompts = [
                                 type="button"
                                 x-show="draft.weeklyIntentions.length < weeklyLimit"
                                 x-on:click="addWeeklyIntention()"
-                                class="text-xs font-medium text-teal-700 dark:text-teal-300 hover:underline"
+                                class="hit-area text-xs font-medium text-teal-700 dark:text-teal-300 hover:underline"
                             >+ Add weekly intention</button>
                             <span
                                 x-show="draft.weeklyIntentions.length >= weeklyLimit"
@@ -388,12 +392,12 @@ const prompts = [
                                 <button
                                     type="button"
                                     x-on:click="cycleMindfulPrompt()"
-                                    class="font-medium text-gray-500 hover:text-teal-700 dark:text-gray-400 dark:hover:text-teal-300 transition-colors"
+                                    class="hit-area font-medium text-gray-500 hover:text-teal-700 dark:text-gray-400 dark:hover:text-teal-300 transition-colors"
                                 >Another</button>
                                 <button
                                     type="button"
                                     x-on:click="dismissMindfulPrompt()"
-                                    class="font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+                                    class="hit-area font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
                                 >Hide</button>
                             </div>
                         </div>
@@ -494,7 +498,7 @@ const prompts = [
                         class={field}
                     ></textarea>
                     <div class="flex justify-end mt-2">
-                        <button type="submit" x-bind:disabled="!newNote.trim()" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-40">Add note</button>
+                        <button type="submit" x-bind:disabled="!newNote.trim()" class="touch-height px-3 py-1.5 text-xs font-medium rounded-lg bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-40">Add note</button>
                     </div>
                 </form>
                 <ul class="space-y-2">

@@ -56,7 +56,7 @@ const pickerItem = 'w-full flex items-center gap-2.5 px-3 py-2 text-left rounded
                 />
             </div>
             <!-- Sort: list order, or by due date with overdue tasks on top -->
-            <div class="inline-flex p-1 rounded-full bg-gray-900/[0.04] dark:bg-white/[0.06] ring-1 ring-black/5 dark:ring-white/10" role="group" aria-label="Sort tasks">
+            <div class="segmented inline-flex p-1 rounded-full bg-gray-900/[0.04] dark:bg-white/[0.06] ring-1 ring-black/5 dark:ring-white/10" role="group" aria-label="Sort tasks">
                 <template x-for="option in sortOptions" :key="option.id">
                     <button
                         type="button"
@@ -125,7 +125,7 @@ const pickerItem = 'w-full flex items-center gap-2.5 px-3 py-2 text-left rounded
                     <button
                         type="button"
                         x-on:click="doneOpen = !doneOpen"
-                        class="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-sm text-gray-500 hover:text-gray-800 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-slate-700/50 transition-colors"
+                        class="touch-height flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-sm text-gray-500 hover:text-gray-800 hover:bg-gray-100 dark:text-gray-300 dark:hover:text-gray-200 dark:hover:bg-slate-700/50 transition-colors"
                         x-bind:aria-expanded="doneOpen || searching"
                         aria-controls="done-inbox"
                     >
@@ -210,7 +210,7 @@ const pickerItem = 'w-full flex items-center gap-2.5 px-3 py-2 text-left rounded
                             x-on:keydown.escape="resetDraft($el, cluster.todo); $el.blur()"
                             x-on:change="saveClusterName(cluster, $el)"
                             x-on:blur="resetDraft($el, cluster.todo)"
-                            class="flex-1 min-w-0 px-1 sm:px-3 text-lg font-medium bg-transparent border-none focus:ring-0 dark:text-white"
+                            class="inline-edit flex-1 min-w-0 px-1 sm:px-3 text-lg font-medium bg-transparent border-none focus:ring-0 dark:text-white"
                             placeholder="Cluster name"
                         />
                         <!-- Completed / total tasks, with the cluster's open estimate in the same chip -->
@@ -246,7 +246,7 @@ const pickerItem = 'w-full flex items-center gap-2.5 px-3 py-2 text-left rounded
                             <div class="flex flex-row sm:flex-col gap-1 sm:gap-0 sm:space-y-1">
                                 <button 
                                     @click="$store.todos.shiftCluster(cluster.id, -1)"
-                                    class="p-2 sm:p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+                                    class="touch-target inline-flex items-center justify-center p-2 sm:p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
                                     :disabled="$store.todos.isFirstCluster(cluster.id)"
                                     :class="$store.todos.isFirstCluster(cluster.id) ? 'opacity-30 cursor-not-allowed' : ''"
                                     aria-label="Move cluster up"
@@ -257,7 +257,7 @@ const pickerItem = 'w-full flex items-center gap-2.5 px-3 py-2 text-left rounded
                                 </button>
                                 <button 
                                     @click="$store.todos.shiftCluster(cluster.id, 1)"
-                                    class="p-2 sm:p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+                                    class="touch-target inline-flex items-center justify-center p-2 sm:p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
                                     :disabled="$store.todos.isLastCluster(cluster.id)"
                                     :class="$store.todos.isLastCluster(cluster.id) ? 'opacity-30 cursor-not-allowed' : ''"
                                     aria-label="Move cluster down"
@@ -292,7 +292,7 @@ const pickerItem = 'w-full flex items-center gap-2.5 px-3 py-2 text-left rounded
                     <button
                         type="button"
                         x-on:click="$dispatch('open-quick-add', { mode: 'task', parentId: cluster.id })"
-                        class="mt-1 ml-1 sm:ml-3 flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-sm text-gray-500 hover:text-gray-800 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-slate-700/50 transition-colors"
+                        class="touch-height mt-1 ml-1 sm:ml-3 flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-sm text-gray-500 hover:text-gray-800 hover:bg-gray-100 dark:text-gray-300 dark:hover:text-gray-200 dark:hover:bg-slate-700/50 transition-colors"
                     >
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
                         <span x-text="`Add a task to ${cluster.todo}`"></span>
@@ -308,7 +308,7 @@ const pickerItem = 'w-full flex items-center gap-2.5 px-3 py-2 text-left rounded
                         <button
                             type="button"
                             x-on:click="doneOpen = !doneOpen"
-                            class="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-sm text-gray-500 hover:text-gray-800 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-slate-700/50 transition-colors"
+                            class="touch-height flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-sm text-gray-500 hover:text-gray-800 hover:bg-gray-100 dark:text-gray-300 dark:hover:text-gray-200 dark:hover:bg-slate-700/50 transition-colors"
                             x-bind:aria-expanded="doneOpen || searching"
                             x-bind:aria-controls="`done-${cluster.id}`"
                         >
@@ -482,7 +482,7 @@ const pickerItem = 'w-full flex items-center gap-2.5 px-3 py-2 text-left rounded
 
         // Keyboard navigation (spec item 17). tmKeys.ts owns the key map; these
         // methods own the DOM effects: the walk reads the rows that actually
-        // rendered, so search filtering and the "Past due first" sort are respected
+        // rendered, so search filtering and the "Carried over first" sort are respected
         // for free, never the raw store list.
 
         // x-show hides with display:none, which leaves no rects

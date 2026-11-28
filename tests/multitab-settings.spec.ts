@@ -7,6 +7,7 @@ test('a name survives another tab changing the color scheme', async ({ context, 
   await b.goto('/');
   await b.getByRole('button', { name: 'Open settings' }).first().click();
   await a.getByRole('textbox', { name: 'Your name', exact: true }).fill('Alex');
+  await b.getByRole('button', { name: 'More ways to personalize' }).click();
   await b.getByRole('button', { name: 'Rose', exact: true }).click();
   await a.reload();
   await a.getByRole('button', { name: 'Open settings' }).first().click();

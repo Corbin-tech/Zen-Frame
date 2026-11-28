@@ -52,6 +52,7 @@ test('Board empty To do column opens the new card field', async ({ page }) => {
 test('Insights empty state opens Tasks', async ({ page }) => {
   await openEmpty(page);
   await page.evaluate(() => window.dispatchEvent(new CustomEvent('change-tab', { detail: { tab: 'insights' } })));
+  await page.getByRole('button', { name: 'Details', exact: true }).click();
   await page.getByRole('button', { name: 'Open tasks', exact: true }).click();
   await expect.poll(() => page.evaluate(() => localStorage.getItem('activeTab'))).toBe('taskmanager');
 });

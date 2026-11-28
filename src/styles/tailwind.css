@@ -3,12 +3,46 @@
 @tailwind components;
 @tailwind utilities;
 
-/* A 44px hit area for small buttons, on phone widths and on any touch screen */
+/* Touch sizing. On phone widths and on any touch screen, every control offers a 44px target
+   (--touch-target). Desktop with a fine pointer keeps the compact rhythm: 32px segmented
+   choices and inline actions, 36-40px buttons, and 40px header icon buttons.
+   - .touch-target: at least 44 x 44 (icon buttons)
+   - .touch-height: at least 44 tall, width unchanged (row actions, calendar days, wide buttons)
+   - .hit-area: an invisible 44 x 44 hit area around a small control, so rows keep their height
+     (text links, round check buttons, a checkbox's wrapping label)
+   Buttons (.btn-primary, .btn-secondary), segmented choices (.segmented > button) and form
+   fields get the touch height without a class. Inline title editors (.inline-edit) sit inside a
+   row that is already the target, so they keep their height. */
+:root {
+	--touch-target: 44px;
+}
+
 @layer components {
 	@media (max-width: 639px), (pointer: coarse) {
 		.touch-target {
-			min-height: 44px;
-			min-width: 44px;
+			min-height: var(--touch-target);
+			min-width: var(--touch-target);
+		}
+		.touch-height,
+		.btn-primary,
+		.btn-secondary,
+		.segmented > button,
+		:is(main, [role="dialog"]) select,
+		:is(main, [role="dialog"]) textarea:not(.inline-edit),
+		:is(main, [role="dialog"]) input:is([type="text"], [type="search"], [type="time"], [type="date"], [type="number"], [type="email"], [type="url"]):not(.inline-edit) {
+			min-height: var(--touch-target);
+		}
+		.hit-area {
+			position: relative;
+		}
+		.hit-area::after {
+			content: "";
+			position: absolute;
+			left: 50%;
+			top: 50%;
+			width: max(100%, var(--touch-target));
+			height: max(100%, var(--touch-target));
+			transform: translate(-50%, -50%);
 		}
 	}
 }

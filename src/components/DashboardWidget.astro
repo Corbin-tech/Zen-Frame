@@ -10,7 +10,7 @@ interface Props {
 const { id } = Astro.props;
 const panel = 'panel';
 const panelTitle = 'text-base font-semibold text-gray-900 dark:text-white';
-const linkButton = 'shrink-0 whitespace-nowrap text-sm font-medium text-teal-700 dark:text-teal-400 hover:text-teal-800 dark:hover:text-teal-300 transition-colors';
+const linkButton = 'hit-area shrink-0 whitespace-nowrap text-sm font-medium text-teal-700 dark:text-teal-400 hover:text-teal-800 dark:hover:text-teal-300 transition-colors';
 const checkbox = 'w-4 h-4 shrink-0 rounded-full border-gray-300 dark:border-slate-500 text-teal-600 focus:ring-teal-500 dark:bg-slate-700 cursor-pointer';
 ---
 
@@ -58,14 +58,15 @@ const checkbox = 'w-4 h-4 shrink-0 rounded-full border-gray-300 dark:border-slat
                     </span>
                     <span x-show="block.status === 'past' && !block.completed" class="shrink-0 text-xs text-gray-500 dark:text-gray-400">Ended</span>
                     <!-- A class meeting (a cluster block) is not a to-do. Invisible keeps the rows aligned. -->
-                    <input name="block-done"
-                        type="checkbox"
-                        class={checkbox}
-                        x-bind:class="block.isCluster && 'invisible'"
-                        x-bind:checked="block.completed"
-                        x-on:change="$store.todos.toggleBlockDone(block.item, todayKey)"
-                        x-bind:aria-label="`Mark ${block.title} ${block.completed ? 'not done' : 'done'}`"
-                    />
+                    <label class="hit-area inline-flex shrink-0" x-bind:class="block.isCluster && 'invisible'">
+                        <input name="block-done"
+                            type="checkbox"
+                            class={checkbox}
+                            x-bind:checked="block.completed"
+                            x-on:change="$store.todos.toggleBlockDone(block.item, todayKey)"
+                            x-bind:aria-label="`Mark ${block.title} ${block.completed ? 'not done' : 'done'}`"
+                        />
+                    </label>
                 </li>
             </template>
         </ol>
@@ -96,14 +97,16 @@ const checkbox = 'w-4 h-4 shrink-0 rounded-full border-gray-300 dark:border-slat
             <template x-for="task in todayFocusTasks" :key="task.id">
                 <li class="flex items-center gap-3 rounded-xl bg-gray-50 dark:bg-slate-700/40 px-3 py-2.5">
                     <span class="w-2 h-2 rounded-full bg-warmth-deep dark:bg-warmth shrink-0" aria-hidden="true"></span>
-                    <input
-                        name="focus3-done"
-                        type="checkbox"
-                        class={checkbox}
-                        x-bind:checked="task.completed"
-                        x-on:change="$store.todos.toggleTodo(task.id)"
-                        x-bind:aria-label="`Mark ${task.todo} ${task.completed ? 'not done' : 'done'}`"
-                    />
+                    <label class="hit-area inline-flex shrink-0">
+                        <input
+                            name="focus3-done"
+                            type="checkbox"
+                            class={checkbox}
+                            x-bind:checked="task.completed"
+                            x-on:change="$store.todos.toggleTodo(task.id)"
+                            x-bind:aria-label="`Mark ${task.todo} ${task.completed ? 'not done' : 'done'}`"
+                        />
+                    </label>
                     <div class="min-w-0 flex-1">
                         <p class="text-sm font-medium truncate" x-bind:class="task.completed ? 'line-through text-gray-500 dark:text-gray-400' : 'text-gray-900 dark:text-white'" x-text="task.todo"></p>
                         <p x-show="task.parentId" class="text-xs text-gray-500 dark:text-gray-400 truncate" x-text="$store.todos.clusterName(task.parentId)"></p>
@@ -254,7 +257,7 @@ const checkbox = 'w-4 h-4 shrink-0 rounded-full border-gray-300 dark:border-slat
                     <button
                         type="button"
                         x-on:click="$store.pomoState.startFocus(nextTask.id); $dispatch('change-tab', { tab: 'pomodoro' })"
-                        class="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-semibold rounded-lg bg-white text-teal-800 hover:bg-teal-50 transition-colors"
+                        class="touch-height flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-semibold rounded-lg bg-white text-teal-800 hover:bg-teal-50 transition-colors"
                     >
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                         Start focus
@@ -262,19 +265,19 @@ const checkbox = 'w-4 h-4 shrink-0 rounded-full border-gray-300 dark:border-slat
                     <button
                         type="button"
                         x-on:click="$store.todos.toggleTodo(nextTask.id)"
-                        class="px-3 py-2 text-sm font-semibold rounded-lg bg-white/15 hover:bg-white/25 transition-colors"
+                        class="touch-height px-3 py-2 text-sm font-semibold rounded-lg bg-white/15 hover:bg-white/25 transition-colors"
                     >Done</button>
                 </div>
             </div>
         </template>
         <template x-if="!nextTask">
             <div>
-                <p class="editorial mt-2 text-2xl font-normal">All caught up</p>
-                <p class="mt-1 text-sm text-teal-100">Add the next thing when it comes up.</p>
+                <p class="editorial mt-2 text-2xl font-normal">A clear moment</p>
+                <p class="mt-1 text-sm text-teal-100">Nothing is asking for attention. Add the next thing when it comes up.</p>
                 <button
                     type="button"
                     x-on:click="$dispatch('open-quick-add')"
-                    class="mt-4 px-3 py-2 text-sm font-semibold rounded-lg bg-white/15 hover:bg-white/25 transition-colors"
+                    class="touch-height mt-4 px-3 py-2 text-sm font-semibold rounded-lg bg-white/15 hover:bg-white/25 transition-colors"
                 >New task</button>
             </div>
         </template>
@@ -290,12 +293,14 @@ const checkbox = 'w-4 h-4 shrink-0 rounded-full border-gray-300 dark:border-slat
         <ul class="space-y-1" x-show="deadlines.length">
             <template x-for="task in deadlines" :key="task.id">
                 <li class="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-gray-50 dark:hover:bg-slate-700/40 transition-colors">
-                    <input name="deadline-done"
-                        type="checkbox"
-                        class={checkbox}
-                        x-on:change="$store.todos.toggleTodo(task.id)"
-                        x-bind:aria-label="`Mark ${task.todo} done`"
-                    />
+                    <label class="hit-area inline-flex shrink-0">
+                        <input name="deadline-done"
+                            type="checkbox"
+                            class={checkbox}
+                            x-on:change="$store.todos.toggleTodo(task.id)"
+                            x-bind:aria-label="`Mark ${task.todo} done`"
+                        />
+                    </label>
                     <div class="min-w-0 flex-1">
                         <p class="text-sm text-gray-900 dark:text-white truncate" x-text="task.todo"></p>
                         <p x-show="task.parentId" class="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
@@ -450,27 +455,27 @@ const checkbox = 'w-4 h-4 shrink-0 rounded-full border-gray-300 dark:border-slat
     </section>
 )}
 
-{id === 'streak' && (
+{id === 'month' && (
     <section class={`${panel} p-5`}>
         <div class="flex items-center justify-between gap-3 mb-3">
-            <h2 class={panelTitle}>Streak</h2>
+            <h2 class={panelTitle}>This month</h2>
             <button type="button" class={linkButton} x-on:click="$dispatch('change-tab', { tab: 'insights' })">Insights →</button>
         </div>
-        <p class="text-3xl font-semibold tracking-tight tabular-nums text-gray-900 dark:text-white" x-text="$plural(streak.current, 'day')"></p>
-        <p class="text-sm text-gray-500 dark:text-gray-400" x-text="streak.current ? `In a row. Longest: ${$plural(streak.longest, 'day')}.` : 'Finish a task or a focus session to start one.'"></p>
-        <!-- The last 14 days: filled when something got done -->
-        <ol class="mt-4 grid grid-cols-7 gap-1.5">
-            <template x-for="day in streak.days" :key="day.date">
-                <li class="flex flex-col items-center gap-1">
-                    <span
-                        class="w-full aspect-square rounded-md"
-                        x-bind:class="[day.active ? 'bg-teal-500 dark:bg-teal-400' : 'bg-gray-100 dark:bg-slate-700/60', day.isToday ? 'ring-2 ring-offset-1 ring-teal-500/50 ring-offset-white dark:ring-offset-slate-800' : '']"
-                        x-bind:title="`${$dates.formatDate(day.date, { weekday: 'short', month: 'short', day: 'numeric' })}: ${day.active ? 'active' : 'no activity'}`"
-                    ></span>
-                    <span class="text-xs text-gray-500 dark:text-gray-400" x-text="day.label"></span>
-                </li>
-            </template>
-        </ol>
+        <dl class="grid grid-cols-3 gap-3">
+            <div class="min-w-0">
+                <dt class="text-xs text-gray-500 dark:text-gray-300">Days active</dt>
+                <dd class="mt-0.5 text-2xl font-semibold tracking-tight tabular-nums text-gray-900 dark:text-white" x-text="month.activeDays"></dd>
+            </div>
+            <div class="min-w-0">
+                <dt class="text-xs text-gray-500 dark:text-gray-300">Tasks finished</dt>
+                <dd class="mt-0.5 text-2xl font-semibold tracking-tight tabular-nums text-gray-900 dark:text-white" x-text="month.tasks"></dd>
+            </div>
+            <div class="min-w-0">
+                <dt class="text-xs text-gray-500 dark:text-gray-300">Focus moments</dt>
+                <dd class="mt-0.5 text-2xl font-semibold tracking-tight tabular-nums text-gray-900 dark:text-white" x-text="month.sessions"></dd>
+            </div>
+        </dl>
+        <p class="mt-3 text-sm text-gray-500 dark:text-gray-300" x-text="month.focusMinutes ? `${$dates.formatDuration(month.focusMinutes)} of focus in ${month.name} so far. Rest days count too.` : month.activeDays ? `Every step in ${month.name} counts, and so do rest days.` : `${month.name} is just getting started. Any small step counts.`"></p>
     </section>
 )}
 

@@ -1,0 +1,51 @@
+---
+// A show/hide section: a full-width toggle row and the content it controls. Closed by default.
+// The choice is saved under `storageKey` with saveString(), so it stays as the person left it.
+// A bubbling "reveal" event from inside the content opens it (Settings uses this for deep links).
+interface Props {
+    id: string; // The content's id, for aria-controls
+    title: string;
+    hint?: string;
+    storageKey: string;
+    class?: string; // Classes for the content wrapper
+}
+
+const { id, title, hint, storageKey, class: contentClass = '' } = Astro.props;
+---
+
+<div x-data={`disclosure('${storageKey}')`} x-on:reveal="setOpen(true)">
+    <button
+        type="button"
+        x-on:click="setOpen(!open)"
+        x-bind:aria-expanded="open"
+        aria-controls={id}
+        aria-labelledby={`${id}-title`}
+        aria-describedby={hint ? `${id}-hint` : undefined}
+        class="panel touch-height w-full flex items-center justify-between gap-4 px-4 py-3 text-left hover:ring-gray-900/[0.14] dark:hover:ring-white/[0.16] focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 transition-shadow"
+    >
+        <span class="min-w-0">
+            <span id={`${id}-title`} class="block text-base font-semibold text-gray-900 dark:text-white">{title}</span>
+            {hint && <span id={`${id}-hint`} class="block mt-0.5 text-sm text-gray-500 dark:text-gray-400">{hint}</span>}
+        </span>
+        <svg class="w-5 h-5 shrink-0 text-gray-500 dark:text-gray-400 transition-transform duration-200" x-bind:class="open && 'rotate-180'" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+    </button>
+    <div id={id} x-show="open" x-cloak class={contentClass}>
+        <slot />
+    </div>
+</div>
+
+<script>
+    import { loadString, saveString } from '../lib/storage';
+
+    document.addEventListener('alpine:init', () => {
+        window.Alpine.data('disclosure', (storageKey: string) => ({
+            open: loadString(storageKey) === 'open',
+
+            setOpen(value: boolean) {
+                if (this.open === value) return;
+                this.open = value;
+                saveString(storageKey, value ? 'open' : 'closed');
+            }
+        }));
+    });
+</script>

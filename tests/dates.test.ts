@@ -5,8 +5,8 @@ const TODAY = "2026-11-20";
 
 describe("due date helpers", () => {
   test.each([
-    [-2, "overdue", "2 days past due"],
-    [-1, "overdue", "1 day past due"],
+    [-2, "overdue", "Carried over"],
+    [-1, "overdue", "Carried over"],
     [0, "today", "Today"],
     [1, "soon", "Tomorrow"],
     [3, "soon", "In 3 days"],
@@ -37,5 +37,17 @@ describe("due date helpers", () => {
       "bg-gray-100 text-gray-600 dark:bg-slate-700 dark:text-gray-300"
     );
     expect(dates.dueClass(pastDue, true, TODAY)).toBe(dates.dueClass(later, false, TODAY));
+  });
+});
+
+describe("carried-over wording", () => {
+  test("earlier due dates read as carried over in labels and sentences, never past due", () => {
+    for (const offset of [-1, -2, -30]) {
+      const key = dates.addDays(TODAY, offset);
+      expect(dates.dueLabel(key, TODAY)).toBe("Carried over");
+      expect(dates.dueText(key, TODAY)).toBe(`Carried over from ${dates.formatDate(key)}`);
+      expect(`${dates.dueLabel(key, TODAY)} ${dates.dueText(key, TODAY)}`).not.toMatch(/past due|overdue|late|\d+ days?/i);
+    }
+    expect(dates.dueText(TODAY, TODAY)).toBe("due today");
   });
 });

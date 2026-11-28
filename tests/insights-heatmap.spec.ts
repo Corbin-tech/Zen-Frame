@@ -11,6 +11,7 @@ for (const populated of [true, false]) {
       localStorage.setItem('pomoSessions', JSON.stringify(populated ? [{ completedAt: '2026-06-16T12:00:00.000Z', minutes: 25 }] : []));
     }, populated);
     await page.goto('/');
+    await page.getByRole('button', { name: 'Details', exact: true }).click();
     const card = (name: string) => page.locator('section').filter({ has: page.getByRole('heading', { name, exact: true }) });
     await expect(page.getByRole('list', { name: 'Activity per day for the last 26 weeks' }).getByRole('listitem')).toHaveCount(179);
     const activity = await card('Activity').boundingBox();
@@ -41,13 +42,15 @@ for (const populated of [true, false]) {
     }, populated);
     await page.goto('/');
     await openView(page, 'insights');
+    const details = page.getByRole('button', { name: 'Details', exact: true });
+    await details.click();
     const heatmap = page.getByRole('list', { name: 'Activity per day for the last 26 weeks' });
     const days = heatmap.getByRole('listitem');
     await expect(days).toHaveCount(179);
     await expect(heatmap.locator('[tabindex="0"]')).toHaveCount(1);
     await expect(heatmap.locator('[tabindex="-1"]')).toHaveCount(181);
-    const before = page.getByRole('button', { name: /^Play / });
-    await before.focus();
+    // The heatmap is the first stop inside Details
+    await details.focus();
     await page.keyboard.press('Tab');
     await expect(days.last()).toBeFocused();
     await expect(days.last()).toHaveAttribute('aria-label', 'Jun 17: No activity');
@@ -95,6 +98,7 @@ test('activity heatmap tooltip stays inside its card and viewport', async ({ pag
     ]));
   });
   await page.goto('/');
+  await page.getByRole('button', { name: 'Details', exact: true }).click();
 
   const activityCard = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Activity', exact: true }) });
   const days = activityCard.getByRole('list', { name: 'Activity per day for the last 26 weeks' }).getByRole('listitem');

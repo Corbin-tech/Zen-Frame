@@ -23,7 +23,7 @@ for (const populated of [true, false]) {
     const dashboard = page.locator('[x-data="dashboard"]:visible');
     const details = dashboard.locator('[x-text="tile.detail"]');
     await expect(details).toHaveCount(4);
-    await expect(details.last()).toHaveText('0 sessions in the last 7 days');
+    await expect(details.last()).toHaveText('Ready when you are');
     await expect(details.nth(2)).toHaveText(populated
       ? 'Next: Review quarterlyproductstrategyfinalv2.pdf with the design team at 3:00 PM'
       : 'No blocks yet');

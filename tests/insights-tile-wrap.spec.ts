@@ -40,15 +40,15 @@ for (const populated of [true, false]) {
     await expect(tiles).toHaveCount(4);
     await expect(details).toHaveCount(4);
     if (populated) {
-      await expect(details.nth(0)).toHaveText('Up 100% vs. prior 30 days');
-      await expect(details.nth(1)).toHaveText('Up 200% vs. prior 30 days');
-      await expect(details.nth(2)).toHaveText('Longest ever: 2 days');
-      await expect(details.nth(3)).toHaveText('Of tasks with a due date');
+      await expect(details.nth(0)).toHaveText('100% more than the 30 days before');
+      await expect(details.nth(1)).toHaveText('200% more than the 30 days before');
+      await expect(details.nth(2)).toHaveText('With a finished task or focus');
+      await expect(details.nth(3)).toHaveText('About 38m each');
     } else {
-      await expect(details.nth(0)).toHaveText('Nothing yet');
-      await expect(details.nth(1)).toHaveText('Nothing yet');
-      await expect(details.nth(2)).toHaveText('Longest ever: 0 days');
-      await expect(details.nth(3)).toHaveText('No due dates in this range');
+      await expect(details.nth(0)).toHaveText('Quiet so far');
+      await expect(details.nth(1)).toHaveText('Quiet so far');
+      await expect(details.nth(2)).toHaveText('Any small step counts');
+      await expect(details.nth(3)).toHaveText('Start one from Timer');
     }
 
     for (const width of [320, 390]) {

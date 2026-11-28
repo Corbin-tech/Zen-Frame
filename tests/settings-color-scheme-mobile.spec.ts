@@ -7,6 +7,7 @@ for (const width of [320, 390, 1280]) {
 
     await page.getByRole('button', { name: 'Open settings' }).first().click();
     const panel = page.getByRole('dialog', { name: 'Settings' });
+    await panel.getByRole('button', { name: 'More ways to personalize' }).click();
     const group = panel.getByRole('group', { name: 'Color scheme' });
     await expect(group).toBeVisible();
     await expect
