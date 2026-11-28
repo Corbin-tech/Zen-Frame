@@ -163,6 +163,7 @@ const checkbox = 'w-4 h-4 shrink-0 rounded-full border-gray-300 dark:border-slat
     import { estimateLabel } from '../lib/estimates';
     import { QUOTES } from '../lib/quotes';
     import { formatMonth, monthOf, monthRange, summarize } from '../lib/insights';
+    import { plural } from '../lib/plural';
     import { DASHBOARD_WIDGETS } from '../stores/settingsStore';
 
     const ICONS = {
@@ -370,7 +371,7 @@ const checkbox = 'w-4 h-4 shrink-0 rounded-full border-gray-300 dark:border-slat
                     {
                         label: 'Done today',
                         value: this.completedToday,
-                        detail: `${this.weekTotal} in the last 7 days`,
+                        detail: this.weekTotal ? `${this.weekTotal} this past week` : 'Small steps count',
                         icon: ICONS.done,
                         tab: 'taskmanager',
                         tabLabel: 'Tasks'
@@ -386,7 +387,7 @@ const checkbox = 'w-4 h-4 shrink-0 rounded-full border-gray-300 dark:border-slat
                     {
                         label: 'Focus today',
                         value: dates.formatDuration(this.focusMinutesToday),
-                        detail: `${sessions} ${sessions === 1 ? 'session' : 'sessions'} in the last 7 days`,
+                        detail: sessions ? `${plural(sessions, 'session')} this past week` : 'Ready when you are',
                         icon: ICONS.focus,
                         tab: 'pomodoro',
                         tabLabel: 'Timer'

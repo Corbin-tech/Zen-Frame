@@ -36,7 +36,7 @@ test('disabled notification controls are skipped in tab order while reminders ar
     panel.locator('#settings-notify-timer'),
     panel.getByRole('button', { name: 'Send a test reminder' }),
   ];
-  const nextControl = panel.getByRole('group', { name: 'Timer style' }).getByRole('button').first();
+  const nextControl = panel.locator('#settings-auto-break');
 
   await expect(master).not.toBeChecked();
   for (const control of subControls) {

@@ -14,6 +14,7 @@ test('single completion uses singular count labels across views', async ({ page 
   });
   await page.goto('/');
   await openView(page, 'insights');
+  await page.getByRole('button', { name: 'Details', exact: true }).click();
   await expect(page.getByText('Last 26 weeks · 1 active day', { exact: true })).toBeVisible();
   await expect(page.getByText('1 task in the last 30 days', { exact: true })).toBeVisible();
   await openView(page, 'dashboard');

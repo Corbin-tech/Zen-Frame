@@ -45,8 +45,8 @@ for (const populated of [true, false]) {
       await expect(details.nth(2)).toHaveText('With a finished task or focus');
       await expect(details.nth(3)).toHaveText('About 38m each');
     } else {
-      await expect(details.nth(0)).toHaveText('Nothing logged yet');
-      await expect(details.nth(1)).toHaveText('Nothing logged yet');
+      await expect(details.nth(0)).toHaveText('Quiet so far');
+      await expect(details.nth(1)).toHaveText('Quiet so far');
       await expect(details.nth(2)).toHaveText('Any small step counts');
       await expect(details.nth(3)).toHaveText('Start one from Timer');
     }

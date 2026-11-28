@@ -1,7 +1,10 @@
 ---
 // Settings: a panel that slides in from the right. Open it with the "open-settings" window event.
-// { section: "zen" } in the event's detail scrolls to that section (see data-settings-section).
+// { section: "zen" } in the event's detail scrolls to that section (see data-settings-section),
+// opening "More ways to personalize" first when the section sits inside it.
 // Every change saves right away through $store.settings.
+import Disclosure from './Disclosure.astro';
+
 const section = 'space-y-3';
 const sectionTitle = 'text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400';
 const label = 'block text-sm font-medium text-gray-900 dark:text-white';
@@ -15,7 +18,7 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
     x-data="settingsPanel"
     x-init="$watch('open', value => window.dispatchEvent(new CustomEvent('settings-panel', { detail: { open: value } })))"
     x-on:overlay-opened.window="if (open && $event.detail.name !== 'settings') { $event.detail.opener = returnFocus; close(false); }"
-    x-on:open-settings.window="if (!open) { const opened = { name: 'settings' }; window.dispatchEvent(new CustomEvent('overlay-opened', { detail: opened })); returnFocus = opened.opener || document.activeElement; } open = true; const section = $event.detail?.section; $nextTick(() => { $refs.close.focus(); if (section && /^[a-z0-9-]+$/i.test(section)) $el.querySelector(`[data-settings-section='${section}']`)?.scrollIntoView({ block: 'start' }); })"
+    x-on:open-settings.window="if (!open) { const opened = { name: 'settings' }; window.dispatchEvent(new CustomEvent('overlay-opened', { detail: opened })); returnFocus = opened.opener || document.activeElement; } open = true; const section = $event.detail?.section; const target = section && /^[a-z0-9-]+$/i.test(section) ? $el.querySelector(`[data-settings-section='${section}']`) : null; target?.dispatchEvent(new CustomEvent('reveal', { bubbles: true })); $nextTick(() => { $refs.close.focus(); target?.scrollIntoView({ block: 'start' }); })"
     x-on:keydown.escape.window="if (open) close()"
     x-on:keydown.tab.window="if (open) trap($event)"
 >
@@ -103,43 +106,6 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
                 </div>
 
                 <div>
-                    <p class={`${label} mb-2`}>Navigation</p>
-                    <div class={segmented} role="group" aria-label="Navigation">
-                        <template x-for="layout in $store.settings.navLayouts" :key="layout.id">
-                            <button
-                                type="button"
-                                x-on:click="$store.settings.update({ navLayout: layout.id })"
-                                class={segment}
-                                x-bind:class={`$store.settings.navLayout === layout.id ? '${segmentOn}' : '${segmentOff}'`}
-                                x-bind:aria-pressed="$store.settings.navLayout === layout.id"
-                                x-text="layout.label"
-                            ></button>
-                        </template>
-                    </div>
-                    <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">The sidebar shows on wide screens. Phones and small windows keep the top bar.</p>
-                </div>
-
-                <div>
-                    <p class={`${label} mb-2`}>Color scheme</p>
-                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2" role="group" aria-label="Color scheme">
-                        <template x-for="accent in $store.settings.accents" :key="accent.id">
-                            <button
-                                type="button"
-                                x-on:click="$store.settings.update({ accent: accent.id })"
-                                class="touch-height flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium ring-1 transition-all"
-                                x-bind:class="$store.settings.accent === accent.id
-                                    ? 'ring-2 ring-teal-500 bg-teal-50 text-gray-900 dark:bg-teal-900/30 dark:text-white'
-                                    : 'ring-black/10 text-gray-600 hover:ring-black/20 dark:ring-white/10 dark:text-gray-300 dark:hover:ring-white/20'"
-                                x-bind:aria-pressed="$store.settings.accent === accent.id"
-                            >
-                                <span class="w-4 h-4 rounded-full shrink-0 ring-2 ring-white dark:ring-slate-900 shadow" x-bind:style="`background-color: ${accent.swatch};`"></span>
-                                <span x-text="accent.label"></span>
-                            </button>
-                        </template>
-                    </div>
-                </div>
-
-                <div>
                     <p class={`${label} mb-2`}>Font</p>
                     <div class="grid grid-cols-4 gap-2" role="group" aria-label="Font">
                         <template x-for="font in $store.settings.fonts" :key="font.id">
@@ -174,7 +140,129 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
                         </template>
                     </div>
                 </div>
+
+                <div>
+                    <p class={`${label} mb-2`}>Navigation</p>
+                    <div class={segmented} role="group" aria-label="Navigation">
+                        <template x-for="layout in $store.settings.navLayouts" :key="layout.id">
+                            <button
+                                type="button"
+                                x-on:click="$store.settings.update({ navLayout: layout.id })"
+                                class={segment}
+                                x-bind:class={`$store.settings.navLayout === layout.id ? '${segmentOn}' : '${segmentOff}'`}
+                                x-bind:aria-pressed="$store.settings.navLayout === layout.id"
+                                x-text="layout.label"
+                            ></button>
+                        </template>
+                    </div>
+                    <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">The sidebar shows on wide screens. Phones and small windows keep the top bar.</p>
+                </div>
             </section>
+
+            <!-- The playful extras, folded away so the first screen stays short -->
+            <Disclosure
+                id="settings-more"
+                title="More ways to personalize"
+                hint="Color schemes, Next step backgrounds, timer styles and confetti."
+                storageKey="settingsMore"
+                class="mt-4 space-y-5"
+            >
+                <div>
+                    <p class={`${label} mb-2`}>Color scheme</p>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2" role="group" aria-label="Color scheme">
+                        <template x-for="accent in $store.settings.accents" :key="accent.id">
+                            <button
+                                type="button"
+                                x-on:click="$store.settings.update({ accent: accent.id })"
+                                class="touch-height flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium ring-1 transition-all"
+                                x-bind:class="$store.settings.accent === accent.id
+                                    ? 'ring-2 ring-teal-500 bg-teal-50 text-gray-900 dark:bg-teal-900/30 dark:text-white'
+                                    : 'ring-black/10 text-gray-600 hover:ring-black/20 dark:ring-white/10 dark:text-gray-300 dark:hover:ring-white/20'"
+                                x-bind:aria-pressed="$store.settings.accent === accent.id"
+                            >
+                                <span class="w-4 h-4 rounded-full shrink-0 ring-2 ring-white dark:ring-slate-900 shadow" x-bind:style="`background-color: ${accent.swatch};`"></span>
+                                <span x-text="accent.label"></span>
+                            </button>
+                        </template>
+                    </div>
+                </div>
+                <div>
+                    <p class={`${label} mb-2`}>Next step background</p>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2" role="group" aria-label="Next step background">
+                        <template x-for="background in $store.settings.zenBackgrounds" :key="background.id">
+                            <button
+                                type="button"
+                                x-on:click="$store.settings.update({ zenBackground: background.id })"
+                                class="flex flex-col items-start px-3 py-2 rounded-xl text-left ring-1 transition-all"
+                                x-bind:class="$store.settings.zenBackground === background.id
+                                    ? 'ring-2 ring-teal-500 bg-teal-50 text-gray-900 dark:bg-teal-900/30 dark:text-white'
+                                    : 'ring-black/10 text-gray-600 hover:ring-black/20 dark:ring-white/10 dark:text-gray-300 dark:hover:ring-white/20'"
+                                x-bind:aria-pressed="$store.settings.zenBackground === background.id"
+                            >
+                                <span class="text-sm font-medium" x-text="background.label"></span>
+                                <span class="text-xs text-gray-500 dark:text-gray-400" x-text="background.hint"></span>
+                            </button>
+                        </template>
+                    </div>
+                </div>
+                <div class="scroll-mt-6" data-settings-section="timer-style">
+                    <p class={`${label} mb-2`}>Timer style</p>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2" role="group" aria-label="Timer style">
+                        <template x-for="style in $store.settings.timerStyles" :key="style.id">
+                            <button
+                                type="button"
+                                x-on:click="$store.settings.update({ timerStyle: style.id })"
+                                class="flex flex-col items-start px-3 py-2 rounded-xl text-left ring-1 transition-all"
+                                x-bind:class="$store.settings.timerStyle === style.id
+                                    ? 'ring-2 ring-teal-500 bg-teal-50 text-gray-900 dark:bg-teal-900/30 dark:text-white'
+                                    : 'ring-black/10 text-gray-600 hover:ring-black/20 dark:ring-white/10 dark:text-gray-300 dark:hover:ring-white/20'"
+                                x-bind:aria-pressed="$store.settings.timerStyle === style.id"
+                            >
+                                <span class="text-sm font-medium" x-text="style.label"></span>
+                                <span class="text-xs text-gray-500 dark:text-gray-400" x-text="style.hint"></span>
+                            </button>
+                        </template>
+                    </div>
+                </div>
+                <div class="space-y-3">
+                    <label for="settings-confetti" class="flex items-start justify-between gap-4 cursor-pointer">
+                        <span>
+                            <span class={label}>Confetti</span>
+                            <span class="block text-xs text-gray-500 dark:text-gray-400">A burst in your color scheme when you finish a task in Next step. Off when your device asks for reduced motion.</span>
+                        </span>
+                        <span class="relative shrink-0 mt-0.5">
+                            <input
+                                id="settings-confetti"
+                                name="settings-confetti"
+                                type="checkbox"
+                                role="switch"
+                                class="peer sr-only"
+                                x-bind:checked="$store.settings.confetti"
+                                x-on:change="$store.settings.update({ confetti: $event.target.checked })"
+                            />
+                            <span class="block w-11 h-6 rounded-full bg-gray-200 dark:bg-slate-700 peer-checked:bg-teal-600 peer-focus-visible:ring-2 peer-focus-visible:ring-teal-500 peer-focus-visible:ring-offset-2 transition-colors"></span>
+                            <span class="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-5"></span>
+                        </span>
+                    </label>
+                    <div x-bind:class="!$store.settings.confetti && 'opacity-50 pointer-events-none'">
+                        <p class={`${label} mb-2`}>Confetti after</p>
+                        <div class={segmented} role="group" aria-label="Confetti after">
+                            <template x-for="trigger in $store.settings.confettiTriggers" :key="trigger.id">
+                                <button
+                                    type="button"
+                                    x-on:click="$store.settings.update({ confettiTrigger: trigger.id })"
+                                    class={segment}
+                                    x-bind:class={`$store.settings.confettiTrigger === trigger.id ? '${segmentOn}' : '${segmentOff}'`}
+                                    x-bind:aria-pressed="$store.settings.confettiTrigger === trigger.id"
+                                    x-bind:disabled="!$store.settings.confetti"
+                                    x-text="trigger.label"
+                                ></button>
+                            </template>
+                        </div>
+                        <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">A cluster counts as finished when its last open task is done. Tasks outside a cluster count as one group.</p>
+                    </div>
+                </div>
+            </Disclosure>
 
             <!-- Next step (data-settings-section="zen" kept stable for existing store and event keys). -->
             <section class={`${section} scroll-mt-6`} data-settings-section="zen">
@@ -199,61 +287,6 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
                         </span>
                     </label>
                 </template>
-                <label for="settings-confetti" class="flex items-start justify-between gap-4 cursor-pointer">
-                    <span>
-                        <span class={label}>Confetti</span>
-                        <span class="block text-xs text-gray-500 dark:text-gray-400">A burst in your color scheme when you finish a task here. Off when your device asks for reduced motion.</span>
-                    </span>
-                    <span class="relative shrink-0 mt-0.5">
-                        <input
-                            id="settings-confetti"
-                            name="settings-confetti"
-                            type="checkbox"
-                            role="switch"
-                            class="peer sr-only"
-                            x-bind:checked="$store.settings.confetti"
-                            x-on:change="$store.settings.update({ confetti: $event.target.checked })"
-                        />
-                        <span class="block w-11 h-6 rounded-full bg-gray-200 dark:bg-slate-700 peer-checked:bg-teal-600 peer-focus-visible:ring-2 peer-focus-visible:ring-teal-500 peer-focus-visible:ring-offset-2 transition-colors"></span>
-                        <span class="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-5"></span>
-                    </span>
-                </label>
-                <div x-bind:class="!$store.settings.confetti && 'opacity-50 pointer-events-none'">
-                    <p class={`${label} mb-2`}>Confetti after</p>
-                    <div class={segmented} role="group" aria-label="Confetti after">
-                        <template x-for="trigger in $store.settings.confettiTriggers" :key="trigger.id">
-                            <button
-                                type="button"
-                                x-on:click="$store.settings.update({ confettiTrigger: trigger.id })"
-                                class={segment}
-                                x-bind:class={`$store.settings.confettiTrigger === trigger.id ? '${segmentOn}' : '${segmentOff}'`}
-                                x-bind:aria-pressed="$store.settings.confettiTrigger === trigger.id"
-                                x-bind:disabled="!$store.settings.confetti"
-                                x-text="trigger.label"
-                            ></button>
-                        </template>
-                    </div>
-                    <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">A cluster counts as finished when its last open task is done. Tasks outside a cluster count as one group.</p>
-                </div>
-                <div>
-                    <p class={`${label} mb-2`}>Background</p>
-                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2" role="group" aria-label="Next step background">
-                        <template x-for="background in $store.settings.zenBackgrounds" :key="background.id">
-                            <button
-                                type="button"
-                                x-on:click="$store.settings.update({ zenBackground: background.id })"
-                                class="flex flex-col items-start px-3 py-2 rounded-xl text-left ring-1 transition-all"
-                                x-bind:class="$store.settings.zenBackground === background.id
-                                    ? 'ring-2 ring-teal-500 bg-teal-50 text-gray-900 dark:bg-teal-900/30 dark:text-white'
-                                    : 'ring-black/10 text-gray-600 hover:ring-black/20 dark:ring-white/10 dark:text-gray-300 dark:hover:ring-white/20'"
-                                x-bind:aria-pressed="$store.settings.zenBackground === background.id"
-                            >
-                                <span class="text-sm font-medium" x-text="background.label"></span>
-                                <span class="text-xs text-gray-500 dark:text-gray-400" x-text="background.hint"></span>
-                            </button>
-                        </template>
-                    </div>
-                </div>
             </section>
 
             <!-- Notifications -->
@@ -515,27 +548,6 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
             <!-- Timer -->
             <section class={`${section} scroll-mt-6`} data-settings-section="timer">
                 <h3 class={sectionTitle}>Timer</h3>
-
-                <div>
-                    <p class={`${label} mb-2`}>Timer style</p>
-                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2" role="group" aria-label="Timer style">
-                        <template x-for="style in $store.settings.timerStyles" :key="style.id">
-                            <button
-                                type="button"
-                                x-on:click="$store.settings.update({ timerStyle: style.id })"
-                                class="flex flex-col items-start px-3 py-2 rounded-xl text-left ring-1 transition-all"
-                                x-bind:class="$store.settings.timerStyle === style.id
-                                    ? 'ring-2 ring-teal-500 bg-teal-50 text-gray-900 dark:bg-teal-900/30 dark:text-white'
-                                    : 'ring-black/10 text-gray-600 hover:ring-black/20 dark:ring-white/10 dark:text-gray-300 dark:hover:ring-white/20'"
-                                x-bind:aria-pressed="$store.settings.timerStyle === style.id"
-                            >
-                                <span class="text-sm font-medium" x-text="style.label"></span>
-                                <span class="text-xs text-gray-500 dark:text-gray-400" x-text="style.hint"></span>
-                            </button>
-                        </template>
-                    </div>
-                </div>
-
                 <label for="settings-auto-break" class="flex items-start justify-between gap-4 cursor-pointer">
                     <span>
                         <span class={label}>Start breaks automatically</span>

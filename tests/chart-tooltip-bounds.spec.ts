@@ -27,6 +27,8 @@ test('Insights BarChart tooltips stay inside their card and viewport', async ({ 
     localStorage.setItem('pomoSessions', JSON.stringify(pomos));
   }, { todos: SEED_TODOS, pomos: SEED_POMOS });
   await page.goto('/');
+  await page.getByRole('button', { name: 'Details', exact: true }).click();
+  await expect(page.locator('#insights-details')).toBeVisible();
 
   const charts = [
     { cardHeading: 'Tasks completed', listLabel: 'Tasks completed per period' },

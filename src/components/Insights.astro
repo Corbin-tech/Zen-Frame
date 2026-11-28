@@ -1,5 +1,6 @@
 ---
 import BarChart from './BarChart.astro';
+import Disclosure from './Disclosure.astro';
 import Recap from './Recap.astro';
 import data from '../data/site.json';
 
@@ -8,6 +9,7 @@ const recapName = data.recapName;
 
 const panel = 'panel';
 const panelTitle = 'text-base font-semibold text-gray-900 dark:text-white';
+const caption = 'text-xs text-gray-500 dark:text-gray-400';
 const segmented = 'segmented inline-flex flex-wrap p-1 rounded-xl bg-gray-900/[0.04] dark:bg-white/[0.06] ring-1 ring-black/5 dark:ring-white/10';
 const segment = 'px-3 py-1.5 rounded-lg text-sm font-medium transition-all';
 const segmentOn = 'bg-white text-gray-900 shadow-sm ring-1 ring-black/5 dark:bg-white/[0.14] dark:text-white dark:ring-white/10';
@@ -15,33 +17,20 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
 ---
 
 <div x-data="insights" x-effect="compute()" class="space-y-6">
-    <header class="flex flex-wrap items-end justify-between gap-4">
-        <div>
-            <p class="eyebrow">Insights</p>
-            <h1 class="page-title">How you've been doing</h1>
-            <p class="mt-1 text-gray-500 dark:text-gray-400">Finished tasks and focus time. Clearing completed tasks keeps their history here.</p>
-        </div>
-        <div class={segmented} role="group" aria-label="Time range">
-            <template x-for="option in ranges" :key="option.id">
-                <button
-                    type="button"
-                    x-on:click="setRange(option.id)"
-                    class={segment}
-                    x-bind:class={`range === option.id ? '${segmentOn}' : '${segmentOff}'`}
-                    x-bind:aria-pressed="range === option.id"
-                    x-text="option.label"
-                ></button>
-            </template>
-        </div>
+    <header>
+        <p class="eyebrow">Insights</p>
+        <h1 class="page-title">How you've been doing</h1>
+        <p class="mt-1 text-gray-500 dark:text-gray-400">A quiet look back at what you finished and the time you spent in focus.</p>
     </header>
 
-    <!-- Monthly recap banner: shown until the chosen month's story has been watched to the end -->
+    <!-- The lead: this month's reflection. A teal banner until the chosen month's story has been
+         watched to the end, then a quieter card with the same summary. -->
     <section x-show="!recapSeen" class="relative overflow-hidden isolate rounded-2xl p-5 sm:p-6 text-white ring-1 ring-inset ring-white/10 bg-teal-800 dark:bg-teal-900">
         <span class="ripples text-white" aria-hidden="true"></span>
         <div class="flex flex-wrap items-center justify-between gap-4">
-            <div>
+            <div class="min-w-0">
                 <p class="text-sm font-medium text-white/75">Monthly {recapName}</p>
-                <p class="editorial mt-1 text-2xl sm:text-3xl font-normal tracking-tight" x-text="`Your ${recapMonthName} in review`"></p>
+                <h2 class="editorial mt-1 text-2xl sm:text-3xl font-normal tracking-tight" x-text="`Your ${recapMonthName} in review`"></h2>
                 <p class="mt-1 text-sm text-white/80" x-text="recapTeaser"></p>
             </div>
             <div class="flex flex-wrap items-center gap-2">
@@ -67,160 +56,189 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
         </div>
     </section>
 
-    <!-- Once watched, the banner shrinks to one row. Picking a month that hasn't been watched brings it back. -->
-    <section x-show="recapSeen" x-cloak class={`${panel} flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5`}>
-        <span class="grid place-items-center w-8 h-8 shrink-0 rounded-lg text-white bg-teal-700 dark:bg-teal-600" aria-hidden="true">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></svg>
-        </span>
-        <p class="flex-1 min-w-0 text-sm">
-            <span class="font-semibold text-gray-900 dark:text-white" x-text={`\`\${recapMonthName} ${recapName}\``}></span>
-            <span class="ml-1 text-gray-500 dark:text-gray-400" x-text="`· Watched${recapCounts ? ` · ${recapCounts}` : ''}`"></span>
-        </p>
-        <select
-            name="insights-recap-month"
-            x-model="recapMonth"
-            aria-label="Month"
-            class="rounded-lg border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-800 dark:text-white text-sm py-1.5 focus:border-teal-500 focus:ring-teal-500"
-        >
-            <template x-for="month in months" :key="month.id">
-                <option x-bind:value="month.id" x-text="month.label" x-bind:selected="month.id === recapMonth"></option>
-            </template>
-        </select>
-        <button
-            type="button"
-            x-on:click="$dispatch('open-recap', { month: recapMonth })"
-            class="touch-height inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-slate-700 dark:text-gray-200 dark:hover:bg-slate-600 transition-colors"
-        >
-            <svg class="w-4 h-4" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" stroke="none" d="M8 5.14v13.72a1 1 0 001.5.86l11-6.86a1 1 0 000-1.72l-11-6.86A1 1 0 008 5.14z" /></svg>
-            Replay
-        </button>
+    <!-- Once watched, the banner turns into a quiet card. Picking a month that hasn't been watched brings it back. -->
+    <section x-show="recapSeen" x-cloak class={`${panel} relative overflow-hidden isolate p-5 sm:p-6`}>
+        <span class="ripples text-teal-700 dark:text-teal-400" aria-hidden="true"></span>
+        <div class="flex flex-wrap items-center justify-between gap-4">
+            <div class="min-w-0">
+                <p class="eyebrow">Monthly {recapName} · Watched</p>
+                <h2 class="editorial mt-1 text-2xl sm:text-3xl font-normal tracking-tight text-gray-900 dark:text-white" x-text="`Your ${recapMonthName} in review`"></h2>
+                <p class="mt-1 text-sm text-gray-600 dark:text-gray-300" x-text="recapReflection"></p>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+                <select
+                    name="insights-recap-month"
+                    x-model="recapMonth"
+                    aria-label="Month"
+                    class="rounded-lg border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-800 dark:text-white text-sm py-2 focus:border-teal-500 focus:ring-teal-500"
+                >
+                    <template x-for="month in months" :key="month.id">
+                        <option x-bind:value="month.id" x-text="month.label" x-bind:selected="month.id === recapMonth"></option>
+                    </template>
+                </select>
+                <button type="button" x-on:click="$dispatch('open-recap', { month: recapMonth })" class="btn-secondary">
+                    <svg class="w-4 h-4" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" stroke="none" d="M8 5.14v13.72a1 1 0 001.5.86l11-6.86a1 1 0 000-1.72l-11-6.86A1 1 0 008 5.14z" /></svg>
+                    Replay
+                </button>
+            </div>
+        </div>
     </section>
 
-    <!-- Key numbers -->
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <template x-for="tile in view.tiles" :key="tile.label">
-            <div class={`${panel} p-4 max-sm:min-w-0`}>
-                <p class="text-sm font-medium text-gray-500 dark:text-gray-400" x-text="tile.label"></p>
-                <p class="mt-2 text-3xl font-semibold tracking-tight tabular-nums text-gray-900 dark:text-white" x-text="tile.value"></p>
-                <p class="mt-1 flex max-sm:items-start sm:items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
-                    <!-- Up or down against the previous period: an arrow and words, not color alone -->
-                    <svg x-show="tile.trend" class="w-3.5 h-3.5 shrink-0 max-sm:mt-px" x-bind:class="tile.trend === 'up' ? 'text-teal-600 dark:text-teal-400' : 'text-gray-500 dark:text-gray-400 rotate-180'" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 15l7-7 7 7" /></svg>
-                    <span class="min-w-0 break-words sm:truncate" x-text="tile.detail"></span>
-                </p>
-            </div>
-        </template>
-    </div>
-
-    <div class="grid gap-6 lg:grid-cols-3">
-        <!-- Activity calendar -->
-        <section class={`${panel} p-5 flex flex-col`}>
-            <div class="flex flex-wrap items-baseline justify-between gap-2 mb-4">
-                <div>
-                    <h2 class={panelTitle}>Activity</h2>
-                    <p class="text-sm text-gray-500 dark:text-gray-400" x-text="`Last 26 weeks · ${$plural(view.heatmapActiveDays, 'active day')}`"></p>
-                </div>
-                <div class="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400" aria-hidden="true">
-                    Less
-                    <template x-for="level in [0, 1, 2, 3, 4]" :key="level">
-                        <span class="w-3 h-3 rounded-[3px]" x-bind:class="levelClass(level)"></span>
-                    </template>
-                    More
-                </div>
-            </div>
-            <p id="activity-keyboard-help" class="sr-only">Use arrow keys to move between days, or Home and End to move to the first and last day.</p>
-            <div class="relative w-full my-auto" x-data="{
-                hovered: null,
-                activeDate: $dates.toDateKey(),
-                moveDay(event) {
-                    const days = [...event.currentTarget.querySelectorAll('[role=listitem]')];
-                    const index = days.indexOf(event.target);
-                    const offsets = { ArrowUp: -1, ArrowDown: 1, ArrowLeft: -7, ArrowRight: 7 };
-                    if (index === -1 || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || !(event.key in offsets || event.key === 'Home' || event.key === 'End')) return;
-                    event.preventDefault();
-                    const next = event.key === 'Home' ? 0 : event.key === 'End' ? days.length - 1 : Math.max(0, Math.min(days.length - 1, index + offsets[event.key]));
-                    days[next].focus();
-                }
-            }" x-on:mouseleave="hovered = null">
-                <div
-                    x-show="hovered"
-                    x-cloak
-                    class="absolute z-10 px-2.5 py-1.5 rounded-lg bg-gray-900 dark:bg-slate-950 text-white text-xs shadow-lg pointer-events-none whitespace-nowrap"
-                    x-bind:style="hovered ? `left: ${(hovered.column + 0.5) / 26 * 100}%; top: ${hovered.row / 7 * 100}%; transform: translate(${-(hovered.column + 0.5) / 26 * 100}%, -100%);` : ''"
-                >
-                    <p class="font-semibold" x-text="hovered?.summary"></p>
-                    <p class="text-gray-300" x-text="hovered ? $dates.formatDate(hovered.date, { weekday: 'short', month: 'short', day: 'numeric' }) : ''"></p>
-                </div>
-                <div class="grid grid-rows-7 grid-flow-col auto-cols-fr gap-[3px]" role="list" aria-label="Activity per day for the last 26 weeks" aria-describedby="activity-keyboard-help" x-on:keydown="moveDay($event)">
-                    <template x-for="cell in view.heatmap" :key="cell.date">
-                        <div
-                            class="aspect-square rounded-[3px] focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
-                            x-bind:class="cell.future ? 'invisible' : levelClass(cell.level)"
-                            x-bind:role="cell.future ? null : 'listitem'"
-                            x-bind:tabindex="!cell.future && cell.date === activeDate ? 0 : -1"
-                            x-bind:aria-label="cell.future ? null : `${$dates.formatDate(cell.date, { month: 'short', day: 'numeric' })}: ${cell.summary}`"
-                            x-on:mouseenter="!cell.future && (hovered = cell)"
-                            x-on:focus="activeDate = cell.date; hovered = cell"
-                            x-on:blur="hovered = null"
-                        ></div>
-                    </template>
-                </div>
-            </div>
-        </section>
-
-        <section class={`${panel} p-5`}>
-            <div class="flex items-baseline justify-between mb-6">
-                <h2 class={panelTitle}>Tasks completed</h2>
-                <span class="text-xs text-gray-500 dark:text-gray-400" x-text="view.bucketLabel"></span>
-            </div>
-            <BarChart items="view.taskBars" label="Tasks completed per period" />
-        </section>
-        <section class={`${panel} p-5`}>
-            <div class="flex items-baseline justify-between mb-6">
-                <h2 class={panelTitle}>Focus time</h2>
-                <span class="text-xs text-gray-500 dark:text-gray-400" x-text="view.bucketLabel"></span>
-            </div>
-            <BarChart items="view.focusBars" label="Focus minutes per period" />
-        </section>
-    </div>
-
-    <div class="grid gap-6 lg:grid-cols-3">
-        <!-- By cluster -->
-        <section class={`${panel} p-5`}>
-            <h2 class={`${panelTitle} mb-1`}>By cluster</h2>
-            <p class="text-sm text-gray-500 dark:text-gray-400 mb-4" x-text="view.clusters.length ? `${$plural(view.summary.tasks, 'task')} in ${rangeLabel}` : `Nothing finished in ${rangeLabel}. Finished tasks show here.`"></p>
-            <button x-show="!view.clusters.length" type="button" class="btn-secondary" x-on:click="$dispatch('change-tab', { tab: 'taskmanager' })">Open tasks</button>
-            <ul class="space-y-3" x-show="view.clusters.length">
-                <template x-for="cluster in view.clusters" :key="cluster.key">
-                    <li>
-                        <div class="flex items-center gap-2 text-sm">
-                            <span class="w-2.5 h-2.5 rounded-full shrink-0" x-bind:style="`background-color: ${cluster.color};`"></span>
-                            <span class="flex-1 min-w-0 truncate text-gray-800 dark:text-gray-100" x-text="cluster.name"></span>
-                            <span class="tabular-nums font-medium text-gray-600 dark:text-gray-300" x-text="cluster.detail"></span>
-                        </div>
-                        <div class="mt-1.5 h-1.5 rounded-full overflow-hidden" x-bind:style="`background-color: color-mix(in srgb, ${cluster.color} 16%, transparent);`">
-                            <div class="h-full rounded-full transition-[width] duration-700" x-bind:style="`width: ${cluster.percent}%; background-color: ${cluster.color};`"></div>
-                        </div>
-                    </li>
+    <!-- Key numbers for the chosen range. The range also sets the charts under Details. -->
+    <section class="space-y-4" aria-labelledby="insights-glance-title">
+        <div class="flex flex-wrap items-end justify-between gap-3">
+            <h2 id="insights-glance-title" class={panelTitle}>At a glance</h2>
+            <div class={segmented} role="group" aria-label="Time range">
+                <template x-for="option in ranges" :key="option.id">
+                    <button
+                        type="button"
+                        x-on:click="setRange(option.id)"
+                        class={segment}
+                        x-bind:class={`range === option.id ? '${segmentOn}' : '${segmentOff}'`}
+                        x-bind:aria-pressed="range === option.id"
+                        x-text="option.label"
+                    ></button>
                 </template>
-            </ul>
-        </section>
-
-        <!-- Rhythm -->
-        <section class={`${panel} p-5 lg:col-span-2`}>
-            <h2 class={`${panelTitle} mb-1`}>Your rhythm</h2>
-            <p class="text-sm text-gray-500 dark:text-gray-400 mb-6" x-text="view.rhythm"></p>
-            <div class="grid gap-6 sm:grid-cols-[2fr_3fr]">
-                <div>
-                    <p class="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-4">By weekday</p>
-                    <BarChart items="view.weekdayBars" label="Tasks completed per weekday" height="h-24" />
-                </div>
-                <div>
-                    <p class="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-4">By hour</p>
-                    <BarChart items="view.hourBars" label="Tasks completed per hour of the day" height="h-24" />
-                </div>
             </div>
-        </section>
-    </div>
+        </div>
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <template x-for="tile in view.tiles" :key="tile.label">
+                <div class={`${panel} p-4 max-sm:min-w-0`}>
+                    <p class="text-sm font-medium text-gray-500 dark:text-gray-400" x-text="tile.label"></p>
+                    <p class="mt-2 text-3xl font-semibold tracking-tight tabular-nums text-gray-900 dark:text-white" x-text="tile.value"></p>
+                    <p class="mt-1 flex max-sm:items-start sm:items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
+                        <!-- Up or down against the previous period: an arrow and words, not color alone -->
+                        <svg x-show="tile.trend" class="w-3.5 h-3.5 shrink-0 max-sm:mt-px" x-bind:class="tile.trend === 'up' ? 'text-teal-600 dark:text-teal-400' : 'text-gray-500 dark:text-gray-400 rotate-180'" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 15l7-7 7 7" /></svg>
+                        <span class="min-w-0 break-words sm:truncate" x-text="tile.detail"></span>
+                    </p>
+                </div>
+            </template>
+        </div>
+    </section>
+
+    <!-- The closer look: closed until opened, and remembered either way -->
+    <Disclosure
+        id="insights-details"
+        title="Details"
+        hint="Your activity map, charts, clusters and rhythm. Here for a closer look, whenever it helps."
+        storageKey="insightsDetails"
+        class="mt-6 space-y-6"
+    >
+        <div class="grid gap-6 lg:grid-cols-3">
+            <!-- Activity calendar -->
+            <section class={`${panel} p-5 flex flex-col`}>
+                <div class="flex flex-wrap items-baseline justify-between gap-2 mb-4">
+                    <div>
+                        <h2 class={panelTitle}>Activity</h2>
+                        <p class="text-sm text-gray-500 dark:text-gray-400" x-text="`Last 26 weeks · ${$plural(view.heatmapActiveDays, 'active day')}`"></p>
+                    </div>
+                    <div class="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400" aria-hidden="true">
+                        Less
+                        <template x-for="level in [0, 1, 2, 3, 4]" :key="level">
+                            <span class="w-3 h-3 rounded-[3px]" x-bind:class="levelClass(level)"></span>
+                        </template>
+                        More
+                    </div>
+                </div>
+                <p id="activity-keyboard-help" class="sr-only">Use arrow keys to move between days, or Home and End to move to the first and last day.</p>
+                <div class="relative w-full my-auto" x-data="{
+                    hovered: null,
+                    activeDate: $dates.toDateKey(),
+                    moveDay(event) {
+                        const days = [...event.currentTarget.querySelectorAll('[role=listitem]')];
+                        const index = days.indexOf(event.target);
+                        const offsets = { ArrowUp: -1, ArrowDown: 1, ArrowLeft: -7, ArrowRight: 7 };
+                        if (index === -1 || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || !(event.key in offsets || event.key === 'Home' || event.key === 'End')) return;
+                        event.preventDefault();
+                        const next = event.key === 'Home' ? 0 : event.key === 'End' ? days.length - 1 : Math.max(0, Math.min(days.length - 1, index + offsets[event.key]));
+                        days[next].focus();
+                    }
+                }" x-on:mouseleave="hovered = null">
+                    <div
+                        x-show="hovered"
+                        x-cloak
+                        class="absolute z-10 px-2.5 py-1.5 rounded-lg bg-gray-900 dark:bg-slate-950 text-white text-xs shadow-lg pointer-events-none whitespace-nowrap"
+                        x-bind:style="hovered ? `left: ${(hovered.column + 0.5) / 26 * 100}%; top: ${hovered.row / 7 * 100}%; transform: translate(${-(hovered.column + 0.5) / 26 * 100}%, -100%);` : ''"
+                    >
+                        <p class="font-semibold" x-text="hovered?.summary"></p>
+                        <p class="text-gray-300" x-text="hovered ? $dates.formatDate(hovered.date, { weekday: 'short', month: 'short', day: 'numeric' }) : ''"></p>
+                    </div>
+                    <div class="grid grid-rows-7 grid-flow-col auto-cols-fr gap-[3px]" role="list" aria-label="Activity per day for the last 26 weeks" aria-describedby="activity-keyboard-help" x-on:keydown="moveDay($event)">
+                        <template x-for="cell in view.heatmap" :key="cell.date">
+                            <div
+                                class="aspect-square rounded-[3px] focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
+                                x-bind:class="cell.future ? 'invisible' : levelClass(cell.level)"
+                                x-bind:role="cell.future ? null : 'listitem'"
+                                x-bind:tabindex="!cell.future && cell.date === activeDate ? 0 : -1"
+                                x-bind:aria-label="cell.future ? null : `${$dates.formatDate(cell.date, { month: 'short', day: 'numeric' })}: ${cell.summary}`"
+                                x-on:mouseenter="!cell.future && (hovered = cell)"
+                                x-on:focus="activeDate = cell.date; hovered = cell"
+                                x-on:blur="hovered = null"
+                            ></div>
+                        </template>
+                    </div>
+                </div>
+                <p class={`${caption} mt-4`}>Each square is one day. Deeper color means more got done.</p>
+            </section>
+
+            <section class={`${panel} p-5`}>
+                <div class="flex items-baseline justify-between mb-6">
+                    <h2 class={panelTitle}>Tasks completed</h2>
+                    <span class="text-xs text-gray-500 dark:text-gray-400" x-text="view.bucketLabel"></span>
+                </div>
+                <BarChart items="view.taskBars" label="Tasks completed per period" />
+                <p class={`${caption} mt-4`}>Busy stretches and quiet ones both belong here.</p>
+            </section>
+            <section class={`${panel} p-5`}>
+                <div class="flex items-baseline justify-between mb-6">
+                    <h2 class={panelTitle}>Focus time</h2>
+                    <span class="text-xs text-gray-500 dark:text-gray-400" x-text="view.bucketLabel"></span>
+                </div>
+                <BarChart items="view.focusBars" label="Focus minutes per period" />
+                <p class={`${caption} mt-4`}>Time from the focus sessions you finished.</p>
+            </section>
+        </div>
+
+        <div class="grid gap-6 lg:grid-cols-3">
+            <!-- By cluster -->
+            <section class={`${panel} p-5`}>
+                <h2 class={`${panelTitle} mb-1`}>By cluster</h2>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mb-4" x-text="view.clusters.length ? `${$plural(view.summary.tasks, 'task')} in ${rangeLabel}` : 'When you finish tasks, they gather here by cluster.'"></p>
+                <button x-show="!view.clusters.length" type="button" class="btn-secondary" x-on:click="$dispatch('change-tab', { tab: 'taskmanager' })">Open tasks</button>
+                <ul class="space-y-3" x-show="view.clusters.length">
+                    <template x-for="cluster in view.clusters" :key="cluster.key">
+                        <li>
+                            <div class="flex items-center gap-2 text-sm">
+                                <span class="w-2.5 h-2.5 rounded-full shrink-0" x-bind:style="`background-color: ${cluster.color};`"></span>
+                                <span class="flex-1 min-w-0 truncate text-gray-800 dark:text-gray-100" x-text="cluster.name"></span>
+                                <span class="tabular-nums font-medium text-gray-600 dark:text-gray-300" x-text="cluster.detail"></span>
+                            </div>
+                            <div class="mt-1.5 h-1.5 rounded-full overflow-hidden" x-bind:style="`background-color: color-mix(in srgb, ${cluster.color} 16%, transparent);`">
+                                <div class="h-full rounded-full transition-[width] duration-700" x-bind:style="`width: ${cluster.percent}%; background-color: ${cluster.color};`"></div>
+                            </div>
+                        </li>
+                    </template>
+                </ul>
+            </section>
+
+            <!-- Rhythm -->
+            <section class={`${panel} p-5 lg:col-span-2`}>
+                <h2 class={`${panelTitle} mb-1`}>Your rhythm</h2>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mb-6" x-text="view.rhythm"></p>
+                <div class="grid gap-6 sm:grid-cols-[2fr_3fr]">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-4">By weekday</p>
+                        <BarChart items="view.weekdayBars" label="Tasks completed per weekday" height="h-24" />
+                    </div>
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-4">By hour</p>
+                        <BarChart items="view.hourBars" label="Tasks completed per hour of the day" height="h-24" />
+                    </div>
+                </div>
+                <p class={`${caption} mt-6`}>A pattern to notice, not a target to meet.</p>
+            </section>
+        </div>
+    </Disclosure>
 
     <Recap />
 </div>
@@ -292,7 +310,7 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
             months: [],
             view: { tiles: [], heatmap: [], heatmapActiveDays: 0, taskBars: [], focusBars: [], weekdayBars: [], hourBars: [], clusters: [], summary: { tasks: 0 }, bucketLabel: '', rhythm: '' },
             recapTeaser: '',
-            recapCounts: '',
+            recapReflection: '',
 
             setRange(id) {
                 this.range = id;
@@ -333,12 +351,14 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
                 const summary = summarize(completions, sessions, range);
                 const before = summarize(completions, sessions, previousRange(range));
 
-                // Plain comparisons with the period just before. No scores, no streaks.
+                // Plain comparisons with the period just before. No scores, no streaks, and a dip
+                // is described as lighter rather than as a percentage lost.
                 const change = (now, then, noun) => {
                     const percent = percentChange(now, then);
-                    if (percent === null) return { detail: now ? `New since the ${noun} before` : 'Nothing logged yet', trend: null };
+                    if (percent === null) return { detail: now ? `More than the ${noun} before` : 'Quiet so far', trend: now ? 'up' : null };
                     if (percent === 0) return { detail: `Same as the ${noun} before`, trend: null };
-                    return { detail: `${Math.abs(percent)}% ${percent > 0 ? 'more' : 'less'} than the ${noun} before`, trend: percent > 0 ? 'up' : 'down' };
+                    if (percent < 0) return { detail: `Lighter than the ${noun} before`, trend: 'down' };
+                    return { detail: `${percent}% more than the ${noun} before`, trend: 'up' };
                 };
                 const noun = this.range === '12m' ? '12 months' : `${RANGES.find(option => option.id === this.range).days} days`;
                 const averageSession = summary.sessions ? Math.round(summary.focusMinutes / summary.sessions) : 0;
@@ -387,8 +407,8 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
                 const part = partOfDay(summary.byHour);
                 const bestDay = summary.byWeekday.indexOf(topWeekday);
                 const rhythm = summary.tasks
-                    ? `${weekdayName(bestDay, 'long')}s are your strongest day${part ? `, and you're ${/^[aeiou]/.test(part) ? 'an' : 'a'} ${part} ${part.includes(' ') ? '' : 'person'}`.trimEnd() : ''}.`
-                    : 'Finish a few tasks to see when you work best.';
+                    ? `${weekdayName(bestDay, 'long')}s are when you finish the most${part ? `, and you're ${/^[aeiou]/.test(part) ? 'an' : 'a'} ${part} ${part.includes(' ') ? '' : 'person'}`.trimEnd() : ''}.`
+                    : 'Once a few tasks are done, the days and hours that suit you show here.';
 
                 const topCount = summary.byCluster[0]?.count ?? 0;
                 const topFocus = Math.max(0, ...summary.byCluster.map(entry => entry.focusMinutes));
@@ -419,11 +439,17 @@ const segmentOff = 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:ho
                     id: month,
                     label: month === monthOf(today) ? `${formatMonth(month)} (so far)` : formatMonth(month)
                 }));
+                // The lead summary: the month in one or two plain sentences
                 const month = summarize(completions, sessions, monthRange(this.recapMonth));
-                this.recapCounts = month.tasks || month.focusMinutes ? `${plural(month.tasks, 'task')} and ${dates.formatDuration(month.focusMinutes)} of focus` : '';
-                this.recapTeaser = this.recapCounts
-                    ? `${this.recapCounts}. Tap play for the full story.`
-                    : 'Nothing logged this month yet. Finish a task or a focus session to start the story.';
+                const topCluster = month.byCluster[0]?.clusterId ? todos.find(month.byCluster[0].clusterId)?.todo : null;
+                const parts = [
+                    month.tasks && plural(month.tasks, 'finished task'),
+                    month.focusMinutes && `${dates.formatDuration(month.focusMinutes)} of focus`
+                ].filter(Boolean);
+                this.recapReflection = parts.length
+                    ? `${parts.join(' and ')}, across ${plural(month.activeDays, 'day')}.${topCluster ? ` ${topCluster} came up most.` : ''}`
+                    : 'This month’s story starts with your first finished task or focus session.';
+                this.recapTeaser = parts.length ? `${this.recapReflection} Play it for the whole story.` : this.recapReflection;
             }
         }));
     });

@@ -5,6 +5,8 @@ test('saved Quiet desk becomes Zen garden and the picker persists it', async ({ 
   await page.addInitScript(() => {
     if (!localStorage.getItem('settings')) {
       localStorage.setItem('settings', JSON.stringify({ zenBackground: 'desk' }));
+      // The background picker lives under "More ways to personalize"; start with it open
+      localStorage.setItem('settingsMore', 'open');
     }
   });
   await page.goto('/#zenmode');
